@@ -1,0 +1,26 @@
+# Gradle
+.gradle/
+**/build/
+
+# Kotlin
+.kotlin/
+
+# IntelliJ IDEA / Android Studio
+.idea/
+*.iml
+
+# macOS
+.DS_Store
+
+# Local environment
+local.properties
+
+# Native / Xcode build products
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Logs and temporary files
+*.log
+*.tmp
+*~
