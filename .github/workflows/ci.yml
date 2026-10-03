@@ -10,7 +10,17 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: Build and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - windows-latest
+          - ubuntu-latest
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -24,5 +34,10 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build and test
+      - name: Build and test (macOS / Linux)
+        if: runner.os != 'Windows'
         run: ./gradlew :core:desktopTest :desktopApp:build --no-daemon
+
+      - name: Build and test (Windows)
+        if: runner.os == 'Windows'
+        run: .\gradlew.bat :core:desktopTest :desktopApp:build --no-daemon

@@ -1,5 +1,7 @@
 # Pokecom GO Plus
 
+[![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
+
 Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向けプログラムを
 現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す
 マルチプラットフォーム開発環境です。
@@ -9,11 +11,10 @@ Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向け�
 
 ## 現在の状態
 
-プロジェクトは初期設計・基盤構築段階です。最初の対象機種をPC-1245とし、
-Pokecom GOの実績ある動作を参照しながら、ヘッドレスなエミュレーターCoreを
-Kotlin Multiplatformで構築します。
-
-現時点では、エミュレーター本体やROM実行機能はまだ実装されていません。
+プロジェクトは初期実装段階です。最初の対象機種であるPC-1245について、
+エミュレーターCoreとCompose Desktopアプリを実装しています。macOSでは実ROMの起動、
+物理キーボード入力、BASICプログラム実行、LCD表示まで動作確認済みです。
+WindowsとLinuxはCIでビルドと自動テストを行い、実機操作は今後確認します。
 
 ## プロジェクトの位置付け
 
@@ -60,6 +61,10 @@ ROMイメージをコミットしない。
 ```bash
 ./gradlew build
 ```
+
+GitHubへpushした場合とPull Requestを更新した場合は、GitHub ActionsがmacOS、Windows、
+Linux上でCoreのDesktopテストとDesktopアプリのビルド・テストを実行する。CIにはROMを
+渡さず、再配布可能な合成データだけを使用する。
 
 Coreの共通テストだけを実行する場合：
 
