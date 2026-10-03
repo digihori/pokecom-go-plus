@@ -16,9 +16,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -56,6 +58,8 @@ import com.digihori.pgp.desktop.rom.DesktopRomLoadError
 import com.digihori.pgp.desktop.rom.DesktopRomLoadResult
 import com.digihori.pgp.desktop.rom.DesktopRomLoader
 import com.digihori.pgp.desktop.rom.DesktopRomLocator
+import com.digihori.pgp.desktop.rom.DesktopRomPackageConversionResult
+import com.digihori.pgp.desktop.rom.DesktopRomPackageConverter
 import com.digihori.pgp.desktop.runner.DesktopEmulatorRunner
 import com.digihori.pgp.desktop.runner.RunnerState
 import java.awt.FileDialog
@@ -83,19 +87,34 @@ private fun App(keyboardInput: DesktopKeyboardInput) {
     var runner by remember { mutableStateOf<DesktopEmulatorRunner?>(null) }
     var runnerState by remember { mutableStateOf(RunnerState.PAUSED) }
     var loadedRomName by remember { mutableStateOf<String?>(null) }
-    var message by remember { mutableStateOf("Select a PC-1245 legacy 64 KiB ROM image.") }
+    var message by remember { mutableStateOf("Select a PC-1245 legacy 32/64 KiB ROM image.") }
     var executedCycles by remember { mutableLongStateOf(0L) }
     var display by remember { mutableStateOf<DisplaySnapshot?>(null) }
     var cpu by remember { mutableStateOf<CpuSnapshot?>(null) }
     var operatingMode by remember { mutableStateOf(OperatingMode.RUN) }
     var requestedToneHz by remember { mutableStateOf(0) }
+    var showOpenRomGuide by remember { mutableStateOf(false) }
+    var showCreateRomSetGuide by remember { mutableStateOf(false) }
+    var errorDialogMessage by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
     val audioPlayer = remember { DesktopAudioPlayer() }
 
+    fun showError(value: String) {
+        message = value
+        errorDialogMessage = value
+    }
+
     fun loadRom(file: File, startAutomatically: Boolean) {
-        val result = runCatching { DesktopRomLoader.loadPc1245LegacyImage(file.readBytes()) }
+        val result = runCatching {
+            val bytes = file.readBytes()
+            if (file.extension.equals("pgrom", ignoreCase = true)) {
+                DesktopRomLoader.loadPackage(bytes)
+            } else {
+                DesktopRomLoader.loadPc1245LegacyImage(bytes)
+            }
+        }
             .getOrElse {
-                message = "Could not read ROM: ${it.message ?: it::class.simpleName}"
+                showError("Could not read ROM: ${it.message ?: it::class.simpleName}")
                 return
             }
         when (result) {
@@ -119,7 +138,36 @@ private fun App(keyboardInput: DesktopKeyboardInput) {
                     "ROM loaded. Press Run to start."
                 }
             }
-            is DesktopRomLoadResult.Failure -> message = result.error.message()
+            is DesktopRomLoadResult.Failure -> showError(result.error.message())
+        }
+    }
+
+    fun createRomSet() {
+        val internalFile = selectInternalRomFile() ?: return
+        val externalFile = selectExternalRomFile() ?: return
+        val conversion = runCatching {
+            DesktopRomPackageConverter.createPc1245Package(
+                internal = internalFile.readBytes(),
+                external = externalFile.readBytes(),
+            )
+        }.getOrElse {
+            showError("Could not read ROM files: ${it.message ?: it::class.simpleName}")
+            return
+        }
+        when (conversion) {
+            is DesktopRomPackageConversionResult.Failure -> {
+                showError(DesktopRomLoadError.InvalidRom(conversion.error).message())
+            }
+            is DesktopRomPackageConversionResult.Success -> {
+                val destination = selectPackageDestination() ?: return
+                runCatching { destination.writeBytes(conversion.packageBytes) }
+                    .onSuccess {
+                        message = "Created ${destination.name}. Select it with Open ROM to verify the package."
+                    }
+                    .onFailure {
+                        showError("Could not write package: ${it.message ?: it::class.simpleName}")
+                    }
+            }
         }
     }
 
@@ -186,11 +234,8 @@ private fun App(keyboardInput: DesktopKeyboardInput) {
                 CpuRegisterPanel(cpu)
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = {
-                        val selectedFile = selectRomFile()
-                        val file = selectedFile ?: return@Button
-                        loadRom(file, startAutomatically = false)
-                    }) { Text("Select ROM") }
+                    Button(onClick = { showOpenRomGuide = true }) { Text("Open ROM") }
+                    Button(onClick = { showCreateRomSetGuide = true }) { Text("Create ROM Set") }
                     Button(
                         enabled = runner != null && runnerState != RunnerState.FAULTED,
                         onClick = {
@@ -292,6 +337,69 @@ private fun App(keyboardInput: DesktopKeyboardInput) {
 
                 Pc1245SoftwareKeyboard(runner)
             }
+        }
+
+        if (showOpenRomGuide) {
+            AlertDialog(
+                onDismissRequest = { showOpenRomGuide = false },
+                title = { Text("Open PC-1245 ROM") },
+                text = {
+                    Text(
+                        "Choose one of the following files:\n\n" +
+                            "• PGP ROM package (.pgrom)\n" +
+                            "  Created by PGP from separate physical ROM dumps.\n\n" +
+                            "• Pokecom GO compatible image (.bin)\n" +
+                            "  A 32 KiB or 64 KiB address-space image. It can be opened directly; " +
+                            "conversion is not required.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showOpenRomGuide = false
+                        selectRomFile()?.let { loadRom(it, startAutomatically = false) }
+                    }) { Text("Choose File") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showOpenRomGuide = false }) { Text("Cancel") }
+                },
+            )
+        }
+
+        if (showCreateRomSetGuide) {
+            AlertDialog(
+                onDismissRequest = { showCreateRomSetGuide = false },
+                title = { Text("Create PC-1245 ROM Set") },
+                text = {
+                    Text(
+                        "You will choose three items in this order:\n\n" +
+                            "1. Internal ROM dump — exactly 8 KiB (8192 bytes)\n" +
+                            "2. External ROM dump — exactly 16 KiB (16384 bytes)\n" +
+                            "3. Destination for the new .pgrom file\n\n" +
+                            "File names do not matter. PGP validates each size and creates the manifest " +
+                            "and SHA-256 values automatically.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showCreateRomSetGuide = false
+                        createRomSet()
+                    }) { Text("Continue") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCreateRomSetGuide = false }) { Text("Cancel") }
+                },
+            )
+        }
+
+        errorDialogMessage?.let { error ->
+            AlertDialog(
+                onDismissRequest = { errorDialogMessage = null },
+                title = { Text("ROM Error") },
+                text = { Text(error) },
+                confirmButton = {
+                    TextButton(onClick = { errorDialogMessage = null }) { Text("OK") }
+                },
+            )
         }
     }
 }
@@ -445,13 +553,33 @@ private fun Pc1245LcdPanel(snapshot: DisplaySnapshot?) {
 }
 
 private fun selectRomFile(): File? {
-    return selectFile("Select PC-1245 ROM", "pc1245mem.bin")
+    return selectFile("Open PC-1245 ROM", "pc-1245.pgrom")
 }
+
+private fun selectInternalRomFile(): File? = selectFile(
+    "Select PC-1245 internal ROM (8 KiB)",
+    "internal.bin",
+)
+
+private fun selectExternalRomFile(): File? = selectFile(
+    "Select PC-1245 external ROM (16 KiB)",
+    "external.bin",
+)
+
+private fun selectPackageDestination(): File? = selectFile(
+    title = "Save PGP ROM Package",
+    suggestedFile = "pc-1245.pgrom",
+    mode = FileDialog.SAVE,
+)
 
 private fun selectBasicFile(): File? = selectFile("Load BASIC source", "*.bas")
 
-private fun selectFile(title: String, suggestedFile: String): File? {
-    val dialog = FileDialog(null as Frame?, title, FileDialog.LOAD).apply {
+private fun selectFile(
+    title: String,
+    suggestedFile: String,
+    mode: Int = FileDialog.LOAD,
+): File? {
+    val dialog = FileDialog(null as Frame?, title, mode).apply {
         file = suggestedFile
         isVisible = true
     }
@@ -478,9 +606,29 @@ private fun DesktopBasicLoadError.message(): String = when (this) {
 private fun DesktopRomLoadError.message(): String = when (this) {
     is DesktopRomLoadError.InvalidRom -> when (val reason = error) {
         is com.digihori.pgp.core.emulator.machine.pc1245.RomImportError.InvalidImageSize ->
-            "Invalid ROM size: ${reason.actual} bytes (expected ${reason.expected})."
+            "Invalid ROM size: ${reason.actual} bytes (expected ${reason.expected.joinToString(" or ")})."
+        is com.digihori.pgp.core.emulator.machine.pc1245.RomImportError.InvalidComponentSize ->
+            "Invalid ${reason.componentId.value} ROM size: ${reason.actual} bytes " +
+                "(expected ${reason.expected})."
     }
+    is DesktopRomLoadError.InvalidPackage -> "Invalid .pgrom package: ${error.message()}"
     is DesktopRomLoadError.SessionCreation -> "Could not create emulator session: $error"
+}
+
+private fun com.digihori.pgp.desktop.rom.DesktopRomPackageError.message(): String = when (this) {
+    is com.digihori.pgp.desktop.rom.DesktopRomPackageError.PackageTooLarge ->
+        "package is too large ($actual bytes; maximum $maximum)"
+    is com.digihori.pgp.desktop.rom.DesktopRomPackageError.TooManyEntries ->
+        "package has more than $maximum entries"
+    is com.digihori.pgp.desktop.rom.DesktopRomPackageError.EntryTooLarge ->
+        "$path exceeds $maximum bytes"
+    is com.digihori.pgp.desktop.rom.DesktopRomPackageError.UnsafePath -> "unsafe path: $path"
+    is com.digihori.pgp.desktop.rom.DesktopRomPackageError.DuplicateEntry -> "duplicate entry: $path"
+    is com.digihori.pgp.desktop.rom.DesktopRomPackageError.InvalidZip -> reason
+    com.digihori.pgp.desktop.rom.DesktopRomPackageError.MissingManifest -> "manifest.json is missing"
+    is com.digihori.pgp.desktop.rom.DesktopRomPackageError.InvalidManifest -> reason
+    is com.digihori.pgp.desktop.rom.DesktopRomPackageError.Validation ->
+        errors.joinToString { it.toString() }
 }
 
 private const val FRAME_DELAY_MILLISECONDS: Long = 16L

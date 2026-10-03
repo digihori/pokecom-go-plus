@@ -81,6 +81,15 @@ ROM起動後に`Load BASIC`を選び、UTF-8の`.bas`ファイルを指定する
 `\\EX`を利用できる。`\\BX`、`\\xNN`、PC-1245キーボードにない文字は直接Tokenizer実装まで
 位置付きエラーとして拒否する。詳細は`docs/BASIC_TEXT_FORMAT.md`を参照する。
 
+### PC-1245 ROMセットの作成
+
+`Create ROM Set`を選び、吸い出した8KiBの内部ROMと16KiBの外部ROMを順番に指定する。
+保存先を選ぶと、サイズとSHA-256を記録した`.pgrom` v1パッケージを生成する。
+生成したファイルは`Select ROM`から直接読み込める。元のROMと生成物はリポジトリへ追加せず、
+`local-data/`などGit管理外の場所に保存する。
+
+既存のPokecom GO用32/64KiBイメージは、互換入力として`Select ROM`から直接起動できる。
+
 ### ビルドと自動テスト
 
 ```bash

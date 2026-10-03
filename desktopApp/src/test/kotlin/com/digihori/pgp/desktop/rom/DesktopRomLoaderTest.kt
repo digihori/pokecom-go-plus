@@ -24,7 +24,21 @@ class DesktopRomLoaderTest {
         val failure = assertIs<DesktopRomLoadResult.Failure>(result)
         val invalid = assertIs<DesktopRomLoadError.InvalidRom>(failure.error)
         val size = assertIs<RomImportError.InvalidImageSize>(invalid.error)
-        assertEquals(Pc1245RomDefinition.LEGACY_IMAGE_SIZE, size.expected)
+        assertEquals(Pc1245RomDefinition.SUPPORTED_LEGACY_IMAGE_SIZES, size.expected)
         assertEquals(42, size.actual)
+    }
+
+    @Test
+    fun createsASessionFromAPgpromPackage() {
+        val image = ByteArray(Pc1245RomDefinition.LEGACY_IMAGE_SIZE)
+        val romSet = assertIs<com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult.Success>(
+            com.digihori.pgp.core.emulator.machine.pc1245.Pc1245FlatRomImporter.importImage(image),
+        ).romSet
+
+        val success = assertIs<DesktopRomLoadResult.Success>(
+            DesktopRomLoader.loadPackage(DesktopRomPackage.write(romSet)),
+        )
+
+        assertEquals(Pc1245RomDefinition.MACHINE_ID, success.session.machineId)
     }
 }

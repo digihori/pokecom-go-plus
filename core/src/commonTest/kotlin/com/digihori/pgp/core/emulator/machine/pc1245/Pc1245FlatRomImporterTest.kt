@@ -27,13 +27,31 @@ class Pc1245FlatRomImporterTest {
     }
 
     @Test
+    fun acceptsACompact32KibImage() {
+        val image = ByteArray(Pc1245RomDefinition.COMPACT_LEGACY_IMAGE_SIZE) { address ->
+            if (address < 0x2000) 0x11 else if (address >= 0x4000) 0x33 else 0x22
+        }
+
+        val result = assertIs<RomImportResult.Success>(Pc1245FlatRomImporter.importImage(image))
+
+        assertContentEquals(
+            ByteArray(Pc1245RomDefinition.INTERNAL_SIZE) { 0x11 },
+            result.romSet.component(Pc1245RomDefinition.INTERNAL_ID)?.copyBytes(),
+        )
+        assertContentEquals(
+            ByteArray(Pc1245RomDefinition.EXTERNAL_SIZE) { 0x33 },
+            result.romSet.component(Pc1245RomDefinition.EXTERNAL_ID)?.copyBytes(),
+        )
+    }
+
+    @Test
     fun reportsInvalidLegacyImageSizeWithoutProducingAPartialSet() {
         val result = assertIs<RomImportResult.Failure>(
             Pc1245FlatRomImporter.importImage(ByteArray(123)),
         )
         val error = assertIs<RomImportError.InvalidImageSize>(result.error)
 
-        assertEquals(0x10000, error.expected)
+        assertEquals(listOf(0x8000, 0x10000), error.expected)
         assertEquals(123, error.actual)
     }
 }

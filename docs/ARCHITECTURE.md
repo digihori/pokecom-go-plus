@@ -276,7 +276,7 @@ data class MachineDefinition(
 複雑なバンク切替やI/O挙動は`Machine`実装または周辺回路クラスに置く。
 SC61860搭載機のOLD/S1/S2分類、中間コード、バンク切替のモデルは
 [MACHINE_FAMILIES.md](MACHINE_FAMILIES.md)で定義する。世代とバンク切替の有無は別の軸として扱う。
-ROMの正規モデル、`.pgprom`、Pokecom GO互換Importerは
+ROMの正規モデル、`.pgrom`、Pokecom GO互換Importerは
 [ROM_PACKAGE.md](ROM_PACKAGE.md)で定義する。
 
 ### 7.3 EmulatorSession

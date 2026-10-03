@@ -929,3 +929,50 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
   同じVRAMのmirrorとして扱う。どのpageへの書込みも`0xf800..0xf8ff`へ正規化して全16 pageへ反映する
 - Verification: `0xe900`と`0xffff`への書込みが`0xe800..0xefff`、`0xf800..0xffff`の対応offsetから
   同一値として読めることをcommonTestで検証
+
+### `.pgrom` v1 manifestとDesktop ZIP入出力
+
+- Date: 2026-10-04
+- PGP files: `RomPackageManifest.kt`とtest、`DesktopRomPackage.kt`とtest、
+  `DesktopRomLoader.kt`、`Main.kt`、ROM Package仕様、Roadmap
+- Core: manifestとcomponentをKMP共通モデルとして定義し、format/version、ID、role、相対path、
+  component ID/path重複、宣言size、SHA-256、実entryとの一致をまとめて検証する。成功時だけ`RomSet`を生成する
+- Desktop: ZIPとUTF-8 JSON、SHA-256をJVM層で扱い、`.pgrom`の読込みと`RomSet`からの書出しを実装する。
+  Select ROMは拡張子`.pgrom`を判別し、従来64KiB ROMとの両方を読み込める
+- Safety: 圧縮ファイルサイズ、entry数、entry単体と展開後合計の上限を設け、絶対path、backslash、空segment、
+  `.`、`..`、entry重複を拒否する。manifest未記載entryはv1仕様どおりwarningとして保持する
+- Verification: package往復、Session生成、digest不一致、path traversal、共通validatorの複合errorとwarningをテストする
+
+### PC-1245 Legacy ROMから`.pgrom`へのDesktop変換
+
+- Date: 2026-10-04
+- PGP files: `DesktopRomPackageConverter.kt`とtest、`Main.kt`、README
+- Flow: `Convert ROM`で32KiBまたは64KiB legacy imageを選択し、既存`Pc1245FlatRomImporter`で正規`RomSet`へ変換後、
+  `.pgrom` writerで保存する。変換元ファイルを直接ZIPへ入れず、未使用領域はパッケージへ持ち込まない
+- Verification: 生成packageをreaderで再読込みし、machine ID、内部8KiB、外部16KiBを確認する。
+  不正なlegacy imageはpackageを生成する前に拒否する
+- Compatibility: PC-1245で必要な最大ROM addressは`0x7fff`のため32KiB形式を正規入力として許可する。
+  Pokecom GO互換64KiBも維持し、後半32KiBのダミー内容に関係なく同じ`.pgrom` componentを生成する
+- Real ROM verification: ローカルROMが存在する場合、64KiB実データを`.pgrom`へ変換して再読込みし、
+  component構成、warningなし、Session生成、100万cycleでfaultせず起動することをDesktop smoke testで確認する。
+  ROMがないCIではテストをskipし、ROM byteと生成packageは保存・コミットしない
+
+### PC-1245物理ROM別Importer
+
+- Date: 2026-10-04
+- PGP files: `Pc1245ComponentRomImporter`とtest、`DesktopRomPackageConverter.kt`とtest、
+  `Main.kt`、README、ROM Package仕様
+- Standard input: PC-1245は内部ROM 8KiBと外部ROM 16KiBを別ファイルとして受け取る。
+  ファイル名やPokecom GOのaddress-space containerには依存せず、UIで選択したslotと正確なサイズを検証する
+- Compatibility: 32/64KiB Flat ImporterはPokecom GO互換のLegacy経路として維持し、標準package作成経路とは分離する
+- UI: `Convert ROM`を`Create ROM Set`へ変更し、内部ROM、外部ROM、保存先を順に選択する。
+  manifestとSHA-256はPGPが生成し、利用者による編集を要求しない
+- Bank-ready design: 将来のバンク機ではMachine Definitionがbank数を定義し、16KiBの各物理ROMを
+  bank番号slotへ割り当て、正規`RomSet`では番号順に連結する
+- Temporary UI limitation: 現在の`Create ROM Set`はPC-1245専用の仮実装で、内部ROM、外部ROM、保存先の
+  native file dialogを順番に表示する。2ファイルでは利用できるが、バンク機へこの方式を拡張しない
+- Deferred Import Wizard: 1つの画面に必要なcomponent/bank slot、選択済みファイル名、期待size、検証結果を
+  一覧表示する。物理ROM別入力とPokecom GO互換入力を切り替え、Legacy Flat/Split形式から`.pgrom`を
+  作成できるようにする。複数bankの一括選択と順序確認もこの画面で扱う
+- Current legacy behavior: PC-1245のPokecom GO互換32/64KiB imageは`Open ROM`から直接実行できるが、
+  Desktop UIから`.pgrom`へ保存する操作は未提供。Core/Converterの変換経路は維持し、Wizardから接続する

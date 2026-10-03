@@ -19,8 +19,9 @@
 - [x] SC61860の最小命令実装を移植する
 - [x] PC-1245のメモリマップを実装する
 - [x] ROMを`ByteArray`として読み込む
-- [x] ROMをコンポーネント化し、PC-1245 Flat 64KiB Importerを実装する
-- [ ] `.pgprom` v1のmanifest検証とDesktop ZIP入出力を実装する
+- [x] ROMをコンポーネント化し、PC-1245 Flat 32/64KiB Importerを実装する
+- [x] PC-1245の物理ROM別8KiB＋16KiB Importerを実装する
+- [x] `.pgrom` v1のmanifest検証とDesktop ZIP入出力を実装する
 - [x] `reset`、`step`、`runCycles`を実装する
 - [x] CPU、RAM Snapshotを実装する
 - [x] LCD Snapshotを実装する
@@ -82,6 +83,8 @@
 
 - [ ] Windowsでのビルド・配布
 - [ ] Linuxでのビルド・配布
+- [ ] ROM Import Wizardを実装する（入力slot一覧、inline検証、Pokecom GO形式から`.pgrom`への変換）
+- [ ] バンク機の物理ROMをBank 0..Nの一覧で割り当て、一括選択できるようにする
 - [ ] Desktop設定と最近使ったファイル
 - [ ] パッケージ生成とリリース自動化
 

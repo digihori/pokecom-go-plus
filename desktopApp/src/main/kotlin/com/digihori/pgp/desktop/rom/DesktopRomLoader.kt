@@ -24,6 +24,21 @@ internal object DesktopRomLoader {
                 is CreateSessionResult.Success -> DesktopRomLoadResult.Success(created.session)
             }
         }
+
+    fun loadPackage(packageBytes: ByteArray): DesktopRomLoadResult =
+        when (val read = DesktopRomPackage.read(packageBytes)) {
+            is DesktopRomPackageReadResult.Failure -> DesktopRomLoadResult.Failure(
+                DesktopRomLoadError.InvalidPackage(read.error),
+            )
+            is DesktopRomPackageReadResult.Success -> when (
+                val created = EmulatorFactory.create(read.romSet.machineId, read.romSet)
+            ) {
+                is CreateSessionResult.Failure -> DesktopRomLoadResult.Failure(
+                    DesktopRomLoadError.SessionCreation(created.error),
+                )
+                is CreateSessionResult.Success -> DesktopRomLoadResult.Success(created.session)
+            }
+        }
 }
 
 internal sealed interface DesktopRomLoadResult {
@@ -33,5 +48,6 @@ internal sealed interface DesktopRomLoadResult {
 
 internal sealed interface DesktopRomLoadError {
     data class InvalidRom(val error: RomImportError) : DesktopRomLoadError
+    data class InvalidPackage(val error: DesktopRomPackageError) : DesktopRomLoadError
     data class SessionCreation(val error: CreateSessionError) : DesktopRomLoadError
 }

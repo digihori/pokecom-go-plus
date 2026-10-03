@@ -1,9 +1,9 @@
 # PGP ROM Package Format
 
 **形式名:** PGP ROM Package  
-**拡張子:** `.pgprom`  
+**拡張子:** `.pgrom`
 **初期バージョン:** 1  
-**ステータス:** 実装前仕様
+**ステータス:** v1実装済み
 
 ## 1. 目的
 
@@ -18,7 +18,7 @@ Legacy ROM files
     ↓ Importer
 RomSet（正規モデル）
     ↓ Package writer
-.pgprom
+.pgrom
 ```
 
 ## 2. 設計原則
@@ -33,7 +33,7 @@ RomSet（正規モデル）
 
 ## 3. コンテナ
 
-`.pgprom`はZIPコンテナとする。
+`.pgrom`はZIPコンテナとする。
 
 - `manifest.json`をルートへ1つ置く。
 - JSONはUTF-8でエンコードする。
@@ -45,7 +45,7 @@ RomSet（正規モデル）
 PC-1245の例：
 
 ```text
-pc-1245.pgprom
+pc-1245.pgrom
 ├─ manifest.json
 └─ rom/
    ├─ internal.bin
@@ -55,7 +55,7 @@ pc-1245.pgprom
 PC-1470Uの例：
 
 ```text
-pc-1470u.pgprom
+pc-1470u.pgrom
 ├─ manifest.json
 └─ rom/
    ├─ internal.bin
@@ -166,11 +166,30 @@ external-banks.bin (128KiB)
 bank size、bank count、CPU側のwindowは`MachineDefinition`で定義する。ファイルサイズが
 `bankSize * bankCount`と一致しなければMachine生成を拒否する。
 
-## 7. Pokecom GO互換Importer
+## 7. Importer
 
-### 7.1 Flat 64KiB Importer
+### 7.1 物理ROMコンポーネントImporter（標準）
 
-PC-1245の`pc1245mem.bin`などを読み込み、必要な領域だけを抽出する。
+PGPでROMセットを新規作成するときは、吸い出した物理ROMごとのファイルを入力する。
+ファイル名ではなく、ユーザーが機種ごとのcomponent slotへ割り当てた役割とサイズで識別する。
+
+PC-1245では次の2ファイルを入力する。
+
+| Slot | サイズ | 出力component |
+|---|---:|---|
+| 内部ROM | 8KiB | `internal` |
+| 外部ROM | 16KiB | `external` |
+
+バンク機では、内部ROMに加えて16KiBの各bankファイルをbank番号順のslotへ割り当てる。
+正規`RomSet`ではbank 0から順に連結した1つの`external` componentへ変換する。
+
+### 7.2 Pokecom GO互換Importer
+
+#### 7.2.1 Flat 32/64KiB Importer
+
+PC-1245の`pc1245mem.bin`などを読み込み、必要な領域だけを抽出する。PC-1245では
+`0x0000..0x7fff`を含む32KiB形式と、Pokecom GO互換の64KiB形式の両方を受け付ける。
+64KiB形式の後半32KiBはROMではないため破棄する。
 
 ```text
 0x0000..0x1fff → internal
@@ -181,7 +200,7 @@ PC-1245の`pc1245mem.bin`などを読み込み、必要な領域だけを抽出�
 抽出範囲はImporterへハードコードせず、対象機種のLegacy Import Definitionとして定義する。
 外部ROMが別アドレスにある機種も同じImporterの機種別定義で扱う。
 
-### 7.2 Split Bank Importer
+#### 7.2.2 Split Bank Importer
 
 Pokecom GOのバンク機用2ファイルを読み込む。
 
@@ -198,7 +217,7 @@ pc1470bank.bin → external（全バンク連結）
 
 - Pokecom GO互換64KiBイメージ
 - Pokecom GO互換の内部ROM＋連結バンクROM
-- `.pgprom`
+- `.pgrom`
 
 旧形式へのexportで生じる未使用領域は`0x00`で埋める。
 
@@ -211,7 +230,7 @@ pc1470bank.bin → external（全バンク連結）
 | `internal` | `internal` | `0x0000..0x1fff` | 8KiB |
 | `external` | `external` | `0x4000..0x7fff` | 16KiB |
 
-変換前の実ROM、生成した`.pgprom`、展開後のROMデータはいずれも`local-data/`配下へ置き、
+変換前の実ROM、生成した`.pgrom`、展開後のROMデータはいずれも`local-data/`配下へ置き、
 Git管理対象にしない。
 
 ## 9. 検証と安全性
@@ -235,7 +254,7 @@ Importerは最低限次を検証する。
 1. 共通の`RomSet`、`RomComponent`、ROM要件モデル
 2. PC-1245用Flat 64KiB Importer
 3. PC-1245 Machineを2コンポーネントの`RomSet`から生成
-4. `.pgprom` manifestモデルとvalidator
+4. `.pgrom` manifestモデルとvalidator
 5. Desktop用ZIP reader / writer
 6. Pokecom GO Split Bank Importer
 7. 必要になった段階でPokecom GO互換Exporter
