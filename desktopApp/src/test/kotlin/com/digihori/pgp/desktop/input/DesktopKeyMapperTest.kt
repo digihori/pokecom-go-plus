@@ -9,16 +9,16 @@ import kotlin.test.assertNull
 class DesktopKeyMapperTest {
     @Test
     fun mapsLettersTopRowDigitsAndNumpadDigits() {
-        assertEquals(PocketKey.A, DesktopKeyMapper.map(Key.A, 'a'.code))
-        assertEquals(PocketKey.Z, DesktopKeyMapper.map(Key.Z, 'Z'.code))
-        assertEquals(PocketKey.NUM_4, DesktopKeyMapper.map(Key.Four, '4'.code))
-        assertEquals(PocketKey.NUM_7, DesktopKeyMapper.map(Key.NumPad7, '7'.code))
+        assertEquals(PocketKey.A, DesktopKeyMapper.map(Key.A))
+        assertEquals(PocketKey.Z, DesktopKeyMapper.map(Key.Z))
+        assertEquals(PocketKey.NUM_4, DesktopKeyMapper.map(Key.Four))
+        assertEquals(PocketKey.NUM_7, DesktopKeyMapper.map(Key.NumPad7))
     }
 
     @Test
     fun mapsControlAndNavigationKeys() {
         assertEquals(PocketKey.ENTER, DesktopKeyMapper.map(Key.Enter))
-        assertEquals(PocketKey.SHIFT, DesktopKeyMapper.map(Key.ShiftLeft))
+        assertNull(DesktopKeyMapper.map(Key.ShiftLeft))
         assertEquals(PocketKey.CLEAR, DesktopKeyMapper.map(Key.Backspace))
         assertEquals(PocketKey.BREAK, DesktopKeyMapper.map(Key.Escape))
         assertEquals(PocketKey.DEF, DesktopKeyMapper.map(Key.F1))
@@ -26,10 +26,10 @@ class DesktopKeyMapperTest {
     }
 
     @Test
-    fun characterTakesPriorityForShiftedOperators() {
-        assertEquals(PocketKey.PLUS, DesktopKeyMapper.map(Key.Equals, '+'.code))
-        assertEquals(PocketKey.MULTIPLY, DesktopKeyMapper.map(Key.Eight, '*'.code))
-        assertEquals(PocketKey.DIVIDE, DesktopKeyMapper.map(Key.Slash, '/'.code))
+    fun mapsDedicatedOperatorKeysAsDirectFallbacks() {
+        assertEquals(PocketKey.PLUS, DesktopKeyMapper.map(Key.Plus))
+        assertEquals(PocketKey.MULTIPLY, DesktopKeyMapper.map(Key.Multiply))
+        assertEquals(PocketKey.DIVIDE, DesktopKeyMapper.map(Key.Slash))
     }
 
     @Test

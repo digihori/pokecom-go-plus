@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -31,6 +33,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -40,8 +43,9 @@ import com.digihori.pgp.core.api.ExecutionStatus
 import com.digihori.pgp.core.api.CpuSnapshot
 import com.digihori.pgp.core.api.DisplaySnapshot
 import com.digihori.pgp.core.api.OperatingMode
-import com.digihori.pgp.core.api.PocketKey
 import com.digihori.pgp.desktop.input.DesktopKeyboardInput
+import com.digihori.pgp.desktop.input.Pc1245KeyCap
+import com.digihori.pgp.desktop.input.Pc1245KeyboardLayout
 import com.digihori.pgp.desktop.audio.DesktopAudioPlayer
 import com.digihori.pgp.desktop.rom.DesktopRomLoadError
 import com.digihori.pgp.desktop.rom.DesktopRomLoadResult
@@ -235,17 +239,7 @@ private fun App(keyboardInput: DesktopKeyboardInput) {
                     ) { Text("PRO mode") }
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    PocketKeyButton("SHIFT", PocketKey.SHIFT, runner)
-                    PocketKeyButton("DEF", PocketKey.DEF, runner)
-                    PocketKeyButton("←", PocketKey.LEFT, runner)
-                    PocketKeyButton("↑", PocketKey.UP, runner)
-                    PocketKeyButton("↓", PocketKey.DOWN, runner)
-                    PocketKeyButton("→", PocketKey.RIGHT, runner)
-                    PocketKeyButton("BREAK", PocketKey.BREAK, runner)
-                    PocketKeyButton("CLEAR", PocketKey.CLEAR, runner)
-                    PocketKeyButton("ENTER", PocketKey.ENTER, runner)
-                }
+                Pc1245SoftwareKeyboard(runner)
             }
         }
     }
@@ -277,31 +271,84 @@ private fun CpuRegisterPanel(snapshot: CpuSnapshot?) {
 
 @Composable
 private fun PocketKeyButton(
-    label: String,
-    key: PocketKey,
+    cap: Pc1245KeyCap,
     runner: DesktopEmulatorRunner?,
+    modifier: Modifier = Modifier,
 ) {
     Surface(
         color = if (runner == null) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primaryContainer,
         shape = MaterialTheme.shapes.small,
-        modifier = Modifier.pointerInput(runner, key) {
+        modifier = modifier.pointerInput(runner, cap.key) {
             detectTapGestures(
                 onPress = {
                     val activeRunner = runner
                     if (activeRunner != null) {
-                        activeRunner.pressKey(key)
+                        activeRunner.pressKey(cap.key)
                         try {
                             tryAwaitRelease()
                         } finally {
-                            activeRunner.releaseKey(key)
+                            activeRunner.releaseKey(cap.key)
                         }
                     }
                 },
             )
         },
     ) {
-        Box(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
-            Text(label)
+        Column(
+            modifier = Modifier.padding(horizontal = 2.dp, vertical = 3.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = cap.shiftedLabel ?: cap.basicLabel.orEmpty(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.secondary,
+                maxLines = 1,
+            )
+            Text(
+                text = cap.primaryLabel,
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+            )
+            Text(
+                text = if (cap.shiftedLabel != null) cap.basicLabel.orEmpty() else "",
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+@Composable
+private fun Pc1245SoftwareKeyboard(runner: DesktopEmulatorRunner?) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = 1_100.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Pc1245KeyboardLayout.rows.forEach { row ->
+            Row(modifier = Modifier.fillMaxWidth()) {
+                var nextColumn = 0
+                row.forEach { cap ->
+                    if (cap.column > nextColumn) {
+                        Spacer(modifier = Modifier.weight((cap.column - nextColumn).toFloat()))
+                    }
+                    PocketKeyButton(
+                        cap = cap,
+                        runner = runner,
+                        modifier = Modifier
+                            .weight(cap.columnSpan.toFloat())
+                            .height(62.dp)
+                            .padding(horizontal = 2.dp),
+                    )
+                    nextColumn = cap.column + cap.columnSpan
+                }
+                if (nextColumn < Pc1245KeyboardLayout.COLUMN_COUNT) {
+                    Spacer(modifier = Modifier.weight((Pc1245KeyboardLayout.COLUMN_COUNT - nextColumn).toFloat()))
+                }
+            }
         }
     }
 }

@@ -4,17 +4,7 @@ import androidx.compose.ui.input.key.Key
 import com.digihori.pgp.core.api.PocketKey
 
 internal object DesktopKeyMapper {
-    fun map(key: Key, utf16CodePoint: Int = 0): PocketKey? {
-        when (utf16CodePoint.takeIf { it in Char.MIN_VALUE.code..Char.MAX_VALUE.code }?.toChar()) {
-            '+' -> return PocketKey.PLUS
-            '-' -> return PocketKey.MINUS
-            '*' -> return PocketKey.MULTIPLY
-            '/' -> return PocketKey.DIVIDE
-            '.' -> return PocketKey.DOT
-            '=' -> return PocketKey.EQUALS
-        }
-        return KEY_MAP[key]
-    }
+    fun map(key: Key): PocketKey? = KEY_MAP[key]
 
     private val KEY_MAP: Map<Key, PocketKey> = buildMap {
         put(Key.A, PocketKey.A); put(Key.B, PocketKey.B); put(Key.C, PocketKey.C)
@@ -40,7 +30,6 @@ internal object DesktopKeyMapper {
 
         put(Key.Enter, PocketKey.ENTER); put(Key.NumPadEnter, PocketKey.ENTER)
         put(Key.Spacebar, PocketKey.SPACE)
-        put(Key.ShiftLeft, PocketKey.SHIFT); put(Key.ShiftRight, PocketKey.SHIFT)
         put(Key.F1, PocketKey.DEF); put(Key.Escape, PocketKey.BREAK)
         put(Key.Backspace, PocketKey.CLEAR); put(Key.Delete, PocketKey.CLEAR)
         put(Key.DirectionLeft, PocketKey.LEFT); put(Key.DirectionRight, PocketKey.RIGHT)

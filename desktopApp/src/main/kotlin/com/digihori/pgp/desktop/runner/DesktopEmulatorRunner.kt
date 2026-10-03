@@ -12,7 +12,10 @@ import com.digihori.pgp.core.api.RunResult
 import com.digihori.pgp.core.api.StepResult
 import com.digihori.pgp.core.runtime.CycleBudget
 import com.digihori.pgp.core.runtime.CycleBudgetPlanner
+import com.digihori.pgp.core.runtime.KeyInputQueue
+import com.digihori.pgp.core.runtime.KeyTransition
 import com.digihori.pgp.core.runtime.SpeedRatio
+import com.digihori.pgp.desktop.input.DesktopKeyInputSink
 
 internal fun interface MonotonicClock {
     fun nowNanoseconds(): Long
@@ -28,7 +31,11 @@ internal class DesktopEmulatorRunner(
     private val planner: CycleBudgetPlanner = CycleBudgetPlanner(
         cyclesPerSecond = CycleBudgetPlanner.PC1245_CYCLES_PER_SECOND,
     ),
-) {
+    private val keyInputQueue: KeyInputQueue = KeyInputQueue(
+        holdCycles = KEY_HOLD_CYCLES,
+        gapCycles = KEY_GAP_CYCLES,
+    ),
+) : DesktopKeyInputSink {
     var state: RunnerState = RunnerState.PAUSED
         private set
 
@@ -45,12 +52,14 @@ internal class DesktopEmulatorRunner(
     }
 
     fun pause() {
+        applyTransition(keyInputQueue.cancel())
         planner.reset()
         previousTimeNanoseconds = null
         if (state != RunnerState.FAULTED) state = RunnerState.PAUSED
     }
 
     fun reset() {
+        keyInputQueue.cancel()
         session.reset()
         planner.reset()
         previousTimeNanoseconds = null
@@ -80,9 +89,13 @@ internal class DesktopEmulatorRunner(
 
     fun audioSnapshot(): AudioSnapshot = session.audioSnapshot()
 
-    fun pressKey(key: PocketKey): InputResult = session.pressKey(key)
+    override fun pressKey(key: PocketKey): InputResult = session.pressKey(key)
 
-    fun releaseKey(key: PocketKey): InputResult = session.releaseKey(key)
+    override fun releaseKey(key: PocketKey): InputResult = session.releaseKey(key)
+
+    override fun enqueueKeySequence(keys: Iterable<PocketKey>) {
+        keyInputQueue.enqueue(keys)
+    }
 
     fun setOperatingMode(mode: OperatingMode) {
         session.setOperatingMode(mode)
@@ -99,13 +112,43 @@ internal class DesktopEmulatorRunner(
         val budget = planner.plan(now - previous, speed)
         if (budget.cycles == 0L) return RunnerTick(budget, null)
 
-        val result = session.runCycles(budget.cycles)
-        if (result.status is ExecutionStatus.Faulted) {
+        applyTransition(keyInputQueue.start())
+        var cyclesRemaining = budget.cycles
+        var executedCycles = 0L
+        var executedInstructions = 0L
+        var status: ExecutionStatus = ExecutionStatus.Ready
+        while (cyclesRemaining > 0 && status !is ExecutionStatus.Faulted) {
+            val requestedCycles = keyInputQueue.limitCycles(cyclesRemaining)
+            val partialResult = session.runCycles(requestedCycles)
+            check(partialResult.executedCycles > 0) { "Session made no progress" }
+            executedCycles += partialResult.executedCycles
+            executedInstructions += partialResult.executedInstructions
+            cyclesRemaining = (cyclesRemaining - partialResult.executedCycles).coerceAtLeast(0)
+            status = partialResult.status
+            applyTransition(keyInputQueue.advance(partialResult.executedCycles))
+        }
+        val result = RunResult(executedCycles, executedInstructions, status)
+        if (status is ExecutionStatus.Faulted) {
+            applyTransition(keyInputQueue.cancel())
             state = RunnerState.FAULTED
             previousTimeNanoseconds = null
             planner.reset()
         }
         return RunnerTick(budget, result)
+    }
+
+    private fun applyTransition(transition: KeyTransition?) {
+        when (transition) {
+            is KeyTransition.Press -> session.pressKey(transition.key)
+            is KeyTransition.Release -> session.releaseKey(transition.key)
+            null -> Unit
+        }
+    }
+
+    private companion object {
+        // Pokecom GO retained a released key for three 20 ms polling intervals.
+        const val KEY_HOLD_CYCLES: Long = 17_280 // 60 ms at the PC-1245 288 kHz clock.
+        const val KEY_GAP_CYCLES: Long = 5_760 // 20 ms at the PC-1245 288 kHz clock.
     }
 }
 

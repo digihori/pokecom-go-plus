@@ -14,6 +14,7 @@ import com.digihori.pgp.core.api.RunResult
 import com.digihori.pgp.core.api.StepResult
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.runtime.CycleBudgetPlanner
+import com.digihori.pgp.core.runtime.KeyInputQueue
 import com.digihori.pgp.core.runtime.SpeedRatio
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -147,6 +148,48 @@ class DesktopEmulatorRunnerTest {
     }
 
     @Test
+    fun runsQueuedKeySequenceAtCycleBoundaries() {
+        val session = FakeSession()
+        val clock = FakeClock()
+        val runner = DesktopEmulatorRunner(
+            session = session,
+            clock = clock,
+            planner = CycleBudgetPlanner(
+                cyclesPerSecond = CycleBudgetPlanner.PC1245_CYCLES_PER_SECOND,
+                maximumCatchUpNanoseconds = 100_000_000,
+            ),
+            keyInputQueue = KeyInputQueue(holdCycles = 10, gapCycles = 5),
+        )
+
+        runner.enqueueKeySequence(listOf(PocketKey.SHIFT, PocketKey.Q))
+        runner.run()
+        clock.advance(50_000_000)
+        val tick = runner.tick()
+
+        assertEquals(14_400, tick.runResult?.executedCycles)
+        assertEquals(listOf(10L, 5L, 10L, 14_375L), session.budgets)
+        assertEquals(
+            listOf("press:SHIFT", "release:SHIFT", "press:Q", "release:Q"),
+            session.inputEvents,
+        )
+    }
+
+    @Test
+    fun pauseCancelsQueuedInputAndReleasesItsActiveKey() {
+        val session = FakeSession()
+        val clock = FakeClock()
+        val runner = runner(session, clock)
+        runner.enqueueKeySequence(listOf(PocketKey.SHIFT, PocketKey.Q))
+        runner.run()
+        clock.advance(1_000_000)
+        runner.tick()
+
+        runner.pause()
+
+        assertEquals(listOf("press:SHIFT", "release:SHIFT"), session.inputEvents)
+    }
+
+    @Test
     fun rejectsABackwardsClock() {
         val clock = FakeClock(now = 100)
         val runner = runner(FakeSession(), clock)
@@ -182,6 +225,7 @@ class DesktopEmulatorRunnerTest {
         var stepCount = 0
         val pressedKeys = mutableListOf<PocketKey>()
         val releasedKeys = mutableListOf<PocketKey>()
+        val inputEvents = mutableListOf<String>()
         var recordedOperatingMode = OperatingMode.RUN
 
         override fun reset() { resetCount++ }
@@ -200,10 +244,12 @@ class DesktopEmulatorRunnerTest {
         }
         override fun pressKey(key: PocketKey): InputResult {
             pressedKeys += key
+            inputEvents += "press:$key"
             return InputResult.Accepted
         }
         override fun releaseKey(key: PocketKey): InputResult {
             releasedKeys += key
+            inputEvents += "release:$key"
             return InputResult.Accepted
         }
         override fun setOperatingMode(mode: OperatingMode) {

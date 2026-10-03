@@ -802,3 +802,53 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - Failure handling: audio device取得失敗はResultとしてUIへ通知し、CPU実行や入力を停止しない
 - Verification: fake Clipでstart/replace/silence/stop/restart、device failure、PCM長・endianness・入力拒否を
   Desktop unit testで検証
+
+### PC-1245ホスト文字入力マップ
+
+- Date: 2026-10-03
+- PGP files: `Pc1245CharacterInput.kt`、`Pc1245CharacterInputTest.kt`
+- Reference repository: `../pokecom`（read-onlyを維持）
+- Reference files: `pc1245mainkey.png`、`include_keys_1245.xml`、`KeyBoard1245.java`
+- Design: ホストの文字とPC-1245実キーを分離し、文字を機種固有のキー列へ変換する。PC-1245の
+  SHIFTは同時押しmodifierではなくラッチ操作なので、`!`を`SHIFT`、`Q`の連続tapとして表現する
+- Scope: この段階では純粋な変換表だけを追加し、Desktopイベントや実行タイミングには未接続。
+  ソフトウェアキーボードは変換表を経由せず実キーを直接操作する
+- Verification: 英字の大小、数字、直接入力記号、SHIFT刻印記号、未対応文字をcommonTestで検証
+
+### サイクル駆動キー入力キュー
+
+- Date: 2026-10-03
+- PGP files: `KeyInputQueue.kt`、`KeyInputQueueTest.kt`、`DesktopEmulatorRunner.kt`とtest
+- Design: ホスト文字から生成したキー列を、壁時計やCompose frameではなくエミュレーターの実行cycleで
+  press / releaseする。既定では押下を60ms相当（17,280 cycles）、キー間隔を20ms相当
+  （5,760 cycles）とする。Pokecom GOがkey-up後も20ms周期3回分を保持した挙動を下限にした
+- Execution: Runnerは遷移境界まで`runCycles`予算を分割し、命令単位の超過は次phaseへ繰り越さず
+  遷移をその命令直後へ遅らせる。返却する実行量と命令数は分割結果を合算する
+- Lifecycle: pause、faultでは自動入力を破棄して保持キーをreleaseし、resetではSession resetとともに破棄する。
+  画面キーと直接物理キーはキューの管理対象外
+- Verification: press/hold/release/gap順、命令overshoot、cancel、Runnerでの予算分割とpause解放をテスト
+
+### Desktop文字入力と直接キー入力の分離
+
+- Date: 2026-10-03
+- PGP files: `DesktopKeyboardInput.kt`、`DesktopKeyMapper.kt`とtest、`DesktopEmulatorRunner.kt`
+- Design: 印字可能なホスト文字はPC-1245文字マップからサイクル駆動キューへ送り、矢印、Enter、
+  CLEAR、BREAK、DEFは直接press/releaseする。ホストShift自体はPC-1245 SHIFTへ割り当てない
+- Platform behavior: `Shift+1`等は物理キー位置でなくComposeが報告した文字`!`を使用するため、
+  OSやキーボード配列にかかわらずPC-1245の`SHIFT`、`Q`へ変換される。Command/Ctrl併用はOSへ渡す
+- Repeat: 同じ物理キーのKeyDown repeatはKeyUpまで抑制し、1回の文字入力として扱う
+- Verification: shifted文字、host Shift無視、直接操作キー、repeat、Command/Ctrl、入力先交換時の解放を
+  Desktop unit testで検証
+
+### Desktop PC-1245フルソフトウェアキーボード
+
+- Date: 2026-10-03
+- PGP files: `Pc1245KeyboardLayout.kt`、`Pc1245KeyboardLayoutTest.kt`、`Main.kt`
+- Reference repository: `../pokecom`（read-onlyを維持）
+- Reference files: `pc1245mainkey.png`、`include_keys_1245.xml`、`SubActivity1245.java`
+- Layout: 実機相当の14列×4段に全キーを配置し、ENTERの2列幅と上段左側の空きを保持する。
+  主刻印、SHIFT刻印、BASIC命令刻印をデータとして分離し、利用可能幅に対して等比で配置する
+- Input: 各画面キーはホスト文字変換と自動入力キューを経由せず、対応する`PocketKey`をpointer downから
+  release/cancelまで直接保持する。SHIFTも通常キーとしてROMへ渡す
+- Verification: 全`PocketKey`が重複なく1回現れること、各行が14列内で重ならないこと、QのSHIFT刻印を
+  Desktop unit testで検証
