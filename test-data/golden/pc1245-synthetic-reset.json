@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "pgp-golden-1",
+  "caseId": "pc1245-synthetic-reset",
+  "description": "Synthetic NOPT ROM reset and two-instruction execution",
+  "machineId": "pc-1245",
+  "producer": {
+    "implementation": "pgp",
+    "revision": "synthetic-v1"
+  },
+  "rom": {
+    "format": "synthetic-flat-64k-nopt",
+    "sha256": "9e9c1dddb8787259606e29a6fe515a3df88249ed84331d7ac49f51759ba175a5"
+  },
+  "actions": [
+    { "type": "reset" },
+    { "type": "checkpoint", "expectation": "after-reset" },
+    { "type": "runCycles", "cycles": 6 },
+    { "type": "checkpoint", "expectation": "after-two-instructions" }
+  ],
+  "expectations": {
+    "after-reset": {
+      "cpu": {
+        "programCounter": "0000",
+        "dataPointer": "0000",
+        "p": "00",
+        "q": "00",
+        "r": "60",
+        "carry": false,
+        "zero": false,
+        "powerOn": true
+      },
+      "memory": [
+        { "start": "8000", "bytesHex": "00000000" }
+      ],
+      "display": {
+        "enabled": true,
+        "symbols": ["RUN"]
+      },
+      "audio": { "frequencyHz": 0 }
+    },
+    "after-two-instructions": {
+      "cpu": {
+        "programCounter": "0002",
+        "currentProgramCounter": "0001",
+        "opcode": "33"
+      }
+    }
+  }
+}

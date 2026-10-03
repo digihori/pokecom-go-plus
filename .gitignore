@@ -1,5 +1,6 @@
 # Gradle
 .gradle/
+/.gradle-local/
 **/build/
 
 # Kotlin
@@ -14,6 +15,7 @@
 
 # Local environment
 local.properties
+/local-data/
 
 # Native / Xcode build products
 DerivedData/

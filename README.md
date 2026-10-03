@@ -40,8 +40,13 @@ pokecom-go-plus/
 ├── core/          Kotlin Multiplatformの共有Core
 ├── desktopApp/    Compose Desktopアプリケーション
 ├── docs/          構想・設計・移植記録・ロードマップ
+├── local-data/    ローカルROM等（Git管理外）
 └── test-data/     再配布可能なテストデータ
 ```
+
+開発用の実ROMは`local-data/roms/<machine-id>/`へ配置する。現在のPC-1245用ファイルは
+`local-data/roms/pc-1245/pc1245mem.bin`を使用する。`local-data/`全体はGit管理外であり、
+ROMイメージをコミットしない。
 
 ## 開発環境
 
@@ -62,6 +67,37 @@ Coreの共通テストだけを実行する場合：
 ./gradlew :core:desktopTest
 ```
 
+PC-1245の実ROMを使うDesktopスモークテストは、既定の`local-data`配置を自動検出する。
+別の場所に置く場合は`PGP_PC1245_ROM`へ絶対パスまたはリポジトリ相対パスを指定する。
+
+```bash
+PGP_PC1245_ROM=/path/to/pc1245mem.bin \
+  ./gradlew :core:desktopTest \
+  --tests com.digihori.pgp.core.integration.RealPc1245RomSmokeTest
+```
+
+ROMが見つからない環境ではこのテストだけをスキップし、ROMイメージをCIやGitへ持ち込まない。
+
+再配布可能なGoldenケースのJSON再生テスト：
+
+```bash
+./gradlew :core:desktopTest \
+  --tests com.digihori.pgp.core.integration.GoldenScenarioRunnerTest
+```
+
+実ROMからPGP側Golden Snapshotを`local-data/golden/`へ明示的に採取する場合：
+
+```bash
+PGP_EXPORT_GOLDEN=1 \
+PGP_PC1245_ROM=/path/to/pc1245mem.bin \
+PGP_GOLDEN_PRODUCER_REVISION=<git-revision> \
+  ./gradlew :core:desktopTest \
+  --tests com.digihori.pgp.core.integration.GoldenSnapshotExporterTest.exportsLocallySuppliedRomOnlyWhenExplicitlyRequested
+```
+
+出力はROM SHA-256を含み、生成直後に同じRunnerで再生検証される。実ROMと出力JSONは
+`local-data/`配下に留まり、Git管理対象にはならない。
+
 Desktopアプリを起動する場合：
 
 ```bash
@@ -72,6 +108,11 @@ Desktopアプリを起動する場合：
 
 - [プロジェクト構想](docs/PGP_CONCEPT.md)
 - [アーキテクチャ](docs/ARCHITECTURE.md)
+- [Emulator Core公開API](docs/CORE_API.md)
+- [SC61860機種世代](docs/MACHINE_FAMILIES.md)
+- [PC-1245機種定義](docs/machines/PC-1245.md)
+- [PGP ROMパッケージ形式](docs/ROM_PACKAGE.md)
+- [Golden Test Data形式](docs/GOLDEN_TEST_DATA.md)
 - [ロードマップ](docs/ROADMAP.md)
 - [移植記録](docs/PORTING_NOTES.md)
 

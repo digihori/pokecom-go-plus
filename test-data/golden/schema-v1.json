@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://digihori.com/pgp/golden/schema-v1.json",
+  "title": "Pokecom GO Plus Golden Test Data v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "caseId", "machineId", "producer", "rom", "actions", "expectations"],
+  "properties": {
+    "schemaVersion": { "const": "pgp-golden-1" },
+    "caseId": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "description": { "type": "string" },
+    "machineId": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["implementation", "revision"],
+      "properties": {
+        "implementation": { "type": "string", "enum": ["pokecom-go", "pgp", "other"] },
+        "revision": { "type": "string", "minLength": 1 }
+      }
+    },
+    "rom": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "sha256"],
+      "properties": {
+        "format": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/action" }
+    },
+    "expectations": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/expectation" }
+    }
+  },
+  "$defs": {
+    "hex8": { "type": "string", "pattern": "^[0-9a-f]{2}$" },
+    "hex16": { "type": "string", "pattern": "^[0-9a-f]{4}$" },
+    "hexBytes": { "type": "string", "pattern": "^(?:[0-9a-f]{2})*$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "action": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "reset" } } },
+        { "type": "object", "additionalProperties": false, "required": ["type", "count"], "properties": { "type": { "const": "step" }, "count": { "type": "integer", "minimum": 1 } } },
+        { "type": "object", "additionalProperties": false, "required": ["type", "cycles"], "properties": { "type": { "const": "runCycles" }, "cycles": { "type": "integer", "minimum": 1 } } },
+        { "type": "object", "additionalProperties": false, "required": ["type", "key"], "properties": { "type": { "enum": ["pressKey", "releaseKey"] }, "key": { "$ref": "#/$defs/pocketKey" } } },
+        { "type": "object", "additionalProperties": false, "required": ["type", "mode"], "properties": { "type": { "const": "setOperatingMode" }, "mode": { "enum": ["RUN", "PROGRAM"] } } },
+        { "type": "object", "additionalProperties": false, "required": ["type", "expectation"], "properties": { "type": { "const": "checkpoint" }, "expectation": { "type": "string", "minLength": 1 } } }
+      ]
+    },
+    "expectation": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "cpu": { "$ref": "#/$defs/cpu" },
+        "memory": { "type": "array", "items": { "$ref": "#/$defs/memoryRange" } },
+        "display": { "$ref": "#/$defs/display" },
+        "audio": { "$ref": "#/$defs/audio" },
+        "execution": { "$ref": "#/$defs/execution" }
+      }
+    },
+    "cpu": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "programCounter": { "$ref": "#/$defs/hex16" },
+        "currentProgramCounter": { "$ref": "#/$defs/hex16" },
+        "opcode": { "$ref": "#/$defs/hex8" },
+        "dataPointer": { "$ref": "#/$defs/hex16" },
+        "p": { "$ref": "#/$defs/hex8" },
+        "q": { "$ref": "#/$defs/hex8" },
+        "r": { "$ref": "#/$defs/hex8" },
+        "d": { "$ref": "#/$defs/hex8" },
+        "alu": { "$ref": "#/$defs/hex16" },
+        "carry": { "type": "boolean" },
+        "zero": { "type": "boolean" },
+        "xInput": { "$ref": "#/$defs/hex8" },
+        "powerOn": { "type": "boolean" },
+        "ia": { "$ref": "#/$defs/hex8" },
+        "ib": { "$ref": "#/$defs/hex8" },
+        "fo": { "$ref": "#/$defs/hex8" },
+        "control": { "$ref": "#/$defs/hex8" },
+        "testPort": { "$ref": "#/$defs/hex8" },
+        "internalRamHex": { "type": "string", "pattern": "^[0-9a-f]{512}$" }
+      }
+    },
+    "memoryRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "bytesHex"],
+      "properties": {
+        "start": { "$ref": "#/$defs/hex16" },
+        "bytesHex": { "$ref": "#/$defs/hexBytes" }
+      }
+    },
+    "display": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "rows": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "items": { "type": "string", "pattern": "^[01]{80}$" }
+        },
+        "symbols": { "type": "array", "uniqueItems": true, "items": { "enum": ["BUSY", "P", "DEF", "DE", "G", "RAD", "SHIFT", "RUN", "PRO"] } }
+      }
+    },
+    "pocketKey": {
+      "enum": [
+        "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+        "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+        "NUM_0", "NUM_1", "NUM_2", "NUM_3", "NUM_4", "NUM_5", "NUM_6", "NUM_7", "NUM_8", "NUM_9",
+        "ENTER", "SPACE", "SHIFT", "DEF", "BREAK", "PLUS", "MINUS", "MULTIPLY", "DIVIDE", "DOT", "EQUALS",
+        "LEFT", "RIGHT", "UP", "DOWN", "CLEAR"
+      ]
+    },
+    "audio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["frequencyHz"],
+      "properties": { "frequencyHz": { "type": "integer", "minimum": 0 } }
+    },
+    "execution": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["status"], "properties": { "status": { "const": "READY" } } },
+        { "type": "object", "additionalProperties": false, "required": ["status", "address", "opcode"], "properties": { "status": { "const": "UNSUPPORTED_OPCODE" }, "address": { "$ref": "#/$defs/hex16" }, "opcode": { "$ref": "#/$defs/hex8" } } }
+      ]
+    }
+  }
+}

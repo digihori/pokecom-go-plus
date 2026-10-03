@@ -17,11 +17,12 @@ dependencies {
     implementation(project(":core"))
     implementation(compose.desktop.currentOs)
     implementation("org.jetbrains.compose.material3:material3:1.9.0")
+    testImplementation(kotlin("test"))
 }
 
 compose.desktop {
     application {
-        mainClass = "io.github.digihori.pgp.desktop.MainKt"
+        mainClass = "com.digihori.pgp.desktop.MainKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)

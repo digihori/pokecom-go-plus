@@ -122,7 +122,6 @@ CoreからUI、ファイルダイアログ、OSキーコード、クラウドサ
 - I/Oポートとタイマーの挙動
 - LCDメモリと表示ドット・シンボルの対応
 - 機種別キーマトリクスとスキャン規則
-- CLOAD、CSAVE、BEEP等のROMフック情報
 - BASICテキストと中間コードの相互変換
 - 機種別BASICコマンドテーブル
 - BASIC領域の開始・終了アドレス等の機種情報
@@ -138,7 +137,6 @@ CoreからUI、ファイルダイアログ、OSキーコード、クラウドサ
 - `MainLoopXXXX`のLCDビット配置
 - `Sc61860params`の保存対象項目
 - `SubActivityBase`等に含まれるBASIC変換処理
-- `Beep`に含まれる音の発生条件や周波数推定
 
 これらはポケコン固有の知識を保持している一方、Android API、static状態、UI、
 ファイル処理、スレッド制御が混在しているため、そのままPGPへ持ち込まない。
@@ -184,7 +182,6 @@ PGP CoreはUIなしでテストおよび実行できるヘッドレスなライ�
 - セーブ状態の作成と復元
 - BASICトークナイズとデトークナイズ
 - BASIC/バイナリプログラムのメモリ展開と抽出
-- CLOAD、CSAVE、BEEP等のホスト要求の発行
 
 ### 6.2 Coreが担当しないもの
 
@@ -203,6 +200,9 @@ PGP CoreはUIなしでテストおよび実行できるヘッドレスなライ�
 - アプリケーションのライフサイクル
 
 ## 7. Emulator Coreの内部構成
+
+アプリケーション層へ公開する具体的な契約、実行状態、
+Snapshotの所有権は[CORE_API.md](CORE_API.md)で定義する。本節はCore内部の責務分割を扱う。
 
 ### 7.1 CPU
 
@@ -262,8 +262,11 @@ Machine
 data class MachineDefinition(
     val id: MachineId,
     val displayName: String,
+    val family: MachineFamilyId,
+    val generation: MachineGeneration,
     val clockHz: Long,
     val memoryLayout: MemoryLayout,
+    val memoryBanking: MemoryBanking,
     val keyboardLayout: KeyboardLayout,
     val displayLayout: DisplayLayout,
     val basicDialect: BasicDialectId?
@@ -271,6 +274,10 @@ data class MachineDefinition(
 ```
 
 複雑なバンク切替やI/O挙動は`Machine`実装または周辺回路クラスに置く。
+SC61860搭載機のOLD/S1/S2分類、中間コード、バンク切替のモデルは
+[MACHINE_FAMILIES.md](MACHINE_FAMILIES.md)で定義する。世代とバンク切替の有無は別の軸として扱う。
+ROMの正規モデル、`.pgprom`、Pokecom GO互換Importerは
+[ROM_PACKAGE.md](ROM_PACKAGE.md)で定義する。
 
 ### 7.3 EmulatorSession
 
@@ -294,8 +301,6 @@ class EmulatorSession(
 
     fun saveState(): EmulatorState
     fun restoreState(state: EmulatorState)
-
-    fun pollHostRequests(): List<HostRequest>
 }
 ```
 
@@ -385,21 +390,11 @@ DisplaySnapshot
     └─ iOS Compose / SwiftUI
 ```
 
-## 10. ホスト要求と外部I/O
+## 10. 外部I/O
 
-ROM内のCLOAD、CSAVE、BEEP等を検出しても、CoreからUIやファイルダイアログを
-直接呼び出さない。Coreは`HostRequest`を発行する。
-
-```kotlin
-sealed interface HostRequest {
-    data class LoadProgram(val format: ProgramFormat) : HostRequest
-    data class SaveProgram(val format: ProgramFormat) : HostRequest
-    data class Tone(val frequencyHz: Int, val durationCycles: Long) : HostRequest
-}
-```
-
-プラットフォーム層は要求を処理し、必要なデータをCoreへ返す。
-テストではファイルダイアログを使わず、メモリ上のテストデータで応答できるようにする。
+Pokecom GOの`cmdHook()`にあるCLOAD、CSAVE、BEEPのROMアドレスフックは、初期Coreへ
+移植しない。プログラム転送は停止中のSessionに対する明示的な操作として設計し、音声は
+CPUとI/Oポートの実装後に実際の信号を基準として設計する。
 
 ファイルサービスの境界は、パスやURIではなくデータを中心にする。
 
@@ -414,6 +409,8 @@ fun exportBinary(range: AddressRange): ByteArray
 ## 11. BASIC Program Handling
 
 BASIC処理をAndroid ActivityやエミュレーターのRAM操作から分離する。
+OLD、S1、S2では中間コードが異なるため、機種定義から`BasicDialectId`を明示的に選択する。
+世代名だけでトークン表を暗黙選択しない。
 
 ```text
 BasicDialect
@@ -580,7 +577,7 @@ pokecom-go-plus/
 │
 ├─ core/
 │  └─ src/
-│     ├─ commonMain/kotlin/pgp/
+│     ├─ commonMain/kotlin/com/digihori/pgp/
 │     │  ├─ emulator/
 │     │  │  ├─ cpu/
 │     │  │  ├─ memory/
@@ -648,6 +645,10 @@ PGPの移植では、Pokecom GOを参照実装として利用する。
 
 ### 17.1 Golden Test Data
 
+交換形式、再現Action、Snapshot表現、実ROM由来データの配置と審査手順は
+[GOLDEN_TEST_DATA.md](GOLDEN_TEST_DATA.md)で定義する。包括的な採取結果は`local-data/golden/`、
+再配布可能と確認した最小ケースだけを`test-data/golden/`へ置く。
+
 Pokecom GOから次を採取し、PGPの期待値として保存する。
 
 - CPUリセット状態
@@ -669,7 +670,6 @@ Expected Output
 ├─ CPU Snapshot
 ├─ RAM Hash / Range
 ├─ Display Snapshot
-├─ Host Requests
 └─ Stop Reason
 ```
 
