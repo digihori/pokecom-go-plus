@@ -74,18 +74,47 @@ class Pc1245MemoryBusTest {
     }
 
     @Test
-    fun mirrorsTheLcdPageAcrossF800ToFfff() {
+    fun aliasesReadsAndWritesAcrossE800ToEfffAndF800ToFfff() {
         val bus = emptyBus()
 
-        bus.write(0xf900, 0x5a)
+        bus.write(0xe900, 0x5a)
         bus.write(0xffff, 0xa5)
 
+        for (address in 0xe800..0xef00 step 0x0100) {
+            assertEquals(0x5a, bus.read(address))
+        }
         for (address in 0xf800..0xff00 step 0x0100) {
             assertEquals(0x5a, bus.read(address))
+        }
+        for (address in 0xe8ff..0xefff step 0x0100) {
+            assertEquals(0xa5, bus.read(address))
         }
         for (address in 0xf8ff..0xffff step 0x0100) {
             assertEquals(0xa5, bus.read(address))
         }
+    }
+
+    @Test
+    fun preservesTheLowByteWhenResolvingAnE800Alias() {
+        val bus = emptyBus()
+
+        bus.write(0xe914, 0x5a)
+
+        assertEquals(0x5a, bus.read(0xe914))
+        assertEquals(0x5a, bus.read(0xf814))
+        assertEquals(0, bus.read(0xf800))
+    }
+
+    @Test
+    fun doesNotAliasTheF000ToF7ffWorkingRam() {
+        val bus = emptyBus()
+
+        bus.write(0xf014, 0x33)
+        bus.write(0xf714, 0x44)
+
+        assertEquals(0x33, bus.read(0xf014))
+        assertEquals(0x44, bus.read(0xf714))
+        assertEquals(0, bus.read(0xf814))
     }
 
     @Test

@@ -43,13 +43,19 @@ import com.digihori.pgp.core.api.ExecutionStatus
 import com.digihori.pgp.core.api.CpuSnapshot
 import com.digihori.pgp.core.api.DisplaySnapshot
 import com.digihori.pgp.core.api.OperatingMode
+import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomInputUnsupported
+import com.digihori.pgp.desktop.basic.DesktopBasicLoadError
+import com.digihori.pgp.desktop.basic.DesktopBasicLoadResult
+import com.digihori.pgp.desktop.basic.DesktopBasicLoader
 import com.digihori.pgp.desktop.input.DesktopKeyboardInput
 import com.digihori.pgp.desktop.input.Pc1245KeyCap
 import com.digihori.pgp.desktop.input.Pc1245KeyboardLayout
 import com.digihori.pgp.desktop.audio.DesktopAudioPlayer
+import com.digihori.pgp.desktop.display.CharacterCellGeometry
 import com.digihori.pgp.desktop.rom.DesktopRomLoadError
 import com.digihori.pgp.desktop.rom.DesktopRomLoadResult
 import com.digihori.pgp.desktop.rom.DesktopRomLoader
+import com.digihori.pgp.desktop.rom.DesktopRomLocator
 import com.digihori.pgp.desktop.runner.DesktopEmulatorRunner
 import com.digihori.pgp.desktop.runner.RunnerState
 import java.awt.FileDialog
@@ -86,8 +92,43 @@ private fun App(keyboardInput: DesktopKeyboardInput) {
     val scrollState = rememberScrollState()
     val audioPlayer = remember { DesktopAudioPlayer() }
 
+    fun loadRom(file: File, startAutomatically: Boolean) {
+        val result = runCatching { DesktopRomLoader.loadPc1245LegacyImage(file.readBytes()) }
+            .getOrElse {
+                message = "Could not read ROM: ${it.message ?: it::class.simpleName}"
+                return
+            }
+        when (result) {
+            is DesktopRomLoadResult.Success -> {
+                runner?.pause()
+                audioPlayer.stop()
+                val newRunner = DesktopEmulatorRunner(result.session)
+                runner = newRunner
+                keyboardInput.attach(newRunner)
+                loadedRomName = file.name
+                executedCycles = 0L
+                display = newRunner.displaySnapshot()
+                cpu = newRunner.cpuSnapshot()
+                operatingMode = OperatingMode.RUN
+                requestedToneHz = 0
+                if (startAutomatically) newRunner.run()
+                runnerState = newRunner.state
+                message = if (startAutomatically) {
+                    "Default ROM loaded and running."
+                } else {
+                    "ROM loaded. Press Run to start."
+                }
+            }
+            is DesktopRomLoadResult.Failure -> message = result.error.message()
+        }
+    }
+
     DisposableEffect(audioPlayer) {
         onDispose(audioPlayer::close)
+    }
+
+    LaunchedEffect(Unit) {
+        DesktopRomLocator.findPc1245Rom()?.let { loadRom(it, startAutomatically = true) }
     }
 
     LaunchedEffect(runner) {
@@ -148,29 +189,39 @@ private fun App(keyboardInput: DesktopKeyboardInput) {
                     Button(onClick = {
                         val selectedFile = selectRomFile()
                         val file = selectedFile ?: return@Button
-                        val result = runCatching { DesktopRomLoader.loadPc1245LegacyImage(file.readBytes()) }
-                            .getOrElse {
-                                message = "Could not read ROM: ${it.message ?: it::class.simpleName}"
+                        loadRom(file, startAutomatically = false)
+                    }) { Text("Select ROM") }
+                    Button(
+                        enabled = runner != null && runnerState != RunnerState.FAULTED,
+                        onClick = {
+                            val activeRunner = runner ?: return@Button
+                            val file = selectBasicFile() ?: return@Button
+                            val loadResult = runCatching {
+                                DesktopBasicLoader.compilePc1245RomInput(file.readBytes())
+                            }.getOrElse {
+                                message = "Could not read BASIC source: ${it.message ?: it::class.simpleName}"
                                 return@Button
                             }
-                        when (result) {
-                            is DesktopRomLoadResult.Success -> {
-                                runner?.pause()
-                                audioPlayer.stop()
-                                runner = DesktopEmulatorRunner(result.session)
-                                keyboardInput.attach(runner)
-                                runnerState = RunnerState.PAUSED
-                                loadedRomName = file.name
-                                executedCycles = 0L
-                                display = runner?.displaySnapshot()
-                                cpu = runner?.cpuSnapshot()
-                                operatingMode = OperatingMode.RUN
-                                requestedToneHz = 0
-                                message = "ROM loaded. Press Run to start."
+                            when (loadResult) {
+                                is DesktopBasicLoadResult.Failure -> message = loadResult.error.message()
+                                is DesktopBasicLoadResult.Success -> {
+                                    activeRunner.setOperatingMode(OperatingMode.PROGRAM)
+                                    operatingMode = OperatingMode.PROGRAM
+                                    val runResult = activeRunner.runKeySequenceImmediately(loadResult.keys)
+                                    executedCycles += runResult.executedCycles
+                                    runnerState = activeRunner.state
+                                    display = activeRunner.displaySnapshot()
+                                    cpu = activeRunner.cpuSnapshot()
+                                    requestedToneHz = activeRunner.audioSnapshot().frequencyHz
+                                    message = if (runResult.status is ExecutionStatus.Faulted) {
+                                        "BASIC loading stopped: ${runResult.status}"
+                                    } else {
+                                        "Merged ${file.name} through the PC-1245 ROM (${loadResult.keys.size} key taps)."
+                                    }
+                                }
                             }
-                            is DesktopRomLoadResult.Failure -> message = result.error.message()
-                        }
-                    }) { Text("Select ROM") }
+                        },
+                    ) { Text("Load BASIC") }
                     Button(
                         enabled = runner != null && runnerState == RunnerState.PAUSED,
                         onClick = {
@@ -365,16 +416,21 @@ private fun Pc1245LcdPanel(snapshot: DisplaySnapshot?) {
             drawRect(LCD_BACKGROUND)
             if (snapshot == null) return@Canvas
 
-            val cellWidth = size.width / snapshot.dotColumns
+            val visualColumnCount = CharacterCellGeometry.visualColumnCount(
+                snapshot.characterColumns,
+                snapshot.characterWidth,
+            )
+            val cellWidth = size.width / visualColumnCount
             val cellHeight = size.height / snapshot.dotRows
             val insetX = cellWidth * LCD_DOT_INSET_RATIO
             val insetY = cellHeight * LCD_DOT_INSET_RATIO
             for (row in 0 until snapshot.dotRows) {
                 for (column in 0 until snapshot.dotColumns) {
                     if (snapshot.isDotOn(column, row)) {
+                        val visualColumn = CharacterCellGeometry.visualColumn(column, snapshot.characterWidth)
                         drawRect(
                             color = LCD_DOT,
-                            topLeft = Offset(column * cellWidth + insetX, row * cellHeight + insetY),
+                            topLeft = Offset(visualColumn * cellWidth + insetX, row * cellHeight + insetY),
                             size = Size(cellWidth - insetX * 2, cellHeight - insetY * 2),
                         )
                     }
@@ -389,14 +445,34 @@ private fun Pc1245LcdPanel(snapshot: DisplaySnapshot?) {
 }
 
 private fun selectRomFile(): File? {
-    val dialog = FileDialog(null as Frame?, "Select PC-1245 ROM", FileDialog.LOAD).apply {
-        file = "pc1245mem.bin"
+    return selectFile("Select PC-1245 ROM", "pc1245mem.bin")
+}
+
+private fun selectBasicFile(): File? = selectFile("Load BASIC source", "*.bas")
+
+private fun selectFile(title: String, suggestedFile: String): File? {
+    val dialog = FileDialog(null as Frame?, title, FileDialog.LOAD).apply {
+        file = suggestedFile
         isVisible = true
     }
     val directory = dialog.directory
     val fileName = dialog.file
     dialog.dispose()
     return if (directory != null && fileName != null) File(directory, fileName) else null
+}
+
+private fun DesktopBasicLoadError.message(): String = when (this) {
+    DesktopBasicLoadError.InvalidUtf8 -> "BASIC source is not valid UTF-8."
+    is DesktopBasicLoadError.Parse ->
+        "BASIC text error at ${error.line}:${error.column}: ${error.message}"
+    is DesktopBasicLoadError.UnsupportedRomInput -> {
+        val detail = when (val value = error.unsupported) {
+            is Pc1245RomInputUnsupported.Character -> "character '${value.value}'"
+            is Pc1245RomInputUnsupported.SpecialSymbol -> "symbol ${value.value}"
+            is Pc1245RomInputUnsupported.RawByte -> "raw byte 0x${value.value.hex(2)}"
+        }
+        "PC-1245 ROM input does not support $detail at ${error.line}:${error.column}."
+    }
 }
 
 private fun DesktopRomLoadError.message(): String = when (this) {
@@ -410,7 +486,7 @@ private fun DesktopRomLoadError.message(): String = when (this) {
 private const val FRAME_DELAY_MILLISECONDS: Long = 16L
 private const val CPU_REFRESH_FRAME_INTERVAL: Int = 6
 private const val LCD_DOT_INSET_RATIO: Float = 0.14f
-private const val LCD_PANEL_ASPECT_RATIO: Float = 80f / 11f
+private const val LCD_PANEL_ASPECT_RATIO: Float = 95f / 11f
 private val LCD_BACKGROUND: Color = Color(0xffc9d2b0)
 private val LCD_DOT: Color = Color(0xff263126)
 

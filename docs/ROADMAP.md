@@ -72,7 +72,7 @@
 
 ## Phase 3: BASICクロス開発
 
-- [ ] PC-1245 BASIC方言と文字コードを定義する
+- [ ] PC-1245 BASIC方言と文字コードを定義する（共通テキストescape parserは実装済み）
 - [ ] BASIC Tokenizer / Detokenizerを実装する
 - [ ] `.BAS`の読み込みと保存
 - [ ] BASICプログラムのRAMへの展開と抽出

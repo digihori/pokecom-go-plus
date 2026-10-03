@@ -50,6 +50,7 @@ internal class Pc1245MemoryBus(
         if (mappedAddress in 0xb000..0xb7ff) mappedAddress += 0x0800
         if (mappedAddress in 0x8000..0x9fff) mappedAddress += 0x2000
         if (mappedAddress in 0xd000..0xd7ff) mappedAddress -= 0x1000
+        if (mappedAddress in 0xe800..0xefff) mappedAddress += 0x1000
         if (mappedAddress >= 0xf900) mappedAddress = mappedAddress and 0xf8ff
         if (mappedAddress in 0xb800..0xbfff) mappedAddress += 0x0800
 
@@ -61,11 +62,7 @@ internal class Pc1245MemoryBus(
         when (mappedAddress) {
             in 0xc000..0xc7ff -> memory[mappedAddress + 0x1000] = byteValue.toByte()
             in 0xb800..0xbfff -> memory[mappedAddress - 0x0800] = byteValue.toByte()
-            in LCD_MIRROR_SOURCE_RANGE -> {
-                for (offset in 0x0100..0x0700 step 0x0100) {
-                    memory[mappedAddress + offset] = byteValue.toByte()
-                }
-            }
+            in 0xf800..0xf8ff -> mirrorLcdByte(mappedAddress, byteValue)
         }
 
         display.writeMemory(mappedAddress, byteValue)
@@ -97,6 +94,13 @@ internal class Pc1245MemoryBus(
         }
     }
 
+    private fun mirrorLcdByte(canonicalAddress: Int, value: Int) {
+        val offset = canonicalAddress and 0x00ff
+        for (pageBase in LCD_MIRROR_PAGE_BASES) {
+            memory[pageBase + offset] = value.toByte()
+        }
+    }
+
     internal companion object {
         const val ADDRESS_SPACE_SIZE: Int = 0x10000
         const val RAM_START: Int = 0x8000
@@ -104,6 +108,9 @@ internal class Pc1245MemoryBus(
         private const val BYTE_MASK: Int = 0xff
         private const val READ_ALIAS_OFFSET: Int = 0x2000
         private val READ_ALIAS_RANGE: IntRange = 0x2000..0x3fff
-        private val LCD_MIRROR_SOURCE_RANGE: IntRange = 0xf800..0xf8ff
+        private val LCD_MIRROR_PAGE_BASES: IntArray = intArrayOf(
+            0xe800, 0xe900, 0xea00, 0xeb00, 0xec00, 0xed00, 0xee00, 0xef00,
+            0xf900, 0xfa00, 0xfb00, 0xfc00, 0xfd00, 0xfe00, 0xff00,
+        )
     }
 }

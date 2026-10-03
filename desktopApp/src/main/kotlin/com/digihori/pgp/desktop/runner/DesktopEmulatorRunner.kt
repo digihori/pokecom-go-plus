@@ -97,6 +97,54 @@ internal class DesktopEmulatorRunner(
         keyInputQueue.enqueue(keys)
     }
 
+    /** Runs a complete generated key sequence without host-time pacing. */
+    fun runKeySequenceImmediately(keys: Iterable<PocketKey>): RunResult {
+        check(state != RunnerState.FAULTED) { "Cannot run input while the emulator is faulted" }
+        val resumeAfterInput = state == RunnerState.RUNNING
+        applyTransition(keyInputQueue.cancel())
+        keyInputQueue.enqueue(keys)
+        planner.reset()
+        previousTimeNanoseconds = null
+
+        var executedCycles = 0L
+        var executedInstructions = 0L
+        var status: ExecutionStatus = ExecutionStatus.Ready
+        applyTransition(keyInputQueue.start())
+        while (!keyInputQueue.isIdle && status !is ExecutionStatus.Faulted) {
+            val requestedCycles = keyInputQueue.limitCycles(Long.MAX_VALUE)
+            val partialResult = session.runCycles(requestedCycles)
+            check(partialResult.executedCycles > 0) { "Session made no progress" }
+            executedCycles += partialResult.executedCycles
+            executedInstructions += partialResult.executedInstructions
+            status = partialResult.status
+            val transition = keyInputQueue.advance(partialResult.executedCycles)
+            applyTransition(transition)
+
+            // The ROM tokenizes and stores a BASIC line after ENTER. Unlike ordinary
+            // key gaps, that work can take longer as the line and program grow.
+            if (
+                transition is KeyTransition.Release &&
+                transition.key == PocketKey.ENTER &&
+                status !is ExecutionStatus.Faulted
+            ) {
+                val settleResult = session.runCycles(BASIC_LINE_SETTLE_CYCLES)
+                executedCycles += settleResult.executedCycles
+                executedInstructions += settleResult.executedInstructions
+                status = settleResult.status
+            }
+        }
+
+        if (status is ExecutionStatus.Faulted) {
+            applyTransition(keyInputQueue.cancel())
+            state = RunnerState.FAULTED
+        } else if (resumeAfterInput) {
+            previousTimeNanoseconds = clock.nowNanoseconds()
+        } else {
+            state = RunnerState.PAUSED
+        }
+        return RunResult(executedCycles, executedInstructions, status)
+    }
+
     fun setOperatingMode(mode: OperatingMode) {
         session.setOperatingMode(mode)
     }
@@ -149,6 +197,7 @@ internal class DesktopEmulatorRunner(
         // Pokecom GO retained a released key for three 20 ms polling intervals.
         const val KEY_HOLD_CYCLES: Long = 17_280 // 60 ms at the PC-1245 288 kHz clock.
         const val KEY_GAP_CYCLES: Long = 5_760 // 20 ms at the PC-1245 288 kHz clock.
+        const val BASIC_LINE_SETTLE_CYCLES: Long = 57_600 // 200 ms after ENTER.
     }
 }
 

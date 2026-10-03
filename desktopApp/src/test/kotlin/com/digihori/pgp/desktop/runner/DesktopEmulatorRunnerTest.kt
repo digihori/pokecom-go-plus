@@ -190,6 +190,67 @@ class DesktopEmulatorRunnerTest {
     }
 
     @Test
+    fun runsGeneratedInputImmediatelyAndResumesThePreviousRunningState() {
+        val session = FakeSession()
+        val clock = FakeClock()
+        val runner = DesktopEmulatorRunner(
+            session = session,
+            clock = clock,
+            planner = CycleBudgetPlanner(CycleBudgetPlanner.PC1245_CYCLES_PER_SECOND),
+            keyInputQueue = KeyInputQueue(holdCycles = 10, gapCycles = 5),
+        )
+        runner.run()
+
+        val result = runner.runKeySequenceImmediately(listOf(PocketKey.SHIFT, PocketKey.Q))
+
+        assertEquals(25, result.executedCycles)
+        assertEquals(listOf(10L, 5L, 10L), session.budgets)
+        assertEquals(
+            listOf("press:SHIFT", "release:SHIFT", "press:Q", "release:Q"),
+            session.inputEvents,
+        )
+        assertEquals(RunnerState.RUNNING, runner.state)
+    }
+
+    @Test
+    fun immediateInputLeavesAPausedRunnerPaused() {
+        val runner = DesktopEmulatorRunner(
+            session = FakeSession(),
+            clock = FakeClock(),
+            keyInputQueue = KeyInputQueue(holdCycles = 10, gapCycles = 5),
+        )
+
+        runner.runKeySequenceImmediately(listOf(PocketKey.A))
+
+        assertEquals(RunnerState.PAUSED, runner.state)
+    }
+
+    @Test
+    fun immediateInputWaitsForTheRomToStoreEachBasicLineAfterEnter() {
+        val session = FakeSession()
+        val runner = DesktopEmulatorRunner(
+            session = session,
+            clock = FakeClock(),
+            keyInputQueue = KeyInputQueue(holdCycles = 10, gapCycles = 5),
+        )
+
+        val result = runner.runKeySequenceImmediately(
+            listOf(PocketKey.A, PocketKey.ENTER, PocketKey.B),
+        )
+
+        assertEquals(57_640, result.executedCycles)
+        assertEquals(listOf(10L, 5L, 10L, 57_600L, 5L, 10L), session.budgets)
+        assertEquals(
+            listOf(
+                "press:A", "release:A",
+                "press:ENTER", "release:ENTER",
+                "press:B", "release:B",
+            ),
+            session.inputEvents,
+        )
+    }
+
+    @Test
     fun rejectsABackwardsClock() {
         val clock = FakeClock(now = 100)
         val runner = runner(FakeSession(), clock)

@@ -852,3 +852,80 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
   release/cancelまで直接保持する。SHIFTも通常キーとしてROMへ渡す
 - Verification: 全`PocketKey`が重複なく1回現れること、各行が14列内で重ならないこと、QのSHIFT刻印を
   Desktop unit testで検証
+
+### Desktop開発用PC-1245 ROM自動起動
+
+- Date: 2026-10-03
+- PGP files: `DesktopRomLocator.kt`とtest、`Main.kt`、`run-pgp.command`、README
+- Discovery: `PGP_PC1245_ROM`を優先し、未指定時は作業ディレクトリとその親から
+  `local-data/roms/pc-1245/pc1245mem.bin`を探索する。ROM byteや絶対パスは保存しない
+- Startup: ROMが見つかれば既存ImporterとFactoryでSessionを生成し、自動的にRUNを開始する。
+  見つからない場合はエラーにせず従来のSelect ROM操作を維持する
+- Distribution: `local-data`はGit管理外であり、配布物とCIにROMを含めない。自動探索は利用者が明示的に
+  配置したローカルROMだけを対象にする
+- Verification: 環境変数優先、相対パス、親ディレクトリ探索、ROM不在をDesktop unit testで検証
+
+### Desktop LCD文字間隔
+
+- Date: 2026-10-03
+- PGP files: `CharacterCellGeometry.kt`とtest、`Main.kt`
+- Design: Core SnapshotはLCD RAMに対応する16文字×5dot＝80列を維持し、Desktop描画geometryだけで
+  各文字間へ1dot幅の空白を挿入する。末尾には空白を追加せず、表示上は80dot＋15gap＝95列となる
+- Layout: Canvas aspect ratioも80列基準から95列基準へ変更し、空白追加で文字dot自体が横につぶれないようにする
+- Verification: 文字境界の4→6、9→10、最終dotの79→94と、合計95列をDesktop unit testで検証
+
+### BASICテキスト共通escape parser
+
+- Date: 2026-10-03
+- PGP files: `BasicTextParser.kt`とtest、`docs/BASIC_TEXT_FORMAT.md`
+- Reference repository: `../pokecom`、`../pcwav`（ともにread-onlyを維持）
+- Reference behavior: Pokecom GOの`\\PI`、`\\SQR`、`\\EX`、`\\BX`、literal backslashと、
+  PCWAVの任意byte `\\xNN`およびunknown byteの可逆出力
+- Design: UTF-8テキストを通常文字、論理特殊文字、Raw Byte、改行へ機種非依存で字句解析する。
+  `π`と`√`は入力aliasとして受理するが、Raw Byteへ機種固有の文字意味を付与しない
+- Error handling: unknown、末尾backslash、不完全または非hexのRaw Byteを行・列付きエラーにする
+- Scope: この段階ではファイル選択、機種別コード解決、ROMキー列生成、RAM配置には接続しない
+- Verification: BOM、CRLF/CR、全named escape、Unicode alias、literal backslash、`\\xNN`、位置付きエラーを
+  commonTestで検証
+
+### PC-1245 ROM BASICキー列Compiler
+
+- Date: 2026-10-03
+- PGP files: `Pc1245RomBasicInput.kt`とtest、`BasicTextParser.kt`、BASIC Text仕様
+- Design: parse済みの通常文字と論理特殊文字をPC-1245の連続tapへ変換し、改行をENTERとする。
+  最終行に改行がない場合だけENTERを補完する。元テキストの行・列は各tokenに保持する
+- Special symbols: `\\PI`はSHIFT/0、`\\SQR`はSHIFT/DOT、`\\EX`はSHIFT/PLUSへ変換する。
+  キーボード入力できない`\\BX`、Raw Byte、未対応文字は直接Tokenizerが必要なため拒否する
+- Separation: CompilerはSession、実行cycle、ファイル、UIを所有せず、論理`PocketKey`列だけを返す
+- Verification: 通常・shift文字、3種類の特殊文字、行ENTER、最終ENTER、BLOCK、Raw Byte、未対応文字と
+  位置情報をcommonTestで検証
+
+### Desktop BASIC ROM経由Merge読込み
+
+- Date: 2026-10-03
+- PGP files: `DesktopBasicLoader.kt`とtest、`DesktopEmulatorRunner.kt`とtest、`Main.kt`、README
+- File boundary: Desktopだけがファイル選択とbyte読込みを担当し、UTF-8 decoderはmalformed/unmappable入力を
+  replacementせず拒否する。CoreにはファイルパスやJVM charset APIを持ち込まない
+- Execution: parse・compile済みキー列をPROGRAMモードで入力し、通常のhost-time Plannerを経由せず
+  キー保持・間隔に必要なemulated cyclesを同期的に消化する。読込前がRUNNINGなら終了後に通常実行を再開する
+- Semantics: 現段階は`NEW`を送信しないMerge方式。既存行と同じ行番号はROMの通常操作として置換される
+- Failure: invalid UTF-8、escape parse、ROM入力非対応を区別して表示し、Core faultでは高速入力を停止する
+- Verification: UTF-8成功・失敗、parse/compile error伝搬、即時キー遷移、実行状態復帰、pause維持をDesktop testで検証
+
+### BASIC行番号直後のコロン正規化
+
+- Date: 2026-10-03
+- PGP files: `Pc1245RomBasicInput.kt`とtest、BASIC Text仕様
+- Behavior: 各行の先頭行番号直後にある最初のコロンをSPACEキーへ変換する。行番号とコロンの間の
+  空白を許容し、BASIC文本体に現れるコロンはPC-1245のSHIFT/Iとして保持する
+- Verification: `10:PRINT A:B`と`20 :PRINT`についてprefixだけがSPACEになることをcommonTestで検証
+
+### PC-1245追加VRAMミラー
+
+- Date: 2026-10-03
+- PGP files: `Pc1245MemoryBus.kt`、`Pc1245MemoryBusTest.kt`、PC-1245機種仕様
+- Provenance: PGP作者から提供された非公式実機情報。Pokecom GO参照実装には未反映
+- Behavior: 従来の`0xf800..0xffff`に加え、`0xe800`、`0xe900`、…、`0xef00`の各256 byte pageも
+  同じVRAMのmirrorとして扱う。どのpageへの書込みも`0xf800..0xf8ff`へ正規化して全16 pageへ反映する
+- Verification: `0xe900`と`0xffff`への書込みが`0xe800..0xefff`、`0xf800..0xffff`の対応offsetから
+  同一値として読めることをcommonTestで検証
