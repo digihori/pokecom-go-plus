@@ -705,6 +705,21 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - Interpretation: 残差は累積命令数または命令別cycle値の相違を調べる必要がある。divider補正済み一時版は
   元実装そのもののGolden producerではないため、採取データを承認済み期待値へ昇格させない
 - Local data: 元timer版とcycle timer版のpreferences XMLは`local-data/golden/`に保存しGit管理外とする
+- Automated comparison: `PGP_VERIFY_POKECOM_GO_STATE=1`の明示的なDesktop integration testで、
+  cycle timer版captureとPGPの100万cycle結果を比較する。`0x8000..0x87ff`、`0xf800..0xf8ff`、
+  LCD dot/symbolは完全一致し、既知の内部RAM 8 byte差とCPU 6項目
+  (`programCounter`、`currentProgramCounter`、`opcode`、`q`、`ib`、`testPort`)を固定する。
+  これらの既知差分が増減した場合もテスト失敗として再評価する
+- Trace tooling: `InstructionTraceRecorder`が公開Session APIの1命令stepを使い、累積命令/cycle、実行PC、
+  opcode、命令cycle、実行後PC、Q、IB、TESTを安定したTSV列で出力する。指定件数のtailだけを保持して
+  100万cycle調査時のメモリ使用を制限する。Pokecom GO一時debug copyも同じ列を出力し、最初の分岐を探す
+- Trace finding: 起動直後からの全trace比較では、最初の相違は第1命令のWAIT (`0x4e`) のcycle値だった。
+  operand `0xa0`に対しPokecom GOは`operand * 6 / 4 = 240`、PGPは公開命令資料に基づく
+  `6 + operand = 166`を返す。命令順で比較すると最初の5,340命令はPC/opcode/実行後状態が一致し、
+  第5,341命令のTEST (`0x6b`) で2ms dividerの到達時期によりTEST値が初めて分岐する
+- Decision: この差は移植漏れではなく、Pokecom GO内にも「長すぎるので仮で1/4」と記された暫定cycle式と、
+  PGPが採用した命令資料の定義との差である。Pokecom GOの最終位相へ合わせるためにPGPのWAITを戻さない。
+  RAM/LCD一致はCPU機能移植の検証に用いる一方、固定cycle後のCPU位相差は既知の設計差として扱う
 
 ### ホスト実時間サイクル予算Planner
 

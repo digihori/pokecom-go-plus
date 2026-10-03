@@ -162,3 +162,22 @@ PGP_VERIFY_POKECOM_GO_STATE=1 ./gradlew :core:desktopTest
 既存Save Stateには累積命令数や累積サイクルがない。したがって自由走行後のSnapshotをPGPの
 `runCycles` checkpointへ直接対応付けてはならない。reset直後、step数を固定したdebug実行、または
 将来の一時的な採取patchで実行境界を固定した状態だけを比較対象にする。
+
+## 10. 命令トレースによる残差調査
+
+固定cycle比較でCPU位相差が残る場合、最終Snapshotを推測で合わせず、両実装で同じTSV列を出力する。
+
+```text
+instruction  cycleBefore  cycles  pc  opcode  pcAfter  q  ib  testPort
+```
+
+PGP側は公開`EmulatorSession.step()`だけを使うtest utilityで採取し、通常のCore実行経路へtrace hookを
+追加しない。まずcycle checkpointを段階的に狭め、分岐直前の有限tailを比較する。Pokecom GO側は
+一時debug copyだけに同じ列の出力を追加し、参照リポジトリや製品動作へ常設しない。
+
+実ROMの100万cycle直前256命令は、`PGP_EXPORT_INSTRUCTION_TRACE=1`を明示したDesktop testだけが
+`local-data/golden/pc1245-pgp-trace-1000000-tail.tsv`へ出力する。通常testとCIはROMも出力先も要求しない。
+
+起動直後からの分岐調査が必要な場合だけ`PGP_EXPORT_FULL_INSTRUCTION_TRACE=1`も併記し、最大30万命令を
+`local-data/golden/pc1245-pgp-trace-1000000-full.tsv`へ出力する。ファイルは大きくなるためGit管理外とし、
+通常の回帰確認では有限tailを使う。

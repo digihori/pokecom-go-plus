@@ -59,7 +59,7 @@
 - [x] 実ROMからPGP側Golden Snapshotを採取するエクスポーターを実装する
 - [x] Pokecom GO既存Save State JSONのGolden Expectation Importerを実装する
 - [x] Pokecom GO SharedPreferences XMLから`PREF_SC`を抽出するブリッジを実装する
-- [ ] Pokecom GOの期待結果と`commonTest`で比較する
+- [x] Pokecom GOの固定cycle期待結果と明示的なDesktop integration testで比較する
 
 ## Phase 2: macOS最小Desktop UI
 
