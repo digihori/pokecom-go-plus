@@ -4,10 +4,10 @@
 
 ## 参照リポジトリ
 
-| 参照元 | 開発時の位置 | 用途 | 扱い |
-|---|---|---|---|
-| Pokecom GO | `../pokecom` | CPU、機種定義、LCD、キー、BASIC処理 | 読み取り専用 |
-| pcwav | `../pcwav` | WAV Codec、転送プロトコル | 読み取り専用 |
+| 参照元 | 用途 | 扱い |
+|---|---|---|
+| Pokecom GO | CPU、機種定義、LCD、キー、BASIC処理 | 読み取り専用 |
+| pcwav | WAV Codec、転送プロトコル | 読み取り専用 |
 
 PGPはこれらのリポジトリへビルド時または実行時に依存しない。
 
@@ -59,7 +59,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `docs/machines/PC-1245.md`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `README.md`、`Sc61860Base.java`、`Sc61860_1245.java`、
   `KeyBoard1245.java`、`MainLoop1245.java`、`SubActivity1245.java`
@@ -74,7 +74,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - Date: 2026-10-02
 - PGP files: `core/src/commonMain/kotlin/com/digihori/pgp/core/emulator/cpu/Sc61860State.kt`、
   `core/src/commonTest/kotlin/com/digihori/pgp/core/emulator/cpu/Sc61860StateTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:39-79,236-270`、`Sc61860params.java:14-46`
 - Provenance/license: 同一作者のPokecom GOから状態項目とリセット値を再設計して移植
@@ -87,7 +87,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Bus.kt`、`Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:277-329,383-493,634-670,2418-2430,2489-2552`
 - Provenance/license: 同一作者のPokecom GOから命令フェッチと最初の命令群を再設計して移植
@@ -100,7 +100,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Pc1245MemoryBus.kt`、`Pc1245MemoryBusTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `README.md:13-18,26-30`、`Sc61860_1245.java:29-34,99-260`
 - Provenance/license: 同一作者のPokecom GOからPC-1245のメモリ挙動を再設計して移植
@@ -115,7 +115,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - Date: 2026-10-02
 - PGP files: `RomSet.kt`、`Pc1245Rom.kt`、`Pc1245FlatRomImporterTest.kt`、
   `RomSetTest.kt`、`Pc1245MemoryBus.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `README.md:13-18,26-30`、`Sc61860_1245.java:99-139`
 - Provenance/license: 同一作者のPokecom GO ROM配置形式からImporterとして再設計
@@ -128,7 +128,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Pc1245Machine.kt`、`Pc1245MachineTest.kt`、`Sc61860Cpu.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `MainLoop1245.java:35-48`、`Sc61860Base.java:227-329`
 - Provenance/license: 同一作者のPokecom GOからCPUと機種メモリの所有関係を再設計
@@ -142,7 +142,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - Date: 2026-10-02
 - PGP files: `core/api/EmulatorSession.kt`、`core/api/EmulatorFactory.kt`、
   `core/api/EmulatorFactoryTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:39-79,141-220,277-329`、`Sc61860params.java`
 - Provenance/license: 同一作者のPokecom GO状態参照・保存対象から公開読出しモデルを再設計
@@ -156,7 +156,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - Date: 2026-10-02
 - PGP files: `Pc1245Display.kt`、`Pc1245DisplayTest.kt`、`EmulatorSession.kt`、
   `EmulatorFactory.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860_1245.java:203-225`、`MainLoop1245.java:20-32,74-162`
 - Provenance/license: 同一作者のPokecom GOからLCDメモリ配置とシンボルbitを再設計して移植
@@ -170,7 +170,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - Date: 2026-10-02
 - PGP files: `Pc1245Keyboard.kt`、`Pc1245KeyboardTest.kt`、`EmulatorSession.kt`、
   `EmulatorFactory.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `KeyBoard1245.java:7-34`、`Sc61860_1245.java:262-358`、
   `SubActivity1245.java:100-114`、`SubActivityBase.java:425-431`
@@ -185,7 +185,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - Date: 2026-10-02
 - PGP files: `Sc61860Io.kt`、`Sc61860Cpu.kt`、`Pc1245Keyboard.kt`、
   `Sc61860CpuTest.kt`、`Pc1245MachineTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:670-677,886-897,1754-1761,2042-2049,2274-2283,2369-2378`、
   `Sc61860_1245.java:262-358`
@@ -201,7 +201,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:761-778,2211-2233,2061-2120,2200-2221`
 - Provenance/license: 同一作者のPokecom GOから制御フローと内部RAMスタックの挙動を
@@ -217,7 +217,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:1923-2060`
 - Provenance/license: 同一作者のPokecom GOから相対分岐の挙動を再設計して移植
@@ -231,7 +231,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:550-556,983-995,1083-1266,2400-2417`
 - Provenance/license: 同一作者のPokecom GOから基本レジスタ演算とフラグ更新を再設計して移植
@@ -246,7 +246,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:998-1049,1269-1428,1642-1670`
 - Provenance/license: 同一作者のPokecom GOから8bit即値演算の挙動を再設計して移植
@@ -261,7 +261,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:538-548,1027-1080,1287-1415`
 - Provenance/license: 同一作者のPokecom GOからAレジスタとP指定内部RAM間の演算を
@@ -277,7 +277,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:594-727,679-718,1171-1177,1267-1273`
 - Provenance/license: 同一作者のPokecom GOからP/Q/RとDPの操作を再設計して移植
@@ -292,7 +292,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:558-636,729-753,967-979`
 - Provenance/license: 同一作者のPokecom GOから単byte転送とnibble交換を再設計して移植
@@ -307,7 +307,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:1480-1575`
 - Provenance/license: 同一作者のPokecom GOからX/Yインデックス操作を再設計して移植
@@ -322,7 +322,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:1581-1610`
 - Provenance/license: 同一作者のPokecom GOからcarry経由シフトを再設計して移植
@@ -336,7 +336,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:1432-1478`
 - Provenance/license: 同一作者のPokecom GOから16bit加減算を再設計して移植
@@ -351,7 +351,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:785-821,879-925`
 - Provenance/license: 同一作者のPokecom GOから内部RAMブロック転送・交換を再設計して移植
@@ -366,7 +366,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:823-867,928-964`
 - Provenance/license: 同一作者のPokecom GOからDP・内部RAM間のブロック転送と交換を
@@ -382,7 +382,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:869-895`
 - Provenance/license: 同一作者のPokecom GOからAによるブロック塗りつぶしを再設計して移植
@@ -397,7 +397,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:1717-1921`
 - Provenance/license: 同一作者のPokecom GOからpacked BCD加減算と互換mask規則を
@@ -413,7 +413,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:1612-1640`
 - Provenance/license: 同一作者のPokecom GOから複数byteの4bitシフトを再設計して移植
@@ -428,7 +428,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:2123-2156`
 - Provenance/license: 同一作者のPokecom GOからRスタック上のループ制御を再設計して移植
@@ -443,7 +443,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:2158-2209`
 - Provenance/license: 同一作者のPokecom GOからCASEテーブル分岐を再設計して移植
@@ -458,7 +458,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:568-589,755-760,879-885,2418-2433,2497-2560`
 - Provenance/license: 同一作者のPokecom GOから純粋な補助命令とopcode aliasを再設計して移植
@@ -473,7 +473,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:568-589,1311-1325,1359-1373,1669-1682`
 - Provenance/license: 同一作者のPokecom GOからDP上の即値論理演算と退避動作を再設計して移植
@@ -488,7 +488,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-02
 - PGP files: `Sc61860Io.kt`、`Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:2287-2354`
 - Provenance/license: 同一作者のPokecom GOからF/Control port latchとCPU内作用を再設計して移植
@@ -504,7 +504,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - Date: 2026-10-02
 - PGP files: `Sc61860Io.kt`、`Sc61860Cpu.kt`、`Pc1245Keyboard.kt`、
   `Sc61860CpuTest.kt`、`Pc1245MachineTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:277-325,365-384,2441-2470`、
   `SubActivityBase.java:425-431`
@@ -521,7 +521,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - Date: 2026-10-03
 - PGP files: `Pc1245Io.kt`、`Pc1245Machine.kt`、`Pc1245Keyboard.kt`、
   `Pc1245MachineTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:2318-2354`、`MainLoop1245.java:74-162`
 - Provenance/license: 同一作者のPokecom GOからOUTC bit 0によるLCD有効状態を再設計して移植
@@ -536,7 +536,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - Date: 2026-10-03
 - PGP files: `Pc1245Buzzer.kt`、`Pc1245Io.kt`、`Pc1245Machine.kt`、
   `EmulatorSession.kt`、`EmulatorFactory.kt`および各test
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:2336-2351`、`Beep.java`
 - Provenance/license: 同一作者のPokecom GOからControl portによるtone選択仕様だけを再設計して移植
@@ -551,7 +551,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-03
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:515-533,2506,2582`
 - Provenance/license: 同一作者のPokecom GOからMVWPの転送と特殊な制御フローを再設計して移植
@@ -566,7 +566,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-03
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:1685-1717,2513,2523`
 - Provenance/license: 同一作者のPokecom GOからCUP/CDNのX入力極性別カウント動作を再設計して移植
@@ -583,7 +583,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-03
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:2433-2439,2513,2586`
 - Additional reference: [utz82/SC61860-Instruction-Set](https://github.com/utz82/SC61860-Instruction-Set)
@@ -610,7 +610,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-03
 - PGP files: `Sc61860Cpu.kt`、`Sc61860CpuTest.kt`、`PC-1245.md`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860Base.java:110,280-319,343-369,2318-2330,2441-2470`
 - Additional references: PC-1245の576kHz仕様、`SC61860-Instruction-Set`の命令サイクル定義
@@ -628,7 +628,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - Date: 2026-10-03
 - PGP files: `docs/GOLDEN_TEST_DATA.md`、`test-data/golden/schema-v1.json`、
   `test-data/golden/README.md`
-- Reference repository: `../pokecom`
+- Reference repository: Pokecom GO
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Provenance/license: Pokecom GOから期待結果を採取するためのPGP独自メタデータ形式。ROM内容は含めない
 - Design: `pgp-golden-1` JSONでproducer revision、ROM SHA-256、順序付きAction、名前付きExpectationを
@@ -665,7 +665,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-03
 - PGP files: `PokecomGoStateImporter.kt`、`PokecomGoStateImporterTest.kt`、Golden仕様
-- Reference repository: `../pokecom`（read-onlyを維持）
+- Reference repository: Pokecom GO（read-onlyを維持）
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `Sc61860params.java`、`Sc61860Base.java:141-215`、
   `Sc61860_1245.java:37-67`、`SubActivityBase.java:263-320`
@@ -681,7 +681,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-03
 - PGP files: `PokecomGoPreferencesReader.kt`、`PokecomGoPreferencesReaderTest.kt`、Golden仕様
-- Reference repository: `../pokecom`（read-onlyを維持）
+- Reference repository: Pokecom GO（read-onlyを維持）
 - Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
 - Reference files: `SubActivityBase.java:263-320`（default SharedPreferences key `PREF_SC`）
 - Design: `adb exec-out run-as`で取得したpreferences XMLから対象stringだけを抽出し、XML entityを
@@ -695,7 +695,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-03
 - PGP files: `PokecomGoDeviceStateIntegrationTest.kt`、Golden仕様、本文書
-- Reference repository: `../pokecom`はread-onlyを維持。一時debugコピーだけに採取フックを適用
+- Reference repository: Pokecom GOはread-onlyを維持。一時debugコピーだけに採取フックを適用
 - Capture boundary: Pokecom GOの命令ごとの`iTick`増分を累積し、100万cycles以上となる最初の
   命令境界で停止。PGPの`runCycles(1_000_000)`と同じ境界規則を使用
 - Baseline finding: Pokecom GO本来の命令回数ベース2ms timerとAndroid wall-clockベース500ms timerでは
@@ -822,7 +822,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-03
 - PGP files: `Pc1245CharacterInput.kt`、`Pc1245CharacterInputTest.kt`
-- Reference repository: `../pokecom`（read-onlyを維持）
+- Reference repository: Pokecom GO（read-onlyを維持）
 - Reference files: `pc1245mainkey.png`、`include_keys_1245.xml`、`KeyBoard1245.java`
 - Design: ホストの文字とPC-1245実キーを分離し、文字を機種固有のキー列へ変換する。PC-1245の
   SHIFTは同時押しmodifierではなくラッチ操作なので、`!`を`SHIFT`、`Q`の連続tapとして表現する
@@ -862,7 +862,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-03
 - PGP files: `Pc1245KeyboardLayout.kt`、`Pc1245KeyboardLayoutTest.kt`、`Main.kt`
-- Reference repository: `../pokecom`（read-onlyを維持）
+- Reference repository: Pokecom GO（read-onlyを維持）
 - Reference files: `pc1245mainkey.png`、`include_keys_1245.xml`、`SubActivity1245.java`
 - Layout: 実機相当の14列×4段に全キーを配置し、ENTERの2列幅と上段左側の空きを保持する。
   主刻印、SHIFT刻印、BASIC命令刻印をデータとして分離し、利用可能幅に対して等比で配置する
@@ -896,7 +896,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-03
 - PGP files: `BasicTextParser.kt`とtest、`docs/BASIC_TEXT_FORMAT.md`
-- Reference repository: `../pokecom`、`../pcwav`（ともにread-onlyを維持）
+- Reference repository: Pokecom GO、pcwav（ともにread-onlyを維持）
 - Reference behavior: Pokecom GOの`\\PI`、`\\SQR`、`\\EX`、`\\BX`、literal backslashと、
   PCWAVの任意byte `\\xNN`およびunknown byteの可逆出力
 - Design: UTF-8テキストを通常文字、論理特殊文字、Raw Byte、改行へ機種非依存で字句解析する。
@@ -941,7 +941,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 - Date: 2026-10-04
 - PGP files: `BasicDialect.kt`、`Pc1245BasicDialect.kt`とtest、PC-1245機種仕様
-- Reference repository: `../pokecom`の`SubActivity1245.java`と`SubActivityBase12xx.java`をread-only参照
+- Reference repository: Pokecom GOの`SubActivity1245.java`と`SubActivityBase12xx.java`をread-only参照
 - Design: 方言ID、プログラム境界、行終端、行番号方式、文字、特殊記号、キーワードを機種依存データとして
   定義する。Tokenizer、RAM操作、UI、ホスト文字入力とは分離する
 - Important distinction: 表示記号のπ/√ (`0x19`/`0x1a`) とBASICキーワードのPI/SQR
@@ -1202,3 +1202,16 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - Studio control: PC-1250／1251／1255選択時は`Expanded RAM`と`Hardware RAM`を切り替えられる。
   切替時は同じROMを選択中の設定でcold bootし、切替前が実行中なら実行を再開する。RAM、CPU、表示などの
   runtime stateは保持しない。ROM未読込時の選択は次回loadへ適用する。
+
+### Machine Definition Catalog
+
+- Date: 2026-10-05
+- PGP files: `MachineDefinition.kt`、`EmulatorFactory.kt`、StudioのROM／BASIC／keyboard／runner層とtest
+- Single source: 実装済み機種のID、表示名、family、OLD/S1/S2世代、bank方式、ROM layout、keyboard、
+  BASIC方言、表示桁数、mode、clock、auto key timing、RAM profile対応を`MachineCatalog`へ集約した。
+- Core: `EmulatorFactory.supportedMachineIds()`とsession生成時のfamily選択はCatalogを参照する。
+- Studio: 機種buttonをCatalogから生成し、ROM Importer、package変換、ROM経由文字入力、物理keyboard、
+  software keyboard、RSV表示、実行clock、auto key timingを定義値から選択する。
+- Boundary: Memory Bus、LCD controller、I/Oなど機種固有回路の実装はCatalogへ押し込まず、familyごとの
+  Machine実装に残す。Catalogは静的な能力と実装選択のmetadataを担当する。
+- Validation: IDの一意性、UI順、PC-1251 family全modelの登録、世代・bank・mode・timingをcommonTestで固定する。

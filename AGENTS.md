@@ -1,10 +1,8 @@
 # Repository roles
 
 - `pokecom-go-plus` is the active PGP development repository.
-- `../pokecom` is the read-only Pokecom GO reference implementation.
-- `../pcwav` is the read-only WAV codec reference implementation.
-- Do not modify either reference repository unless explicitly requested.
-- Do not create build-time dependencies on the reference repositories.
+- Treat external reference projects as read-only unless explicitly requested otherwise.
+- Do not create build-time dependencies on external reference projects.
 - Port behavior and algorithms into PGP deliberately; do not copy
   platform-specific architecture.
 - Record source provenance and porting decisions in

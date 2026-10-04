@@ -84,13 +84,6 @@ Studioが持つデバッガ、アセンブラ、ディスアセンブラ、メ�
 機能範囲は既存Pokecom GOの利用体験を基準とし、LCD、実機仕様キーボード、機種／ROM選択、
 プログラム入出力、音声、セーブステート、ゲームパッド割当を対象とする。
 
-### 3.3 対象外
-
-SHARP BrainおよびBrainuxは、現時点ではPGPの対象プラットフォームに含めない。
-Brainux対応のためにPGP Coreの設計や採用技術を制約しない。
-
-Brain上での利用はPOEMS/Pokemunの移植・カスタマイズを含む別プロジェクトとして扱う。
-
 ## 4. システム全体構成
 
 PGPは、プラットフォーム非依存のCoreと、各OS向けアプリケーション層で構成する。
@@ -270,16 +263,24 @@ Machine
 data class MachineDefinition(
     val id: MachineId,
     val displayName: String,
-    val family: MachineFamilyId,
+    val family: MachineFamily,
     val generation: MachineGeneration,
-    val clockHz: Long,
-    val memoryLayout: MemoryLayout,
-    val memoryBanking: MemoryBanking,
-    val keyboardLayout: KeyboardLayout,
-    val displayLayout: DisplayLayout,
-    val basicDialect: BasicDialectId?
+    val memoryBanking: MachineMemoryBanking,
+    val romLayout: MachineRomLayout,
+    val keyboardLayout: MachineKeyboardLayout,
+    val basicDialect: MachineBasicDialect,
+    val characterColumns: Int,
+    val supportedOperatingModes: Set<OperatingMode>,
+    val cyclesPerSecond: Long,
+    val automaticKeyHoldCycles: Long,
+    val automaticKeyGapCycles: Long,
+    val supportsConfigurableRam: Boolean
 )
 ```
+
+実装済み機種は`MachineCatalog`へ表示順に登録する。Factory、Studioの機種選択、ROM Importerの選択、
+文字入力、ソフトウェアキーボード、実行クロックは個別の機種IDを比較せずCatalogを参照する。
+ただし、複雑なMemory BusやI/O処理そのものをデータだけで表現しようとはしない。
 
 複雑なバンク切替やI/O挙動は`Machine`実装または周辺回路クラスに置く。
 SC61860搭載機のOLD/S1/S2分類、中間コード、バンク切替のモデルは
@@ -867,7 +868,6 @@ ROMイメージ、マニュアル画像、雑誌掲載プログラムなど、�
 - 本格的な汎用テキストエディタ
 - 特定クラウドサービスへのCore依存
 - ROMイメージの配布
-- Brainux対応
 - 初期段階での過度なGradleモジュール分割
 
 ## 22. アーキテクチャ判断の基準

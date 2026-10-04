@@ -27,7 +27,6 @@ Pokecom GO PlayerはCoreとStudioが安定した後に開発します。
 - PGPは既存Androidアプリ「Pokecom GO」の新バージョンではありません。
 - Pokecom GOはAndroidアプリとして独立して維持されます。
 - PGPはPokecom GOからCPU、機種定義、BASIC変換等の技術を分析・再設計して利用します。
-- SHARP Brain / Brainuxは現在のPGP対象プラットフォームではありません。
 - ROMイメージは本リポジトリおよび配布物に含めません。
 
 ## 対象プラットフォーム
@@ -172,14 +171,6 @@ Desktopアプリを起動する場合：
 - [Golden Test Data形式](docs/GOLDEN_TEST_DATA.md)
 - [ロードマップ](docs/ROADMAP.md)
 - [移植記録](docs/PORTING_NOTES.md)
-
-## 参照プロジェクト
-
-開発時には、兄弟ディレクトリにある以下のリポジトリを読み取り専用の参照実装として
-使用します。PGPのビルドはこれらに依存しません。
-
-- `../pokecom` — Pokecom GO
-- `../pcwav` — ポケコン向けWAV変換実装
 
 ## ライセンス
 
