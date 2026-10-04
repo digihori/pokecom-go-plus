@@ -1,74 +1,63 @@
 package com.digihori.pgp.desktop.audio
 
-import com.digihori.pgp.core.api.AudioSnapshot
+import com.digihori.pgp.core.api.AudioPcmSnapshot
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class DesktopAudioPlayerTest {
     @Test
-    fun startsReplacesAndStopsToneClipsOnRevisionChanges() {
-        val factory = FakeClipFactory()
+    fun streamsLittleEndianPcmAndReusesTheSink() {
+        val factory = FakeSinkFactory()
         val player = DesktopAudioPlayer(factory)
 
-        player.update(AudioSnapshot(2_000, 1)).getOrThrow()
-        player.update(AudioSnapshot(2_000, 1)).getOrThrow()
-        player.update(AudioSnapshot(4_000, 2)).getOrThrow()
-        player.update(AudioSnapshot(0, 3)).getOrThrow()
+        player.write(AudioPcmSnapshot(22_050, shortArrayOf(0x1234, (-2).toShort()))).getOrThrow()
+        player.write(AudioPcmSnapshot(22_050, shortArrayOf(1))).getOrThrow()
 
-        assertEquals(listOf(2_000, 4_000), factory.frequencies)
-        assertTrue(factory.clips.all { it.started })
-        assertTrue(factory.clips.all { it.closed })
+        assertEquals(listOf(22_050), factory.sampleRates)
+        assertContentEquals(
+            byteArrayOf(0x34, 0x12, 0xfe.toByte(), 0xff.toByte()),
+            factory.sinks.single().writes.first(),
+        )
+        assertContentEquals(byteArrayOf(1, 0), factory.sinks.single().writes.last())
     }
 
     @Test
-    fun stopAllowsTheSameSnapshotToRestart() {
-        val factory = FakeClipFactory()
+    fun recreatesTheSinkForAnotherSampleRateAndStopClosesIt() {
+        val factory = FakeSinkFactory()
         val player = DesktopAudioPlayer(factory)
-        val snapshot = AudioSnapshot(2_000, 1)
 
-        player.update(snapshot).getOrThrow()
+        player.write(AudioPcmSnapshot(22_050, shortArrayOf(1))).getOrThrow()
+        player.write(AudioPcmSnapshot(44_100, shortArrayOf(2))).getOrThrow()
         player.stop()
-        player.update(snapshot).getOrThrow()
 
-        assertEquals(listOf(2_000, 2_000), factory.frequencies)
+        assertEquals(listOf(22_050, 44_100), factory.sampleRates)
+        assertTrue(factory.sinks.all { it.closed })
     }
 
     @Test
-    fun returnsAudioDeviceFailureWithoutThrowingFromUpdate() {
-        val player = DesktopAudioPlayer { error("no audio device") }
+    fun ignoresEmptyFramesAndReportsDeviceFailure() {
+        val unused = DesktopAudioPlayer { error("must not open") }
+        unused.write(AudioPcmSnapshot(22_050, shortArrayOf())).getOrThrow()
 
-        val result = player.update(AudioSnapshot(2_000, 1))
-
-        assertTrue(result.isFailure)
+        val failing = DesktopAudioPlayer { error("no audio device") }
+        assertTrue(failing.write(AudioPcmSnapshot(22_050, shortArrayOf(1))).isFailure)
     }
 
-    @Test
-    fun generatesWholePeriodLittleEndianPcm() {
-        val pcm = squareWavePcm(2_000)
-
-        assertEquals(882, pcm.size)
-        assertEquals(0x00, pcm[0].toInt() and 0xff)
-        assertEquals(0x10, pcm[1].toInt() and 0xff)
-        assertTrue(pcm.any { it.toInt() < 0 })
-        assertFailsWith<IllegalArgumentException> { squareWavePcm(0) }
-    }
-
-    private class FakeClipFactory : ToneClipFactory {
-        val frequencies = mutableListOf<Int>()
-        val clips = mutableListOf<FakeClip>()
-
-        override fun create(frequencyHz: Int): ToneClip {
-            frequencies += frequencyHz
-            return FakeClip().also(clips::add)
+    private class FakeSinkFactory : PcmSinkFactory {
+        val sampleRates = mutableListOf<Int>()
+        val sinks = mutableListOf<FakeSink>()
+        override fun create(sampleRate: Int): PcmSink {
+            sampleRates += sampleRate
+            return FakeSink().also(sinks::add)
         }
     }
 
-    private class FakeClip : ToneClip {
-        var started = false
+    private class FakeSink : PcmSink {
+        val writes = mutableListOf<ByteArray>()
         var closed = false
-        override fun startLooping() { started = true }
+        override fun write(bytes: ByteArray) { writes += bytes.copyOf() }
         override fun close() { closed = true }
     }
 }

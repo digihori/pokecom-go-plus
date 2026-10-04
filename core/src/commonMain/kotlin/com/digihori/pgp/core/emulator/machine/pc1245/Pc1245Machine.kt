@@ -28,7 +28,11 @@ internal class Pc1245Machine(
         cpu.reset()
     }
 
-    fun step(): Sc61860StepResult = cpu.step()
+    fun step(): Sc61860StepResult {
+        val result = cpu.step()
+        if (result.stopReason == null) buzzer.advanceCycles(result.cycles)
+        return result
+    }
 
     fun runCycles(cycleBudget: Long): Sc61860RunResult {
         require(cycleBudget > 0) { "Cycle budget must be greater than zero" }

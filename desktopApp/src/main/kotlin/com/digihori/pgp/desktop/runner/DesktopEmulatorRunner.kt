@@ -4,6 +4,7 @@ import com.digihori.pgp.core.api.EmulatorSession
 import com.digihori.pgp.core.api.DisplaySnapshot
 import com.digihori.pgp.core.api.CpuSnapshot
 import com.digihori.pgp.core.api.AudioSnapshot
+import com.digihori.pgp.core.api.AudioPcmSnapshot
 import com.digihori.pgp.core.api.BasicProgramLoadResult
 import com.digihori.pgp.core.api.BasicProgramSnapshotResult
 import com.digihori.pgp.core.api.MemoryImageLoadResult
@@ -19,6 +20,7 @@ import com.digihori.pgp.core.runtime.CycleBudgetPlanner
 import com.digihori.pgp.core.runtime.KeyInputQueue
 import com.digihori.pgp.core.runtime.KeyTransition
 import com.digihori.pgp.core.runtime.SpeedRatio
+import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
 import com.digihori.pgp.desktop.input.DesktopKeyInputSink
 import com.digihori.pgp.core.source.machine.AddressedMemoryImage
 
@@ -33,14 +35,18 @@ internal object SystemMonotonicClock : MonotonicClock {
 internal class DesktopEmulatorRunner(
     private val session: EmulatorSession,
     private val clock: MonotonicClock = SystemMonotonicClock,
-    private val planner: CycleBudgetPlanner = CycleBudgetPlanner(
-        cyclesPerSecond = CycleBudgetPlanner.PC1245_CYCLES_PER_SECOND,
-    ),
+    planner: CycleBudgetPlanner? = null,
     private val keyInputQueue: KeyInputQueue = KeyInputQueue(
         holdCycles = KEY_HOLD_CYCLES,
         gapCycles = KEY_GAP_CYCLES,
     ),
 ) : DesktopKeyInputSink {
+    private val planner: CycleBudgetPlanner = planner ?: CycleBudgetPlanner(
+        cyclesPerSecond = when (session.machineId) {
+            Pc1251RomDefinition.MACHINE_ID -> CycleBudgetPlanner.PC1251_CYCLES_PER_SECOND
+            else -> CycleBudgetPlanner.PC1245_CYCLES_PER_SECOND
+        },
+    )
     var state: RunnerState = RunnerState.PAUSED
         private set
 
@@ -93,6 +99,8 @@ internal class DesktopEmulatorRunner(
     fun cpuSnapshot(): CpuSnapshot = session.cpuSnapshot()
 
     fun audioSnapshot(): AudioSnapshot = session.audioSnapshot()
+
+    fun drainAudioSamples(): AudioPcmSnapshot = session.drainAudioSamples()
 
     fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult {
         val resumeAfterLoad = state == RunnerState.RUNNING

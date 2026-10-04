@@ -4,15 +4,23 @@ import com.digihori.pgp.core.emulator.cpu.Sc61860StopReason
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245Machine
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicMemoryResult
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245Display
+import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245Buzzer
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251Machine
+import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251MemoryImageLoadResult
+import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251Display
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.rom.RomSet
 
 public object EmulatorFactory {
-    public fun supportedMachineIds(): List<MachineId> = listOf(Pc1245RomDefinition.MACHINE_ID)
+    public fun supportedMachineIds(): List<MachineId> = listOf(
+        Pc1245RomDefinition.MACHINE_ID,
+        Pc1251RomDefinition.MACHINE_ID,
+    )
 
     public fun create(machineId: MachineId, romSet: RomSet): CreateSessionResult {
-        if (machineId != Pc1245RomDefinition.MACHINE_ID) {
+        if (machineId !in supportedMachineIds()) {
             return CreateSessionResult.Failure(CreateSessionError.UnsupportedMachine(machineId))
         }
         if (romSet.machineId != machineId) {
@@ -22,13 +30,102 @@ public object EmulatorFactory {
         }
 
         return try {
-            CreateSessionResult.Success(Pc1245EmulatorSession(Pc1245Machine(romSet)))
+            CreateSessionResult.Success(
+                when (machineId) {
+                    Pc1245RomDefinition.MACHINE_ID -> Pc1245EmulatorSession(Pc1245Machine(romSet))
+                    Pc1251RomDefinition.MACHINE_ID -> Pc1251EmulatorSession(Pc1251Machine(romSet))
+                    else -> error("Unsupported machine passed validation")
+                },
+            )
         } catch (error: IllegalArgumentException) {
             CreateSessionResult.Failure(
                 CreateSessionError.InvalidRomSet(error.message ?: "Invalid ROM set"),
             )
         }
     }
+}
+
+private class Pc1251EmulatorSession(private val machine: Pc1251Machine) : EmulatorSession {
+    override val machineId: MachineId = Pc1251RomDefinition.MACHINE_ID
+    private var status: ExecutionStatus = ExecutionStatus.Ready
+
+    override fun reset() { machine.coldReset(); status = ExecutionStatus.Ready }
+    override fun step(): StepResult {
+        val result = machine.step()
+        status = result.stopReason.toExecutionStatus()
+        return StepResult(result.cycles, status)
+    }
+    override fun runCycles(cycleBudget: Long): RunResult {
+        val result = machine.runCycles(cycleBudget)
+        status = result.stopReason.toExecutionStatus()
+        return RunResult(result.executedCycles, result.executedInstructions, status)
+    }
+    override fun pressKey(key: PocketKey): InputResult =
+        if (machine.keyboardState.press(key)) InputResult.Accepted else InputResult.UnsupportedKey(key)
+    override fun releaseKey(key: PocketKey): InputResult =
+        if (machine.keyboardState.release(key)) InputResult.Accepted else InputResult.UnsupportedKey(key)
+    override fun setOperatingMode(mode: OperatingMode) = machine.keyboardState.setOperatingMode(mode)
+    override fun cpuSnapshot(): CpuSnapshot {
+        val state = machine.cpuState
+        return CpuSnapshot(
+            state.programCounter, state.currentProgramCounter, state.opcode, state.dataPointer,
+            state.p, state.q, state.r, state.d, state.alu, state.carry, state.zero, state.xInput,
+            state.powerOn, state.ia, state.ib, state.fo, state.control, state.testPort,
+            ByteArray(state.internalRam.size) { state.internalRam[it].toByte() },
+        )
+    }
+    override fun memorySnapshot(startAddress: Int, length: Int): MemorySnapshot {
+        require(startAddress in 0..0xffff)
+        require(length >= 0 && length <= 0x10000 - startAddress)
+        return MemorySnapshot(startAddress, ByteArray(length) { machine.readMemory(startAddress + it).toByte() })
+    }
+    override fun displaySnapshot(): DisplaySnapshot {
+        val display = machine.displayState
+        val columns = display.copyDotColumns()
+        val dots = ByteArray(Pc1251Display.DOT_COLUMN_COUNT * Pc1251Display.DOT_ROWS)
+        for (column in columns.indices) {
+            val bits = columns[column].toInt() and 0xff
+            for (row in 0 until Pc1251Display.DOT_ROWS) {
+                if (bits and (1 shl row) != 0) dots[row * Pc1251Display.DOT_COLUMN_COUNT + column] = 1
+            }
+        }
+        val symbols = buildList {
+            val s0 = display.symbolState0()
+            val s1 = display.symbolState1()
+            val s2 = display.symbolState2()
+            if (s1 and 0x01 != 0) add(DisplaySymbol.BUSY)
+            if (s0 and 0x02 != 0) add(DisplaySymbol.P)
+            if (s0 and 0x01 != 0) add(DisplaySymbol.DEF)
+            if (s0 and 0x08 != 0) add(DisplaySymbol.DE)
+            if (s0 and 0x04 != 0) add(DisplaySymbol.G)
+            if (s1 and 0x04 != 0) add(DisplaySymbol.RAD)
+            if (s1 and 0x08 != 0) add(DisplaySymbol.E)
+            if (s1 and 0x02 != 0) add(DisplaySymbol.SHIFT)
+            if (s2 and 0x01 != 0) add(DisplaySymbol.PRO)
+            if (s2 and 0x02 != 0) add(DisplaySymbol.RUN)
+            if (s2 and 0x04 != 0) add(DisplaySymbol.RESERVE)
+        }
+        return DisplaySnapshot(24, 5, 7, symbols, display.enabled, display.revision, dots)
+    }
+    override fun audioSnapshot(): AudioSnapshot = AudioSnapshot(
+        machine.buzzerState.frequencyHz,
+        machine.buzzerState.revision,
+    )
+    override fun drainAudioSamples(): AudioPcmSnapshot = AudioPcmSnapshot(
+        Pc1245Buzzer.SAMPLE_RATE,
+        machine.buzzerState.drainPcm(),
+    )
+    override fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult =
+        machine.loadBasicProgram(program).toLoadResult()
+    override fun basicProgramSnapshot(): BasicProgramSnapshotResult =
+        machine.basicProgram().toSnapshotResult()
+    override fun loadMemoryImage(image: com.digihori.pgp.core.source.machine.AddressedMemoryImage): MemoryImageLoadResult =
+        when (val result = machine.loadMemoryImage(image)) {
+            is Pc1251MemoryImageLoadResult.Success ->
+                MemoryImageLoadResult.Success(result.segmentCount, result.byteCount)
+            is Pc1251MemoryImageLoadResult.ReadOnlyAddress ->
+                MemoryImageLoadResult.Failure(MemoryImageLoadError.ReadOnlyAddress(result.address, result.sourceLine))
+        }
 }
 
 public sealed interface CreateSessionResult {
@@ -155,6 +252,11 @@ private class Pc1245EmulatorSession(
         revision = machine.buzzerState.revision,
     )
 
+    override fun drainAudioSamples(): AudioPcmSnapshot = AudioPcmSnapshot(
+        sampleRate = Pc1245Buzzer.SAMPLE_RATE,
+        samples = machine.buzzerState.drainPcm(),
+    )
+
     override fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult =
         when (val result = machine.loadBasicProgram(program)) {
             is Pc1245BasicMemoryResult.Success -> BasicProgramLoadResult.Success(
@@ -218,4 +320,23 @@ private fun Sc61860StopReason?.toExecutionStatus(): ExecutionStatus = when (this
     is Sc61860StopReason.UnsupportedOpcode -> ExecutionStatus.Faulted(
         CoreFault.UnsupportedOpcode(address = address, opcode = opcode),
     )
+}
+
+private fun Pc1245BasicMemoryResult.toLoadResult(): BasicProgramLoadResult = when (this) {
+    is Pc1245BasicMemoryResult.Success -> BasicProgramLoadResult.Success(start, end, bytes.size)
+    is Pc1245BasicMemoryResult.InvalidPointers ->
+        BasicProgramLoadResult.Failure(BasicProgramMemoryError.InvalidPointer(start, end))
+    is Pc1245BasicMemoryResult.TooLarge ->
+        BasicProgramLoadResult.Failure(BasicProgramMemoryError.ProgramTooLarge(size, capacity))
+    is Pc1245BasicMemoryResult.InvalidProgram ->
+        BasicProgramLoadResult.Failure(BasicProgramMemoryError.InvalidProgram(offset, reason))
+}
+
+private fun Pc1245BasicMemoryResult.toSnapshotResult(): BasicProgramSnapshotResult = when (this) {
+    is Pc1245BasicMemoryResult.Success -> BasicProgramSnapshotResult.Success(start, end, bytes)
+    is Pc1245BasicMemoryResult.InvalidPointers ->
+        BasicProgramSnapshotResult.Failure(BasicProgramMemoryError.InvalidPointer(start, end))
+    is Pc1245BasicMemoryResult.TooLarge -> error("Program extraction cannot exceed capacity")
+    is Pc1245BasicMemoryResult.InvalidProgram ->
+        BasicProgramSnapshotResult.Failure(BasicProgramMemoryError.InvalidProgram(offset, reason))
 }

@@ -1065,3 +1065,24 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
   作成できるようにする。複数bankの一括選択と順序確認もこの画面で扱う
 - Current legacy behavior: PC-1245のPokecom GO互換32/64KiB imageは`Open ROM`から直接実行できるが、
   Desktop UIから`.pgrom`へ保存する操作は未提供。Core/Converterの変換経路は維持し、Wizardから接続する
+### Cycle-timed SC61860 buzzer PCM
+
+- Reference: `../pc1251-emulator/pc1251emu/audio.py` and the C-port event timing in
+  `../pc1251-emulator/pc1251emu/machine.py` (MIT License).
+- PGP files: `Pc1245Buzzer.kt`, `DesktopAudioPlayer.kt`, and their tests.
+- Porting decision: Pokecom GO's command hooks, inferred frequencies, `Beep.java`, and fixed
+  Android `AudioTrack` clips are not ported. PGP records the SC61860 C-port mode against emulated
+  CPU cycles, averages transitions within each PCM sample, applies the piezo-style high-pass
+  filter, and streams the resulting PCM through a platform adapter.
+- Modes 0/4 are LOW, 1/5 are HIGH, 2 is the internal 2 kHz oscillator, 3 is the internal 4 kHz
+  oscillator, and cassette-derived modes 6/7 are currently rendered LOW.
+
+### PC-1251 ROM, memory, and LCD foundation
+
+- Reference: `../pc1251-emulator/pc1251emu/machine.py` (MIT License) and Pokecom GO's
+  `Sc61860_1251.java` / `MainLoop1251.java` for comparison.
+- PGP files: `core/.../machine/pc1251/Pc1251Rom.kt`, `Pc1251MemoryBus.kt`, and `Pc1251Display.kt`.
+- PC-1251 is implemented as a separate Machine rather than adding model branches to PC-1245.
+- The physical writable ranges are 0xB800..0xC7FF and 0xF800..0xF8FF; 0xB000..0xB7FF aliases
+  0xB800..0xBFFF. The 120 LCD columns use ascending 0xF800..0xF83B and descending
+  0xF87B..0xF840 addresses.

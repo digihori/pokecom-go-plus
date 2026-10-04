@@ -46,6 +46,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.digihori.pgp.core.ProjectInfo
 import com.digihori.pgp.core.api.ExecutionStatus
+import com.digihori.pgp.core.api.CoreFault
 import com.digihori.pgp.core.api.BasicProgramLoadResult
 import com.digihori.pgp.core.api.BasicProgramMemoryError
 import com.digihori.pgp.core.api.BasicProgramSnapshotResult
@@ -55,6 +56,9 @@ import com.digihori.pgp.core.api.CpuSnapshot
 import com.digihori.pgp.core.api.DisplaySnapshot
 import com.digihori.pgp.core.api.OperatingMode
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomInputUnsupported
+import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
+import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.source.machine.PgpMemoryDumpError
 import com.digihori.pgp.desktop.basic.DesktopBasicLoadError
 import com.digihori.pgp.desktop.basic.DesktopBasicLoadResult
@@ -75,6 +79,7 @@ import com.digihori.pgp.desktop.rom.DesktopRomLoadError
 import com.digihori.pgp.desktop.rom.DesktopRomLoadResult
 import com.digihori.pgp.desktop.rom.DesktopRomLoader
 import com.digihori.pgp.desktop.rom.DesktopRomLocator
+import com.digihori.pgp.desktop.rom.DesktopRomHistory
 import com.digihori.pgp.desktop.rom.DesktopRomPackageConversionResult
 import com.digihori.pgp.desktop.rom.DesktopRomPackageConverter
 import com.digihori.pgp.desktop.runner.DesktopEmulatorRunner
@@ -114,6 +119,7 @@ fun main() = application {
 @Composable
 private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
     var runner by remember { mutableStateOf<DesktopEmulatorRunner?>(null) }
+    var selectedMachineId by remember { mutableStateOf(Pc1245RomDefinition.MACHINE_ID) }
     var runnerState by remember { mutableStateOf(RunnerState.PAUSED) }
     var loadedRomName by remember { mutableStateOf<String?>(null) }
     var message by remember { mutableStateOf("Select a PC-1245 legacy 32/64 KiB ROM image.") }
@@ -132,6 +138,7 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
     var focusRestoreRequest by remember { mutableLongStateOf(0L) }
     val scrollState = rememberScrollState()
     val audioPlayer = remember { DesktopAudioPlayer() }
+    val romHistory = remember { DesktopRomHistory() }
     val appFocusRequester = remember { FocusRequester() }
 
     fun selectAndRestoreFocus(select: () -> File?): File? = try {
@@ -145,52 +152,71 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
         errorDialogMessage = value
     }
 
-    fun loadRom(file: File, startAutomatically: Boolean) {
+    fun loadRom(file: File, startAutomatically: Boolean, reportErrors: Boolean = true): Boolean {
         val result = runCatching {
             val bytes = file.readBytes()
             if (file.extension.equals("pgrom", ignoreCase = true)) {
                 DesktopRomLoader.loadPackage(bytes)
             } else {
-                DesktopRomLoader.loadPc1245LegacyImage(bytes)
+                DesktopRomLoader.loadLegacyImage(selectedMachineId, bytes)
             }
         }
             .getOrElse {
-                showError("Could not read ROM: ${it.message ?: it::class.simpleName}")
-                return
-            }
+                if (reportErrors) showError("Could not read ROM: ${it.message ?: it::class.simpleName}")
+                return false
+        }
         when (result) {
             is DesktopRomLoadResult.Success -> {
+                val bootResult = if (startAutomatically) {
+                    result.session.runCycles(AUTOMATIC_ROM_BOOT_CYCLES)
+                } else {
+                    null
+                }
+                if (bootResult?.status is ExecutionStatus.Faulted) {
+                    if (reportErrors) showError((bootResult.status as ExecutionStatus.Faulted).fault.message())
+                    return false
+                }
                 runner?.pause()
                 audioPlayer.stop()
                 val newRunner = DesktopEmulatorRunner(result.session)
+                selectedMachineId = result.session.machineId
                 runner = newRunner
                 keyboardInput.attach(newRunner)
                 loadedRomName = file.name
-                executedCycles = 0L
+                executedCycles = bootResult?.executedCycles ?: 0L
                 display = newRunner.displaySnapshot()
                 cpu = newRunner.cpuSnapshot()
                 operatingMode = OperatingMode.RUN
                 requestedToneHz = 0
+                romHistory.remember(file, result.session.machineId)
                 if (startAutomatically) newRunner.run()
                 runnerState = newRunner.state
                 message = if (startAutomatically) {
-                    "Default ROM loaded and running."
+                    "ROM loaded automatically and running."
                 } else {
                     "ROM loaded. Press Run to start."
                 }
+                return true
             }
-            is DesktopRomLoadResult.Failure -> showError(result.error.message())
+            is DesktopRomLoadResult.Failure -> {
+                if (reportErrors) showError(result.error.message())
+                return false
+            }
         }
     }
 
     fun createRomSet() {
-        val internalFile = selectAndRestoreFocus { selectInternalRomFile(ownerWindow) } ?: return
-        val externalFile = selectAndRestoreFocus { selectExternalRomFile(ownerWindow) } ?: return
+        val internalFile = selectAndRestoreFocus { selectInternalRomFile(ownerWindow, selectedMachineId) } ?: return
+        val externalFile = selectAndRestoreFocus { selectExternalRomFile(ownerWindow, selectedMachineId) } ?: return
         val conversion = runCatching {
-            DesktopRomPackageConverter.createPc1245Package(
-                internal = internalFile.readBytes(),
-                external = externalFile.readBytes(),
-            )
+            when (selectedMachineId) {
+                Pc1251RomDefinition.MACHINE_ID -> DesktopRomPackageConverter.createPc1251Package(
+                    internalFile.readBytes(), externalFile.readBytes(),
+                )
+                else -> DesktopRomPackageConverter.createPc1245Package(
+                    internalFile.readBytes(), externalFile.readBytes(),
+                )
+            }
         }.getOrElse {
             showError("Could not read ROM files: ${it.message ?: it::class.simpleName}")
             return
@@ -217,6 +243,13 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
     }
 
     LaunchedEffect(Unit) {
+        val previous = romHistory.lastSelection()
+        if (previous != null && previous.file.isFile) {
+            selectedMachineId = previous.machineId
+            if (loadRom(previous.file, startAutomatically = true, reportErrors = false)) return@LaunchedEffect
+        } else if (previous != null) {
+            romHistory.clear()
+        }
         DesktopRomLocator.findPc1245Rom()?.let { loadRom(it, startAutomatically = true) }
     }
 
@@ -239,14 +272,14 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
             val audio = activeRunner.audioSnapshot()
             requestedToneHz = audio.frequencyHz
             if (activeRunner.state == RunnerState.RUNNING) {
-                audioPlayer.update(audio).onFailure {
+                audioPlayer.write(activeRunner.drainAudioSamples()).onFailure {
                     message = "Audio output unavailable: ${it.message ?: it::class.simpleName}"
                 }
             }
             val status = tick.runResult?.status
             if (status is ExecutionStatus.Faulted) {
                 audioPlayer.stop()
-                message = "Emulation stopped: ${status.fault}"
+                message = status.fault.message()
             }
         }
     }
@@ -279,7 +312,17 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                 ),
             ) {
                 Text(ProjectInfo.DISPLAY_NAME, style = MaterialTheme.typography.headlineMedium)
-                Text("Machine: PC-1245")
+                Text("Machine: ${selectedMachineId.displayName()}")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        enabled = selectedMachineId != Pc1245RomDefinition.MACHINE_ID,
+                        onClick = { selectedMachineId = Pc1245RomDefinition.MACHINE_ID },
+                    ) { Text("PC-1245") }
+                    Button(
+                        enabled = selectedMachineId != Pc1251RomDefinition.MACHINE_ID,
+                        onClick = { selectedMachineId = Pc1251RomDefinition.MACHINE_ID },
+                    ) { Text("PC-1251") }
+                }
                 Text("ROM: ${loadedRomName ?: "not loaded"}")
                 Text("State: ${runnerState.name}")
                 Text("Executed cycles: $executedCycles")
@@ -501,7 +544,7 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                 title = { Text("Open PC-1245 ROM") },
                 text = {
                     Text(
-                        "Choose one of the following files:\n\n" +
+                        "Machine: ${selectedMachineId.displayName()}\n\nChoose one of the following files:\n\n" +
                             "• PGP ROM package (.pgrom)\n" +
                             "  Created by PGP from separate physical ROM dumps.\n\n" +
                             "• Pokecom GO compatible image (.bin)\n" +
@@ -512,7 +555,7 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                 confirmButton = {
                     TextButton(onClick = {
                         showOpenRomGuide = false
-                        selectAndRestoreFocus { selectRomFile(ownerWindow) }
+                        selectAndRestoreFocus { selectRomFile(ownerWindow, selectedMachineId) }
                             ?.let { loadRom(it, startAutomatically = false) }
                     }) { Text("Choose File") }
                 },
@@ -525,10 +568,11 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
         if (showCreateRomSetGuide) {
             AlertDialog(
                 onDismissRequest = { showCreateRomSetGuide = false },
-                title = { Text("Create PC-1245 ROM Set") },
+                title = { Text("Create ${selectedMachineId.displayName()} ROM Set") },
                 text = {
                     Text(
-                        "You will choose three items in this order:\n\n" +
+                        "Machine: ${selectedMachineId.displayName()}\n\n" +
+                            "You will choose three items in this order:\n\n" +
                             "1. Internal ROM dump — exactly 8 KiB (8192 bytes)\n" +
                             "2. External ROM dump — exactly 16 KiB (16384 bytes)\n" +
                             "3. Destination for the new .pgrom file\n\n" +
@@ -726,12 +770,17 @@ private fun Pc1245SoftwareKeyboard(runner: DesktopEmulatorRunner?) {
 
 @Composable
 private fun Pc1245LcdPanel(snapshot: DisplaySnapshot?) {
+    val panelAspectRatio = if (snapshot == null) {
+        LCD_PANEL_ASPECT_RATIO
+    } else {
+        CharacterCellGeometry.visualColumnCount(snapshot.characterColumns, snapshot.characterWidth) / 11f
+    }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = 800.dp)
-                .aspectRatio(LCD_PANEL_ASPECT_RATIO),
+                .aspectRatio(panelAspectRatio),
         ) {
             drawRect(LCD_BACKGROUND)
             if (snapshot == null) return@Canvas
@@ -764,19 +813,19 @@ private fun Pc1245LcdPanel(snapshot: DisplaySnapshot?) {
     }
 }
 
-private fun selectRomFile(owner: Frame): File? {
-    return selectFile(owner, "Open PC-1245 ROM", "pc-1245.pgrom")
+private fun selectRomFile(owner: Frame, machineId: MachineId): File? {
+    return selectFile(owner, "Open ${machineId.displayName()} ROM", "${machineId.value}.pgrom")
 }
 
-private fun selectInternalRomFile(owner: Frame): File? = selectFile(
+private fun selectInternalRomFile(owner: Frame, machineId: MachineId): File? = selectFile(
     owner,
-    "Select PC-1245 internal ROM (8 KiB)",
+    "Select ${machineId.displayName()} internal ROM (8 KiB)",
     "internal.bin",
 )
 
-private fun selectExternalRomFile(owner: Frame): File? = selectFile(
+private fun selectExternalRomFile(owner: Frame, machineId: MachineId): File? = selectFile(
     owner,
-    "Select PC-1245 external ROM (16 KiB)",
+    "Select ${machineId.displayName()} external ROM (16 KiB)",
     "external.bin",
 )
 
@@ -840,6 +889,11 @@ private fun DesktopBasicLoadError.message(): String = when (this) {
     }
 }
 
+private fun CoreFault.message(): String = when (this) {
+    is CoreFault.UnsupportedOpcode ->
+        "Emulation stopped: unsupported opcode 0x${opcode.hex(2)} at PC=0x${address.hex(4)}."
+}
+
 private fun DesktopBasicProgramCompileError.message(): String = when (this) {
     DesktopBasicProgramCompileError.InvalidUtf8 -> "BASIC source is not valid UTF-8."
     is DesktopBasicProgramCompileError.Parse ->
@@ -855,6 +909,8 @@ private fun BasicProgramMemoryError.message(): String = when (this) {
         "BASIC program is too large: $size bytes (capacity $capacity bytes)."
     is BasicProgramMemoryError.InvalidProgram ->
         "Invalid BASIC program at byte $offset: $reason"
+    is BasicProgramMemoryError.UnsupportedMachine ->
+        "BASIC program memory access is not implemented for ${machineId.value}."
 }
 
 private fun DesktopMemoryDumpLoadError.message(): String = when (this) {
@@ -904,6 +960,7 @@ private fun com.digihori.pgp.desktop.rom.DesktopRomPackageError.message(): Strin
 }
 
 private const val FRAME_DELAY_MILLISECONDS: Long = 16L
+private const val AUTOMATIC_ROM_BOOT_CYCLES: Long = 1_000_000L
 private const val CPU_REFRESH_FRAME_INTERVAL: Int = 6
 private const val LCD_DOT_INSET_RATIO: Float = 0.14f
 private const val LCD_PANEL_ASPECT_RATIO: Float = 95f / 11f
@@ -922,3 +979,5 @@ private fun parseHexAddress(value: String): Int? {
 }
 
 private fun Boolean.bit(): Int = if (this) 1 else 0
+
+private fun MachineId.displayName(): String = value.uppercase()

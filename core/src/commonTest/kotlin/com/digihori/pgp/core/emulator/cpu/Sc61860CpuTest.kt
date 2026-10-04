@@ -1047,7 +1047,7 @@ class Sc61860CpuTest {
 
         val result = cpu.step()
 
-        assertEquals(6, result.cycles)
+        assertEquals(10, result.cycles)
         assertEquals(0xa5, bus[0xfffe])
         assertEquals(0xa5, bus[0xffff])
         assertEquals(0xa5, bus[0x0000])
@@ -1614,6 +1614,23 @@ class Sc61860CpuTest {
         assertEquals(0x60, cpu.state.r)
         assertEquals(0x00, cpu.state.internalRam[0x02])
         assertEquals(0x90, cpu.state.internalRam[0x03])
+    }
+
+    @Test
+    fun fildUsesThreeCyclesForEachAdditionalExternalByte() {
+        val bus = TestBus(0x1f)
+        val cpu = Sc61860Cpu(bus).apply {
+            state.internalRam[0x00] = 10
+            state.internalRam[0x02] = 0x5a
+            state.dataPointer = 0x4000
+        }
+
+        val result = cpu.step()
+
+        assertEquals(34, result.cycles)
+        assertEquals(0x5a, bus[0x4000])
+        assertEquals(0x5a, bus[0x400a])
+        assertEquals(0x400a, cpu.state.dataPointer)
     }
 
     @Test

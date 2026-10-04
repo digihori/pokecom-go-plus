@@ -18,6 +18,7 @@ public interface EmulatorSession {
     public fun memorySnapshot(startAddress: Int, length: Int): MemorySnapshot
     public fun displaySnapshot(): DisplaySnapshot
     public fun audioSnapshot(): AudioSnapshot
+    public fun drainAudioSamples(): AudioPcmSnapshot
     public fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult
     public fun basicProgramSnapshot(): BasicProgramSnapshotResult
     public fun loadMemoryImage(image: AddressedMemoryImage): MemoryImageLoadResult
@@ -117,6 +118,8 @@ public enum class DisplaySymbol {
     SHIFT,
     RUN,
     PRO,
+    RESERVE,
+    E,
 }
 
 public class DisplaySnapshot internal constructor(
@@ -152,6 +155,15 @@ public data class AudioSnapshot(
     public val revision: Long,
 )
 
+public class AudioPcmSnapshot(
+    public val sampleRate: Int,
+    samples: ShortArray,
+) {
+    private val content: ShortArray = samples.copyOf()
+    public val sampleCount: Int get() = content.size
+    public fun copySamples(): ShortArray = content.copyOf()
+}
+
 public sealed interface BasicProgramLoadResult {
     public data class Success(
         public val startAddress: Int,
@@ -179,6 +191,7 @@ public sealed interface BasicProgramMemoryError {
     public data class InvalidPointer(public val startAddress: Int, public val endAddress: Int) : BasicProgramMemoryError
     public data class ProgramTooLarge(public val size: Int, public val capacity: Int) : BasicProgramMemoryError
     public data class InvalidProgram(public val offset: Int, public val reason: String) : BasicProgramMemoryError
+    public data class UnsupportedMachine(public val machineId: MachineId) : BasicProgramMemoryError
 }
 
 public sealed interface MemoryImageLoadResult {

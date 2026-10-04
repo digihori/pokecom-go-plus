@@ -58,6 +58,7 @@ public class CycleBudgetPlanner(
 
     public companion object {
         public const val PC1245_CYCLES_PER_SECOND: Long = 288_000L
+        public const val PC1251_CYCLES_PER_SECOND: Long = 192_000L
         public const val DEFAULT_MAXIMUM_CATCH_UP_NANOSECONDS: Long = 100_000_000L
         private const val NANOS_PER_SECOND: Long = 1_000_000_000L
         private const val MAX_SPEED_NUMERATOR: Long = 16L

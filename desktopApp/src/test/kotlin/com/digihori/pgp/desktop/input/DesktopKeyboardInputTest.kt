@@ -46,7 +46,7 @@ class DesktopKeyboardInputTest {
     }
 
     @Test
-    fun suppressesAutoRepeatForACharacterUntilKeyUp() {
+    fun holdsAndReleasesACharacterWhosePhysicalAndPocketKeysMatch() {
         val sink = FakeSink()
         val input = DesktopKeyboardInput().also { it.attach(sink) }
 
@@ -55,7 +55,23 @@ class DesktopKeyboardInputTest {
         input.handle(Key.A, 'a'.code, KeyEventType.KeyUp)
         input.handle(Key.A, 'a'.code, KeyEventType.KeyDown)
 
-        assertEquals(listOf(listOf(PocketKey.A), listOf(PocketKey.A)), sink.sequences)
+        assertEquals(listOf("press:A", "release:A", "press:A"), sink.events)
+        assertEquals(emptyList(), sink.sequences)
+    }
+
+    @Test
+    fun holdsNumberKeyUntilItsPhysicalKeyUpEvent() {
+        val sink = FakeSink()
+        val input = DesktopKeyboardInput().also { it.attach(sink) }
+
+        input.handle(Key.Seven, '7'.code, KeyEventType.KeyDown)
+        input.handle(Key.Seven, '7'.code, KeyEventType.KeyDown)
+
+        assertEquals(listOf("press:NUM_7"), sink.events)
+
+        input.handle(Key.Seven, '7'.code, KeyEventType.KeyUp)
+
+        assertEquals(listOf("press:NUM_7", "release:NUM_7"), sink.events)
     }
 
     @Test
@@ -92,7 +108,7 @@ class DesktopKeyboardInputTest {
 
         input.attach(FakeSink())
 
-        assertEquals(listOf("press:UP", "release:UP"), first.events)
+        assertEquals(listOf("press:UP", "press:A", "release:UP", "release:A"), first.events)
     }
 
     @Test
@@ -105,8 +121,8 @@ class DesktopKeyboardInputTest {
         input.clearActiveInputs()
         input.handle(Key.A, 'a'.code, KeyEventType.KeyDown)
 
-        assertEquals(listOf(listOf(PocketKey.A), listOf(PocketKey.A)), sink.sequences)
-        assertEquals(listOf("press:UP", "release:UP"), sink.events)
+        assertEquals(emptyList(), sink.sequences)
+        assertEquals(listOf("press:A", "press:UP", "release:A", "release:UP", "press:A"), sink.events)
     }
 
     private class FakeSink : DesktopKeyInputSink {

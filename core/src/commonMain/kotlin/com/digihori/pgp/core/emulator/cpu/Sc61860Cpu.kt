@@ -325,7 +325,9 @@ internal class Sc61860Cpu(
         }
         state.dataPointer = subtract16(state.dataPointer, 1)
         state.d = 0
-        return Sc61860StepResult(cycles = encodedCount + 4)
+        // FILD performs an external bus write for every byte. Unlike FILM, each
+        // additional byte costs three cycles; timing loops use this distinction.
+        return Sc61860StepResult(cycles = encodedCount * 3 + 4)
     }
 
     private fun decimalWithAccumulator(subtract: Boolean): Sc61860StepResult {

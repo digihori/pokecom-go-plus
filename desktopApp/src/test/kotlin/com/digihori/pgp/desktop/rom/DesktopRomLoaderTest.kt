@@ -2,6 +2,7 @@ package com.digihori.pgp.desktop.rom
 
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1245.RomImportError
+import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -26,6 +27,19 @@ class DesktopRomLoaderTest {
         val size = assertIs<RomImportError.InvalidImageSize>(invalid.error)
         assertEquals(Pc1245RomDefinition.SUPPORTED_LEGACY_IMAGE_SIZES, size.expected)
         assertEquals(42, size.actual)
+    }
+
+    @Test
+    fun createsAPc1251SessionFromALegacyImage() {
+        val result = DesktopRomLoader.loadLegacyImage(
+            Pc1251RomDefinition.MACHINE_ID,
+            ByteArray(Pc1251RomDefinition.LEGACY_IMAGE_SIZE),
+        )
+
+        assertEquals(
+            Pc1251RomDefinition.MACHINE_ID,
+            assertIs<DesktopRomLoadResult.Success>(result).session.machineId,
+        )
     }
 
     @Test

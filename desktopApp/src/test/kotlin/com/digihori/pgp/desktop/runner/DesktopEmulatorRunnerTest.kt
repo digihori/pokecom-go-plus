@@ -1,6 +1,7 @@
 package com.digihori.pgp.desktop.runner
 
 import com.digihori.pgp.core.api.AudioSnapshot
+import com.digihori.pgp.core.api.AudioPcmSnapshot
 import com.digihori.pgp.core.api.BasicProgramLoadResult
 import com.digihori.pgp.core.api.BasicProgramMemoryError
 import com.digihori.pgp.core.api.BasicProgramSnapshotResult
@@ -27,6 +28,19 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 class DesktopEmulatorRunnerTest {
+    @Test
+    fun pc1251UsesIts192KilohertzCpuClockByDefault() {
+        val clock = FakeClock()
+        val session = FakeSession(machineId = com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition.MACHINE_ID)
+        val runner = DesktopEmulatorRunner(session, clock)
+
+        runner.run()
+        clock.advance(1_000_000_000)
+        val tick = runner.tick()
+
+        assertEquals(19_200L, tick.budget.cycles)
+        assertEquals(19_200L, tick.runResult?.executedCycles)
+    }
     @Test
     fun basicProgramLoadRestoresThePreviousRunningState() {
         val runningSession = FakeSession()
@@ -315,8 +329,8 @@ class DesktopEmulatorRunnerTest {
     private class FakeSession(
         private val faultOnRun: Boolean = false,
         private val basicLoadResult: BasicProgramLoadResult? = null,
+        override val machineId: MachineId = MachineId("pc-1245"),
     ) : EmulatorSession {
-        override val machineId: MachineId = MachineId("pc-1245")
         val budgets = mutableListOf<Long>()
         var resetCount = 0
         var stepCount = 0
@@ -356,6 +370,7 @@ class DesktopEmulatorRunnerTest {
         override fun memorySnapshot(startAddress: Int, length: Int): MemorySnapshot = unsupported()
         override fun displaySnapshot(): DisplaySnapshot = unsupported()
         override fun audioSnapshot(): AudioSnapshot = unsupported()
+        override fun drainAudioSamples(): AudioPcmSnapshot = unsupported()
         override fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult =
             basicLoadResult ?: BasicProgramLoadResult.Success(0xc000, 0xc000 + program.lastIndex, program.size)
         override fun basicProgramSnapshot(): BasicProgramSnapshotResult = unsupported()
