@@ -9,10 +9,11 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.utf16CodePoint
 import com.digihori.pgp.core.api.InputResult
 import com.digihori.pgp.core.api.PocketKey
+import com.digihori.pgp.core.api.MachineCatalog
+import com.digihori.pgp.core.api.MachineKeyboardLayout
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245CharacterInput
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251CharacterInput
-import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
 
 internal interface DesktopKeyInputSink {
     val machineId: MachineId
@@ -88,9 +89,9 @@ internal class DesktopKeyboardInput {
     }
 
     private fun DesktopKeyInputSink.keySequence(character: Char): List<PocketKey>? =
-        when (machineId) {
-            Pc1251RomDefinition.MACHINE_ID -> Pc1251CharacterInput.keySequence(character)
-            else -> Pc1245CharacterInput.keySequence(character)
+        when (MachineCatalog.find(machineId)?.keyboardLayout) {
+            MachineKeyboardLayout.PC_1251 -> Pc1251CharacterInput.keySequence(character)
+            MachineKeyboardLayout.PC_1245, null -> Pc1245CharacterInput.keySequence(character)
         }
 
     private sealed interface ActiveInput {

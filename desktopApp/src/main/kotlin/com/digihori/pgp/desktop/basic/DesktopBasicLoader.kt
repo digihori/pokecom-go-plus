@@ -1,6 +1,8 @@
 package com.digihori.pgp.desktop.basic
 
 import com.digihori.pgp.core.api.PocketKey
+import com.digihori.pgp.core.api.MachineCatalog
+import com.digihori.pgp.core.api.MachineKeyboardLayout
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomBasicInput
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicDetokenizeError
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicDetokenizeResult
@@ -12,8 +14,6 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomInputError
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomInputResult
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomBasicInput
-import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
-import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.source.basic.BasicTextParseError
 import com.digihori.pgp.core.source.basic.BasicTextParseResult
@@ -37,9 +37,9 @@ internal object DesktopBasicLoader {
             )
             is BasicTextParseResult.Success -> parsed.document
         }
-        val compiled = when (machineId) {
-            in Pc1251FamilyModel.entries.map { it.machineId } -> Pc1251RomBasicInput.compile(document)
-            else -> Pc1245RomBasicInput.compile(document)
+        val compiled = when (MachineCatalog.find(machineId)?.keyboardLayout) {
+            MachineKeyboardLayout.PC_1251 -> Pc1251RomBasicInput.compile(document)
+            MachineKeyboardLayout.PC_1245, null -> Pc1245RomBasicInput.compile(document)
         }
         return when (compiled) {
             is Pc1245RomInputResult.Failure -> DesktopBasicLoadResult.Failure(

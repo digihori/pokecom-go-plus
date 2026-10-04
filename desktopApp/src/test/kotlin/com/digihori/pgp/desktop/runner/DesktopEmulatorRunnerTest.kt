@@ -18,6 +18,7 @@ import com.digihori.pgp.core.api.PocketKey
 import com.digihori.pgp.core.api.RunResult
 import com.digihori.pgp.core.api.StepResult
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.runtime.CycleBudgetPlanner
 import com.digihori.pgp.core.runtime.KeyInputQueue
@@ -276,13 +277,15 @@ class DesktopEmulatorRunnerTest {
     }
 
     @Test
-    fun usesApc1251SpecificGeneratedKeyInterval() {
-        val session = FakeSession(machineId = Pc1251RomDefinition.MACHINE_ID)
-        val runner = DesktopEmulatorRunner(session = session, clock = FakeClock())
+    fun usesThePc1251FamilyGeneratedKeyInterval() {
+        Pc1251FamilyModel.entries.forEach { model ->
+            val session = FakeSession(machineId = model.machineId)
+            val runner = DesktopEmulatorRunner(session = session, clock = FakeClock())
 
-        runner.runKeySequenceImmediately(listOf(PocketKey.NUM_1, PocketKey.NUM_0))
+            runner.runKeySequenceImmediately(listOf(PocketKey.NUM_1, PocketKey.NUM_0))
 
-        assertEquals(listOf(38_400L, 19_200L, 38_400L), session.budgets)
+            assertEquals(listOf(38_400L, 19_200L, 38_400L), session.budgets, model.name)
+        }
     }
 
     @Test

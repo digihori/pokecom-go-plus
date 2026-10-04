@@ -10,16 +10,12 @@ import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251Machine
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251MemoryImageLoadResult
-import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251Display
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.rom.RomSet
 
 public object EmulatorFactory {
-    public fun supportedMachineIds(): List<MachineId> = listOf(
-        Pc1245RomDefinition.MACHINE_ID,
-        *Pc1251FamilyModel.entries.map { it.machineId }.toTypedArray(),
-    )
+    public fun supportedMachineIds(): List<MachineId> = MachineCatalog.definitions.map(MachineDefinition::id)
 
     public fun create(
         machineId: MachineId,
@@ -37,16 +33,15 @@ public object EmulatorFactory {
 
         return try {
             CreateSessionResult.Success(
-                when (machineId) {
-                    Pc1245RomDefinition.MACHINE_ID -> Pc1245EmulatorSession(Pc1245Machine(romSet))
-                    in Pc1251FamilyModel.entries.map { it.machineId } -> {
+                when (MachineCatalog.require(machineId).family) {
+                    MachineFamily.PC_1245 -> Pc1245EmulatorSession(Pc1245Machine(romSet))
+                    MachineFamily.PC_1251 -> {
                         val model = requireNotNull(Pc1251FamilyModel.fromMachineId(machineId))
                         Pc1251EmulatorSession(
                             machineId,
                             Pc1251Machine(romSet, model, configuration.pc1251FamilyMemoryMode),
                         )
                     }
-                    else -> error("Unsupported machine passed validation")
                 },
             )
         } catch (error: IllegalArgumentException) {

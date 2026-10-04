@@ -15,12 +15,12 @@ import com.digihori.pgp.core.api.PocketKey
 import com.digihori.pgp.core.api.ExecutionStatus
 import com.digihori.pgp.core.api.RunResult
 import com.digihori.pgp.core.api.StepResult
+import com.digihori.pgp.core.api.MachineCatalog
 import com.digihori.pgp.core.runtime.CycleBudget
 import com.digihori.pgp.core.runtime.CycleBudgetPlanner
 import com.digihori.pgp.core.runtime.KeyInputQueue
 import com.digihori.pgp.core.runtime.KeyTransition
 import com.digihori.pgp.core.runtime.SpeedRatio
-import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
 import com.digihori.pgp.desktop.input.DesktopKeyInputSink
 import com.digihori.pgp.core.source.machine.AddressedMemoryImage
 
@@ -41,10 +41,7 @@ internal class DesktopEmulatorRunner(
     override val machineId get() = session.machineId
 
     private val planner: CycleBudgetPlanner = planner ?: CycleBudgetPlanner(
-        cyclesPerSecond = when (session.machineId) {
-            Pc1251RomDefinition.MACHINE_ID -> CycleBudgetPlanner.PC1251_CYCLES_PER_SECOND
-            else -> CycleBudgetPlanner.PC1245_CYCLES_PER_SECOND
-        },
+        cyclesPerSecond = MachineCatalog.require(session.machineId).cyclesPerSecond,
     )
     var state: RunnerState = RunnerState.PAUSED
         private set
@@ -228,13 +225,13 @@ internal class DesktopEmulatorRunner(
 
     private companion object {
         // Pokecom GO retained a released key for three 20 ms polling intervals.
-        private fun defaultKeyInputQueue(machineId: com.digihori.pgp.core.rom.MachineId): KeyInputQueue =
-            if (machineId == Pc1251RomDefinition.MACHINE_ID) {
-                // The PC-1251 ROM needs a longer release interval to recognize consecutive taps.
-                KeyInputQueue(holdCycles = 38_400, gapCycles = 19_200)
-            } else {
-                KeyInputQueue(holdCycles = 17_280, gapCycles = 5_760)
-            }
+        private fun defaultKeyInputQueue(machineId: com.digihori.pgp.core.rom.MachineId): KeyInputQueue {
+            val definition = MachineCatalog.require(machineId)
+            return KeyInputQueue(
+                holdCycles = definition.automaticKeyHoldCycles,
+                gapCycles = definition.automaticKeyGapCycles,
+            )
+        }
 
         const val BASIC_LINE_SETTLE_CYCLES: Long = 57_600 // 200 ms after ENTER.
     }

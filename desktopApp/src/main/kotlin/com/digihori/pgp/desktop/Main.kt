@@ -56,10 +56,9 @@ import com.digihori.pgp.core.api.MemoryImageLoadResult
 import com.digihori.pgp.core.api.CpuSnapshot
 import com.digihori.pgp.core.api.DisplaySnapshot
 import com.digihori.pgp.core.api.OperatingMode
+import com.digihori.pgp.core.api.MachineCatalog
+import com.digihori.pgp.core.api.MachineKeyboardLayout
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomInputUnsupported
-import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
-import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
-import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.source.machine.PgpMemoryDumpError
@@ -123,7 +122,7 @@ fun main() = application {
 @Composable
 private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
     var runner by remember { mutableStateOf<DesktopEmulatorRunner?>(null) }
-    var selectedMachineId by remember { mutableStateOf(Pc1245RomDefinition.MACHINE_ID) }
+    var selectedMachineId by remember { mutableStateOf(MachineCatalog.defaultDefinition.id) }
     var runnerState by remember { mutableStateOf(RunnerState.PAUSED) }
     var loadedRomName by remember { mutableStateOf<String?>(null) }
     var loadedRomFile by remember { mutableStateOf<File?>(null) }
@@ -222,14 +221,11 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
         val internalFile = selectAndRestoreFocus { selectInternalRomFile(ownerWindow, selectedMachineId) } ?: return
         val externalFile = selectAndRestoreFocus { selectExternalRomFile(ownerWindow, selectedMachineId) } ?: return
         val conversion = runCatching {
-            when (selectedMachineId) {
-                in Pc1251FamilyModel.entries.map { it.machineId } -> DesktopRomPackageConverter.createPc1251Package(
-                    internalFile.readBytes(), externalFile.readBytes(), selectedMachineId,
-                )
-                else -> DesktopRomPackageConverter.createPc1245Package(
-                    internalFile.readBytes(), externalFile.readBytes(),
-                )
-            }
+            DesktopRomPackageConverter.createPackage(
+                selectedMachineId,
+                internalFile.readBytes(),
+                externalFile.readBytes(),
+            )
         }.getOrElse {
             showError("Could not read ROM files: ${it.message ?: it::class.simpleName}")
             return
@@ -330,24 +326,14 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                 Text(ProjectInfo.DISPLAY_NAME, style = MaterialTheme.typography.headlineMedium)
                 Text("Machine: ${selectedMachineId.displayName()}")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        enabled = selectedMachineId != Pc1245RomDefinition.MACHINE_ID,
-                        onClick = { selectedMachineId = Pc1245RomDefinition.MACHINE_ID },
-                    ) { Text("PC-1245") }
-                    Button(
-                        enabled = selectedMachineId != Pc1251FamilyModel.PC_1250.machineId,
-                        onClick = { selectedMachineId = Pc1251FamilyModel.PC_1250.machineId },
-                    ) { Text("PC-1250") }
-                    Button(
-                        enabled = selectedMachineId != Pc1251RomDefinition.MACHINE_ID,
-                        onClick = { selectedMachineId = Pc1251RomDefinition.MACHINE_ID },
-                    ) { Text("PC-1251") }
-                    Button(
-                        enabled = selectedMachineId != Pc1251FamilyModel.PC_1255.machineId,
-                        onClick = { selectedMachineId = Pc1251FamilyModel.PC_1255.machineId },
-                    ) { Text("PC-1255") }
+                    MachineCatalog.definitions.forEach { definition ->
+                        Button(
+                            enabled = selectedMachineId != definition.id,
+                            onClick = { selectedMachineId = definition.id },
+                        ) { Text(definition.displayName) }
+                    }
                 }
-                if ((runner?.machineId ?: selectedMachineId).isPc1251Family()) {
+                if (MachineCatalog.require(runner?.machineId ?: selectedMachineId).supportsConfigurableRam) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             enabled = familyMemoryMode != Pc1251FamilyMemoryMode.EXPANDED,
@@ -596,7 +582,10 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                             display = runner?.displaySnapshot()
                         },
                     ) { Text("PRO mode") }
-                    if ((runner?.machineId ?: selectedMachineId).isPc1251Family()) {
+                    if (OperatingMode.RESERVE in MachineCatalog.require(
+                            runner?.machineId ?: selectedMachineId,
+                        ).supportedOperatingModes
+                    ) {
                         Button(
                             enabled = runner != null && operatingMode != OperatingMode.RESERVE,
                             onClick = {
@@ -610,7 +599,7 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
 
                 PocketSoftwareKeyboard(
                     runner,
-                    (runner?.machineId ?: selectedMachineId).isPc1251Family(),
+                    MachineCatalog.require(runner?.machineId ?: selectedMachineId).keyboardLayout,
                 )
             }
         }
@@ -813,7 +802,8 @@ private fun PocketKeyButton(
 }
 
 @Composable
-private fun PocketSoftwareKeyboard(runner: DesktopEmulatorRunner?, pc1251: Boolean) {
+private fun PocketSoftwareKeyboard(runner: DesktopEmulatorRunner?, layout: MachineKeyboardLayout) {
+    val pc1251 = layout == MachineKeyboardLayout.PC_1251
     val rows = if (pc1251) Pc1251KeyboardLayout.rows else Pc1245KeyboardLayout.rows
     val columnCount = if (pc1251) Pc1251KeyboardLayout.COLUMN_COUNT else Pc1245KeyboardLayout.COLUMN_COUNT
     Column(
@@ -1061,6 +1051,4 @@ private fun parseHexAddress(value: String): Int? {
 
 private fun Boolean.bit(): Int = if (this) 1 else 0
 
-private fun MachineId.displayName(): String = value.uppercase()
-
-private fun MachineId.isPc1251Family(): Boolean = Pc1251FamilyModel.fromMachineId(this) != null
+private fun MachineId.displayName(): String = MachineCatalog.find(this)?.displayName ?: value.uppercase()

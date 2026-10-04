@@ -5,13 +5,13 @@ import com.digihori.pgp.core.api.CreateSessionResult
 import com.digihori.pgp.core.api.EmulatorFactory
 import com.digihori.pgp.core.api.EmulatorConfiguration
 import com.digihori.pgp.core.api.EmulatorSession
+import com.digihori.pgp.core.api.MachineCatalog
+import com.digihori.pgp.core.api.MachineFamily
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245FlatRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1245.RomImportError
 import com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FlatRomImporter
-import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
-import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
 import com.digihori.pgp.core.rom.MachineId
 
 internal object DesktopRomLoader {
@@ -23,12 +23,12 @@ internal object DesktopRomLoader {
         image: ByteArray,
         configuration: EmulatorConfiguration = EmulatorConfiguration(),
     ): DesktopRomLoadResult {
-        val imported = when (machineId) {
-            Pc1245RomDefinition.MACHINE_ID -> Pc1245FlatRomImporter.importImage(image)
-            in Pc1251FamilyModel.entries.map { it.machineId } -> Pc1251FlatRomImporter.importImage(image, machineId)
-            else -> return DesktopRomLoadResult.Failure(
+        val definition = MachineCatalog.find(machineId) ?: return DesktopRomLoadResult.Failure(
                 DesktopRomLoadError.SessionCreation(CreateSessionError.UnsupportedMachine(machineId)),
             )
+        val imported = when (definition.family) {
+            MachineFamily.PC_1245 -> Pc1245FlatRomImporter.importImage(image)
+            MachineFamily.PC_1251 -> Pc1251FlatRomImporter.importImage(image, machineId)
         }
         return when (imported) {
             is RomImportResult.Failure -> DesktopRomLoadResult.Failure(

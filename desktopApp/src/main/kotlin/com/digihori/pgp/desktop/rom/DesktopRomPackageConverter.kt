@@ -6,8 +6,20 @@ import com.digihori.pgp.core.emulator.machine.pc1245.RomImportError
 import com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251ComponentRomImporter
 import com.digihori.pgp.core.rom.MachineId
+import com.digihori.pgp.core.api.MachineCatalog
+import com.digihori.pgp.core.api.MachineFamily
 
 internal object DesktopRomPackageConverter {
+    fun createPackage(
+        machineId: MachineId,
+        internal: ByteArray,
+        external: ByteArray,
+    ): DesktopRomPackageConversionResult = when (MachineCatalog.find(machineId)?.family) {
+        MachineFamily.PC_1245 -> createPc1245Package(internal, external)
+        MachineFamily.PC_1251 -> createPc1251Package(internal, external, machineId)
+        null -> DesktopRomPackageConversionResult.Failure(RomImportError.UnsupportedMachine(machineId))
+    }
+
     fun createPc1245Package(
         internal: ByteArray,
         external: ByteArray,
