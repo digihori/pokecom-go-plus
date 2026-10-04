@@ -16,6 +16,20 @@
 # Local environment
 local.properties
 /local-data/
+.env
+.env.*
+!.env.example
+
+# User-supplied ROM images and packages
+*.pgrom
+*mem.bin
+*bank.bin
+
+# Signing credentials
+*.jks
+*.keystore
+*.p12
+*.pem
 
 # Native / Xcode build products
 DerivedData/
