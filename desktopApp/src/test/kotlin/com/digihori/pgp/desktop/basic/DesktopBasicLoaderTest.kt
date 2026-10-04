@@ -8,6 +8,32 @@ import kotlin.test.assertIs
 
 class DesktopBasicLoaderTest {
     @Test
+    fun compilesAndDecodesPc1245ProgramImages() {
+        val compiled = assertIs<DesktopBasicProgramCompileResult.Success>(
+            DesktopBasicLoader.compilePc1245Program("10 PRINT \"HELLO\"".encodeToByteArray()),
+        )
+        val decoded = assertIs<DesktopBasicProgramDecodeResult.Success>(
+            DesktopBasicLoader.detokenizePc1245Program(compiled.bytes),
+        )
+
+        assertEquals("10 PRINT \"HELLO\"\n", decoded.utf8Bytes.decodeToString())
+    }
+
+    @Test
+    fun reportsDirectProgramCompileErrors() {
+        assertIs<DesktopBasicProgramCompileError.InvalidUtf8>(
+            assertIs<DesktopBasicProgramCompileResult.Failure>(
+                DesktopBasicLoader.compilePc1245Program(byteArrayOf(0xc3.toByte(), 0x28)),
+            ).error,
+        )
+        assertIs<DesktopBasicProgramCompileError.Tokenize>(
+            assertIs<DesktopBasicProgramCompileResult.Failure>(
+                DesktopBasicLoader.compilePc1245Program("10 PRINT _".encodeToByteArray()),
+            ).error,
+        )
+    }
+
+    @Test
     fun compilesUtf8BasicTextForPc1245RomInput() {
         val result = DesktopBasicLoader.compilePc1245RomInput(
             "10 PRINT \\SQR\n".encodeToByteArray(),

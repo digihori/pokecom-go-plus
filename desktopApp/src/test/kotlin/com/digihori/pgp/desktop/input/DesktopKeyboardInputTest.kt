@@ -95,6 +95,20 @@ class DesktopKeyboardInputTest {
         assertEquals(listOf("press:UP", "release:UP"), first.events)
     }
 
+    @Test
+    fun focusLossClearsCharacterRepeatSuppressionAndReleasesDirectKeys() {
+        val sink = FakeSink()
+        val input = DesktopKeyboardInput().also { it.attach(sink) }
+        input.handle(Key.A, 'a'.code, KeyEventType.KeyDown)
+        input.handle(Key.DirectionUp, 0, KeyEventType.KeyDown)
+
+        input.clearActiveInputs()
+        input.handle(Key.A, 'a'.code, KeyEventType.KeyDown)
+
+        assertEquals(listOf(listOf(PocketKey.A), listOf(PocketKey.A)), sink.sequences)
+        assertEquals(listOf("press:UP", "release:UP"), sink.events)
+    }
+
     private class FakeSink : DesktopKeyInputSink {
         val events = mutableListOf<String>()
         val sequences = mutableListOf<List<PocketKey>>()

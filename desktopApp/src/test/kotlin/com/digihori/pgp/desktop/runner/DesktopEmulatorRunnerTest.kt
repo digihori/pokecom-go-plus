@@ -1,6 +1,9 @@
 package com.digihori.pgp.desktop.runner
 
 import com.digihori.pgp.core.api.AudioSnapshot
+import com.digihori.pgp.core.api.BasicProgramLoadResult
+import com.digihori.pgp.core.api.BasicProgramMemoryError
+import com.digihori.pgp.core.api.BasicProgramSnapshotResult
 import com.digihori.pgp.core.api.CoreFault
 import com.digihori.pgp.core.api.CpuSnapshot
 import com.digihori.pgp.core.api.DisplaySnapshot
@@ -8,6 +11,7 @@ import com.digihori.pgp.core.api.EmulatorSession
 import com.digihori.pgp.core.api.ExecutionStatus
 import com.digihori.pgp.core.api.InputResult
 import com.digihori.pgp.core.api.MemorySnapshot
+import com.digihori.pgp.core.api.MemoryImageLoadResult
 import com.digihori.pgp.core.api.OperatingMode
 import com.digihori.pgp.core.api.PocketKey
 import com.digihori.pgp.core.api.RunResult
@@ -16,12 +20,43 @@ import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.runtime.CycleBudgetPlanner
 import com.digihori.pgp.core.runtime.KeyInputQueue
 import com.digihori.pgp.core.runtime.SpeedRatio
+import com.digihori.pgp.core.source.machine.AddressedMemoryImage
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 class DesktopEmulatorRunnerTest {
+    @Test
+    fun basicProgramLoadRestoresThePreviousRunningState() {
+        val runningSession = FakeSession()
+        val runningRunner = runner(runningSession, FakeClock())
+        runningRunner.run()
+
+        runningRunner.loadBasicProgram(byteArrayOf(0xff.toByte(), 0xff.toByte()))
+
+        assertEquals(RunnerState.RUNNING, runningRunner.state)
+
+        val pausedRunner = runner(FakeSession(), FakeClock())
+        pausedRunner.loadBasicProgram(byteArrayOf(0xff.toByte(), 0xff.toByte()))
+        assertEquals(RunnerState.PAUSED, pausedRunner.state)
+    }
+
+    @Test
+    fun failedBasicProgramLoadAlsoRestoresRunningStateAndReturnsTheReason() {
+        val expected = BasicProgramLoadResult.Failure(
+            BasicProgramMemoryError.ProgramTooLarge(size = 2000, capacity = 1761),
+        )
+        val session = FakeSession(basicLoadResult = expected)
+        val runner = runner(session, FakeClock())
+        runner.run()
+
+        val actual = runner.loadBasicProgram(ByteArray(2000))
+
+        assertEquals(expected, actual)
+        assertEquals(RunnerState.RUNNING, runner.state)
+    }
+
     @Test
     fun runsTheBudgetCalculatedFromMonotonicElapsedTime() {
         val session = FakeSession()
@@ -279,6 +314,7 @@ class DesktopEmulatorRunnerTest {
 
     private class FakeSession(
         private val faultOnRun: Boolean = false,
+        private val basicLoadResult: BasicProgramLoadResult? = null,
     ) : EmulatorSession {
         override val machineId: MachineId = MachineId("pc-1245")
         val budgets = mutableListOf<Long>()
@@ -320,6 +356,10 @@ class DesktopEmulatorRunnerTest {
         override fun memorySnapshot(startAddress: Int, length: Int): MemorySnapshot = unsupported()
         override fun displaySnapshot(): DisplaySnapshot = unsupported()
         override fun audioSnapshot(): AudioSnapshot = unsupported()
+        override fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult =
+            basicLoadResult ?: BasicProgramLoadResult.Success(0xc000, 0xc000 + program.lastIndex, program.size)
+        override fun basicProgramSnapshot(): BasicProgramSnapshotResult = unsupported()
+        override fun loadMemoryImage(image: AddressedMemoryImage): MemoryImageLoadResult = unsupported()
 
         private fun <T> unsupported(): T = error("Not used by runner tests")
     }

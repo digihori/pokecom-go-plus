@@ -1,6 +1,7 @@
 package com.digihori.pgp.core.api
 
 import com.digihori.pgp.core.rom.MachineId
+import com.digihori.pgp.core.source.machine.AddressedMemoryImage
 
 public interface EmulatorSession {
     public val machineId: MachineId
@@ -17,6 +18,9 @@ public interface EmulatorSession {
     public fun memorySnapshot(startAddress: Int, length: Int): MemorySnapshot
     public fun displaySnapshot(): DisplaySnapshot
     public fun audioSnapshot(): AudioSnapshot
+    public fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult
+    public fun basicProgramSnapshot(): BasicProgramSnapshotResult
+    public fun loadMemoryImage(image: AddressedMemoryImage): MemoryImageLoadResult
 }
 
 public data class StepResult(
@@ -147,3 +151,41 @@ public data class AudioSnapshot(
     public val frequencyHz: Int,
     public val revision: Long,
 )
+
+public sealed interface BasicProgramLoadResult {
+    public data class Success(
+        public val startAddress: Int,
+        public val endAddress: Int,
+        public val size: Int,
+    ) : BasicProgramLoadResult
+
+    public data class Failure(public val error: BasicProgramMemoryError) : BasicProgramLoadResult
+}
+
+public sealed interface BasicProgramSnapshotResult {
+    public data class Success(
+        public val startAddress: Int,
+        public val endAddress: Int,
+        private val content: ByteArray,
+    ) : BasicProgramSnapshotResult {
+        public val size: Int get() = content.size
+        public fun copyBytes(): ByteArray = content.copyOf()
+    }
+
+    public data class Failure(public val error: BasicProgramMemoryError) : BasicProgramSnapshotResult
+}
+
+public sealed interface BasicProgramMemoryError {
+    public data class InvalidPointer(public val startAddress: Int, public val endAddress: Int) : BasicProgramMemoryError
+    public data class ProgramTooLarge(public val size: Int, public val capacity: Int) : BasicProgramMemoryError
+    public data class InvalidProgram(public val offset: Int, public val reason: String) : BasicProgramMemoryError
+}
+
+public sealed interface MemoryImageLoadResult {
+    public data class Success(public val segmentCount: Int, public val byteCount: Int) : MemoryImageLoadResult
+    public data class Failure(public val error: MemoryImageLoadError) : MemoryImageLoadResult
+}
+
+public sealed interface MemoryImageLoadError {
+    public data class ReadOnlyAddress(public val address: Int, public val sourceLine: Int) : MemoryImageLoadError
+}

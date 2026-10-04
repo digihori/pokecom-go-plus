@@ -854,6 +854,9 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - Repeat: 同じ物理キーのKeyDown repeatはKeyUpまで抑制し、1回の文字入力として扱う
 - Verification: shifted文字、host Shift無視、直接操作キー、repeat、Command/Ctrl、入力先交換時の解放を
   Desktop unit testで検証
+- Focus lifecycle: native file dialogはmain windowをownerとして開き、閉じた後にownerへfocusを戻す。
+  windowがfocusを失った場合は、届かなかったKeyUpによる押下状態を残さないよう、直接keyをreleaseして
+  character repeat抑制状態もclearする
 
 ### Desktop PC-1245フルソフトウェアキーボード
 
@@ -933,6 +936,77 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - PGP files: `Pc1245RomBasicInput.kt`とtest、BASIC Text仕様
 - Behavior: 各行の先頭行番号直後にある最初のコロンをSPACEキーへ変換する。行番号とコロンの間の
   空白を許容し、BASIC文本体に現れるコロンはPC-1245のSHIFT/Iとして保持する
+
+### PC-1245 BASIC方言定義
+
+- Date: 2026-10-04
+- PGP files: `BasicDialect.kt`、`Pc1245BasicDialect.kt`とtest、PC-1245機種仕様
+- Reference repository: `../pokecom`の`SubActivity1245.java`と`SubActivityBase12xx.java`をread-only参照
+- Design: 方言ID、プログラム境界、行終端、行番号方式、文字、特殊記号、キーワードを機種依存データとして
+  定義する。Tokenizer、RAM操作、UI、ホスト文字入力とは分離する
+- Important distinction: 表示記号のπ/√ (`0x19`/`0x1a`) とBASICキーワードのPI/SQR
+  (`0xbd`/`0x87`) は別の意味として保持する。予約・未割当コードは推測で埋めない
+- Correction: 参照実装のtoken `0xb8`にある`MARGE`はマニュアル表記に合わせて`MERGE`と定義する。
+  旧誤記をcanonical出力へ引き継がず、必要なら将来のテキスト入力aliasとして別に扱う
+- Memory metadata: BASIC領域`0xc000`、開始pointer `0xc6e1..0xc6e2`、終了pointer
+  `0xc6e3..0xc6e4`をPC-1245固有定義として保持する
+- Character aliases: `0x11`と`0x50`はいずれも空白へdecodeするが、新規encodeでは`0x11`をcanonicalに使う
+- Verification: envelope、3桁OLD行番号方式、代表文字、大小文字正規化、特殊記号とkeywordの区別、
+  未対応文字・keywordをcommonTestで検証
+
+### PC-1245 BASIC Tokenizer
+
+- Date: 2026-10-04
+- PGP files: `Pc1245BasicTokenizer.kt`とtest、`BasicDialect.kt`、`Pc1245BasicDialect.kt`
+- Design: parse済みの共通BASICテキストを、`0xff` program envelope、OLD系2 byte行番号、機種固有の
+  keyword/character code、`0x00`行終端へ変換する。エミュレーターSessionやRAMへは直接書き込まない
+- Lexical rules: 行番号直後の任意colonを除去し、通常の構文空白は格納しない。文字列内はkeyword化せず、
+  REM以降は先頭の区切り空白だけを除いて文字として保持する。`>=`、`<=`、`<>`は単一tokenにする
+- Long lines: ROMの編集bufferを経由しないため、100文字を超える行も中間コードへ直接変換できる。
+  ROM経由入力は手軽な短い入力用として別経路のまま維持する
+- Safety: 行番号は1..999。Raw Byteの`0x00`と`0xff`はprogram framingを壊すため拒否し、
+  未対応文字は元テキストのline/column付きerrorを返す
+- Verification: 複数行program、文字列/REM、特殊記号、Raw Byte、比較演算子、行頭colon、180文字の行、
+  行番号・文字errorをcommonTestで検証
+
+### PC-1245 BASIC Detokenizer
+
+- Date: 2026-10-04
+- PGP files: `Pc1245BasicDetokenizer.kt`とtest、PC-1245 BASIC方言定義
+- Design: OLD系program envelopeと行番号を検証し、文字・特殊記号・keywordをcanonical BASICテキストへ
+  戻す。RAMやファイルI/Oには依存せず、入力破損はbyte offset付きerrorとして返す
+- Preservation: 文字列とREM内のkeyword code、および予約・未知codeは命令として展開せず`\\xNN`へ退避する。
+  π/√はUnicode alias、指数・block記号は曖昧な隣接escapeを避けるためRaw Byte表記をcanonicalに使う
+- Formatting: keyword境界へ必要な空白を補い、Tokenizerが生成したprogramは
+  Tokenize → Detokenize → Tokenizeで同じbyte列へ戻る
+- Verification: 読みやすい複数行出力、文字列/REM、特殊文字、未知code、往復一致、開始/終了marker、
+  不正行番号、行終端欠落、trailing dataをcommonTestで検証
+
+### PC-1245 BASIC Program Memory Loader
+
+- Date: 2026-10-04
+- PGP files: `Pc1245BasicProgramMemory.kt`とtest、`EmulatorSession.kt`、`EmulatorFactory.kt`
+- Design: program imageとmachine memoryの変換をTokenizer、ファイルI/O、UIから分離する。公開Sessionには
+  `loadBasicProgram`と防御的copyを返す`basicProgramSnapshot`だけを追加し、任意メモリ書込みは公開しない
+- Layout: ROMが管理する開始pointer `0xc6e1..0xc6e2`を読み、pointer直前`0xc6e1`までを格納上限とする。
+  終了pointerはimage最終byteを指すPokecom GO互換のinclusive形式で更新する
+- Atomicity: pointer、program構造、容量を全て検証してから書き込む。短いprogramへ置換した場合は、
+  以前の終了位置までの残骸をzero clearする
+- Verification: load/extract一致、pointer更新、旧tail clear、不正pointer、壊れたimage、容量超過、
+  error時のmemory不変をcommonTestで検証
+
+### Desktop BASICファイル入出力
+
+- Date: 2026-10-04
+- PGP files: `DesktopBasicLoader.kt`とtest、`Main.kt`、`DesktopEmulatorRunner.kt`
+- Load BASIC: UTF-8 `.bas`を厳密decodeし、共通parser、PC-1245 Tokenizer、専用Session loaderを通して
+  RAMへ直接配置する。Runnerは先にpauseし、長い行と特殊codeをROM編集bufferなしで扱う。
+  load前がRunningなら成功・失敗後ともRunningへ戻し、load前がPausedならPausedを維持する
+- Save BASIC: Session snapshotをDetokenizerへ渡し、canonical UTF-8テキストとして保存する
+- Type BASIC: 従来のROM経由キー入力は短いprogramを手軽に入力する別機能として残し、UI名で区別する
+- Error reporting: UTF-8、parse、tokenize、memory pointer/capacity、detokenize、host file I/Oを段階別に表示する
+- Verification: Desktop codecでUTF-8 sourceからprogram image、canonical sourceへの復元、invalid UTF-8、
+  tokenize errorをunit testで検証
 - Verification: `10:PRINT A:B`と`20 :PRINT`についてprefixだけがSPACEになることをcommonTestで検証
 
 ### PC-1245追加VRAMミラー

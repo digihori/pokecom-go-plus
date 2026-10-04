@@ -149,12 +149,16 @@ sealed interface MemoryBanking {
 ```text
 Machine ID       pc-1245
 Generation       OLD
-Basic dialect    old.pc-1245（仮ID）
+Basic dialect    old.pc-1245
 Memory banking   None
 ```
 
 PC-1251系とのメモリマップの共通性は、将来OLD系の2機種目を追加するときに
 `MachineDefinition`のデータ共有が適切か検証する。最初から共通基底クラスは作らない。
+
+PC-1250/1251/1255は機種モデルとMemory Profileを分離する。実機準拠profileに加えて、PC-1250または
+PC-1251のROM・外観を保ったままPC-1255相当の最大RAMを利用できるprofileを用意する。通常利用の既定は
+最大RAM、実機互換テストとGolden Testは各モデル本来のRAMとする。切替はSession再作成時に適用する。
 
 ## 8. 未確定事項
 

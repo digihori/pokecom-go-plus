@@ -4,6 +4,10 @@ import com.digihori.pgp.core.api.EmulatorSession
 import com.digihori.pgp.core.api.DisplaySnapshot
 import com.digihori.pgp.core.api.CpuSnapshot
 import com.digihori.pgp.core.api.AudioSnapshot
+import com.digihori.pgp.core.api.BasicProgramLoadResult
+import com.digihori.pgp.core.api.BasicProgramSnapshotResult
+import com.digihori.pgp.core.api.MemoryImageLoadResult
+import com.digihori.pgp.core.api.MemorySnapshot
 import com.digihori.pgp.core.api.InputResult
 import com.digihori.pgp.core.api.OperatingMode
 import com.digihori.pgp.core.api.PocketKey
@@ -16,6 +20,7 @@ import com.digihori.pgp.core.runtime.KeyInputQueue
 import com.digihori.pgp.core.runtime.KeyTransition
 import com.digihori.pgp.core.runtime.SpeedRatio
 import com.digihori.pgp.desktop.input.DesktopKeyInputSink
+import com.digihori.pgp.core.source.machine.AddressedMemoryImage
 
 internal fun interface MonotonicClock {
     fun nowNanoseconds(): Long
@@ -88,6 +93,27 @@ internal class DesktopEmulatorRunner(
     fun cpuSnapshot(): CpuSnapshot = session.cpuSnapshot()
 
     fun audioSnapshot(): AudioSnapshot = session.audioSnapshot()
+
+    fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult {
+        val resumeAfterLoad = state == RunnerState.RUNNING
+        pause()
+        val result = session.loadBasicProgram(program)
+        if (resumeAfterLoad && state != RunnerState.FAULTED) run()
+        return result
+    }
+
+    fun basicProgramSnapshot(): BasicProgramSnapshotResult = session.basicProgramSnapshot()
+
+    fun loadMemoryImage(image: AddressedMemoryImage): MemoryImageLoadResult {
+        val resumeAfterLoad = state == RunnerState.RUNNING
+        pause()
+        val result = session.loadMemoryImage(image)
+        if (resumeAfterLoad && state != RunnerState.FAULTED) run()
+        return result
+    }
+
+    fun memorySnapshot(startAddress: Int, length: Int): MemorySnapshot =
+        session.memorySnapshot(startAddress, length)
 
     override fun pressKey(key: PocketKey): InputResult = session.pressKey(key)
 

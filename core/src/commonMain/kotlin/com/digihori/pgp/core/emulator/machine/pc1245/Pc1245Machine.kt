@@ -4,6 +4,7 @@ import com.digihori.pgp.core.emulator.cpu.Sc61860Cpu
 import com.digihori.pgp.core.emulator.cpu.Sc61860RunResult
 import com.digihori.pgp.core.emulator.cpu.Sc61860StepResult
 import com.digihori.pgp.core.rom.RomSet
+import com.digihori.pgp.core.source.machine.AddressedMemoryImage
 
 /** Owns all mutable state for one headless PC-1245 instance. */
 internal class Pc1245Machine(
@@ -62,6 +63,27 @@ internal class Pc1245Machine(
         bus.write(address, value)
     }
 
+    internal fun loadBasicProgram(program: ByteArray): Pc1245BasicMemoryResult =
+        Pc1245BasicProgramMemory.load(program, ::readMemory, ::writeMemory)
+
+    internal fun basicProgram(): Pc1245BasicMemoryResult =
+        Pc1245BasicProgramMemory.extract(::readMemory)
+
+    internal fun loadMemoryImage(image: AddressedMemoryImage): Pc1245MemoryImageLoadResult {
+        val readOnly = image.segments.firstNotNullOfOrNull { segment ->
+            (segment.startAddress..segment.endAddress).firstOrNull { it < Pc1245MemoryBus.RAM_START }
+                ?.let { Pc1245MemoryImageLoadResult.ReadOnlyAddress(it, segment.sourceLine) }
+        }
+        if (readOnly != null) return readOnly
+
+        image.segments.forEach { segment ->
+            segment.copyBytes().forEachIndexed { offset, byte ->
+                writeMemory(segment.startAddress + offset, byte.toInt() and 0xff)
+            }
+        }
+        return Pc1245MemoryImageLoadResult.Success(image.segments.size, image.byteCount)
+    }
+
     internal val cpuState
         get() = cpu.state
 
@@ -73,4 +95,9 @@ internal class Pc1245Machine(
 
     internal val buzzerState
         get() = buzzer
+}
+
+internal sealed interface Pc1245MemoryImageLoadResult {
+    data class Success(val segmentCount: Int, val byteCount: Int) : Pc1245MemoryImageLoadResult
+    data class ReadOnlyAddress(val address: Int, val sourceLine: Int) : Pc1245MemoryImageLoadResult
 }

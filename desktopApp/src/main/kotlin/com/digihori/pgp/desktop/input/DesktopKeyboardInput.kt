@@ -25,14 +25,13 @@ internal class DesktopKeyboardInput {
     fun attach(sink: DesktopKeyInputSink?) {
         val previousSink = this.sink
         if (previousSink !== sink) {
-            if (previousSink != null) {
-                activeInputs.values.forEach { input ->
-                    if (input is ActiveInput.Direct) previousSink.releaseKey(input.key)
-                }
-            }
-            activeInputs.clear()
+            clearActiveInputs(previousSink)
             this.sink = sink
         }
+    }
+
+    fun clearActiveInputs() {
+        clearActiveInputs(sink)
     }
 
     fun handle(event: KeyEvent): Boolean = handle(
@@ -84,5 +83,14 @@ internal class DesktopKeyboardInput {
     private sealed interface ActiveInput {
         data class Direct(val key: PocketKey) : ActiveInput
         data object QueuedCharacter : ActiveInput
+    }
+
+    private fun clearActiveInputs(target: DesktopKeyInputSink?) {
+        if (target != null) {
+            activeInputs.values.forEach { input ->
+                if (input is ActiveInput.Direct) target.releaseKey(input.key)
+            }
+        }
+        activeInputs.clear()
     }
 }

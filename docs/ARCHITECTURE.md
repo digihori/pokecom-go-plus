@@ -442,6 +442,28 @@ BasicProgramLoader
 
 可能な限り通常のテキストファイルをユーザー向け正本とし、PGP独自の編集形式を必須にしない。
 
+### 11.1 Memory Profileと実機制約
+
+機種モデルと搭載メモリ構成を同一概念にしない。既定の互換性検証では実機構成を使用する一方、
+通常利用では同一ファミリー最大RAMや、明示的な追加RAMを選択できる`MemoryProfile`を設ける。
+
+```text
+Machine Configuration
+├─ Machine Model       PC-1250
+└─ Memory Profile      PC-1250 original / PC-1251 / PC-1255 maximum
+```
+
+- Golden Testはoriginal profileを使用する
+- 通常利用の既定は、同一ファミリー最大profileに設定できる
+- profileはプロジェクトとSave Stateへ保存し、画面にも表示する
+- 実行中には切り替えず、Session再作成またはReset境界で適用する
+- RAM縮小時は範囲外データが失われることを事前に通知する
+- BASIC格納容量、メモリ読書き可否、バンク構成は選択profileから取得する
+- PC-1360へ漢字work RAMを追加する場合も、PC-1360Kと偽らず
+  `PC-1360 + Kanji Work RAM`という拡張profileとして表現できるようにする
+
+単一の「制約を無視する」flagや任意アドレス指定ではなく、検証可能な名前付きprofileを使用する。
+
 ## 12. Debugger Core
 
 デバッグ機能はUIの付加機能ではなく、Coreの正式な機能として設計する。

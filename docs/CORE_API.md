@@ -107,6 +107,19 @@ CoreはROMのファイル名や保存場所を決めない。プラットフォ�
 バイト列を読み、Coreは機種ID、ROM種別、サイズなどを検証する。ROMイメージをリポジトリや
 配布物へ含めない。
 
+### 4.4 BASICプログラムメモリ
+
+Tokenizerが生成した機種固有のprogram imageは、任意メモリ書込みではなく専用APIでSessionへ渡す。
+
+```kotlin
+session.loadBasicProgram(programBytes)
+session.basicProgramSnapshot()
+```
+
+Loaderはprogram構造、開始・終了pointer、格納容量を全て確認してから書き込む。Snapshotは内部配列を
+公開せず、`copyBytes()`で防御的copyを返す。ファイル選択、UTF-8 decode、Tokenizer/Detokenizerの選択は
+このAPIの外側で行う。
+
 ## 5. 実行モデル
 
 ### 5.1 Step

@@ -2,6 +2,7 @@ package com.digihori.pgp.desktop
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -21,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +36,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.input.pointer.pointerInput
@@ -42,14 +46,27 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.digihori.pgp.core.ProjectInfo
 import com.digihori.pgp.core.api.ExecutionStatus
+import com.digihori.pgp.core.api.BasicProgramLoadResult
+import com.digihori.pgp.core.api.BasicProgramMemoryError
+import com.digihori.pgp.core.api.BasicProgramSnapshotResult
+import com.digihori.pgp.core.api.MemoryImageLoadError
+import com.digihori.pgp.core.api.MemoryImageLoadResult
 import com.digihori.pgp.core.api.CpuSnapshot
 import com.digihori.pgp.core.api.DisplaySnapshot
 import com.digihori.pgp.core.api.OperatingMode
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomInputUnsupported
+import com.digihori.pgp.core.source.machine.PgpMemoryDumpError
 import com.digihori.pgp.desktop.basic.DesktopBasicLoadError
 import com.digihori.pgp.desktop.basic.DesktopBasicLoadResult
 import com.digihori.pgp.desktop.basic.DesktopBasicLoader
+import com.digihori.pgp.desktop.basic.DesktopBasicProgramCompileError
+import com.digihori.pgp.desktop.basic.DesktopBasicProgramCompileResult
+import com.digihori.pgp.desktop.basic.DesktopBasicProgramDecodeResult
 import com.digihori.pgp.desktop.input.DesktopKeyboardInput
+import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoadError
+import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoadResult
+import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoader
+import com.digihori.pgp.desktop.machine.DesktopMemoryDumpWriter
 import com.digihori.pgp.desktop.input.Pc1245KeyCap
 import com.digihori.pgp.desktop.input.Pc1245KeyboardLayout
 import com.digihori.pgp.desktop.audio.DesktopAudioPlayer
@@ -64,6 +81,9 @@ import com.digihori.pgp.desktop.runner.DesktopEmulatorRunner
 import com.digihori.pgp.desktop.runner.RunnerState
 import java.awt.FileDialog
 import java.awt.Frame
+import java.awt.EventQueue
+import java.awt.event.WindowAdapter
+import java.awt.event.WindowEvent
 import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -78,12 +98,21 @@ fun main() = application {
         onPreviewKeyEvent = keyboardInput::handle,
         title = ProjectInfo.DISPLAY_NAME,
     ) {
-        App(keyboardInput)
+        DisposableEffect(window) {
+            val listener = object : WindowAdapter() {
+                override fun windowLostFocus(event: WindowEvent?) {
+                    keyboardInput.clearActiveInputs()
+                }
+            }
+            window.addWindowFocusListener(listener)
+            onDispose { window.removeWindowFocusListener(listener) }
+        }
+        App(keyboardInput, window)
     }
 }
 
 @Composable
-private fun App(keyboardInput: DesktopKeyboardInput) {
+private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
     var runner by remember { mutableStateOf<DesktopEmulatorRunner?>(null) }
     var runnerState by remember { mutableStateOf(RunnerState.PAUSED) }
     var loadedRomName by remember { mutableStateOf<String?>(null) }
@@ -96,8 +125,20 @@ private fun App(keyboardInput: DesktopKeyboardInput) {
     var showOpenRomGuide by remember { mutableStateOf(false) }
     var showCreateRomSetGuide by remember { mutableStateOf(false) }
     var errorDialogMessage by remember { mutableStateOf<String?>(null) }
+    var showSaveMemoryDumpDialog by remember { mutableStateOf(false) }
+    var dumpStartAddress by remember { mutableStateOf("C000") }
+    var dumpEndAddress by remember { mutableStateOf("C0FF") }
+    var dumpRangeError by remember { mutableStateOf<String?>(null) }
+    var focusRestoreRequest by remember { mutableLongStateOf(0L) }
     val scrollState = rememberScrollState()
     val audioPlayer = remember { DesktopAudioPlayer() }
+    val appFocusRequester = remember { FocusRequester() }
+
+    fun selectAndRestoreFocus(select: () -> File?): File? = try {
+        select()
+    } finally {
+        focusRestoreRequest++
+    }
 
     fun showError(value: String) {
         message = value
@@ -143,8 +184,8 @@ private fun App(keyboardInput: DesktopKeyboardInput) {
     }
 
     fun createRomSet() {
-        val internalFile = selectInternalRomFile() ?: return
-        val externalFile = selectExternalRomFile() ?: return
+        val internalFile = selectAndRestoreFocus { selectInternalRomFile(ownerWindow) } ?: return
+        val externalFile = selectAndRestoreFocus { selectExternalRomFile(ownerWindow) } ?: return
         val conversion = runCatching {
             DesktopRomPackageConverter.createPc1245Package(
                 internal = internalFile.readBytes(),
@@ -159,7 +200,7 @@ private fun App(keyboardInput: DesktopKeyboardInput) {
                 showError(DesktopRomLoadError.InvalidRom(conversion.error).message())
             }
             is DesktopRomPackageConversionResult.Success -> {
-                val destination = selectPackageDestination() ?: return
+                val destination = selectAndRestoreFocus { selectPackageDestination(ownerWindow) } ?: return
                 runCatching { destination.writeBytes(conversion.packageBytes) }
                     .onSuccess {
                         message = "Created ${destination.name}. Select it with Open ROM to verify the package."
@@ -210,8 +251,22 @@ private fun App(keyboardInput: DesktopKeyboardInput) {
         }
     }
 
+    LaunchedEffect(focusRestoreRequest) {
+        if (focusRestoreRequest > 0L) {
+            delay(50)
+            ownerWindow.toFront()
+            ownerWindow.requestFocus()
+            appFocusRequester.requestFocus()
+        }
+    }
+
     MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .focusRequester(appFocusRequester)
+                .focusable(),
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -240,7 +295,108 @@ private fun App(keyboardInput: DesktopKeyboardInput) {
                         enabled = runner != null && runnerState != RunnerState.FAULTED,
                         onClick = {
                             val activeRunner = runner ?: return@Button
-                            val file = selectBasicFile() ?: return@Button
+                            val file = selectAndRestoreFocus {
+                                selectBasicFile(ownerWindow, "Load BASIC source")
+                            } ?: return@Button
+                            val compiled = runCatching {
+                                DesktopBasicLoader.compilePc1245Program(file.readBytes())
+                            }.getOrElse {
+                                message = "Could not read BASIC source: ${it.message ?: it::class.simpleName}"
+                                return@Button
+                            }
+                            when (compiled) {
+                                is DesktopBasicProgramCompileResult.Failure ->
+                                    message = compiled.error.message()
+                                is DesktopBasicProgramCompileResult.Success -> {
+                                    when (val loaded = activeRunner.loadBasicProgram(compiled.bytes)) {
+                                        is BasicProgramLoadResult.Failure -> {
+                                            runnerState = activeRunner.state
+                                            message = loaded.error.message()
+                                        }
+                                        is BasicProgramLoadResult.Success -> {
+                                            runnerState = activeRunner.state
+                                            display = activeRunner.displaySnapshot()
+                                            cpu = activeRunner.cpuSnapshot()
+                                            message = "Loaded ${file.name} directly (${loaded.size} bytes at " +
+                                                "0x${loaded.startAddress.hex(4)}..0x${loaded.endAddress.hex(4)})."
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                    ) { Text("Load BASIC") }
+                    Button(
+                        enabled = runner != null && runnerState != RunnerState.FAULTED,
+                        onClick = {
+                            val activeRunner = runner ?: return@Button
+                            val file = selectAndRestoreFocus {
+                                selectMemoryDumpFile(ownerWindow)
+                            } ?: return@Button
+                            val parsed = runCatching { DesktopMemoryDumpLoader.parse(file.readBytes()) }
+                                .getOrElse {
+                                    message = "Could not read memory dump: ${it.message ?: it::class.simpleName}"
+                                    return@Button
+                                }
+                            when (parsed) {
+                                is DesktopMemoryDumpLoadResult.Failure -> message = parsed.error.message()
+                                is DesktopMemoryDumpLoadResult.Success -> {
+                                    when (val loaded = activeRunner.loadMemoryImage(parsed.image)) {
+                                        is MemoryImageLoadResult.Failure -> message = loaded.error.message()
+                                        is MemoryImageLoadResult.Success -> message =
+                                            "Loaded ${file.name} (${loaded.byteCount} bytes in " +
+                                                "${loaded.segmentCount} segments)."
+                                    }
+                                    runnerState = activeRunner.state
+                                    display = activeRunner.displaySnapshot()
+                                    cpu = activeRunner.cpuSnapshot()
+                                }
+                            }
+                        },
+                    ) { Text("Load Machine Code") }
+                    Button(
+                        enabled = runner != null,
+                        onClick = {
+                            dumpRangeError = null
+                            showSaveMemoryDumpDialog = true
+                        },
+                    ) { Text("Save Machine Code") }
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        enabled = runner != null && runnerState != RunnerState.FAULTED,
+                        onClick = {
+                            val activeRunner = runner ?: return@Button
+                            when (val snapshot = activeRunner.basicProgramSnapshot()) {
+                                is BasicProgramSnapshotResult.Failure -> message = snapshot.error.message()
+                                is BasicProgramSnapshotResult.Success -> {
+                                    when (val decoded = DesktopBasicLoader.detokenizePc1245Program(snapshot.copyBytes())) {
+                                        is DesktopBasicProgramDecodeResult.Failure ->
+                                            message = "BASIC program error at byte ${decoded.error.offset}: " +
+                                                decoded.error.message
+                                        is DesktopBasicProgramDecodeResult.Success -> {
+                                            val file = selectAndRestoreFocus {
+                                                selectBasicSaveFile(ownerWindow)
+                                            } ?: return@Button
+                                            runCatching { file.writeBytes(decoded.utf8Bytes) }
+                                                .onSuccess { message = "Saved BASIC source to ${file.name}." }
+                                                .onFailure {
+                                                    message = "Could not save BASIC source: " +
+                                                        (it.message ?: it::class.simpleName)
+                                                }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                    ) { Text("Save BASIC") }
+                    Button(
+                        enabled = runner != null && runnerState != RunnerState.FAULTED,
+                        onClick = {
+                            val activeRunner = runner ?: return@Button
+                            val file = selectAndRestoreFocus {
+                                selectBasicFile(ownerWindow, "Type BASIC through ROM")
+                            } ?: return@Button
                             val loadResult = runCatching {
                                 DesktopBasicLoader.compilePc1245RomInput(file.readBytes())
                             }.getOrElse {
@@ -266,7 +422,7 @@ private fun App(keyboardInput: DesktopKeyboardInput) {
                                 }
                             }
                         },
-                    ) { Text("Load BASIC") }
+                    ) { Text("Type BASIC") }
                     Button(
                         enabled = runner != null && runnerState == RunnerState.PAUSED,
                         onClick = {
@@ -356,7 +512,8 @@ private fun App(keyboardInput: DesktopKeyboardInput) {
                 confirmButton = {
                     TextButton(onClick = {
                         showOpenRomGuide = false
-                        selectRomFile()?.let { loadRom(it, startAutomatically = false) }
+                        selectAndRestoreFocus { selectRomFile(ownerWindow) }
+                            ?.let { loadRom(it, startAutomatically = false) }
                     }) { Text("Choose File") }
                 },
                 dismissButton = {
@@ -387,6 +544,61 @@ private fun App(keyboardInput: DesktopKeyboardInput) {
                 },
                 dismissButton = {
                     TextButton(onClick = { showCreateRomSetGuide = false }) { Text("Cancel") }
+                },
+            )
+        }
+
+        if (showSaveMemoryDumpDialog) {
+            AlertDialog(
+                onDismissRequest = { showSaveMemoryDumpDialog = false },
+                title = { Text("Save PGP Memory Dump") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Enter an inclusive 16-bit hexadecimal address range.")
+                        OutlinedTextField(
+                            value = dumpStartAddress,
+                            onValueChange = { dumpStartAddress = it },
+                            label = { Text("Start address") },
+                            singleLine = true,
+                        )
+                        OutlinedTextField(
+                            value = dumpEndAddress,
+                            onValueChange = { dumpEndAddress = it },
+                            label = { Text("End address") },
+                            singleLine = true,
+                        )
+                        dumpRangeError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val start = parseHexAddress(dumpStartAddress)
+                        val end = parseHexAddress(dumpEndAddress)
+                        when {
+                            start == null -> dumpRangeError = "Start address must be 0000..FFFF."
+                            end == null -> dumpRangeError = "End address must be 0000..FFFF."
+                            end < start -> dumpRangeError = "End address must not be less than start address."
+                            else -> {
+                                val activeRunner = runner ?: return@TextButton
+                                showSaveMemoryDumpDialog = false
+                                val destination = selectAndRestoreFocus {
+                                    selectMemoryDumpDestination(ownerWindow)
+                                } ?: return@TextButton
+                                val snapshot = activeRunner.memorySnapshot(start, end - start + 1)
+                                runCatching { destination.writeBytes(DesktopMemoryDumpWriter.write(snapshot)) }
+                                    .onSuccess {
+                                        message = "Saved ${snapshot.size} bytes " +
+                                            "(0x${start.hex(4)}..0x${end.hex(4)}) to ${destination.name}."
+                                    }
+                                    .onFailure {
+                                        message = "Could not save memory dump: ${it.message ?: it::class.simpleName}"
+                                    }
+                            }
+                        }
+                    }) { Text("Save") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showSaveMemoryDumpDialog = false }) { Text("Cancel") }
                 },
             )
         }
@@ -552,40 +764,65 @@ private fun Pc1245LcdPanel(snapshot: DisplaySnapshot?) {
     }
 }
 
-private fun selectRomFile(): File? {
-    return selectFile("Open PC-1245 ROM", "pc-1245.pgrom")
+private fun selectRomFile(owner: Frame): File? {
+    return selectFile(owner, "Open PC-1245 ROM", "pc-1245.pgrom")
 }
 
-private fun selectInternalRomFile(): File? = selectFile(
+private fun selectInternalRomFile(owner: Frame): File? = selectFile(
+    owner,
     "Select PC-1245 internal ROM (8 KiB)",
     "internal.bin",
 )
 
-private fun selectExternalRomFile(): File? = selectFile(
+private fun selectExternalRomFile(owner: Frame): File? = selectFile(
+    owner,
     "Select PC-1245 external ROM (16 KiB)",
     "external.bin",
 )
 
-private fun selectPackageDestination(): File? = selectFile(
+private fun selectPackageDestination(owner: Frame): File? = selectFile(
+    owner = owner,
     title = "Save PGP ROM Package",
     suggestedFile = "pc-1245.pgrom",
     mode = FileDialog.SAVE,
 )
 
-private fun selectBasicFile(): File? = selectFile("Load BASIC source", "*.bas")
+private fun selectBasicFile(owner: Frame, title: String): File? = selectFile(owner, title, "*.bas")
+
+private fun selectMemoryDumpFile(owner: Frame): File? = selectFile(owner, "Load PGP Memory Dump", "*.dmp")
+
+private fun selectMemoryDumpDestination(owner: Frame): File? = selectFile(
+    owner = owner,
+    title = "Save PGP Memory Dump",
+    suggestedFile = "memory.dmp",
+    mode = FileDialog.SAVE,
+)
+
+private fun selectBasicSaveFile(owner: Frame): File? = selectFile(
+    owner = owner,
+    title = "Save BASIC source",
+    suggestedFile = "program.bas",
+    mode = FileDialog.SAVE,
+)
 
 private fun selectFile(
+    owner: Frame,
     title: String,
     suggestedFile: String,
     mode: Int = FileDialog.LOAD,
 ): File? {
-    val dialog = FileDialog(null as Frame?, title, mode).apply {
+    val dialog = FileDialog(owner, title, mode).apply {
         file = suggestedFile
         isVisible = true
     }
     val directory = dialog.directory
     val fileName = dialog.file
     dialog.dispose()
+    EventQueue.invokeLater {
+        owner.toFront()
+        owner.requestFocus()
+        owner.requestFocusInWindow()
+    }
     return if (directory != null && fileName != null) File(directory, fileName) else null
 }
 
@@ -601,6 +838,41 @@ private fun DesktopBasicLoadError.message(): String = when (this) {
         }
         "PC-1245 ROM input does not support $detail at ${error.line}:${error.column}."
     }
+}
+
+private fun DesktopBasicProgramCompileError.message(): String = when (this) {
+    DesktopBasicProgramCompileError.InvalidUtf8 -> "BASIC source is not valid UTF-8."
+    is DesktopBasicProgramCompileError.Parse ->
+        "BASIC text error at ${error.line}:${error.column}: ${error.message}"
+    is DesktopBasicProgramCompileError.Tokenize ->
+        "PC-1245 BASIC error at ${error.line}:${error.column}: ${error.message}"
+}
+
+private fun BasicProgramMemoryError.message(): String = when (this) {
+    is BasicProgramMemoryError.InvalidPointer ->
+        "Invalid BASIC memory pointers: start=0x${startAddress.hex(4)}, end=0x${endAddress.hex(4)}."
+    is BasicProgramMemoryError.ProgramTooLarge ->
+        "BASIC program is too large: $size bytes (capacity $capacity bytes)."
+    is BasicProgramMemoryError.InvalidProgram ->
+        "Invalid BASIC program at byte $offset: $reason"
+}
+
+private fun DesktopMemoryDumpLoadError.message(): String = when (this) {
+    DesktopMemoryDumpLoadError.InvalidUtf8 -> "Memory dump is not valid UTF-8."
+    is DesktopMemoryDumpLoadError.Parse -> when (val detail = error) {
+        PgpMemoryDumpError.Empty -> "Memory dump contains no data."
+        is PgpMemoryDumpError.Syntax ->
+            "Memory dump error at ${detail.line}:${detail.column}: ${detail.message}"
+        is PgpMemoryDumpError.AddressOverflow ->
+            "Memory dump line ${detail.line} exceeds address 0xFFFF."
+        is PgpMemoryDumpError.Overlap ->
+            "Memory dump line ${detail.line} overlaps line ${detail.previousLine} at 0x${detail.address.hex(4)}."
+    }
+}
+
+private fun MemoryImageLoadError.message(): String = when (this) {
+    is MemoryImageLoadError.ReadOnlyAddress ->
+        "Memory dump line $sourceLine writes read-only address 0x${address.hex(4)}."
 }
 
 private fun DesktopRomLoadError.message(): String = when (this) {
@@ -642,5 +914,11 @@ private fun Int.hex(width: Int): String = (this and if (width == 2) 0xff else 0x
     .toString(16)
     .uppercase()
     .padStart(width, '0')
+
+private fun parseHexAddress(value: String): Int? {
+    val normalized = value.trim().removePrefix("0x").removePrefix("0X")
+    if (normalized.isEmpty() || normalized.length > 4) return null
+    return normalized.toIntOrNull(16)?.takeIf { it in 0..0xffff }
+}
 
 private fun Boolean.bit(): Int = if (this) 1 else 0

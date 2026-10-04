@@ -7,6 +7,8 @@ import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.rom.RomComponent
 import com.digihori.pgp.core.rom.RomRole
 import com.digihori.pgp.core.rom.RomSet
+import com.digihori.pgp.core.source.machine.PgpMemoryDumpParseResult
+import com.digihori.pgp.core.source.machine.PgpMemoryDumpParser
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -104,6 +106,36 @@ class EmulatorFactoryTest {
         assertFailsWith<IllegalArgumentException> { session.memorySnapshot(-1, 1) }
         assertFailsWith<IllegalArgumentException> { session.memorySnapshot(0, -1) }
         assertFailsWith<IllegalArgumentException> { session.memorySnapshot(0xffff, 2) }
+    }
+
+    @Test
+    fun loadsAnAddressedMemoryImageAtomicallyAfterValidation() {
+        val session = assertIs<CreateSessionResult.Success>(
+            EmulatorFactory.create(Pc1245RomDefinition.MACHINE_ID, validRomSet()),
+        ).session
+        val image = assertIs<PgpMemoryDumpParseResult.Success>(
+            PgpMemoryDumpParser.parse("C100 00010203\nC200 AABB"),
+        ).image
+
+        assertEquals(MemoryImageLoadResult.Success(2, 6), session.loadMemoryImage(image))
+        assertContentEquals(byteArrayOf(0, 1, 2, 3), session.memorySnapshot(0xc100, 4).copyBytes())
+        assertContentEquals(byteArrayOf(0xaa.toByte(), 0xbb.toByte()), session.memorySnapshot(0xc200, 2).copyBytes())
+    }
+
+    @Test
+    fun rejectsTheWholeMemoryImageWhenItContainsARomAddress() {
+        val session = assertIs<CreateSessionResult.Success>(
+            EmulatorFactory.create(Pc1245RomDefinition.MACHINE_ID, validRomSet()),
+        ).session
+        val image = assertIs<PgpMemoryDumpParseResult.Success>(
+            PgpMemoryDumpParser.parse("C100 AA\n4000 BB"),
+        ).image
+
+        assertEquals(
+            MemoryImageLoadResult.Failure(MemoryImageLoadError.ReadOnlyAddress(0x4000, 2)),
+            session.loadMemoryImage(image),
+        )
+        assertContentEquals(byteArrayOf(0), session.memorySnapshot(0xc100, 1).copyBytes())
     }
 
     @Test

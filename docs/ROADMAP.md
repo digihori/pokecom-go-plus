@@ -73,10 +73,10 @@
 
 ## Phase 3: BASICクロス開発
 
-- [ ] PC-1245 BASIC方言と文字コードを定義する（共通テキストescape parserは実装済み）
-- [ ] BASIC Tokenizer / Detokenizerを実装する
-- [ ] `.BAS`の読み込みと保存
-- [ ] BASICプログラムのRAMへの展開と抽出
+- [x] PC-1245 BASIC方言と文字コードを定義する（共通テキストescape parserは実装済み）
+- [x] BASIC Tokenizer / Detokenizerを実装する
+- [x] `.BAS`の読み込みと保存
+- [x] BASICプログラムのRAMへの展開と抽出
 - [ ] 外部ファイル変更の再読み込み
 
 ## Phase 4: Desktop対応拡大
@@ -86,10 +86,16 @@
 - [ ] ROM Import Wizardを実装する（入力slot一覧、inline検証、Pokecom GO形式から`.pgrom`への変換）
 - [ ] バンク機の物理ROMをBank 0..Nの一覧で割り当て、一括選択できるようにする
 - [ ] Desktop設定と最近使ったファイル
+- [ ] ゲームパッド入力に対応する（ゲームパッドの各操作にポケコンキーを割り当て、ゲームごとに設定できるようにする）
 - [ ] パッケージ生成とリリース自動化
 
 ## Phase 5: 開発支援機能
 
+- [x] PGP Memory Dump (`.dmp`)形式と共通パーサー
+- [x] `.dmp`のメモリ配置とDesktop入力
+- [x] `.dmp`のDesktop出力
+- [ ] Intel HEX入出力
+- [ ] Raw Binary入出力（ロード開始アドレス指定）
 - [ ] Debugger Core
 - [ ] Disassembler
 - [ ] Assembler

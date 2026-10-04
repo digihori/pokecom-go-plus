@@ -2,6 +2,7 @@ package com.digihori.pgp.core.api
 
 import com.digihori.pgp.core.emulator.cpu.Sc61860StopReason
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245Machine
+import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicMemoryResult
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245Display
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.rom.MachineId
@@ -153,6 +154,48 @@ private class Pc1245EmulatorSession(
         frequencyHz = machine.buzzerState.frequencyHz,
         revision = machine.buzzerState.revision,
     )
+
+    override fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult =
+        when (val result = machine.loadBasicProgram(program)) {
+            is Pc1245BasicMemoryResult.Success -> BasicProgramLoadResult.Success(
+                result.start,
+                result.end,
+                result.bytes.size,
+            )
+            is Pc1245BasicMemoryResult.InvalidPointers -> BasicProgramLoadResult.Failure(
+                BasicProgramMemoryError.InvalidPointer(result.start, result.end),
+            )
+            is Pc1245BasicMemoryResult.TooLarge -> BasicProgramLoadResult.Failure(
+                BasicProgramMemoryError.ProgramTooLarge(result.size, result.capacity),
+            )
+            is Pc1245BasicMemoryResult.InvalidProgram -> BasicProgramLoadResult.Failure(
+                BasicProgramMemoryError.InvalidProgram(result.offset, result.reason),
+            )
+        }
+
+    override fun basicProgramSnapshot(): BasicProgramSnapshotResult =
+        when (val result = machine.basicProgram()) {
+            is Pc1245BasicMemoryResult.Success -> BasicProgramSnapshotResult.Success(
+                result.start,
+                result.end,
+                result.bytes,
+            )
+            is Pc1245BasicMemoryResult.InvalidPointers -> BasicProgramSnapshotResult.Failure(
+                BasicProgramMemoryError.InvalidPointer(result.start, result.end),
+            )
+            is Pc1245BasicMemoryResult.TooLarge -> error("Program extraction cannot exceed capacity")
+            is Pc1245BasicMemoryResult.InvalidProgram -> BasicProgramSnapshotResult.Failure(
+                BasicProgramMemoryError.InvalidProgram(result.offset, result.reason),
+            )
+        }
+
+    override fun loadMemoryImage(image: com.digihori.pgp.core.source.machine.AddressedMemoryImage): MemoryImageLoadResult =
+        when (val result = machine.loadMemoryImage(image)) {
+            is com.digihori.pgp.core.emulator.machine.pc1245.Pc1245MemoryImageLoadResult.Success ->
+                MemoryImageLoadResult.Success(result.segmentCount, result.byteCount)
+            is com.digihori.pgp.core.emulator.machine.pc1245.Pc1245MemoryImageLoadResult.ReadOnlyAddress ->
+                MemoryImageLoadResult.Failure(MemoryImageLoadError.ReadOnlyAddress(result.address, result.sourceLine))
+        }
 }
 
 private fun activeDisplaySymbols(
