@@ -6,7 +6,8 @@
 
 ## 1. 目的
 
-この文書は、PGP Emulator CoreとDesktop・Android・iOSアプリケーションの境界を定義する。
+この文書は、PGP Emulator CoreとPokecom GO Studio（macOS／Windows／Linux）、
+Pokecom GO Player（Android／iOS）の境界を定義する。
 CPU命令や機種固有回路の内部設計ではなく、アプリケーションがCoreを安全に操作するための
 公開契約を対象とする。
 

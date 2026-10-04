@@ -2,7 +2,7 @@
 
 **文書名:** ARCHITECTURE.md  
 **ステータス:** 初期設計方針  
-**対象プロジェクト:** Pokecom GO Plus（PGP、開発コードネーム）
+**対象プロジェクト:** Pokecom GO Plus（PGP、プロジェクト全体の開発コードネーム）
 
 ## 1. この文書の目的
 
@@ -26,6 +26,12 @@ PGPでは、Pokecom GOで蓄積したエミュレーション技術、機種情�
 - 初期の開発単位とマイルストーン
 - 将来のデバッガ、アセンブラ、WAV変換等を追加できる拡張方針
 
+PGPから提供するアプリケーションの名称と役割は次の通りとする。
+
+- **Pokecom GO Studio**: macOS／Windows／Linux向けの統合ポケコン開発環境
+- **Pokecom GO Player**: Android／iOS向けの実行専用エミュレータ
+- **PGP Emulator Core**: 両製品が共有するプラットフォーム非依存Core
+
 ## 2. 基本方針
 
 PGPの設計では次の原則を優先する。
@@ -35,7 +41,7 @@ PGPの設計では次の原則を優先する。
 3. PGP CoreはUI、OS、ファイルシステム、音声デバイスから独立させる。
 4. Coreの動作は実時間ではなく、命令およびサイクル数によって決定する。
 5. UIへ可変内部状態を直接公開せず、コマンド、イベント、Snapshotを介して接続する。
-6. Desktopを最初の製品ターゲットとし、AndroidとiOSはCore成熟後に追加する。
+6. Pokecom GO Studioを最初の製品ターゲットとし、Pokecom GO PlayerはCore成熟後に追加する。
 7. 最初から全機種・全機能を実装せず、1機種の小さな縦切りで設計を検証する。
 8. Pokecom GOとPGPの互換性は、コード共有ではなくテストデータと期待結果でも検証する。
 
@@ -65,7 +71,7 @@ BASIC / Assembly / Binary
 - Windows
 - Linux
 
-Desktop版では、エミュレータだけでなくデバッガ、BASICプログラム操作、
+Pokecom GO Studioでは、エミュレータだけでなくデバッガ、BASICプログラム操作、
 アセンブラ、ディスアセンブラなどの開発支援機能を段階的に提供する。
 
 ### 3.2 将来ターゲット
@@ -73,8 +79,10 @@ Desktop版では、エミュレータだけでなくデバッガ、BASICプロ�
 - Android
 - iOS
 
-モバイル版は当初エミュレータ機能を中心とし、Desktop版と同じ全機能を持つことを
-必須としない。
+Android／iOSではPokecom GO Playerを提供する。Playerはポケコンの実行・操作に特化し、
+Studioが持つデバッガ、アセンブラ、ディスアセンブラ、メモリ編集などの開発機能を搭載しない。
+機能範囲は既存Pokecom GOの利用体験を基準とし、LCD、実機仕様キーボード、機種／ROM選択、
+プログラム入出力、音声、セーブステート、ゲームパッド割当を対象とする。
 
 ### 3.3 対象外
 
@@ -88,13 +96,13 @@ Brain上での利用はPOEMS/Pokemunの移植・カスタマイズを含む別�
 PGPは、プラットフォーム非依存のCoreと、各OS向けアプリケーション層で構成する。
 
 ```text
-                         PGP Core
+                    PGP Emulator Core
                             │
          ┌──────────────────┼──────────────────┐
          │                  │                  │
-    Desktop App        Android App          iOS App
+ Pokecom GO Studio      Pokecom GO Player（共通Player UI）
          │                  │                  │
-  Compose Desktop     Compose / Native     Compose / SwiftUI
+  Compose Desktop       Android            iOS
          │                  │                  │
  macOS / Windows / Linux   Android             iOS
 ```
@@ -638,16 +646,16 @@ core-debugger
 tooling-assembler
 tooling-wav
 tooling-character
-app-desktop
-app-android
-app-ios
+studio-desktop
+player-android
+player-ios
 ```
 
-## 16. Desktop Application
+## 16. Pokecom GO Studio
 
 最初のUIはCompose Desktopを第一候補とする。
 
-Desktop層が担当するものは次の通り。
+Studio層が担当するものは次の通り。
 
 - ROMおよびプログラムファイルの選択
 - エミュレーターのRun / Pause / Reset
@@ -660,6 +668,23 @@ Desktop層が担当するものは次の通り。
 - Desktop向けパッケージング
 
 Core APIを検証するため、最初のUIは完成したIDEを目指さず、機能確認用の小さな画面とする。
+
+### 16.1 Pokecom GO Player
+
+PlayerはAndroid／iOS向けの軽量な実行環境とする。共通Coreを利用するが、Studioの開発支援UIには
+依存しない。Player層は次を担当する。
+
+- `.pgrom`とプログラムファイルの選択および前回ROMの復元
+- LCD表示と機種別ソフトウェアキーボード
+- RUN／PRO／RSV等の実機操作
+- PCM音声のプラットフォーム別再生
+- Pause／Reset、ライフサイクル、セーブステート
+- ゲームパッドのポケコンキー割当
+- Android Storage Access Framework／iOS Document Pickerとの接続
+
+CPUレジスタ表示、デバッガ、逆アセンブラ、アセンブラ、メモリエディタはPlayerの対象外とする。
+LCDとキー配置など再利用価値の高いUIは将来の共通Player UIとして切り出せるが、ファイル選択、
+音声、ライフサイクルは各プラットフォーム層に残す。
 
 ## 17. テスト戦略
 
@@ -739,7 +764,7 @@ ROMが必要なテストと、再配布可能な合成命令列だけで実行�
 
 完成条件はUI表示ではなく、ヘッドレス実行がテストで一致することである。
 
-### Milestone 2: macOS最小Desktop UI
+### Milestone 2: macOS最小Pokecom GO Studio
 
 - ROM選択
 - Run / Pause / Reset
@@ -766,6 +791,8 @@ ROMが必要なテストと、再配布可能な合成命令列だけで実行�
 - WAV Encoder / Decoder
 - Android
 - iOS
+
+Android／iOSではPokecom GO Playerを提供し、Studio機能の移植は行わない。
 
 ## 19. 将来機能の拡張境界
 
@@ -874,5 +901,6 @@ CPU・RAM・LCD状態を取得し、
 Pokecom GOの期待結果と一致すること
 ```
 
-この小さなCoreを基盤として、Desktop UI、BASICクロス開発、Debugger、Assembler、
-WAV転送、Android、iOSを段階的に追加する。
+この小さなCoreを基盤として、Pokecom GO StudioのUI、BASICクロス開発、Debugger、
+Assembler、WAV転送を段階的に追加する。CoreとStudioが安定した後、Android／iOS向けの
+Pokecom GO Playerを追加する。

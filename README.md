@@ -6,15 +6,21 @@ Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向け�
 現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す
 マルチプラットフォーム開発環境です。
 
-> [!NOTE]
-> 「Pokecom GO Plus」と「PGP」は開発コードネームです。正式名称は未定です。
+PGPは次の2製品と共有Emulator Coreで構成します。
+
+- **Pokecom GO Studio** — macOS／Windows／Linux向けのポケコン開発環境
+- **Pokecom GO Player** — Android／iOS向けの実行専用エミュレータ
+- **PGP Emulator Core** — StudioとPlayerが共有するKotlin Multiplatform Core
+
+「Pokecom GO Plus」と「PGP」は、このプロジェクト全体を表す開発コードネームとして使用します。
 
 ## 現在の状態
 
-プロジェクトは初期実装段階です。最初の対象機種であるPC-1245について、
-エミュレーターCoreとCompose Desktopアプリを実装しています。macOSでは実ROMの起動、
-物理キーボード入力、BASICプログラム実行、LCD表示まで動作確認済みです。
+プロジェクトは初期実装段階です。Pokecom GO Studioの最初の対象機種としてPC-1245と
+PC-1251を実装しています。macOSでは実ROMの起動、物理／画面キーボード入力、BASICと
+マシン語の入出力、LCD表示、サウンド出力まで動作確認済みです。
 WindowsとLinuxはCIでビルドと自動テストを行い、実機操作は今後確認します。
+Pokecom GO PlayerはCoreとStudioが安定した後に開発します。
 
 ## プロジェクトの位置付け
 
@@ -26,20 +32,21 @@ WindowsとLinuxはCIでビルドと自動テストを行い、実機操作は今
 
 ## 対象プラットフォーム
 
-初期開発はDesktop Firstです。
+初期開発はPokecom GO Studioを優先します。
 
 - macOS
 - Windows
 - Linux
 
-Core成熟後にAndroidおよびiOSへの展開を検討します。
+Core成熟後に、実行機能へ特化したPokecom GO PlayerをAndroidおよびiOSへ展開します。
+Playerにはデバッガ、アセンブラ、逆アセンブラなどの開発機能を搭載しません。
 
 ## リポジトリ構成
 
 ```text
 pokecom-go-plus/
 ├── core/          Kotlin Multiplatformの共有Core
-├── desktopApp/    Compose Desktopアプリケーション
+├── desktopApp/    Pokecom GO Studio（現在のCompose Desktop実装）
 ├── docs/          構想・設計・移植記録・ロードマップ
 ├── local-data/    ローカルROM等（Git管理外）
 └── test-data/     再配布可能なテストデータ

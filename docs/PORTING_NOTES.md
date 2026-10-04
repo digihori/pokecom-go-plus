@@ -1086,3 +1086,14 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - The physical writable ranges are 0xB800..0xC7FF and 0xF800..0xF8FF; 0xB000..0xB7FF aliases
   0xB800..0xBFFF. The 120 LCD columns use ascending 0xF800..0xF83B and descending
   0xF87B..0xF840 addresses.
+
+### 製品名とプラットフォーム別の役割
+
+- Date: 2026-10-04
+- Project codename: リポジトリとプロジェクト全体は引き続き`Pokecom GO Plus（PGP）`と呼ぶ。
+- Desktop product: macOS／Windows／Linux向けの統合開発環境を`Pokecom GO Studio`とする。
+  エミュレータに加え、デバッガ、アセンブラ、ディスアセンブラ等の開発支援機能を提供する。
+- Mobile product: Android／iOS向けの実行専用エミュレータを`Pokecom GO Player`とする。
+  既存Pokecom GO相当の実行・操作機能を対象とし、Studioの開発支援機能は搭載しない。
+- Shared foundation: StudioとPlayerは同じKotlin Multiplatform Emulator Coreを使用する。
+  UI、ファイル選択、音声出力、アプリのライフサイクルは各製品・プラットフォーム層に置く。

@@ -61,7 +61,7 @@
 - [x] Pokecom GO SharedPreferences XMLから`PREF_SC`を抽出するブリッジを実装する
 - [x] Pokecom GOの固定cycle期待結果と明示的なDesktop integration testで比較する
 
-## Phase 2: macOS最小Desktop UI
+## Phase 2: macOS最小Pokecom GO Studio
 
 - [x] 実時間をサイクル予算へ変換する共通Plannerを実装する
 - [x] PC-1245従来形式ROM選択とSession生成
@@ -79,13 +79,14 @@
 - [x] BASICプログラムのRAMへの展開と抽出
 - [ ] 外部ファイル変更の再読み込み
 
-## Phase 4: Desktop対応拡大
+## Phase 4: Pokecom GO Studio対応拡大
 
 - [ ] Windowsでのビルド・配布
 - [ ] Linuxでのビルド・配布
 - [ ] ROM Import Wizardを実装する（入力slot一覧、inline検証、Pokecom GO形式から`.pgrom`への変換）
 - [ ] バンク機の物理ROMをBank 0..Nの一覧で割り当て、一括選択できるようにする
-- [ ] Desktop設定と最近使ったファイル
+- [x] 前回使用したROMと機種の保存・自動読込み
+- [ ] Studio設定と最近使ったプログラムファイル
 - [ ] ゲームパッド入力に対応する（ゲームパッドの各操作にポケコンキーを割り当て、ゲームごとに設定できるようにする）
 - [ ] パッケージ生成とリリース自動化
 
@@ -116,10 +117,18 @@
 - [ ] PC-1360、PC-1460、PC-1470Uのバンク切替を機種別に実装する
 - [ ] PC-1360KをMachine Catalogへ登録する（詳細不明のため実装は保留）
 
-## Phase 7: Mobile
+## Phase 7: Pokecom GO Player
 
-- [ ] Androidアプリ
-- [ ] iOSアプリ
-- [ ] Desktopとのファイル受け渡し
+- [ ] Android Playerアプリ
+- [ ] iOS Playerアプリ
+- [ ] Studioとのファイル受け渡し
+- [ ] `.pgrom`選択と前回ROMの自動復元
+- [ ] LCDと機種別ソフトウェアキーボード
+- [ ] RUN／PRO／RSV、Reset、Pause
+- [ ] Android AudioTrack／iOS音声APIへのPCM接続
+- [ ] セーブステートとモバイルライフサイクル
+- [ ] ゲームパッドのキー割当
 
-モバイル版にDesktop版の全機能を実装することは必須としない。
+Pokecom GO Playerはエミュレータの実行に特化し、Pokecom GO Studioが提供するデバッガ、
+アセンブラ、ディスアセンブラ、メモリ編集等の開発機能は実装しない。機能範囲は既存の
+Pokecom GOを基準とする。
