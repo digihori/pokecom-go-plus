@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 class Pc1245KeyboardLayoutTest {
     @Test
     fun containsEveryPc1245LogicalKeyExactlyOnce() {
-        val keys = Pc1245KeyboardLayout.rows.flatten().map(Pc1245KeyCap::key)
+        val keys = Pc1245KeyboardLayout.rows.flatten().map(PocketKeyCap::key)
 
         assertEquals(PocketKey.entries.toSet(), keys.toSet())
         assertEquals(keys.size, keys.distinct().size)

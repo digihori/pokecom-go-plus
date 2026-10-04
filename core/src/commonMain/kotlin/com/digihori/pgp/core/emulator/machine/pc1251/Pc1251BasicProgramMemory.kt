@@ -4,9 +4,9 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicDetokenizeResult
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicDetokenizer
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicMemoryResult
 
-/** PC-1251 uses the OLD BASIC format but stores program text from B800. */
+/** The PC-1250/1251/1255 family uses OLD BASIC; the largest model can start at A000. */
 internal object Pc1251BasicProgramMemory {
-    const val PROGRAM_TEXT_START: Int = 0xb800
+    const val PROGRAM_TEXT_START: Int = 0xa000
     const val PROGRAM_START_POINTER_LOW: Int = 0xc6e1
     const val PROGRAM_END_POINTER_LOW: Int = 0xc6e3
     const val PROGRAM_STORAGE_END_EXCLUSIVE: Int = PROGRAM_START_POINTER_LOW

@@ -8,7 +8,26 @@ import com.digihori.pgp.core.source.basic.BasicTextToken
 
 /** Compiles parsed BASIC text into consecutive taps accepted by the PC-1245 ROM editor. */
 public object Pc1245RomBasicInput {
-    public fun compile(document: BasicTextDocument): Pc1245RomInputResult {
+    public fun compile(document: BasicTextDocument): Pc1245RomInputResult = RomBasicInputCompiler.compile(
+        document = document,
+        characterSequence = Pc1245CharacterInput::keySequence,
+        specialSequence = { symbol ->
+            when (symbol) {
+                BasicSpecialSymbol.PI -> listOf(PocketKey.SHIFT, PocketKey.NUM_0)
+                BasicSpecialSymbol.SQUARE_ROOT -> listOf(PocketKey.SHIFT, PocketKey.DOT)
+                BasicSpecialSymbol.EXPONENT -> listOf(PocketKey.SHIFT, PocketKey.PLUS)
+                BasicSpecialSymbol.BLOCK -> null
+            }
+        },
+    )
+}
+
+internal object RomBasicInputCompiler {
+    fun compile(
+        document: BasicTextDocument,
+        characterSequence: (Char) -> List<PocketKey>?,
+        specialSequence: (BasicSpecialSymbol) -> List<PocketKey>?,
+    ): Pc1245RomInputResult {
         val keys = mutableListOf<PocketKey>()
         var linePrefix = LinePrefix.START
         for (token in document.tokens) {
@@ -24,30 +43,21 @@ public object Pc1245RomBasicInput {
                         updateLinePrefix(linePrefix, element.value).also { linePrefix = it }
                         element.value
                     }
-                    val sequence = Pc1245CharacterInput.keySequence(normalizedCharacter)
+                    val sequence = characterSequence(normalizedCharacter)
                         ?: return unsupported(
                             token,
                             Pc1245RomInputUnsupported.Character(normalizedCharacter),
                         )
                     keys += sequence
                 }
-                is BasicTextElement.Special -> when (element.symbol) {
-                    BasicSpecialSymbol.PI -> {
-                        linePrefix = LinePrefix.BODY
-                        keys += listOf(PocketKey.SHIFT, PocketKey.NUM_0)
-                    }
-                    BasicSpecialSymbol.SQUARE_ROOT -> {
-                        linePrefix = LinePrefix.BODY
-                        keys += listOf(PocketKey.SHIFT, PocketKey.DOT)
-                    }
-                    BasicSpecialSymbol.EXPONENT -> {
-                        linePrefix = LinePrefix.BODY
-                        keys += listOf(PocketKey.SHIFT, PocketKey.PLUS)
-                    }
-                    BasicSpecialSymbol.BLOCK -> return unsupported(
+                is BasicTextElement.Special -> {
+                    val sequence = specialSequence(element.symbol)
+                        ?: return unsupported(
                         token,
                         Pc1245RomInputUnsupported.SpecialSymbol(element.symbol),
                     )
+                    linePrefix = LinePrefix.BODY
+                    keys += sequence
                 }
                 is BasicTextElement.RawByte -> return unsupported(
                     token,

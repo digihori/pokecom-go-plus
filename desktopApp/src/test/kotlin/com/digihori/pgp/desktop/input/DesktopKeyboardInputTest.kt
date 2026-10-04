@@ -4,6 +4,9 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import com.digihori.pgp.core.api.InputResult
 import com.digihori.pgp.core.api.PocketKey
+import com.digihori.pgp.core.rom.MachineId
+import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -20,6 +23,22 @@ class DesktopKeyboardInputTest {
 
         assertEquals(listOf(listOf(PocketKey.SHIFT, PocketKey.Q)), sink.sequences)
         assertEquals(emptyList(), sink.events)
+    }
+
+    @Test
+    fun convertsParenthesesUsingTheAttachedMachineLayout() {
+        val pc1245 = FakeSink(Pc1245RomDefinition.MACHINE_ID)
+        val pc1251 = FakeSink(Pc1251RomDefinition.MACHINE_ID)
+        val input = DesktopKeyboardInput().also { it.attach(pc1245) }
+
+        input.handle(Key.Nine, '('.code, KeyEventType.KeyDown)
+        input.handle(Key.Nine, '('.code, KeyEventType.KeyUp)
+        input.attach(pc1251)
+        input.handle(Key.Nine, '('.code, KeyEventType.KeyDown)
+        input.handle(Key.Nine, '('.code, KeyEventType.KeyUp)
+
+        assertEquals(listOf(listOf(PocketKey.SHIFT, PocketKey.NUM_1)), pc1245.sequences)
+        assertEquals(listOf(listOf(PocketKey.SHIFT, PocketKey.DOWN)), pc1251.sequences)
     }
 
     @Test
@@ -125,7 +144,9 @@ class DesktopKeyboardInputTest {
         assertEquals(listOf("press:A", "press:UP", "release:A", "release:UP", "press:A"), sink.events)
     }
 
-    private class FakeSink : DesktopKeyInputSink {
+    private class FakeSink(
+        override val machineId: MachineId = Pc1245RomDefinition.MACHINE_ID,
+    ) : DesktopKeyInputSink {
         val events = mutableListOf<String>()
         val sequences = mutableListOf<List<PocketKey>>()
 

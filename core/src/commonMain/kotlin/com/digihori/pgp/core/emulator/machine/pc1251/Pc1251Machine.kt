@@ -6,15 +6,18 @@ import com.digihori.pgp.core.emulator.cpu.Sc61860RunResult
 import com.digihori.pgp.core.emulator.cpu.Sc61860StepResult
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245Buzzer
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicMemoryResult
-import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245Keyboard
 import com.digihori.pgp.core.rom.RomSet
 import com.digihori.pgp.core.source.machine.AddressedMemoryImage
 
-internal class Pc1251Machine(romSet: RomSet) {
+internal class Pc1251Machine(
+    romSet: RomSet,
+    model: Pc1251FamilyModel = Pc1251FamilyModel.PC_1251,
+    memoryMode: Pc1251FamilyMemoryMode = Pc1251FamilyMemoryMode.EXPANDED,
+) {
     private val display = Pc1251Display()
-    private val keyboard = Pc1245Keyboard()
+    private val keyboard = Pc1251Keyboard()
     private val buzzer = Pc1245Buzzer()
-    private val bus = Pc1251MemoryBus(romSet, display)
+    private val bus = Pc1251MemoryBus(romSet, display, model, memoryMode)
     private val io = Pc1251Io(keyboard, display, buzzer)
     private val cpu = Sc61860Cpu(bus, io)
 
@@ -77,7 +80,7 @@ internal class Pc1251Machine(romSet: RomSet) {
 }
 
 private class Pc1251Io(
-    private val keyboard: Pc1245Keyboard,
+    private val keyboard: Pc1251Keyboard,
     private val display: Pc1251Display,
     private val buzzer: Pc1245Buzzer,
 ) : Sc61860Io {

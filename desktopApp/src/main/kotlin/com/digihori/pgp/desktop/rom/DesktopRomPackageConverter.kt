@@ -5,6 +5,7 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245ComponentRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1245.RomImportError
 import com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251ComponentRomImporter
+import com.digihori.pgp.core.rom.MachineId
 
 internal object DesktopRomPackageConverter {
     fun createPc1245Package(
@@ -18,11 +19,15 @@ internal object DesktopRomPackageConverter {
             )
         }
 
-    fun createPc1251Package(internal: ByteArray, external: ByteArray): DesktopRomPackageConversionResult =
-        when (val imported = Pc1251ComponentRomImporter.importImages(internal, external)) {
+    fun createPc1251Package(
+        internal: ByteArray,
+        external: ByteArray,
+        machineId: MachineId = com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition.MACHINE_ID,
+    ): DesktopRomPackageConversionResult =
+        when (val imported = Pc1251ComponentRomImporter.importImages(internal, external, machineId)) {
             is RomImportResult.Failure -> DesktopRomPackageConversionResult.Failure(imported.error)
             is RomImportResult.Success -> DesktopRomPackageConversionResult.Success(
-                DesktopRomPackage.write(imported.romSet, title = "PC-1251 ROM"),
+                DesktopRomPackage.write(imported.romSet, title = "${machineId.value.uppercase()} ROM"),
             )
         }
 

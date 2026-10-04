@@ -60,6 +60,7 @@ public enum class PocketKey {
 public enum class OperatingMode {
     RUN,
     PROGRAM,
+    RESERVE,
 }
 
 public sealed interface InputResult {
@@ -119,7 +120,6 @@ public enum class DisplaySymbol {
     RUN,
     PRO,
     RESERVE,
-    E,
 }
 
 public class DisplaySnapshot internal constructor(

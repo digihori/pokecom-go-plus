@@ -4,6 +4,7 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245FlatRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.rom.RomComponent
 import com.digihori.pgp.core.rom.RomRole
@@ -20,7 +21,30 @@ import kotlin.test.assertIs
 class EmulatorFactoryTest {
     @Test
     fun exposesPc1245AsTheInitialSupportedMachine() {
-        assertEquals(listOf(MachineId("pc-1245"), MachineId("pc-1251")), EmulatorFactory.supportedMachineIds())
+        assertEquals(
+            listOf(MachineId("pc-1245"), MachineId("pc-1250"), MachineId("pc-1251"), MachineId("pc-1255")),
+            EmulatorFactory.supportedMachineIds(),
+        )
+    }
+
+    @Test
+    fun createsEveryPc1251FamilyModelFromTheSharedRomLayout() {
+        Pc1251FamilyModel.entries.forEach { model ->
+            val romSet = RomSet(
+                model.machineId,
+                listOf(
+                    RomComponent(Pc1251RomDefinition.INTERNAL_ID, RomRole.INTERNAL, ByteArray(0x2000) { 0x33 }),
+                    RomComponent(Pc1251RomDefinition.EXTERNAL_ID, RomRole.EXTERNAL, ByteArray(0x4000)),
+                ),
+            )
+
+            val session = assertIs<CreateSessionResult.Success>(
+                EmulatorFactory.create(model.machineId, romSet),
+            ).session
+
+            assertEquals(model.machineId, session.machineId)
+            assertEquals(24, session.displaySnapshot().characterColumns)
+        }
     }
 
     @Test
@@ -38,6 +62,15 @@ class EmulatorFactoryTest {
 
         assertEquals(Pc1251RomDefinition.MACHINE_ID, session.machineId)
         assertEquals(24, session.displaySnapshot().characterColumns)
+        assertEquals(listOf(DisplaySymbol.RUN), session.displaySnapshot().symbols)
+
+        session.setOperatingMode(OperatingMode.RESERVE)
+        assertEquals(listOf(DisplaySymbol.RESERVE), session.displaySnapshot().symbols)
+        assertEquals(1, session.displaySnapshot().revision)
+
+        session.setOperatingMode(OperatingMode.PROGRAM)
+        assertEquals(listOf(DisplaySymbol.PRO), session.displaySnapshot().symbols)
+        assertEquals(2, session.displaySnapshot().revision)
         assertEquals(ExecutionStatus.Ready, session.step().status)
     }
 

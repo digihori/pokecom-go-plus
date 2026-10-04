@@ -46,6 +46,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.digihori.pgp.core.ProjectInfo
 import com.digihori.pgp.core.api.ExecutionStatus
+import com.digihori.pgp.core.api.EmulatorConfiguration
 import com.digihori.pgp.core.api.CoreFault
 import com.digihori.pgp.core.api.BasicProgramLoadResult
 import com.digihori.pgp.core.api.BasicProgramMemoryError
@@ -58,6 +59,8 @@ import com.digihori.pgp.core.api.OperatingMode
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomInputUnsupported
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
+import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.source.machine.PgpMemoryDumpError
 import com.digihori.pgp.desktop.basic.DesktopBasicLoadError
@@ -71,8 +74,9 @@ import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoadError
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoadResult
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoader
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpWriter
-import com.digihori.pgp.desktop.input.Pc1245KeyCap
 import com.digihori.pgp.desktop.input.Pc1245KeyboardLayout
+import com.digihori.pgp.desktop.input.Pc1251KeyboardLayout
+import com.digihori.pgp.desktop.input.PocketKeyCap
 import com.digihori.pgp.desktop.audio.DesktopAudioPlayer
 import com.digihori.pgp.desktop.display.CharacterCellGeometry
 import com.digihori.pgp.desktop.rom.DesktopRomLoadError
@@ -122,6 +126,8 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
     var selectedMachineId by remember { mutableStateOf(Pc1245RomDefinition.MACHINE_ID) }
     var runnerState by remember { mutableStateOf(RunnerState.PAUSED) }
     var loadedRomName by remember { mutableStateOf<String?>(null) }
+    var loadedRomFile by remember { mutableStateOf<File?>(null) }
+    var familyMemoryMode by remember { mutableStateOf(Pc1251FamilyMemoryMode.EXPANDED) }
     var message by remember { mutableStateOf("Select a PC-1245 legacy 32/64 KiB ROM image.") }
     var executedCycles by remember { mutableLongStateOf(0L) }
     var display by remember { mutableStateOf<DisplaySnapshot?>(null) }
@@ -152,13 +158,19 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
         errorDialogMessage = value
     }
 
-    fun loadRom(file: File, startAutomatically: Boolean, reportErrors: Boolean = true): Boolean {
+    fun loadRom(
+        file: File,
+        startAutomatically: Boolean,
+        reportErrors: Boolean = true,
+        memoryMode: Pc1251FamilyMemoryMode = familyMemoryMode,
+    ): Boolean {
+        val configuration = EmulatorConfiguration(pc1251FamilyMemoryMode = memoryMode)
         val result = runCatching {
             val bytes = file.readBytes()
             if (file.extension.equals("pgrom", ignoreCase = true)) {
-                DesktopRomLoader.loadPackage(bytes)
+                DesktopRomLoader.loadPackage(bytes, configuration)
             } else {
-                DesktopRomLoader.loadLegacyImage(selectedMachineId, bytes)
+                DesktopRomLoader.loadLegacyImage(selectedMachineId, bytes, configuration)
             }
         }
             .getOrElse {
@@ -183,6 +195,7 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                 runner = newRunner
                 keyboardInput.attach(newRunner)
                 loadedRomName = file.name
+                loadedRomFile = file.absoluteFile
                 executedCycles = bootResult?.executedCycles ?: 0L
                 display = newRunner.displaySnapshot()
                 cpu = newRunner.cpuSnapshot()
@@ -210,8 +223,8 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
         val externalFile = selectAndRestoreFocus { selectExternalRomFile(ownerWindow, selectedMachineId) } ?: return
         val conversion = runCatching {
             when (selectedMachineId) {
-                Pc1251RomDefinition.MACHINE_ID -> DesktopRomPackageConverter.createPc1251Package(
-                    internalFile.readBytes(), externalFile.readBytes(),
+                in Pc1251FamilyModel.entries.map { it.machineId } -> DesktopRomPackageConverter.createPc1251Package(
+                    internalFile.readBytes(), externalFile.readBytes(), selectedMachineId,
                 )
                 else -> DesktopRomPackageConverter.createPc1245Package(
                     internalFile.readBytes(), externalFile.readBytes(),
@@ -250,7 +263,10 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
         } else if (previous != null) {
             romHistory.clear()
         }
-        DesktopRomLocator.findPc1245Rom()?.let { loadRom(it, startAutomatically = true) }
+        DesktopRomLocator.findFirstAvailableRom()?.let { fallback ->
+            selectedMachineId = fallback.machineId
+            loadRom(fallback.file, startAutomatically = true)
+        }
     }
 
     LaunchedEffect(runner) {
@@ -319,9 +335,55 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                         onClick = { selectedMachineId = Pc1245RomDefinition.MACHINE_ID },
                     ) { Text("PC-1245") }
                     Button(
+                        enabled = selectedMachineId != Pc1251FamilyModel.PC_1250.machineId,
+                        onClick = { selectedMachineId = Pc1251FamilyModel.PC_1250.machineId },
+                    ) { Text("PC-1250") }
+                    Button(
                         enabled = selectedMachineId != Pc1251RomDefinition.MACHINE_ID,
                         onClick = { selectedMachineId = Pc1251RomDefinition.MACHINE_ID },
                     ) { Text("PC-1251") }
+                    Button(
+                        enabled = selectedMachineId != Pc1251FamilyModel.PC_1255.machineId,
+                        onClick = { selectedMachineId = Pc1251FamilyModel.PC_1255.machineId },
+                    ) { Text("PC-1255") }
+                }
+                if ((runner?.machineId ?: selectedMachineId).isPc1251Family()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            enabled = familyMemoryMode != Pc1251FamilyMemoryMode.EXPANDED,
+                            onClick = {
+                                val file = loadedRomFile
+                                val resume = runnerState == RunnerState.RUNNING
+                                familyMemoryMode = Pc1251FamilyMemoryMode.EXPANDED
+                                if (file == null) {
+                                    message = "Expanded RAM selected. It will apply when a ROM is loaded."
+                                } else if (loadRom(
+                                        file,
+                                        resume,
+                                        memoryMode = Pc1251FamilyMemoryMode.EXPANDED,
+                                    )) {
+                                    message = "Restarted with expanded PC-1255-size RAM."
+                                }
+                            },
+                        ) { Text("Expanded RAM") }
+                        Button(
+                            enabled = familyMemoryMode != Pc1251FamilyMemoryMode.HARDWARE,
+                            onClick = {
+                                val file = loadedRomFile
+                                val resume = runnerState == RunnerState.RUNNING
+                                familyMemoryMode = Pc1251FamilyMemoryMode.HARDWARE
+                                if (file == null) {
+                                    message = "Hardware RAM selected. It will apply when a ROM is loaded."
+                                } else if (loadRom(
+                                        file,
+                                        resume,
+                                        memoryMode = Pc1251FamilyMemoryMode.HARDWARE,
+                                    )) {
+                                    message = "Restarted with ${selectedMachineId.displayName()} hardware RAM."
+                                }
+                            },
+                        ) { Text("Hardware RAM") }
+                    }
                 }
                 Text("ROM: ${loadedRomName ?: "not loaded"}")
                 Text("State: ${runnerState.name}")
@@ -349,7 +411,7 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                             }
                             when (compiled) {
                                 is DesktopBasicProgramCompileResult.Failure ->
-                                    message = compiled.error.message()
+                                    message = compiled.error.message(activeRunner.machineId.displayName())
                                 is DesktopBasicProgramCompileResult.Success -> {
                                     when (val loaded = activeRunner.loadBasicProgram(compiled.bytes)) {
                                         is BasicProgramLoadResult.Failure -> {
@@ -441,13 +503,14 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                                 selectBasicFile(ownerWindow, "Type BASIC through ROM")
                             } ?: return@Button
                             val loadResult = runCatching {
-                                DesktopBasicLoader.compilePc1245RomInput(file.readBytes())
+                                DesktopBasicLoader.compileRomInput(file.readBytes(), activeRunner.machineId)
                             }.getOrElse {
                                 message = "Could not read BASIC source: ${it.message ?: it::class.simpleName}"
                                 return@Button
                             }
                             when (loadResult) {
-                                is DesktopBasicLoadResult.Failure -> message = loadResult.error.message()
+                                is DesktopBasicLoadResult.Failure ->
+                                    message = loadResult.error.message(activeRunner.machineId.displayName())
                                 is DesktopBasicLoadResult.Success -> {
                                     activeRunner.setOperatingMode(OperatingMode.PROGRAM)
                                     operatingMode = OperatingMode.PROGRAM
@@ -460,7 +523,8 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                                     message = if (runResult.status is ExecutionStatus.Faulted) {
                                         "BASIC loading stopped: ${runResult.status}"
                                     } else {
-                                        "Merged ${file.name} through the PC-1245 ROM (${loadResult.keys.size} key taps)."
+                                        "Merged ${file.name} through the ${activeRunner.machineId.displayName()} ROM " +
+                                            "(${loadResult.keys.size} key taps)."
                                     }
                                 }
                             }
@@ -532,16 +596,29 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                             display = runner?.displaySnapshot()
                         },
                     ) { Text("PRO mode") }
+                    if ((runner?.machineId ?: selectedMachineId).isPc1251Family()) {
+                        Button(
+                            enabled = runner != null && operatingMode != OperatingMode.RESERVE,
+                            onClick = {
+                                runner?.setOperatingMode(OperatingMode.RESERVE)
+                                operatingMode = OperatingMode.RESERVE
+                                display = runner?.displaySnapshot()
+                            },
+                        ) { Text("RSV mode") }
+                    }
                 }
 
-                Pc1245SoftwareKeyboard(runner)
+                PocketSoftwareKeyboard(
+                    runner,
+                    (runner?.machineId ?: selectedMachineId).isPc1251Family(),
+                )
             }
         }
 
         if (showOpenRomGuide) {
             AlertDialog(
                 onDismissRequest = { showOpenRomGuide = false },
-                title = { Text("Open PC-1245 ROM") },
+                title = { Text("Open ${selectedMachineId.displayName()} ROM") },
                 text = {
                     Text(
                         "Machine: ${selectedMachineId.displayName()}\n\nChoose one of the following files:\n\n" +
@@ -686,7 +763,7 @@ private fun CpuRegisterPanel(snapshot: CpuSnapshot?) {
 
 @Composable
 private fun PocketKeyButton(
-    cap: Pc1245KeyCap,
+    cap: PocketKeyCap,
     runner: DesktopEmulatorRunner?,
     modifier: Modifier = Modifier,
 ) {
@@ -736,14 +813,16 @@ private fun PocketKeyButton(
 }
 
 @Composable
-private fun Pc1245SoftwareKeyboard(runner: DesktopEmulatorRunner?) {
+private fun PocketSoftwareKeyboard(runner: DesktopEmulatorRunner?, pc1251: Boolean) {
+    val rows = if (pc1251) Pc1251KeyboardLayout.rows else Pc1245KeyboardLayout.rows
+    val columnCount = if (pc1251) Pc1251KeyboardLayout.COLUMN_COUNT else Pc1245KeyboardLayout.COLUMN_COUNT
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .widthIn(max = 1_100.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Pc1245KeyboardLayout.rows.forEach { row ->
+        rows.forEach { row ->
             Row(modifier = Modifier.fillMaxWidth()) {
                 var nextColumn = 0
                 row.forEach { cap ->
@@ -760,8 +839,8 @@ private fun Pc1245SoftwareKeyboard(runner: DesktopEmulatorRunner?) {
                     )
                     nextColumn = cap.column + cap.columnSpan
                 }
-                if (nextColumn < Pc1245KeyboardLayout.COLUMN_COUNT) {
-                    Spacer(modifier = Modifier.weight((Pc1245KeyboardLayout.COLUMN_COUNT - nextColumn).toFloat()))
+                if (nextColumn < columnCount) {
+                    Spacer(modifier = Modifier.weight((columnCount - nextColumn).toFloat()))
                 }
             }
         }
@@ -875,7 +954,7 @@ private fun selectFile(
     return if (directory != null && fileName != null) File(directory, fileName) else null
 }
 
-private fun DesktopBasicLoadError.message(): String = when (this) {
+private fun DesktopBasicLoadError.message(machineName: String): String = when (this) {
     DesktopBasicLoadError.InvalidUtf8 -> "BASIC source is not valid UTF-8."
     is DesktopBasicLoadError.Parse ->
         "BASIC text error at ${error.line}:${error.column}: ${error.message}"
@@ -885,7 +964,7 @@ private fun DesktopBasicLoadError.message(): String = when (this) {
             is Pc1245RomInputUnsupported.SpecialSymbol -> "symbol ${value.value}"
             is Pc1245RomInputUnsupported.RawByte -> "raw byte 0x${value.value.hex(2)}"
         }
-        "PC-1245 ROM input does not support $detail at ${error.line}:${error.column}."
+        "$machineName ROM input does not support $detail at ${error.line}:${error.column}."
     }
 }
 
@@ -894,12 +973,12 @@ private fun CoreFault.message(): String = when (this) {
         "Emulation stopped: unsupported opcode 0x${opcode.hex(2)} at PC=0x${address.hex(4)}."
 }
 
-private fun DesktopBasicProgramCompileError.message(): String = when (this) {
+private fun DesktopBasicProgramCompileError.message(machineName: String): String = when (this) {
     DesktopBasicProgramCompileError.InvalidUtf8 -> "BASIC source is not valid UTF-8."
     is DesktopBasicProgramCompileError.Parse ->
         "BASIC text error at ${error.line}:${error.column}: ${error.message}"
     is DesktopBasicProgramCompileError.Tokenize ->
-        "PC-1245 BASIC error at ${error.line}:${error.column}: ${error.message}"
+        "$machineName OLD BASIC error at ${error.line}:${error.column}: ${error.message}"
 }
 
 private fun BasicProgramMemoryError.message(): String = when (this) {
@@ -933,6 +1012,8 @@ private fun MemoryImageLoadError.message(): String = when (this) {
 
 private fun DesktopRomLoadError.message(): String = when (this) {
     is DesktopRomLoadError.InvalidRom -> when (val reason = error) {
+        is com.digihori.pgp.core.emulator.machine.pc1245.RomImportError.UnsupportedMachine ->
+            "Unsupported ROM machine: ${reason.machineId.value}."
         is com.digihori.pgp.core.emulator.machine.pc1245.RomImportError.InvalidImageSize ->
             "Invalid ROM size: ${reason.actual} bytes (expected ${reason.expected.joinToString(" or ")})."
         is com.digihori.pgp.core.emulator.machine.pc1245.RomImportError.InvalidComponentSize ->
@@ -981,3 +1062,5 @@ private fun parseHexAddress(value: String): Int? {
 private fun Boolean.bit(): Int = if (this) 1 else 0
 
 private fun MachineId.displayName(): String = value.uppercase()
+
+private fun MachineId.isPc1251Family(): Boolean = Pc1251FamilyModel.fromMachineId(this) != null

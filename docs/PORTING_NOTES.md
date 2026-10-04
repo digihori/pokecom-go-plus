@@ -1097,3 +1097,108 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
   既存Pokecom GO相当の実行・操作機能を対象とし、Studioの開発支援機能は搭載しない。
 - Shared foundation: StudioとPlayerは同じKotlin Multiplatform Emulator Coreを使用する。
   UI、ファイル選択、音声出力、アプリのライフサイクルは各製品・プラットフォーム層に置く。
+
+### PC-1251機種別文字入力とキーボード表示
+
+- Date: 2026-10-04
+- PGP files: `Pc1251CharacterInput.kt`、`Pc1245KeyboardLayout.kt`、`DesktopKeyboardInput.kt`、`Main.kt`とtest
+- Character mapping: ホスト文字`(`と`)`は、PC-1245では`SHIFT`→`1`／`2`、PC-1251では
+  `SHIFT`→`↓`／`↑`へ変換する。Desktop入力は接続中のEmulator Sessionのmachine IDから変換規則を選ぶ。
+- Software keyboard: PC-1251では括弧を矢印キーのSHIFT側へ表示し、数字`1`／`2`から除く。
+  PC-1245の固定予約語ラベルはPC-1251へ流用しない。
+- Deferred behavior: PC-1251のユーザー登録可能な予約語ショートカットはROMの通常動作に任せ、Studio側での
+  登録内容の解釈・表示は当面実装しない。
+- Shared hardware: 現時点で同一と確認済みのキーマトリクス走査は`Pc1245Keyboard`を共有し、文字入力規則と
+  画面上のlegendだけを機種別に分離する。
+
+### PC-1251 RSVモード入力
+
+- Date: 2026-10-04
+- Reference: Pokecom GO `Sc61860_1251.inb()`および`SubActivity1251`の3位置モードスイッチ。
+- PGP files: `Pc1251Keyboard.kt`、`EmulatorSession.kt`、`EmulatorFactory.kt`、`Main.kt`とtest
+- Design: 物理キーのmatrix走査はPC-1245実装へ委譲し、PC-1251固有のRUN／PRO／RSV接点だけを
+  `Pc1251Keyboard`で実装する。`OperatingMode.RESERVE`を公開APIへ追加した。
+- Display: RUN／PRO／RSV表示は架空のLCD RAM byteから推測せず、モードスイッチの状態をSnapshotへ反映する。
+
+### PC-1251 ROM・LCDアドレスミラー
+
+- Date: 2026-10-04
+- Reference: Pokecom GO `Sc61860_1251.memr()`／`memw()`。
+- ROM: `0x2000..0x3fff`の読出しを外部ROM `0x4000..0x5fff`へ割り当てる。書込み可能領域にはしない。
+- LCD: `0xe800..0xefff`および`0xf900..0xffff`を、下位8bitが同じ`0xf800..0xf8ff`へ
+  正規化する。どのミラーページへ書き込んでもLCD Snapshotと全ミラー読出しへ同じ値が反映される。
+- RAM: `0x8000..0x9fff`を`0xa000..0xbfff`へ、`0xd000..0xd7ff`を`0xc000..0xc7ff`へ写す。
+  PC-1250はPC-1245と同じく`0xb000..0xb7ff`と`0xb800..0xbfff`を最終的に
+  `0xc000..0xc7ff`へ写す。PC-1251は`0xb000..0xb7ff`を`0xb800..0xbfff`へ写す。
+  PC-1255では`0xb000..0xbfff`が独立RAMなのでミラーとして潰さない。
+  PC-1250実ROMはBASIC program pointerを論理address`0xb830`へ設定し、ミラー経由で物理RAM
+  `0xc030`へ格納する。
+- Open question: PC-1245／1250の`0xb000..0xb7ff`および`0xb800..0xbfff`が実機で本当に
+  `0xc000..0xc7ff`のミラーとして動作するかは未確認。現在はPokecom GOの書込み変換と実ROM起動結果に
+  合わせた実装を維持するが、資料または実機上のread/write試験で再検証する。確認できるまでは、この挙動を
+  確定仕様として他機種へ一般化しない。
+
+### PC-1251 ROM経由BASIC入力
+
+- Date: 2026-10-04
+- PGP files: `Pc1251RomBasicInput.kt`、`Pc1245RomBasicInput.kt`、`DesktopBasicLoader.kt`、`Main.kt`とtest
+- Design: BASIC行解析と行番号直後のcolon処理は共有し、文字から実機キー列への変換だけを機種別に注入する。
+- PC-1251: `(`／`)`を`SHIFT`→`↓`／`↑`としてROM editorへ入力する。
+- Special symbols: PC-1251キーボード資産`pc1251mainkey.png`で、`\\PI`＝`SHIFT`→`0`、
+  `\\SQR`＝`SHIFT`→`.`、`\\EX`＝`SHIFT`→`+`を確認して対応する。キーlegendのない`\\BX`は
+  行・桁付きのunsupported errorを返す。
+
+### PC-1251 LCDシンボル整理
+
+- Date: 2026-10-04
+- Reference: Pokecom GO `MainLoop1251.state`とシンボル描画。
+- Symbol bytes: `0xf83c`はDEF／P／G／DE、`0xf83d`はBUSY／SHIFT／RADとして扱う。
+- Mode: RUN／PRO／RSVはLCD RAMではなく3位置モードスイッチの状態からSnapshotへ加える。
+- Removal: PC-1251には存在しない`E`表示と、モード表示用に仮定していた`0xf83e`の監視を削除した。
+
+### PC-1251実ROMスモークテスト
+
+- Date: 2026-10-04
+- PGP file: `RealPc1251RomSmokeTest.kt`
+- Local input: `PGP_PC1251_ROM`、または`local-data/roms/pc-1251/pc1251mem.bin`を探索する。
+- Verification: 実ROMを100万cycle実行してfaultしないこと、24文字×5dotのLCD Snapshot、
+  RUN／PRO／RSVの3位置モード表示、`A`キー入力後のROMによるLCD更新を確認する。さらにPROモードで
+  `10 PRINT (1)`を機種別キー列として入力し、ROMが保存した中間コードを再抽出・復号して元の行と照合する。
+- Input timing: PC-1245用の短い自動キー間隔ではPC-1251実ROMが連続する`10`の`0`を取りこぼした。
+  StudioではPC-1251に38,400cycle保持＋19,200cycle解放間隔を使用し、実ROM統合テストで欠落がないことを確認する。
+- CI: ROMが存在しない環境ではテストをskipし、ROM byteやdigestを出力・保存しない。
+
+### PC-1251 OLD BASIC token table確認
+
+- Date: 2026-10-04
+- Reference: Pokecom GO `SubActivity1245.cmd_tbl`と`SubActivity1251.cmd_tbl`。
+- Finding: 0x00..0xffの全entryが一致するため、PC-1245とPC-1251は現在のOLD系Tokenizer／Detokenizerを
+  共有できる。プログラム格納addressとROM経由の文字キー列は引き続き機種別に扱う。
+- Studio: ROM選択guide、ROM経由入力error、Tokenizer errorには実行中または選択中の機種名を表示し、
+  PC-1251操作中にPC-1245と表示されないようにする。
+
+### PC-1251初回起動ROM検出
+
+- Date: 2026-10-04
+- PGP files: `DesktopRomLocator.kt`、`Main.kt`、READMEとtest
+- Priority: 前回ROM履歴を最優先する。履歴がない場合は明示した環境変数、PC-1245、PC-1251の
+  既定local-dataの順に探索する。
+- Override: PC-1251は`PGP_PC1251_ROM`で絶対pathまたは作業directory相対pathを指定できる。
+
+### PC-1250／1251／1255ファミリーとRAM容量
+
+- Date: 2026-10-04
+- Shared implementation: 3機種はROM構成、CPU、LCD、キーボード、OLD BASIC処理を共有し、
+  `Pc1251FamilyModel`のmachine IDとRAM開始addressだけを機種差として持つ。
+- Hardware ranges: PC-1250は`0xc000..0xc7ff`、PC-1251は`0xb800..0xc7ff`、
+  PC-1255は`0xa000..0xc7ff`を搭載RAMとして扱う。既存のaddress mirrorは搭載範囲へ正規化した後で判定する。
+- Emulator extension: `Pc1251FamilyMemoryMode.HARDWARE`は実機容量を再現し、`EXPANDED`は機種名にかかわらず
+  PC-1255相当の10KiB RAMを公開する。従来のPGP動作とエミュレータ上の利便性を保つため、Coreの既定値は
+  `EXPANDED`とした。
+- ROM identity: 同じ物理ROM layoutを各machine IDのROM setへimportできる。Studioの機種選択、ROM経由入力、
+  software keyboard、RSV modeも3機種を同じファミリーとして扱う。
+- BASIC memory: Tokenizerが直接配置するprogramの下限は、最大容量モデルに合わせて`0xa000`とする。
+  実際の開始位置はROMが初期化したprogram pointerに従う。
+- Studio control: PC-1250／1251／1255選択時は`Expanded RAM`と`Hardware RAM`を切り替えられる。
+  切替時は同じROMを選択中の設定でcold bootし、切替前が実行中なら実行を再開する。RAM、CPU、表示などの
+  runtime stateは保持しない。ROM未読込時の選択は次回loadへ適用する。

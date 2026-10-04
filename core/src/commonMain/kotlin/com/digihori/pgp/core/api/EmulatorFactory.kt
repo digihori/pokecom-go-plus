@@ -7,6 +7,8 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245Display
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245Buzzer
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251Machine
+import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
+import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251MemoryImageLoadResult
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251Display
@@ -16,10 +18,14 @@ import com.digihori.pgp.core.rom.RomSet
 public object EmulatorFactory {
     public fun supportedMachineIds(): List<MachineId> = listOf(
         Pc1245RomDefinition.MACHINE_ID,
-        Pc1251RomDefinition.MACHINE_ID,
+        *Pc1251FamilyModel.entries.map { it.machineId }.toTypedArray(),
     )
 
-    public fun create(machineId: MachineId, romSet: RomSet): CreateSessionResult {
+    public fun create(
+        machineId: MachineId,
+        romSet: RomSet,
+        configuration: EmulatorConfiguration = EmulatorConfiguration(),
+    ): CreateSessionResult {
         if (machineId !in supportedMachineIds()) {
             return CreateSessionResult.Failure(CreateSessionError.UnsupportedMachine(machineId))
         }
@@ -33,7 +39,13 @@ public object EmulatorFactory {
             CreateSessionResult.Success(
                 when (machineId) {
                     Pc1245RomDefinition.MACHINE_ID -> Pc1245EmulatorSession(Pc1245Machine(romSet))
-                    Pc1251RomDefinition.MACHINE_ID -> Pc1251EmulatorSession(Pc1251Machine(romSet))
+                    in Pc1251FamilyModel.entries.map { it.machineId } -> {
+                        val model = requireNotNull(Pc1251FamilyModel.fromMachineId(machineId))
+                        Pc1251EmulatorSession(
+                            machineId,
+                            Pc1251Machine(romSet, model, configuration.pc1251FamilyMemoryMode),
+                        )
+                    }
                     else -> error("Unsupported machine passed validation")
                 },
             )
@@ -45,8 +57,14 @@ public object EmulatorFactory {
     }
 }
 
-private class Pc1251EmulatorSession(private val machine: Pc1251Machine) : EmulatorSession {
-    override val machineId: MachineId = Pc1251RomDefinition.MACHINE_ID
+public data class EmulatorConfiguration(
+    public val pc1251FamilyMemoryMode: Pc1251FamilyMemoryMode = Pc1251FamilyMemoryMode.EXPANDED,
+)
+
+private class Pc1251EmulatorSession(
+    override val machineId: MachineId,
+    private val machine: Pc1251Machine,
+) : EmulatorSession {
     private var status: ExecutionStatus = ExecutionStatus.Ready
 
     override fun reset() { machine.coldReset(); status = ExecutionStatus.Ready }
@@ -92,20 +110,30 @@ private class Pc1251EmulatorSession(private val machine: Pc1251Machine) : Emulat
         val symbols = buildList {
             val s0 = display.symbolState0()
             val s1 = display.symbolState1()
-            val s2 = display.symbolState2()
             if (s1 and 0x01 != 0) add(DisplaySymbol.BUSY)
             if (s0 and 0x02 != 0) add(DisplaySymbol.P)
             if (s0 and 0x01 != 0) add(DisplaySymbol.DEF)
             if (s0 and 0x08 != 0) add(DisplaySymbol.DE)
             if (s0 and 0x04 != 0) add(DisplaySymbol.G)
             if (s1 and 0x04 != 0) add(DisplaySymbol.RAD)
-            if (s1 and 0x08 != 0) add(DisplaySymbol.E)
             if (s1 and 0x02 != 0) add(DisplaySymbol.SHIFT)
-            if (s2 and 0x01 != 0) add(DisplaySymbol.PRO)
-            if (s2 and 0x02 != 0) add(DisplaySymbol.RUN)
-            if (s2 and 0x04 != 0) add(DisplaySymbol.RESERVE)
+            add(
+                when (machine.keyboardState.operatingMode) {
+                    OperatingMode.RUN -> DisplaySymbol.RUN
+                    OperatingMode.PROGRAM -> DisplaySymbol.PRO
+                    OperatingMode.RESERVE -> DisplaySymbol.RESERVE
+                },
+            )
         }
-        return DisplaySnapshot(24, 5, 7, symbols, display.enabled, display.revision, dots)
+        return DisplaySnapshot(
+            24,
+            5,
+            7,
+            symbols,
+            display.enabled,
+            display.revision + machine.keyboardState.modeRevision,
+            dots,
+        )
     }
     override fun audioSnapshot(): AudioSnapshot = AudioSnapshot(
         machine.buzzerState.frequencyHz,

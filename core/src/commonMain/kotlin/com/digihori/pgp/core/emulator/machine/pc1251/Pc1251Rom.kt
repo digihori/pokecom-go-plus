@@ -9,7 +9,7 @@ import com.digihori.pgp.core.rom.RomRole
 import com.digihori.pgp.core.rom.RomSet
 
 public object Pc1251RomDefinition {
-    public val MACHINE_ID: MachineId = MachineId("pc-1251")
+    public val MACHINE_ID: MachineId = Pc1251FamilyModel.PC_1251.machineId
     public val INTERNAL_ID: RomComponentId = RomComponentId("internal")
     public val EXTERNAL_ID: RomComponentId = RomComponentId("external")
     public const val INTERNAL_SIZE: Int = 0x2000
@@ -22,7 +22,14 @@ public object Pc1251RomDefinition {
 }
 
 public object Pc1251ComponentRomImporter {
-    public fun importImages(internal: ByteArray, external: ByteArray): RomImportResult {
+    public fun importImages(
+        internal: ByteArray,
+        external: ByteArray,
+        machineId: MachineId = Pc1251RomDefinition.MACHINE_ID,
+    ): RomImportResult {
+        if (Pc1251FamilyModel.fromMachineId(machineId) == null) {
+            return RomImportResult.Failure(RomImportError.UnsupportedMachine(machineId))
+        }
         if (internal.size != Pc1251RomDefinition.INTERNAL_SIZE) {
             return RomImportResult.Failure(
                 RomImportError.InvalidComponentSize(
@@ -41,12 +48,18 @@ public object Pc1251ComponentRomImporter {
                 ),
             )
         }
-        return RomImportResult.Success(romSet(internal, external))
+        return RomImportResult.Success(romSet(machineId, internal, external))
     }
 }
 
 public object Pc1251FlatRomImporter {
-    public fun importImage(image: ByteArray): RomImportResult {
+    public fun importImage(
+        image: ByteArray,
+        machineId: MachineId = Pc1251RomDefinition.MACHINE_ID,
+    ): RomImportResult {
+        if (Pc1251FamilyModel.fromMachineId(machineId) == null) {
+            return RomImportResult.Failure(RomImportError.UnsupportedMachine(machineId))
+        }
         if (image.size !in Pc1251RomDefinition.SUPPORTED_LEGACY_IMAGE_SIZES) {
             return RomImportResult.Failure(
                 RomImportError.InvalidImageSize(Pc1251RomDefinition.SUPPORTED_LEGACY_IMAGE_SIZES, image.size),
@@ -54,6 +67,7 @@ public object Pc1251FlatRomImporter {
         }
         return RomImportResult.Success(
             romSet(
+                machineId,
                 image.copyOfRange(0, Pc1251RomDefinition.INTERNAL_SIZE),
                 image.copyOfRange(0x4000, 0x4000 + Pc1251RomDefinition.EXTERNAL_SIZE),
             ),
@@ -61,8 +75,8 @@ public object Pc1251FlatRomImporter {
     }
 }
 
-private fun romSet(internal: ByteArray, external: ByteArray): RomSet = RomSet(
-    Pc1251RomDefinition.MACHINE_ID,
+private fun romSet(machineId: MachineId, internal: ByteArray, external: ByteArray): RomSet = RomSet(
+    machineId,
     listOf(
         RomComponent(Pc1251RomDefinition.INTERNAL_ID, RomRole.INTERNAL, internal),
         RomComponent(Pc1251RomDefinition.EXTERNAL_ID, RomRole.EXTERNAL, external),

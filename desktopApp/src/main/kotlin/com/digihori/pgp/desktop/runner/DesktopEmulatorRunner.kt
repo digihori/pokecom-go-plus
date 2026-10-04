@@ -36,11 +36,10 @@ internal class DesktopEmulatorRunner(
     private val session: EmulatorSession,
     private val clock: MonotonicClock = SystemMonotonicClock,
     planner: CycleBudgetPlanner? = null,
-    private val keyInputQueue: KeyInputQueue = KeyInputQueue(
-        holdCycles = KEY_HOLD_CYCLES,
-        gapCycles = KEY_GAP_CYCLES,
-    ),
+    private val keyInputQueue: KeyInputQueue = defaultKeyInputQueue(session.machineId),
 ) : DesktopKeyInputSink {
+    override val machineId get() = session.machineId
+
     private val planner: CycleBudgetPlanner = planner ?: CycleBudgetPlanner(
         cyclesPerSecond = when (session.machineId) {
             Pc1251RomDefinition.MACHINE_ID -> CycleBudgetPlanner.PC1251_CYCLES_PER_SECOND
@@ -229,8 +228,14 @@ internal class DesktopEmulatorRunner(
 
     private companion object {
         // Pokecom GO retained a released key for three 20 ms polling intervals.
-        const val KEY_HOLD_CYCLES: Long = 17_280 // 60 ms at the PC-1245 288 kHz clock.
-        const val KEY_GAP_CYCLES: Long = 5_760 // 20 ms at the PC-1245 288 kHz clock.
+        private fun defaultKeyInputQueue(machineId: com.digihori.pgp.core.rom.MachineId): KeyInputQueue =
+            if (machineId == Pc1251RomDefinition.MACHINE_ID) {
+                // The PC-1251 ROM needs a longer release interval to recognize consecutive taps.
+                KeyInputQueue(holdCycles = 38_400, gapCycles = 19_200)
+            } else {
+                KeyInputQueue(holdCycles = 17_280, gapCycles = 5_760)
+            }
+
         const val BASIC_LINE_SETTLE_CYCLES: Long = 57_600 // 200 ms after ENTER.
     }
 }

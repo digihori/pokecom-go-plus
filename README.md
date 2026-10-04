@@ -69,7 +69,9 @@ ROMイメージをコミットしない。
 
 Finderで`run-pgp.command`をダブルクリックするか、ターミナルで次を実行する。
 Android Studio付属のJDK 21とローカルGradleキャッシュはスクリプトが自動設定する。
-既定位置の`local-data/roms/pc-1245/pc1245mem.bin`が存在する場合は、自動的にロードして実行する。
+前回選択したROMがある場合は、その機種とファイルを自動的に復元する。履歴がない場合は、既定位置の
+`local-data/roms/pc-1245/pc1245mem.bin`、続いて
+`local-data/roms/pc-1251/pc1251mem.bin`を探索し、最初に見つかったROMをロードして実行する。
 
 ```bash
 ./run-pgp.command
@@ -123,6 +125,15 @@ PGP_PC1245_ROM=/path/to/pc1245mem.bin \
 ```
 
 ROMが見つからない環境ではこのテストだけをスキップし、ROMイメージをCIやGitへ持ち込まない。
+
+PC-1251の実ROMスモークテストも既定の`local-data`配置を自動検出する。別の場所に置く場合は
+`PGP_PC1251_ROM`を指定する。
+
+```bash
+PGP_PC1251_ROM=/path/to/pc1251mem.bin \
+  ./gradlew :core:desktopTest \
+  --tests com.digihori.pgp.core.integration.RealPc1251RomSmokeTest
+```
 
 再配布可能なGoldenケースのJSON再生テスト：
 

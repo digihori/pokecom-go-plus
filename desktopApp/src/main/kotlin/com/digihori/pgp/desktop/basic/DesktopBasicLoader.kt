@@ -10,6 +10,11 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicTokenizeResult
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicTokenizer
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomInputError
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomInputResult
+import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomBasicInput
+import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
+import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.source.basic.BasicTextParseError
 import com.digihori.pgp.core.source.basic.BasicTextParseResult
 import com.digihori.pgp.core.source.basic.BasicTextParser
@@ -18,6 +23,10 @@ import java.nio.charset.CodingErrorAction
 
 internal object DesktopBasicLoader {
     fun compilePc1245RomInput(bytes: ByteArray): DesktopBasicLoadResult {
+        return compileRomInput(bytes, Pc1245RomDefinition.MACHINE_ID)
+    }
+
+    fun compileRomInput(bytes: ByteArray, machineId: MachineId): DesktopBasicLoadResult {
         val text = decodeUtf8(bytes) ?: run {
             return DesktopBasicLoadResult.Failure(DesktopBasicLoadError.InvalidUtf8)
         }
@@ -28,7 +37,11 @@ internal object DesktopBasicLoader {
             )
             is BasicTextParseResult.Success -> parsed.document
         }
-        return when (val compiled = Pc1245RomBasicInput.compile(document)) {
+        val compiled = when (machineId) {
+            in Pc1251FamilyModel.entries.map { it.machineId } -> Pc1251RomBasicInput.compile(document)
+            else -> Pc1245RomBasicInput.compile(document)
+        }
+        return when (compiled) {
             is Pc1245RomInputResult.Failure -> DesktopBasicLoadResult.Failure(
                 DesktopBasicLoadError.UnsupportedRomInput(compiled.error),
             )

@@ -2,7 +2,7 @@ package com.digihori.pgp.desktop.input
 
 import com.digihori.pgp.core.api.PocketKey
 
-internal data class Pc1245KeyCap(
+internal data class PocketKeyCap(
     val key: PocketKey,
     val primaryLabel: String,
     val shiftedLabel: String? = null,
@@ -14,7 +14,7 @@ internal data class Pc1245KeyCap(
 internal object Pc1245KeyboardLayout {
     const val COLUMN_COUNT: Int = 14
 
-    val rows: List<List<Pc1245KeyCap>> = listOf(
+    val rows: List<List<PocketKeyCap>> = listOf(
         listOf(
             cap(PocketKey.DEF, "DEF", column = 3),
             cap(PocketKey.SHIFT, "SHIFT", column = 4),
@@ -84,5 +84,20 @@ internal object Pc1245KeyboardLayout {
         basic: String? = null,
         column: Int,
         span: Int = 1,
-    ): Pc1245KeyCap = Pc1245KeyCap(key, primary, shifted, basic, column, span)
+    ): PocketKeyCap = PocketKeyCap(key, primary, shifted, basic, column, span)
+}
+
+internal object Pc1251KeyboardLayout {
+    const val COLUMN_COUNT: Int = Pc1245KeyboardLayout.COLUMN_COUNT
+
+    val rows: List<List<PocketKeyCap>> = Pc1245KeyboardLayout.rows.map { row ->
+        row.map { cap ->
+            when (cap.key) {
+                PocketKey.DOWN -> cap.copy(shiftedLabel = "(", basicLabel = null)
+                PocketKey.UP -> cap.copy(shiftedLabel = ")", basicLabel = null)
+                PocketKey.NUM_1, PocketKey.NUM_2 -> cap.copy(shiftedLabel = null, basicLabel = null)
+                else -> cap.copy(basicLabel = null)
+            }
+        }
+    }
 }

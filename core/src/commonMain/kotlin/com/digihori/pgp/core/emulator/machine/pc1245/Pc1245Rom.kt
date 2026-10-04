@@ -99,6 +99,8 @@ public sealed interface RomImportResult {
 }
 
 public sealed interface RomImportError {
+    public data class UnsupportedMachine(public val machineId: MachineId) : RomImportError
+
     public data class InvalidImageSize(
         public val expected: List<Int>,
         public val actual: Int,
