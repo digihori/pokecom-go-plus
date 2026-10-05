@@ -7,7 +7,8 @@
 | 参照元 | 用途 | 扱い |
 |---|---|---|
 | Pokecom GO | CPU、機種定義、LCD、キー、BASIC処理 | 読み取り専用 |
-| pcwav | WAV Codec、転送プロトコル | 読み取り専用 |
+| pcwav | 同一作者によるWAV Codec、転送プロトコルの参照実装 | 読み取り専用 |
+| [PC-1251 Emulator](https://github.com/woriguchi/pc1251-emulator) | サウンド生成、PC-1251メモリ・LCD仕様 | MIT License、読み取り専用 |
 
 PGPはこれらのリポジトリへビルド時または実行時に依存しない。
 
@@ -41,7 +42,7 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 ## 移植記録
 
-コードの移植はまだ開始していない。以下は実装前の仕様抽出記録である。
+以下には仕様抽出と、PGP向けに再設計・実装した機能の由来を記録する。
 
 ### SC61860機種世代
 
@@ -1067,8 +1068,11 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
   Desktop UIから`.pgrom`へ保存する操作は未提供。Core/Converterの変換経路は維持し、Wizardから接続する
 ### Cycle-timed SC61860 buzzer PCM
 
-- Reference: `../pc1251-emulator/pc1251emu/audio.py` and the C-port event timing in
-  `../pc1251-emulator/pc1251emu/machine.py` (MIT License).
+- Reference repository: [PC-1251 Emulator](https://github.com/woriguchi/pc1251-emulator)
+- Reference commit: `6ff6fa9b807925215d753f6a5d940a1290d43089`
+- Reference files: `pc1251emu/audio.py` and the C-port event timing in `pc1251emu/machine.py`
+- Provenance/license: MIT License, Copyright (c) 2026 origuchi. The notice is retained in
+  `THIRD_PARTY_NOTICES.md`.
 - PGP files: `Pc1245Buzzer.kt`, `DesktopAudioPlayer.kt`, and their tests.
 - Porting decision: Pokecom GO's command hooks, inferred frequencies, `Beep.java`, and fixed
   Android `AudioTrack` clips are not ported. PGP records the SC61860 C-port mode against emulated
@@ -1079,8 +1083,13 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 ### PC-1251 ROM, memory, and LCD foundation
 
-- Reference: `../pc1251-emulator/pc1251emu/machine.py` (MIT License) and Pokecom GO's
-  `Sc61860_1251.java` / `MainLoop1251.java` for comparison.
+- Reference repositories: [PC-1251 Emulator](https://github.com/woriguchi/pc1251-emulator) at
+  `6ff6fa9b807925215d753f6a5d940a1290d43089`, and Pokecom GO at
+  `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
+- Reference files: PC-1251 Emulator `pc1251emu/machine.py`; Pokecom GO
+  `Sc61860_1251.java` / `MainLoop1251.java`
+- Provenance/license: PC-1251 Emulator is MIT licensed; its notice is retained in
+  `THIRD_PARTY_NOTICES.md`. Pokecom GO is a same-author reference implementation.
 - PGP files: `core/.../machine/pc1251/Pc1251Rom.kt`, `Pc1251MemoryBus.kt`, and `Pc1251Display.kt`.
 - PC-1251 is implemented as a separate Machine rather than adding model branches to PC-1245.
 - The physical writable ranges are 0xB800..0xC7FF and 0xF800..0xF8FF; 0xB000..0xB7FF aliases

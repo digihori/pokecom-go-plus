@@ -15,24 +15,34 @@ Technical Previewは完成版ではなく、PC-1245／1251ファミリーを使�
 - [ ] 公開候補コミットでmacOSの最終スモークテストを実施する
 - [ ] Windowsで起動、ROM選択、キー入力、LCD、音声、ファイル入出力を手動確認する
 - [ ] Linuxで起動、ROM選択、キー入力、LCD、音声、ファイル入出力を手動確認する
-- [ ] 公開時点の既知問題を整理し、READMEとRelease Notesへ記載する
+- [x] 公開時点の既知問題を整理し、READMEとRelease Notesへ記載する
 
 ### 初めて利用する人向けの導線
 
-- [ ] 新規clone環境でREADMEの手順だけを使い、起動まで到達できることを確認する
+- [x] 新規clone環境でREADMEのビルド手順が成功することを確認する
 - [x] ROMを同梱しないことと、利用者自身が正当に入手する必要があることを明記する
 - [ ] `.pgrom`作成手順を、画面遷移とエラー例を含む利用者向けガイドにする
 - [ ] Pokecom GO従来形式ROMからの読み込み方法をガイドへ明記する
 - [ ] Windows／Linuxで必要な追加パッケージがあればREADMEへ記載する
 - [ ] Technical Previewの画面例をREADMEまたはRelease Notesへ掲載する
 
+2026-10-05にmacOS上の新規cloneと空のGradle user homeを使い、JDK 21で`./gradlew build`が
+成功することを確認した。初回はGradle、Kotlin/Native、Compose等の取得に時間とディスク領域を要するため、
+READMEへ注意事項を記載した。ROMを使うGUI操作は最終スモークテストで別途確認する。
+
 ### 権利と由来
 
 - [x] リポジトリのライセンスを明記する
-- [ ] Pokecom GOから移植・再設計したコードと仕様の由来を最終確認する
-- [ ] 画像、フォント、音声、テストデータに再配布できない資産が含まれていないことを確認する
-- [ ] 依存ライブラリのライセンスと配布条件を確認する
-- [ ] `PORTING_NOTES.md`の未記録項目を確認する
+- [x] Pokecom GOから移植・再設計したコードと仕様の由来を最終確認する
+- [x] 画像、フォント、音声、テストデータに再配布できない資産が含まれていないことを確認する
+- [x] 依存ライブラリのライセンスと配布条件を確認する
+- [x] `PORTING_NOTES.md`の由来記録を確認する
+
+2026-10-05の監査では、Pokecom GOとpcwavのGit履歴上の作者がPGPと同じ権利者の識別情報だけであること、
+tracked assetが再配布可能な合成JSONとGradle Wrapperに限られることを確認した。
+PC-1251 Emulator由来の設計はMIT Licenseの参照元revisionと著作権表示を記録した。
+Desktop runtimeのGradle metadataで確認した依存componentはApache License 2.0であり、
+結果を`THIRD_PARTY_NOTICES.md`へ記載した。
 
 ### リポジトリの安全確認
 
@@ -51,12 +61,29 @@ ROM、秘密情報、大容量バイナリは検出されなかった。最大bl
 
 ### リリース準備
 
-- [ ] Technical Previewのバージョン表記とGit tagを決める
-- [ ] Release Notesに対応機種、対応機能、既知制限、ROM非同梱を記載する
-- [ ] 実行ファイルを配布するか、ソースからの起動だけにするかを決める
-- [ ] 配布物を作る場合はmacOS／Windows／Linuxの生成・起動確認方法を決める
+- [x] Technical Previewのバージョン表記とGit tagを`v0.1.0-alpha.1`に決める
+- [x] Release Notesに対応機種、対応機能、既知制限、ROM非同梱を記載する
+- [x] ソースコードに加えて未署名のmacOS／Windows／Linux実行配布物を提供する方針にする
+- [ ] macOS／Windows／Linuxの配布物生成と起動確認方法を確立する
+- [x] macOSで展開型`.app`とDMGを生成し、DMG内容とアプリ起動を確認する
+- [x] 手動実行とrelease tagに対応した3環境のパッケージ生成workflowを実装する
+- [ ] GitHub Actionsを手動実行し、DMG／MSI／DEBと展開型archiveの生成を確認する
+- [x] 展開型アプリとDMG／MSI／DEBへLICENSEと第三者通知をアプリresourceとして含める
+- [ ] 配布物ごとのSHA-256チェックサムを生成する
 - [ ] 公開候補コミットで全CIが成功する
 - [ ] 上記の必須確認後にリポジトリをPublicへ変更する
+
+利用者向け名称は「Pokecom GO Studio Technical Preview 0.1」、Gradle project versionとGit tagは
+`0.1.0-alpha.1`／`v0.1.0-alpha.1`とする。DMG／MSI／Debの`packageVersion`はjpackageの制約と
+macOSがmajor version 0を拒否する点に合わせ、内部的に数値の`1.0.0`を使用する。
+tagは公開候補の最終テストとCI成功後に作成する。
+Technical Previewの配布物は配布用証明書で署名せず、macOS公証も行わないことと、
+OSのセキュリティ警告が表示される可能性を明記する。macOSのjpackageはad-hoc署名を付与するが、
+Developer ID署名の代わりにはならない。
+
+2026-10-05にTemurin JDK 21の`jpackage`を使用し、arm64 macOS向けの展開型`.app`とDMGを生成した。
+DMGを読み取り専用でマウントし、Pokecom GO Studioアプリ、PGPのMIT License、第三者通知を確認した。
+アプリは起動後に即時終了せず、DMGのSHA-256生成も確認済みである。
 
 ## 公開後でもよい項目
 

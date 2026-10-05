@@ -21,16 +21,30 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
+val prepareDistributionResources by tasks.registering(Sync::class) {
+    from(rootProject.layout.projectDirectory.file("LICENSE"))
+    from(rootProject.layout.projectDirectory.file("THIRD_PARTY_NOTICES.md"))
+    into(layout.buildDirectory.dir("generated/distribution-resources/common"))
+}
+
+tasks.matching { it.name == "prepareAppResources" }.configureEach {
+    dependsOn(prepareDistributionResources)
+}
+
 compose.desktop {
     application {
         mainClass = "com.digihori.pgp.desktop.MainKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "PokecomGoPlus"
-            packageVersion = "0.1.0"
+            packageName = "PokecomGOStudio"
+            // jpackage requires 1-3 numeric components and macOS rejects a zero major version.
+            // The project/Git version remains 0.1.0-alpha.1.
+            packageVersion = "1.0.0"
             description = "A multiplatform pocket-computer development environment"
             vendor = "Y Horiuchi"
+            copyright = "Copyright (c) 2026 Y Horiuchi"
+            appResourcesRootDir.set(layout.buildDirectory.dir("generated/distribution-resources"))
         }
     }
 }

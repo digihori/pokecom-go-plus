@@ -74,6 +74,10 @@ ROMイメージをコミットしない。
 - Kotlin 2.4.20
 - Compose Multiplatform 1.12.1
 
+通常のビルドと実行にはJDK 21、またはAndroid Studio付属JBRを使用できる。
+DMG／MSI／DEBを生成する場合は、`jpackage`を含む完全なJDK 21が必要であり、
+現在のAndroid Studio付属JBRだけではパッケージを生成できない。
+
 ## ビルドとテスト
 
 ### 起動前の準備
@@ -139,6 +143,22 @@ ROM起動後にUTF-8の`.bas`ファイルを指定して読み込める。通常
 ```bash
 ./gradlew build
 ```
+
+初回ビルドではGradle、Kotlin/Native、Compose等をダウンロードするため、回線環境によっては
+数分かかり、数百MB以上のディスク領域を使用する。2回目以降はローカルキャッシュを再利用する。
+
+### Technical Preview配布物
+
+Technical Previewではソースコードに加え、macOS、Windows、Linux向けの実行配布物を
+GitHub Releasesへ掲載する予定である。これらはDeveloper ID等による正式署名やmacOS公証を行わないため、
+OSのセキュリティ警告が表示される可能性がある。ROMイメージは配布物にも含めない。
+
+配布物にはPGPの`LICENSE`と`THIRD_PARTY_NOTICES.md`をアプリresourceとして含め、
+Releaseには各ファイルのSHA-256チェックサムを掲載する。
+
+`.github/workflows/release.yml`をGitHub Actionsから手動実行すると、3環境でテスト後に配布物を生成し、
+14日間保持されるworkflow artifactとして取得できる。`v0.1.0-alpha.1` tagをpushした場合は、
+同じ成果物を使ってprereleaseのGitHub Releaseを自動作成する。公開候補の検証が完了するまではtagを作成しない。
 
 GitHubへpushした場合とPull Requestを更新した場合は、GitHub ActionsがmacOS、Windows、
 Linux上でCoreのDesktopテストとDesktopアプリのビルド・テストを実行する。CIにはROMを
@@ -224,7 +244,9 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 - [Golden Test Data形式](docs/GOLDEN_TEST_DATA.md)
 - [ロードマップ](docs/ROADMAP.md)
 - [Technical Preview公開チェックリスト](docs/PUBLIC_RELEASE_CHECKLIST.md)
+- [Technical Preview 0.1 Release Notes](docs/RELEASE_NOTES_0.1.0-alpha.1.md)
 - [移植記録](docs/PORTING_NOTES.md)
+- [第三者ソフトウェア通知](THIRD_PARTY_NOTICES.md)
 
 ## ライセンス
 

@@ -1,0 +1,143 @@
+name: Build Technical Preview
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+env:
+  RELEASE_VERSION: 0.1.0-alpha.1
+
+jobs:
+  package:
+    name: Package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            artifact: pokecom-go-studio-macos
+          - os: windows-latest
+            artifact: pokecom-go-studio-windows
+          - os: ubuntu-latest
+            artifact: pokecom-go-studio-linux
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify release tag
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          test "${GITHUB_REF_NAME}" = "v${RELEASE_VERSION}"
+
+      - name: Set up Java with jpackage
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Linux packaging tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes fakeroot
+
+      - name: Test and package macOS
+        if: runner.os == 'macOS'
+        run: ./gradlew :core:desktopTest :desktopApp:test :desktopApp:createDistributable :desktopApp:packageDmg --no-daemon
+
+      - name: Collect macOS packages
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          mac_arch=$(uname -m)
+          cp desktopApp/build/compose/binaries/main/dmg/*.dmg \
+            "release-assets/PokecomGOStudio-${RELEASE_VERSION}-macos-${mac_arch}.dmg"
+          ditto -c -k --keepParent \
+            desktopApp/build/compose/binaries/main/app/PokecomGOStudio.app \
+            "release-assets/PokecomGOStudio-${RELEASE_VERSION}-macos-${mac_arch}.zip"
+          cd release-assets
+          shasum -a 256 ./* > SHA256SUMS-macos.txt
+
+      - name: Test and package Windows
+        if: runner.os == 'Windows'
+        run: .\gradlew.bat :core:desktopTest :desktopApp:test :desktopApp:createDistributable :desktopApp:packageMsi --no-daemon
+
+      - name: Collect Windows packages
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release-assets | Out-Null
+          $msi = Get-ChildItem desktopApp/build/compose/binaries/main/msi/*.msi | Select-Object -First 1
+          Copy-Item $msi.FullName "release-assets/PokecomGOStudio-$env:RELEASE_VERSION-windows-x64.msi"
+          Compress-Archive -Path desktopApp/build/compose/binaries/main/app/PokecomGOStudio -DestinationPath "release-assets/PokecomGOStudio-$env:RELEASE_VERSION-windows-x64.zip"
+          Get-ChildItem release-assets -File |
+            Where-Object Name -NotLike 'SHA256SUMS-*' |
+            ForEach-Object {
+              $hash = (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLowerInvariant()
+              "$hash  $($_.Name)"
+            } | Set-Content -Encoding ascii release-assets/SHA256SUMS-windows.txt
+
+      - name: Test and package Linux
+        if: runner.os == 'Linux'
+        run: ./gradlew :core:desktopTest :desktopApp:test :desktopApp:createDistributable :desktopApp:packageDeb --no-daemon
+
+      - name: Collect Linux packages
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          cp desktopApp/build/compose/binaries/main/deb/*.deb \
+            "release-assets/PokecomGOStudio-${RELEASE_VERSION}-linux-amd64.deb"
+          tar -C desktopApp/build/compose/binaries/main/app -czf \
+            "release-assets/PokecomGOStudio-${RELEASE_VERSION}-linux-amd64.tar.gz" \
+            PokecomGOStudio
+          cd release-assets
+          sha256sum ./* > SHA256SUMS-linux.txt
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pokecom-go-studio-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "${GITHUB_REF_NAME}" release-assets/* \
+            --prerelease \
+            --title "Pokecom GO Studio Technical Preview 0.1" \
+            --notes-file docs/RELEASE_NOTES_0.1.0-alpha.1.md

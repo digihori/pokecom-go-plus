@@ -104,7 +104,7 @@ fun main() = application {
             exitApplication()
         },
         onPreviewKeyEvent = keyboardInput::handle,
-        title = ProjectInfo.DISPLAY_NAME,
+        title = ProjectInfo.STUDIO_DISPLAY_NAME,
     ) {
         DisposableEffect(window) {
             val listener = object : WindowAdapter() {
@@ -323,7 +323,7 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                     alignment = Alignment.CenterVertically,
                 ),
             ) {
-                Text(ProjectInfo.DISPLAY_NAME, style = MaterialTheme.typography.headlineMedium)
+                Text(ProjectInfo.STUDIO_DISPLAY_NAME, style = MaterialTheme.typography.headlineMedium)
                 Text("Machine: ${selectedMachineId.displayName()}")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     MachineCatalog.definitions.forEach { definition ->
