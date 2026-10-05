@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
 
-> **Technical Preview（開発中）** — 現在は公開版に向けて仕様と実装を安定化している段階です。
+> **Technical Preview 0.1（開発中）** — 初期公開版です。仕様と実装は今後も変更される可能性があります。
 
 Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向けプログラムを
 現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す
@@ -245,7 +245,7 @@ Desktopアプリを起動する場合：
 
 ## フィードバック
 
-Technical Preview公開後の不具合報告と機能要望はGitHub Issuesで受け付ける予定である。
+Technical Previewの不具合報告と機能要望はGitHub Issuesで受け付ける。
 IssueにはROMイメージ、秘密情報、再配布できないデータを添付しないこと。
 
 ## ドキュメント

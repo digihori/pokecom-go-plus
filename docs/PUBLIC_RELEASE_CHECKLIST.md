@@ -76,7 +76,7 @@ ROM、秘密情報、大容量バイナリは検出されなかった。最大bl
 - [x] 展開型アプリとDMG／MSI／DEBへLICENSEと第三者通知をアプリresourceとして含める
 - [x] 配布物ごとのSHA-256チェックサムを生成する
 - [x] 公開候補コミットで全CIが成功する
-- [ ] 上記の必須確認後にリポジトリをPublicへ変更する
+- [x] 上記の必須確認後にリポジトリをPublicへ変更する
 
 利用者向け名称は「Pokecom GO Studio Technical Preview 0.1」、Gradle project versionとGit tagは
 `0.1.0-alpha.1`／`v0.1.0-alpha.1`とする。DMG／MSI／Debの`packageVersion`はjpackageの制約と
@@ -99,6 +99,10 @@ Linux DEBのメニュー項目はカテゴリ未指定のため「その他」�
 公開候補`85ac732`では、pushにより起動したGitHub Actions CIのmacOS／Windows／Linuxジョブが
 すべて成功した。Windowsの同梱ランタイム付きZIP／MSI、Linux x86_64のtar.gz／DEBは追加ランタイムを
 手動導入せず起動できた。LinuxのDEB導入時に`apt`が要求する依存パッケージは通常のパッケージ管理へ委ねる。
+
+2026-10-05にリポジトリをPublicへ変更した。未認証のHTTPアクセスでリポジトリ、README画像、
+`v0.1.0-alpha.1` Prereleaseおよび9個の配布資産が公開されていることを確認した。Windows／Linuxの
+全ファイル入出力確認はTechnical Preview公開後の継続確認とし、既知制限を維持する。
 
 ## 公開後でもよい項目
 
