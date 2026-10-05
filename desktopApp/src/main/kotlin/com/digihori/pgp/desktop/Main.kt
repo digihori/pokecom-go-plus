@@ -96,28 +96,48 @@ import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
-fun main() = application {
-    val keyboardInput = remember { DesktopKeyboardInput() }
-    Window(
-        onCloseRequest = {
-            keyboardInput.attach(null)
-            exitApplication()
-        },
-        onPreviewKeyEvent = keyboardInput::handle,
-        title = ProjectInfo.STUDIO_DISPLAY_NAME,
-    ) {
-        DisposableEffect(window) {
-            val listener = object : WindowAdapter() {
-                override fun windowLostFocus(event: WindowEvent?) {
-                    keyboardInput.clearActiveInputs()
+fun main() {
+    configureSkikoRenderApi()
+    application {
+        val keyboardInput = remember { DesktopKeyboardInput() }
+        Window(
+            onCloseRequest = {
+                keyboardInput.attach(null)
+                exitApplication()
+            },
+            onPreviewKeyEvent = keyboardInput::handle,
+            title = ProjectInfo.STUDIO_DISPLAY_NAME,
+        ) {
+            DisposableEffect(window) {
+                val listener = object : WindowAdapter() {
+                    override fun windowLostFocus(event: WindowEvent?) {
+                        keyboardInput.clearActiveInputs()
+                    }
                 }
+                window.addWindowFocusListener(listener)
+                onDispose { window.removeWindowFocusListener(listener) }
             }
-            window.addWindowFocusListener(listener)
-            onDispose { window.removeWindowFocusListener(listener) }
+            App(keyboardInput, window)
         }
-        App(keyboardInput, window)
     }
 }
+
+private fun configureSkikoRenderApi() {
+    val requestedApi = System.getenv("PGP_RENDER_API")
+        ?.trim()
+        ?.uppercase()
+        ?.takeIf { it in SUPPORTED_RENDER_APIS }
+        ?: return
+    System.setProperty("skiko.renderApi", requestedApi)
+}
+
+private val SUPPORTED_RENDER_APIS = setOf(
+    "DIRECT3D",
+    "OPENGL",
+    "SOFTWARE",
+    "SOFTWARE_FAST",
+    "SOFTWARE_COMPAT",
+)
 
 @Composable
 private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
