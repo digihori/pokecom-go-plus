@@ -36,6 +36,10 @@ The packages are not signed with a platform distribution identity, and the macOS
 Operating-system security warnings may therefore be shown.
 Building from source requires JDK 21. See the repository `README.md` for the current commands.
 
+## Preview
+
+![Pokecom GO Studio running PC-1245 with its software keyboard](images/pokecom-go-studio-keyboard.png)
+
 ## ROM images
 
 No ROM image is included in the repository or release. Users must provide a ROM image that they have

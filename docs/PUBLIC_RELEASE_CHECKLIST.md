@@ -12,7 +12,7 @@ Technical Previewは完成版ではなく、PC-1245／1251ファミリーを使�
 - [x] PC-1250／1251／1255を共通ファミリーとして選択できる
 - [x] macOSで実ROMを使った主要操作を確認する
 - [x] macOS／Windows／LinuxのCIでCoreテストとDesktopビルドが成功する
-- [ ] 公開候補コミットでmacOSの最終スモークテストを実施する
+- [x] 公開候補コミットでmacOSの最終スモークテストを実施する
 - [ ] Windowsで起動、ROM選択、キー入力、LCD、音声、ファイル入出力を手動確認する
 - [ ] Linuxで起動、ROM選択、キー入力、LCD、音声、ファイル入出力を手動確認する
 - [x] 公開時点の既知問題を整理し、READMEとRelease Notesへ記載する
@@ -21,14 +21,18 @@ Technical Previewは完成版ではなく、PC-1245／1251ファミリーを使�
 
 - [x] 新規clone環境でREADMEのビルド手順が成功することを確認する
 - [x] ROMを同梱しないことと、利用者自身が正当に入手する必要があることを明記する
-- [ ] `.pgrom`作成手順を、画面遷移とエラー例を含む利用者向けガイドにする
-- [ ] Pokecom GO従来形式ROMからの読み込み方法をガイドへ明記する
+- [x] `.pgrom`作成手順を、画面遷移とエラー例を含む利用者向けガイドにする
+- [x] Pokecom GO従来形式ROMからの読み込み方法をガイドへ明記する
 - [ ] Windows／Linuxで必要な追加パッケージがあればREADMEへ記載する
-- [ ] Technical Previewの画面例をREADMEまたはRelease Notesへ掲載する
+- [x] Technical Previewの画面例をREADMEまたはRelease Notesへ掲載する
 
 2026-10-05にmacOS上の新規cloneと空のGradle user homeを使い、JDK 21で`./gradlew build`が
 成功することを確認した。初回はGradle、Kotlin/Native、Compose等の取得に時間とディスク領域を要するため、
 READMEへ注意事項を記載した。ROMを使うGUI操作は最終スモークテストで別途確認する。
+
+同日に公開候補の作業ツリーで全KMP buildを実行し、PC-1245／1251の実ROMを指定してCoreとDesktopの
+全テストを再実行した。続けてmacOS GUIでROM履歴の自動復元、LCD、物理／画面キー、BASIC読込み・実行、
+音声、最大化・復元、ファイル選択後のフォーカスを確認し、主要操作に問題がないことを確認した。
 
 ### 権利と由来
 

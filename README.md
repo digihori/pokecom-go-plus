@@ -20,8 +20,8 @@ PGPは次の2製品と共有Emulator Coreで構成します。
 
 プロジェクトは初期実装段階です。Pokecom GO Studioの最初の対象機種としてPC-1245と
 PC-1250／1251／1255ファミリーを実装しています。macOSでは実ROMの起動、物理／画面キーボード入力、BASICと
-マシン語の入出力、LCD表示、サウンド出力まで動作確認済みです。
-WindowsとLinuxはCIでビルドと自動テストを行い、実機操作は今後確認します。
+マシン語の入出力、LCD表示、サウンド出力まで動作確認済みです。WindowsではROM起動、キー入力、BASICと
+サウンド、Linux x86_64ではROM起動、基本操作、サウンド、tar.gz／DEB配布物を手動確認しています。
 Pokecom GO PlayerはCoreとStudioが安定した後に開発します。
 
 現在利用できる主な機能は次のとおりです。
@@ -32,6 +32,16 @@ Pokecom GO PlayerはCoreとStudioが安定した後に開発します。
 - `.dmp`形式によるマシン語データの読み書き
 - LCD表示、CPU状態表示、サウンド出力
 - 実機RAM容量と拡張RAMモードの切り替え
+
+## 画面例
+
+機種とROMを選び、LCD、CPU状態、BASIC／マシン語の入出力を同じ画面で操作できる。
+
+![Pokecom GO Studioの機種選択、LCD、CPU状態、ファイル操作](docs/images/pokecom-go-studio-overview.png)
+
+機種別ソフトウェアキーボードは、実機のキー配列、SHIFT表記、予約語表記を反映する。
+
+![PC-1245のLCD、操作ボタン、ソフトウェアキーボード](docs/images/pokecom-go-studio-keyboard.png)
 
 ## プロジェクトの位置付け
 
@@ -240,6 +250,7 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 
 ## ドキュメント
 
+- [はじめに](docs/GETTING_STARTED.md)
 - [プロジェクト構想](docs/PGP_CONCEPT.md)
 - [アーキテクチャ](docs/ARCHITECTURE.md)
 - [Emulator Core公開API](docs/CORE_API.md)
