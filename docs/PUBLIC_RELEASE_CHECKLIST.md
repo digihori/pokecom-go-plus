@@ -68,6 +68,7 @@ ROM、秘密情報、大容量バイナリは検出されなかった。最大bl
 - [x] macOSで展開型`.app`とDMGを生成し、DMG内容とアプリ起動を確認する
 - [x] 手動実行とrelease tagに対応した3環境のパッケージ生成workflowを実装する
 - [x] GitHub Actionsを手動実行し、DMG／MSI／DEBと展開型archiveの生成を確認する
+- [x] Linux x86_64で展開型tar.gzとDEBのインストール・起動・アンインストールを確認する
 - [x] 展開型アプリとDMG／MSI／DEBへLICENSEと第三者通知をアプリresourceとして含める
 - [x] 配布物ごとのSHA-256チェックサムを生成する
 - [ ] 公開候補コミットで全CIが成功する
@@ -88,7 +89,8 @@ DMGを読み取り専用でマウントし、Pokecom GO Studioアプリ、PGPの
 同日にGitHub Actionsの配布workflowを`main`から手動実行し、macOS／Windows／Linuxの3ジョブが
 すべて成功した。各環境についてnative package、展開型archive、SHA-256一覧を含むworkflow artifactが
 作成され、14日間の保持期間が設定された。tagを使わない検証のため、GitHub Release作成jobは意図どおり
-skipされた。Windows／Linux上で生成物を実際に起動する手動確認は引き続き必要である。
+skipされた。Windowsでは展開型アプリ、Linux x86_64では展開型tar.gzとDEBについて手動起動を確認した。
+Linux DEBのメニュー項目はカテゴリ未指定のため「その他」に登録される。ARM64 Linux配布物は未対応である。
 
 ## 公開後でもよい項目
 
@@ -105,9 +107,14 @@ skipされた。Windows／Linux上で生成物を実際に起動する手動確�
 ## 現時点の既知制限
 
 - ROMイメージは配布しないため、利用者が対象機種のROMを用意する必要がある。
-- macOSでは主要動作を確認済みだが、WindowsとLinuxはCI確認が中心である。
+- WindowsではROM起動、キー入力、BASIC動作を手動確認済みである。Direct3D／OpenGLでは一部の
+  Materialボタンのhover描画が壊れたため、当面はSoftware描画を既定とし、Compose／Skiko更新時に再検証する。
+- Linux x86_64では展開型tar.gz、音声再生、DEBのインストール・起動・アンインストールを確認済みである。
+  全ファイル入出力の最終確認、ARM64配布物、メニューカテゴリ指定は未対応である。
 - ROM Importerの案内は暫定的で、特にバンクROM機種の入力操作は未完成である。
 - ROM経由のBASIC入力には実機の1行入力長制限があり、長い行にはTokenizer方式が必要である。
 - サウンド出力は初期実装であり、プログラムによって音の途切れや実機との差が残る可能性がある。
+  WindowsではBASICをBREAKした後もアプリ終了までクリックノイズが続く場合があり、Java Soundの
+  出力ラインと無音バッファの停止条件を見直す必要がある。
 - PC-1245／1250の`0xb000..0xbfff`周辺のミラー仕様は再確認が必要である。
 - PC-1251のユーザー登録可能な予約語ショートカットは再現していない。

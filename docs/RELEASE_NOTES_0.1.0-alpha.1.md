@@ -23,8 +23,12 @@ in the Pokecom GO Plus project. It is intended for early testing and feedback, n
 ## Platform status
 
 - macOS: ROM boot and the principal interactive features have been tested manually.
-- Windows: build and automated tests run in CI; manual interactive testing is still required.
-- Linux: build and automated tests run in CI; manual interactive testing is still required.
+- Windows: ROM boot, keyboard input, and BASIC program operation have been tested manually. Software
+  rendering is used by default because Direct3D and OpenGL produced corrupted Material button hover
+  rendering on the tested system. `PGP_RENDER_API` remains available for backend comparison.
+- Linux x86_64: the extracted archive, audio playback, and the DEB install, launch, and uninstall flow have
+  been tested manually. ARM64 packages are not produced yet, and the DEB currently appears in the Other
+  menu category.
 - Android／iOS: Pokecom GO Player has not been implemented yet.
 
 This preview provides source code and desktop packages built for macOS, Windows, and Linux.
@@ -39,12 +43,17 @@ obtained lawfully from a supported machine. Do not attach ROM images to GitHub I
 
 ## Known limitations
 
-- Windows and Linux interactive operation, audio, and native file dialogs have not yet been manually verified.
+- Linux audio, the complete file-I/O set, and native file dialogs still require a final manual test pass.
+- Linux ARM64 packages are not available yet.
+- Windows Direct3D／OpenGL rendering must be re-evaluated after relevant Compose／Skiko updates; the
+  current Software default may use more CPU than a GPU backend.
 - The ROM Importer guide and the UI for machines with banked ROMs are provisional.
 - BASIC input through the ROM editor retains the physical machine's line-length limit. Use the direct
   Tokenizer path for long lines.
 - Sound emulation is an initial implementation and some programs may produce gaps or waveforms that differ
   from the physical machine.
+- On Windows, click noise can continue after a sounding BASIC program is stopped with BREAK, until the
+  application exits. Audio-line lifetime and silent-buffer handling require further work.
 - The `0xb000..0xbfff` mirror behavior of PC-1245／1250 requires further hardware or documentation checks.
 - PC-1251 user-programmable reserved-word shortcuts are not emulated by the Studio UI.
 - Save-state compatibility and stable public APIs are not guaranteed between Technical Preview releases.

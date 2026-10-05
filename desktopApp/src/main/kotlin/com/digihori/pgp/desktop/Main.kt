@@ -127,8 +127,18 @@ private fun configureSkikoRenderApi() {
         ?.trim()
         ?.uppercase()
         ?.takeIf { it in SUPPORTED_RENDER_APIS }
-        ?: return
-    System.setProperty("skiko.renderApi", requestedApi)
+    if (requestedApi != null) {
+        System.setProperty("skiko.renderApi", requestedApi)
+        return
+    }
+    if (
+        System.getProperty("skiko.renderApi").isNullOrBlank() &&
+        System.getProperty("os.name").startsWith("Windows", ignoreCase = true)
+    ) {
+        // Direct3D and OpenGL can corrupt Material button hover rendering on some Windows systems.
+        // Keep the conservative default until the upstream Skiko issue or dependency changes are verified.
+        System.setProperty("skiko.renderApi", "SOFTWARE")
+    }
 }
 
 private val SUPPORTED_RENDER_APIS = setOf(
