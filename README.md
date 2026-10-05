@@ -229,8 +229,10 @@ Desktopアプリを起動する場合：
 ## 既知の制限
 
 - ROMイメージは同梱しない。利用には対象機種のROMが必要である。
-- WindowsではSkikoのDirect3D／OpenGL描画で一部ボタンのhover表示が壊れる環境が確認されたため、
-  当面はSoftware描画を既定とする。再検証用に`PGP_RENDER_API=DIRECT3D`または`OPENGL`を指定できる。
+- Apple Silicon MacのVMware上にあるWindows ARM64で、x64版をエミュレーション実行した環境では、
+  SkikoのDirect3D／OpenGL描画で一部ボタンのhover表示が壊れた。互換性を優先してWindows版は
+  当面Software描画を既定とする。ネイティブWindows x64で再確認後に既定値を再評価する。
+  描画方式の比較には`PGP_RENDER_API=DIRECT3D`または`OPENGL`を指定できる。
 - Linux x86_64では展開型tar.gzの起動、音声再生と、DEBのインストール・起動・アンインストールを確認済みである。
   ARM64 Linuxの配布物はまだ用意していない。DEBのメニュー項目は現在「その他」に分類される。
 - ROM Importerの操作ガイドと、バンクROMを持つ機種の一括選択UIは暫定実装である。

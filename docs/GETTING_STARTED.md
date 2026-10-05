@@ -158,8 +158,10 @@ ZIP内の`manifest.json`、componentサイズ、SHA-256、機種IDのいずれ�
 
 ### Windowsでボタン表示が壊れる
 
-一部環境のDirect3D／OpenGL描画でhover表示が壊れるため、Windows配布版はSoftware描画を
-既定としている。再検証時だけ`PGP_RENDER_API=DIRECT3D`または`OPENGL`を指定する。
+Apple Silicon MacのVMware上にあるWindows ARM64でx64版をエミュレーション実行した環境では、
+Direct3D／OpenGL描画のhover表示が壊れる現象を確認している。Windows配布版は互換性を優先して
+Software描画を既定としている。ネイティブWindows x64で再確認するまでの暫定措置である。
+描画方式を比較する場合だけ`PGP_RENDER_API=DIRECT3D`または`OPENGL`を指定する。
 
 ### 音に途切れやクリックノイズがある
 

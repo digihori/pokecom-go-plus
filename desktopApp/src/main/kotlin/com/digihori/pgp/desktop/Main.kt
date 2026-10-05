@@ -135,8 +135,8 @@ private fun configureSkikoRenderApi() {
         System.getProperty("skiko.renderApi").isNullOrBlank() &&
         System.getProperty("os.name").startsWith("Windows", ignoreCase = true)
     ) {
-        // Direct3D and OpenGL can corrupt Material button hover rendering on some Windows systems.
-        // Keep the conservative default until the upstream Skiko issue or dependency changes are verified.
+        // GPU hover corruption was observed when the x64 build ran under emulation in a Windows ARM VM.
+        // Keep the conservative default until a native Windows x64 system and future Skiko versions are verified.
         System.setProperty("skiko.renderApi", "SOFTWARE")
     }
 }

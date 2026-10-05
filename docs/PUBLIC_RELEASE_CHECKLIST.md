@@ -119,8 +119,10 @@ Linux DEBのメニュー項目はカテゴリ未指定のため「その他」�
 ## 現時点の既知制限
 
 - ROMイメージは配布しないため、利用者が対象機種のROMを用意する必要がある。
-- WindowsではROM起動、キー入力、BASIC動作を手動確認済みである。Direct3D／OpenGLでは一部の
-  Materialボタンのhover描画が壊れたため、当面はSoftware描画を既定とし、Compose／Skiko更新時に再検証する。
+- Apple Silicon MacのVMware上にあるWindows ARM64でx64版をエミュレーション実行し、ROM起動、
+  キー入力、BASIC動作を確認した。この環境のDirect3D／OpenGLでは一部Materialボタンのhover描画が
+  壊れたため、互換性を優先して当面はSoftware描画を既定とする。ネイティブWindows x64で再確認し、
+  Compose／Skiko更新時にも既定値を再評価する。
 - Linux x86_64では展開型tar.gz、音声再生、DEBのインストール・起動・アンインストールを確認済みである。
   全ファイル入出力の最終確認、ARM64配布物、メニューカテゴリ指定は未対応である。
 - ROM Importerの案内は暫定的で、特にバンクROM機種の入力操作は未完成である。

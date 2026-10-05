@@ -23,9 +23,10 @@ in the Pokecom GO Plus project. It is intended for early testing and feedback, n
 ## Platform status
 
 - macOS: ROM boot and the principal interactive features have been tested manually.
-- Windows: ROM boot, keyboard input, and BASIC program operation have been tested manually. Software
-  rendering is used by default because Direct3D and OpenGL produced corrupted Material button hover
-  rendering on the tested system. `PGP_RENDER_API` remains available for backend comparison.
+- Windows: ROM boot, keyboard input, and BASIC program operation have been tested manually with the x64
+  package emulated by Windows ARM64 in VMware on an Apple Silicon Mac. Direct3D and OpenGL produced
+  corrupted Material button hover rendering in that environment, so Software rendering is the conservative
+  default until native Windows x64 is tested. `PGP_RENDER_API` remains available for backend comparison.
 - Linux x86_64: the extracted archive, audio playback, and the DEB install, launch, and uninstall flow have
   been tested manually. ARM64 packages are not produced yet, and the DEB currently appears in the Other
   menu category.
@@ -49,8 +50,8 @@ obtained lawfully from a supported machine. Do not attach ROM images to GitHub I
 
 - Linux audio, the complete file-I/O set, and native file dialogs still require a final manual test pass.
 - Linux ARM64 packages are not available yet.
-- Windows Direct3D／OpenGL rendering must be re-evaluated after relevant Compose／Skiko updates; the
-  current Software default may use more CPU than a GPU backend.
+- Windows Direct3D／OpenGL rendering must be tested on native Windows x64 and re-evaluated after relevant
+  Compose／Skiko updates. The current Software default may use more CPU than a GPU backend.
 - The ROM Importer guide and the UI for machines with banked ROMs are provisional.
 - BASIC input through the ROM editor retains the physical machine's line-length limit. Use the direct
   Tokenizer path for long lines.
