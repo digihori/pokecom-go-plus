@@ -67,9 +67,9 @@ ROM、秘密情報、大容量バイナリは検出されなかった。最大bl
 - [ ] macOS／Windows／Linuxの配布物生成と起動確認方法を確立する
 - [x] macOSで展開型`.app`とDMGを生成し、DMG内容とアプリ起動を確認する
 - [x] 手動実行とrelease tagに対応した3環境のパッケージ生成workflowを実装する
-- [ ] GitHub Actionsを手動実行し、DMG／MSI／DEBと展開型archiveの生成を確認する
+- [x] GitHub Actionsを手動実行し、DMG／MSI／DEBと展開型archiveの生成を確認する
 - [x] 展開型アプリとDMG／MSI／DEBへLICENSEと第三者通知をアプリresourceとして含める
-- [ ] 配布物ごとのSHA-256チェックサムを生成する
+- [x] 配布物ごとのSHA-256チェックサムを生成する
 - [ ] 公開候補コミットで全CIが成功する
 - [ ] 上記の必須確認後にリポジトリをPublicへ変更する
 
@@ -84,6 +84,11 @@ Developer ID署名の代わりにはならない。
 2026-10-05にTemurin JDK 21の`jpackage`を使用し、arm64 macOS向けの展開型`.app`とDMGを生成した。
 DMGを読み取り専用でマウントし、Pokecom GO Studioアプリ、PGPのMIT License、第三者通知を確認した。
 アプリは起動後に即時終了せず、DMGのSHA-256生成も確認済みである。
+
+同日にGitHub Actionsの配布workflowを`main`から手動実行し、macOS／Windows／Linuxの3ジョブが
+すべて成功した。各環境についてnative package、展開型archive、SHA-256一覧を含むworkflow artifactが
+作成され、14日間の保持期間が設定された。tagを使わない検証のため、GitHub Release作成jobは意図どおり
+skipされた。Windows／Linux上で生成物を実際に起動する手動確認は引き続き必要である。
 
 ## 公開後でもよい項目
 
