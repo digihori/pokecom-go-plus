@@ -23,7 +23,7 @@ Technical Previewは完成版ではなく、PC-1245／1251ファミリーを使�
 - [x] ROMを同梱しないことと、利用者自身が正当に入手する必要があることを明記する
 - [x] `.pgrom`作成手順を、画面遷移とエラー例を含む利用者向けガイドにする
 - [x] Pokecom GO従来形式ROMからの読み込み方法をガイドへ明記する
-- [ ] Windows／Linuxで必要な追加パッケージがあればREADMEへ記載する
+- [x] Windows／Linuxで必要な追加パッケージがあればREADMEへ記載する
 - [x] Technical Previewの画面例をREADMEまたはRelease Notesへ掲載する
 
 2026-10-05にmacOS上の新規cloneと空のGradle user homeを使い、JDK 21で`./gradlew build`が
@@ -68,14 +68,14 @@ ROM、秘密情報、大容量バイナリは検出されなかった。最大bl
 - [x] Technical Previewのバージョン表記とGit tagを`v0.1.0-alpha.1`に決める
 - [x] Release Notesに対応機種、対応機能、既知制限、ROM非同梱を記載する
 - [x] ソースコードに加えて未署名のmacOS／Windows／Linux実行配布物を提供する方針にする
-- [ ] macOS／Windows／Linuxの配布物生成と起動確認方法を確立する
+- [x] macOS／Windows／Linuxの配布物生成と起動確認方法を確立する
 - [x] macOSで展開型`.app`とDMGを生成し、DMG内容とアプリ起動を確認する
 - [x] 手動実行とrelease tagに対応した3環境のパッケージ生成workflowを実装する
 - [x] GitHub Actionsを手動実行し、DMG／MSI／DEBと展開型archiveの生成を確認する
 - [x] Linux x86_64で展開型tar.gzとDEBのインストール・起動・アンインストールを確認する
 - [x] 展開型アプリとDMG／MSI／DEBへLICENSEと第三者通知をアプリresourceとして含める
 - [x] 配布物ごとのSHA-256チェックサムを生成する
-- [ ] 公開候補コミットで全CIが成功する
+- [x] 公開候補コミットで全CIが成功する
 - [ ] 上記の必須確認後にリポジトリをPublicへ変更する
 
 利用者向け名称は「Pokecom GO Studio Technical Preview 0.1」、Gradle project versionとGit tagは
@@ -95,6 +95,10 @@ DMGを読み取り専用でマウントし、Pokecom GO Studioアプリ、PGPの
 作成され、14日間の保持期間が設定された。tagを使わない検証のため、GitHub Release作成jobは意図どおり
 skipされた。Windowsでは展開型アプリ、Linux x86_64では展開型tar.gzとDEBについて手動起動を確認した。
 Linux DEBのメニュー項目はカテゴリ未指定のため「その他」に登録される。ARM64 Linux配布物は未対応である。
+
+公開候補`85ac732`では、pushにより起動したGitHub Actions CIのmacOS／Windows／Linuxジョブが
+すべて成功した。Windowsの同梱ランタイム付きZIP／MSI、Linux x86_64のtar.gz／DEBは追加ランタイムを
+手動導入せず起動できた。LinuxのDEB導入時に`apt`が要求する依存パッケージは通常のパッケージ管理へ委ねる。
 
 ## 公開後でもよい項目
 
