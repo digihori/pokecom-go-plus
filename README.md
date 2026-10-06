@@ -30,6 +30,7 @@ Pokecom GO PlayerはCoreとStudioが安定した後に開発します。
 - RUN／PRO／RSVモード、物理キーボード、機種別画面キーボード
 - BASICテキストのROM経由入力とTokenizerによる直接読み書き
 - `.dmp`形式によるマシン語データの読み書き
+- 外部エディタ向け複数ソースプロジェクトの作成、変更検知、Build & Load
 - LCD表示、CPU状態表示、サウンド出力
 - 実機RAM容量と拡張RAMモードの切り替え
 
@@ -260,6 +261,7 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 - [PC-1245機種定義](docs/machines/PC-1245.md)
 - [PGP ROMパッケージ形式](docs/ROM_PACKAGE.md)
 - [Golden Test Data形式](docs/GOLDEN_TEST_DATA.md)
+- [外部エディタ連携とプロジェクト形式](docs/PROJECTS.md)
 - [ロードマップ](docs/ROADMAP.md)
 - [Technical Preview公開チェックリスト](docs/PUBLIC_RELEASE_CHECKLIST.md)
 - [Technical Preview 0.1 Release Notes](docs/RELEASE_NOTES_0.1.0-alpha.1.md)

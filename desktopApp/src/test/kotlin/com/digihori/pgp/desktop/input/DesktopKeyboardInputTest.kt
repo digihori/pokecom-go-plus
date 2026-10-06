@@ -119,6 +119,21 @@ class DesktopKeyboardInputTest {
     }
 
     @Test
+    fun altArrowKeysRecallHistoryWithoutReachingPocketKeyboard() {
+        val sink = FakeSink()
+        val input = DesktopKeyboardInput().also { it.attach(sink) }
+
+        assertTrue(input.handle(Key.DirectionUp, 0, KeyEventType.KeyDown, isAltPressed = true))
+        assertTrue(input.handle(Key.DirectionUp, 0, KeyEventType.KeyUp, isAltPressed = true))
+        assertTrue(input.handle(Key.DirectionDown, 0, KeyEventType.KeyDown, isAltPressed = true))
+        assertTrue(input.handle(Key.DirectionDown, 0, KeyEventType.KeyUp, isAltPressed = true))
+
+        assertEquals(1, sink.previousRecallCount)
+        assertEquals(1, sink.nextRecallCount)
+        assertEquals(emptyList(), sink.events)
+    }
+
+    @Test
     fun changingSinkReleasesOnlyDirectlyHeldKeys() {
         val first = FakeSink()
         val input = DesktopKeyboardInput().also { it.attach(first) }
@@ -144,11 +159,25 @@ class DesktopKeyboardInputTest {
         assertEquals(listOf("press:A", "press:UP", "release:A", "release:UP", "press:A"), sink.events)
     }
 
+    @Test
+    fun disabledInputLeavesTextEditingKeysForComposeControls() {
+        val sink = FakeSink()
+        val input = DesktopKeyboardInput().also { it.attach(sink) }
+
+        input.setEnabled(false)
+
+        assertFalse(input.handle(Key.DirectionLeft, 0, KeyEventType.KeyDown))
+        assertFalse(input.handle(Key.Backspace, 0, KeyEventType.KeyDown))
+        assertTrue(sink.events.isEmpty())
+    }
+
     private class FakeSink(
         override val machineId: MachineId = Pc1245RomDefinition.MACHINE_ID,
     ) : DesktopKeyInputSink {
         val events = mutableListOf<String>()
         val sequences = mutableListOf<List<PocketKey>>()
+        var previousRecallCount = 0
+        var nextRecallCount = 0
 
         override fun pressKey(key: PocketKey): InputResult {
             events += "press:$key"
@@ -162,6 +191,16 @@ class DesktopKeyboardInputTest {
 
         override fun enqueueKeySequence(keys: Iterable<PocketKey>) {
             sequences += keys.toList()
+        }
+
+        override fun recallPreviousCommand(): Boolean {
+            previousRecallCount++
+            return true
+        }
+
+        override fun recallNextCommand(): Boolean {
+            nextRecallCount++
+            return true
         }
     }
 }

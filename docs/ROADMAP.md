@@ -91,7 +91,18 @@ PC-1245／1251ファミリーの基本機能を試せる最初の公開版を目
 - [x] BASIC Tokenizer / Detokenizerを実装する
 - [x] `.BAS`の読み込みと保存
 - [x] BASICプログラムのRAMへの展開と抽出
-- [ ] 外部ファイル変更の再読み込み
+- [x] 複数ソースを束ねるバージョン付きプロジェクト定義を実装する
+- [x] BASIC／マシン語／混在テンプレートから最小プロジェクトを作成する
+- [x] 外部エディタによるソースファイルの変更を検知する
+- [x] BASIC、`.dmp`、Raw Binaryをプロジェクト単位でBuild & Loadする
+- [x] プロジェクトはBuild & Loadまでを担当し、実行操作をポケコン側へ委ねる
+- [x] RUNモードでENTER確定した直接入力をセッション内コマンド履歴として再入力できるようにする
+- [x] 親フォルダの下へプロジェクト名のフォルダと`src/`、`build/`を生成する
+- [x] Tracked／Untrackedを表示する軽量なプロジェクトツリーを実装する
+- [x] ファイル構成変更をツリーへ自動反映し、Manifestは明示操作時だけ更新する
+- [x] 明示的なUpdate Projectで追加・削除されたソースをManifestへ同期する
+- [ ] BuildとUpdate Emulatorを分離し、Source／Build／Emulator状態を個別表示する
+- [ ] エラーから外部エディタのファイル・行を開く
 
 ## Phase 4: Pokecom GO Studio対応拡大
 

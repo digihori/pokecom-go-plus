@@ -125,6 +125,65 @@ public class AddressedMemoryImage internal constructor(segments: List<AddressedM
     public val byteCount: Int = segments.sumOf(AddressedMemorySegment::size)
 }
 
+public class AddressedMemorySegmentData(
+    public val startAddress: Int,
+    bytes: ByteArray,
+    public val sourceLine: Int = 0,
+) {
+    private val content: ByteArray = bytes.copyOf()
+    public val size: Int get() = content.size
+    public fun copyBytes(): ByteArray = content.copyOf()
+}
+
+public sealed interface AddressedMemoryImageCreateResult {
+    public data class Success(public val image: AddressedMemoryImage) : AddressedMemoryImageCreateResult
+    public data object Empty : AddressedMemoryImageCreateResult
+    public data class InvalidSegment(
+        public val segmentIndex: Int,
+        public val startAddress: Int,
+        public val size: Int,
+    ) : AddressedMemoryImageCreateResult
+    public data class Overlap(
+        public val segmentIndex: Int,
+        public val previousSegmentIndex: Int,
+        public val address: Int,
+    ) : AddressedMemoryImageCreateResult
+}
+
+/** Creates an addressed image for generated or raw-binary data. */
+public object AddressedMemoryImageFactory {
+    public fun create(segments: List<AddressedMemorySegmentData>): AddressedMemoryImageCreateResult {
+        if (segments.isEmpty()) return AddressedMemoryImageCreateResult.Empty
+        val ownerSegments = IntArray(ADDRESS_SPACE_SIZE) { -1 }
+        val result = mutableListOf<AddressedMemorySegment>()
+        segments.forEachIndexed { index, segment ->
+            val endAddress = segment.startAddress.toLong() + segment.size - 1L
+            if (
+                segment.size == 0 ||
+                segment.startAddress !in 0 until ADDRESS_SPACE_SIZE ||
+                endAddress !in 0 until ADDRESS_SPACE_SIZE.toLong()
+            ) {
+                return AddressedMemoryImageCreateResult.InvalidSegment(
+                    index,
+                    segment.startAddress,
+                segment.size,
+                )
+            }
+            for (address in segment.startAddress..endAddress.toInt()) {
+                val previous = ownerSegments[address]
+                if (previous >= 0) {
+                    return AddressedMemoryImageCreateResult.Overlap(index, previous, address)
+                }
+                ownerSegments[address] = index
+            }
+            result += AddressedMemorySegment(segment.startAddress, segment.copyBytes(), segment.sourceLine)
+        }
+        return AddressedMemoryImageCreateResult.Success(AddressedMemoryImage(result.sortedBy { it.startAddress }))
+    }
+
+    private const val ADDRESS_SPACE_SIZE: Int = 0x10000
+}
+
 public class AddressedMemorySegment internal constructor(
     public val startAddress: Int,
     bytes: ByteArray,

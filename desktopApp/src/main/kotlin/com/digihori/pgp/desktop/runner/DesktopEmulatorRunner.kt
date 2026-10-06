@@ -22,6 +22,7 @@ import com.digihori.pgp.core.runtime.KeyInputQueue
 import com.digihori.pgp.core.runtime.KeyTransition
 import com.digihori.pgp.core.runtime.SpeedRatio
 import com.digihori.pgp.desktop.input.DesktopKeyInputSink
+import com.digihori.pgp.desktop.input.DesktopCommandHistory
 import com.digihori.pgp.core.source.machine.AddressedMemoryImage
 
 internal fun interface MonotonicClock {
@@ -37,6 +38,7 @@ internal class DesktopEmulatorRunner(
     private val clock: MonotonicClock = SystemMonotonicClock,
     planner: CycleBudgetPlanner? = null,
     private val keyInputQueue: KeyInputQueue = defaultKeyInputQueue(session.machineId),
+    private val commandHistory: DesktopCommandHistory = DesktopCommandHistory(),
 ) : DesktopKeyInputSink {
     override val machineId get() = session.machineId
 
@@ -50,6 +52,7 @@ internal class DesktopEmulatorRunner(
         private set
 
     private var previousTimeNanoseconds: Long? = null
+    private var operatingMode: OperatingMode = OperatingMode.RUN
 
     fun run() {
         if (state != RunnerState.PAUSED) return
@@ -71,6 +74,8 @@ internal class DesktopEmulatorRunner(
         planner.reset()
         previousTimeNanoseconds = null
         speed = SpeedRatio.NORMAL
+        operatingMode = OperatingMode.RUN
+        commandHistory.clearPendingInput()
         state = RunnerState.PAUSED
     }
 
@@ -121,11 +126,29 @@ internal class DesktopEmulatorRunner(
 
     override fun pressKey(key: PocketKey): InputResult = session.pressKey(key)
 
-    override fun releaseKey(key: PocketKey): InputResult = session.releaseKey(key)
+    override fun releaseKey(key: PocketKey): InputResult {
+        val result = session.releaseKey(key)
+        if (result is InputResult.Accepted && operatingMode == OperatingMode.RUN) {
+            commandHistory.recordUserKey(key)
+        }
+        return result
+    }
 
     override fun enqueueKeySequence(keys: Iterable<PocketKey>) {
         keyInputQueue.enqueue(keys)
     }
+
+    override fun enqueueUserKeySequence(keys: Iterable<PocketKey>) {
+        val captured = keys.toList()
+        if (operatingMode == OperatingMode.RUN) commandHistory.recordUserSequence(captured)
+        keyInputQueue.enqueue(captured)
+    }
+
+    override fun recallPreviousCommand(): Boolean =
+        operatingMode == OperatingMode.RUN && recall(commandHistory.previous())
+
+    override fun recallNextCommand(): Boolean =
+        operatingMode == OperatingMode.RUN && recall(commandHistory.next())
 
     /** Runs a complete generated key sequence without host-time pacing. */
     fun runKeySequenceImmediately(keys: Iterable<PocketKey>): RunResult {
@@ -177,6 +200,17 @@ internal class DesktopEmulatorRunner(
 
     fun setOperatingMode(mode: OperatingMode) {
         session.setOperatingMode(mode)
+        if (operatingMode != mode) commandHistory.clearPendingInput()
+        operatingMode = mode
+    }
+
+    internal fun commandHistorySize(): Int = commandHistory.size
+
+    /** Minimum host-time hold used to keep a quick software-key tap visible to ROM key scanning. */
+    fun minimumSoftwareKeyHoldMilliseconds(): Long {
+        val definition = MachineCatalog.require(machineId)
+        return (definition.automaticKeyHoldCycles * 1_000L + definition.cyclesPerSecond - 1L) /
+            definition.cyclesPerSecond
     }
 
     fun tick(): RunnerTick {
@@ -221,6 +255,13 @@ internal class DesktopEmulatorRunner(
             is KeyTransition.Release -> session.releaseKey(transition.key)
             null -> Unit
         }
+    }
+
+    private fun recall(recall: com.digihori.pgp.desktop.input.CommandHistoryRecall?): Boolean {
+        recall ?: return false
+        if (recall.replaceCurrentInput) keyInputQueue.enqueue(listOf(PocketKey.CLEAR))
+        if (recall.keys.isNotEmpty()) keyInputQueue.enqueue(recall.keys)
+        return true
     }
 
     private companion object {

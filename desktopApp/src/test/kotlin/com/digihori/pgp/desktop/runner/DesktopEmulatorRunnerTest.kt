@@ -31,6 +31,18 @@ import kotlin.test.assertNull
 
 class DesktopEmulatorRunnerTest {
     @Test
+    fun exposesMachineSpecificMinimumSoftwareKeyHold() {
+        assertEquals(60L, runner(FakeSession(), FakeClock()).minimumSoftwareKeyHoldMilliseconds())
+        assertEquals(
+            200L,
+            DesktopEmulatorRunner(
+                FakeSession(machineId = Pc1251RomDefinition.MACHINE_ID),
+                FakeClock(),
+            ).minimumSoftwareKeyHoldMilliseconds(),
+        )
+    }
+
+    @Test
     fun pc1251UsesIts192KilohertzCpuClockByDefault() {
         val clock = FakeClock()
         val session = FakeSession(machineId = com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition.MACHINE_ID)
@@ -197,6 +209,50 @@ class DesktopEmulatorRunnerTest {
         assertEquals(listOf(PocketKey.A), session.releasedKeys)
         assertEquals(OperatingMode.PROGRAM, session.recordedOperatingMode)
     }
+
+    @Test
+    fun recordsDirectRunModeCommandAndRecallsItWithoutEnter() {
+        val session = FakeSession()
+        val clock = FakeClock()
+        val runner = DesktopEmulatorRunner(
+            session = session,
+            clock = clock,
+            planner = CycleBudgetPlanner(CycleBudgetPlanner.PC1245_CYCLES_PER_SECOND),
+            keyInputQueue = KeyInputQueue(holdCycles = 10, gapCycles = 5),
+        )
+        listOf(PocketKey.R, PocketKey.U, PocketKey.N, PocketKey.ENTER).forEach { key ->
+            runner.pressKey(key)
+            runner.releaseKey(key)
+        }
+        session.inputEvents.clear()
+
+        assertEquals(1, runner.commandHistorySize())
+        assertEquals(true, runner.recallPreviousCommand())
+        runner.run()
+        clock.advance(1_000_000)
+        runner.tick()
+
+        assertEquals(
+            listOf("press:R", "release:R", "press:U", "release:U", "press:N", "release:N"),
+            session.inputEvents,
+        )
+        assertEquals(1, runner.commandHistorySize())
+    }
+
+    @Test
+    fun doesNotRecordProgramModeInputAsCommandHistory() {
+        val runner = runner(FakeSession(), FakeClock())
+        runner.setOperatingMode(OperatingMode.PROGRAM)
+
+        runner.pressKey(PocketKey.R)
+        runner.releaseKey(PocketKey.R)
+        runner.pressKey(PocketKey.ENTER)
+        runner.releaseKey(PocketKey.ENTER)
+
+        assertEquals(0, runner.commandHistorySize())
+        assertEquals(false, runner.recallPreviousCommand())
+    }
+
 
     @Test
     fun runsQueuedKeySequenceAtCycleBoundaries() {

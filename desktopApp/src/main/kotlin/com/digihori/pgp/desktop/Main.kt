@@ -62,6 +62,8 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomInputUnsupported
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.source.machine.PgpMemoryDumpError
+import com.digihori.pgp.core.project.ProjectManifestError
+import com.digihori.pgp.core.project.ProjectSourceType
 import com.digihori.pgp.desktop.basic.DesktopBasicLoadError
 import com.digihori.pgp.desktop.basic.DesktopBasicLoadResult
 import com.digihori.pgp.desktop.basic.DesktopBasicLoader
@@ -73,6 +75,24 @@ import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoadError
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoadResult
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoader
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpWriter
+import com.digihori.pgp.desktop.project.DesktopProjectChangeTracker
+import com.digihori.pgp.desktop.project.DesktopProjectApplyResult
+import com.digihori.pgp.desktop.project.DesktopProjectArtifactLoader
+import com.digihori.pgp.desktop.project.DesktopProjectBuildError
+import com.digihori.pgp.desktop.project.DesktopProjectBuildResult
+import com.digihori.pgp.desktop.project.DesktopProjectBuilder
+import com.digihori.pgp.desktop.project.DesktopProjectCreateError
+import com.digihori.pgp.desktop.project.DesktopProjectCreateResult
+import com.digihori.pgp.desktop.project.DesktopProjectTemplate
+import com.digihori.pgp.desktop.project.DesktopProjectWorkspaceCreator
+import com.digihori.pgp.desktop.project.DesktopProjectOpenError
+import com.digihori.pgp.desktop.project.DesktopProjectOpenResult
+import com.digihori.pgp.desktop.project.DesktopProjectWorkspace
+import com.digihori.pgp.desktop.project.DesktopProjectWorkspaceLoader
+import com.digihori.pgp.desktop.project.DesktopProjectTreeScanner
+import com.digihori.pgp.desktop.project.DesktopProjectTreeSnapshot
+import com.digihori.pgp.desktop.project.DesktopProjectManifestUpdater
+import com.digihori.pgp.desktop.project.DesktopProjectUpdateResult
 import com.digihori.pgp.desktop.input.Pc1245KeyboardLayout
 import com.digihori.pgp.desktop.input.Pc1251KeyboardLayout
 import com.digihori.pgp.desktop.input.PocketKeyCap
@@ -93,8 +113,11 @@ import java.awt.EventQueue
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import java.io.File
+import javax.swing.JFileChooser
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 
 fun main() {
     configureSkikoRenderApi()
@@ -171,6 +194,17 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
     var dumpEndAddress by remember { mutableStateOf("C0FF") }
     var dumpRangeError by remember { mutableStateOf<String?>(null) }
     var focusRestoreRequest by remember { mutableLongStateOf(0L) }
+    var projectWorkspace by remember { mutableStateOf<DesktopProjectWorkspace?>(null) }
+    var projectChangeTracker by remember { mutableStateOf<DesktopProjectChangeTracker?>(null) }
+    var projectTree by remember { mutableStateOf<DesktopProjectTreeSnapshot?>(null) }
+    var projectBasicBaseline by remember { mutableStateOf<ByteArray?>(null) }
+    var projectBasicModified by remember { mutableStateOf(false) }
+    var changedProjectSources by remember { mutableStateOf(emptySet<String>()) }
+    var projectRuntimeStatus by remember { mutableStateOf(ProjectRuntimeStatus.NOT_BUILT) }
+    var showCreateProjectDialog by remember { mutableStateOf(false) }
+    var newProjectName by remember { mutableStateOf("New PGP Project") }
+    var newProjectTemplate by remember { mutableStateOf(DesktopProjectTemplate.BASIC) }
+    var newProjectError by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
     val audioPlayer = remember { DesktopAudioPlayer() }
     val romHistory = remember { DesktopRomHistory() }
@@ -238,6 +272,9 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                 } else {
                     "ROM loaded. Press Run to start."
                 }
+                if (projectWorkspace != null) projectRuntimeStatus = ProjectRuntimeStatus.NOT_BUILT
+                projectBasicBaseline = null
+                projectBasicModified = false
                 return true
             }
             is DesktopRomLoadResult.Failure -> {
@@ -277,6 +314,99 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
         }
     }
 
+    fun openProject(file: File, resetBasicTracking: Boolean = true) {
+        when (val opened = DesktopProjectWorkspaceLoader.open(file)) {
+            is DesktopProjectOpenResult.Failure -> showError(opened.errors.joinToString("\n") { it.message() })
+            is DesktopProjectOpenResult.Success -> {
+                projectWorkspace = opened.workspace
+                projectChangeTracker = DesktopProjectChangeTracker(opened.workspace)
+                projectTree = DesktopProjectTreeScanner.scan(opened.workspace)
+                changedProjectSources = emptySet()
+                projectRuntimeStatus = ProjectRuntimeStatus.NOT_BUILT
+                if (resetBasicTracking) {
+                    projectBasicBaseline = null
+                    projectBasicModified = false
+                }
+                selectedMachineId = opened.workspace.definition.machineId
+                val sourceSummary = opened.workspace.sources
+                    .groupingBy { it.definition.type }
+                    .eachCount()
+                    .entries
+                    .joinToString { "${it.key.displayName()}: ${it.value}" }
+                message = "Opened project ${opened.workspace.definition.name} ($sourceSummary)."
+            }
+        }
+    }
+
+    fun updateProject() {
+        val workspace = projectWorkspace ?: return
+        val tree = DesktopProjectTreeScanner.scan(workspace)
+        when (val result = DesktopProjectManifestUpdater.synchronize(workspace, tree)) {
+            is DesktopProjectUpdateResult.Success -> {
+                openProject(workspace.manifestFile, resetBasicTracking = false)
+                val skipped = if (result.skippedPaths.isEmpty()) "" else {
+                    " Skipped unsupported files: ${result.skippedPaths.joinToString()}."
+                }
+                message = "Updated project: ${result.addedCount} added, ${result.removedCount} removed.$skipped"
+            }
+            is DesktopProjectUpdateResult.CouldNotWrite -> showError(
+                "Could not update project manifest: ${result.message}",
+            )
+        }
+    }
+
+    fun buildProject() {
+        val workspace = projectWorkspace ?: return
+        val activeRunner = runner ?: return
+        if (activeRunner.machineId != workspace.definition.machineId) {
+            projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
+            showError(
+                "Project targets ${workspace.definition.machineId.displayName()}, but the loaded " +
+                    "ROM is ${activeRunner.machineId.displayName()}.",
+            )
+            return
+        }
+        when (val built = DesktopProjectBuilder.build(workspace)) {
+            is DesktopProjectBuildResult.Failure -> {
+                projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
+                showError(built.errors.joinToString("\n") { it.message(activeRunner.machineId.displayName()) })
+            }
+            is DesktopProjectBuildResult.Success -> {
+                when (val applied = DesktopProjectArtifactLoader.load(activeRunner, built.artifact)) {
+                    is DesktopProjectApplyResult.BasicFailure -> {
+                        projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
+                        showError(applied.error.message())
+                    }
+                    is DesktopProjectApplyResult.MemoryFailure -> {
+                        projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
+                        showError(applied.error.message())
+                    }
+                    is DesktopProjectApplyResult.Success -> {
+                        projectRuntimeStatus = ProjectRuntimeStatus.UP_TO_DATE
+                        changedProjectSources = emptySet()
+                        projectChangeTracker = DesktopProjectChangeTracker(workspace)
+                        val summary = "${applied.basicByteCount} BASIC bytes, " +
+                            "${applied.memoryByteCount} machine-code bytes in " +
+                            "${applied.memorySegmentCount} segments"
+                        message = "Built ${workspace.definition.name}: $summary. " +
+                            "Start it from the pocket-computer keyboard."
+                        runnerState = activeRunner.state
+                        display = activeRunner.displaySnapshot()
+                        cpu = activeRunner.cpuSnapshot()
+                        requestedToneHz = activeRunner.audioSnapshot().frequencyHz
+                        projectBasicBaseline = if (built.artifact.copyBasicProgram() != null) {
+                            (activeRunner.basicProgramSnapshot() as? BasicProgramSnapshotResult.Success)
+                                ?.copyBytes()
+                        } else {
+                            null
+                        }
+                        projectBasicModified = false
+                    }
+                }
+            }
+        }
+    }
+
     DisposableEffect(audioPlayer) {
         onDispose(audioPlayer::close)
     }
@@ -309,6 +439,12 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
             }
             if (++cpuRefreshCounter >= CPU_REFRESH_FRAME_INTERVAL) {
                 cpu = activeRunner.cpuSnapshot()
+                projectBasicBaseline?.let { baseline ->
+                    projectBasicModified = when (val snapshot = activeRunner.basicProgramSnapshot()) {
+                        is BasicProgramSnapshotResult.Success -> !snapshot.copyBytes().contentEquals(baseline)
+                        is BasicProgramSnapshotResult.Failure -> true
+                    }
+                }
                 cpuRefreshCounter = 0
             }
             val audio = activeRunner.audioSnapshot()
@@ -324,6 +460,36 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                 message = status.fault.message()
             }
         }
+    }
+
+    LaunchedEffect(projectChangeTracker) {
+        val tracker = projectChangeTracker ?: return@LaunchedEffect
+        while (isActive) {
+            delay(PROJECT_SCAN_DELAY_MILLISECONDS)
+            val changes = runCatching { withContext(Dispatchers.IO) { tracker.scan() } }.getOrElse {
+                message = "Could not check project files: ${it.message ?: it::class.simpleName}"
+                continue
+            }
+            projectWorkspace?.let { workspace ->
+                projectTree = runCatching {
+                    withContext(Dispatchers.IO) { DesktopProjectTreeScanner.scan(workspace) }
+                }.getOrElse {
+                    message = "Could not refresh project tree: ${it.message ?: it::class.simpleName}"
+                    projectTree
+                }
+            }
+            if (changes.isNotEmpty()) {
+                changedProjectSources = changedProjectSources + changes.map { it.source.definition.id }
+                projectRuntimeStatus = ProjectRuntimeStatus.SOURCE_CHANGED
+                message = "External changes detected: " + changes.joinToString { change ->
+                    "${change.source.definition.path} (${change.kind.name.lowercase()})"
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(showCreateProjectDialog) {
+        keyboardInput.setEnabled(!showCreateProjectDialog)
     }
 
     LaunchedEffect(focusRestoreRequest) {
@@ -402,6 +568,45 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                     }
                 }
                 Text("ROM: ${loadedRomName ?: "not loaded"}")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            selectAndRestoreFocus { selectProjectDirectory(ownerWindow) }
+                                ?.let { File(it, DesktopProjectWorkspaceLoader.DEFAULT_MANIFEST_NAME) }
+                                ?.let { openProject(it) }
+                        },
+                    ) { Text("Open Project") }
+                    Button(
+                        onClick = {
+                            newProjectError = null
+                            showCreateProjectDialog = true
+                        },
+                    ) { Text("Create Project") }
+                    Button(
+                        enabled = projectWorkspace != null && runner != null && runnerState != RunnerState.FAULTED,
+                        onClick = { buildProject() },
+                    ) { Text("Build & Load") }
+                    Button(
+                        enabled = projectWorkspace != null,
+                        onClick = { updateProject() },
+                    ) { Text("Update Project") }
+                }
+                Text(
+                    projectWorkspace?.let { workspace ->
+                        val changeStatus = if (changedProjectSources.isEmpty()) {
+                            "no external changes detected"
+                        } else {
+                            "changed: ${changedProjectSources.joinToString()}"
+                        }
+                        "Project: ${workspace.definition.name} — ${workspace.sources.size} sources, " +
+                            "$changeStatus; runtime: ${projectRuntimeStatus.displayName}"
+                    } ?: "Project: not open",
+                )
+                projectTree?.let { ProjectTreePanel(it) }
+                if (projectBasicBaseline != null) {
+                    Text("Emulator BASIC: ${if (projectBasicModified) "Modified" else "Synced"}")
+                }
+                Text("RUN-mode command history: Alt+↑ / Alt+↓")
                 Text("State: ${runnerState.name}")
                 Text("Executed cycles: $executedCycles")
                 Text("Requested tone: ${if (requestedToneHz == 0) "silent" else "$requestedToneHz Hz"}")
@@ -435,11 +640,16 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                                             message = loaded.error.message()
                                         }
                                         is BasicProgramLoadResult.Success -> {
+                                            projectBasicBaseline = null
+                                            projectBasicModified = false
                                             runnerState = activeRunner.state
                                             display = activeRunner.displaySnapshot()
                                             cpu = activeRunner.cpuSnapshot()
                                             message = "Loaded ${file.name} directly (${loaded.size} bytes at " +
                                                 "0x${loaded.startAddress.hex(4)}..0x${loaded.endAddress.hex(4)})."
+                                            if (projectWorkspace != null) {
+                                                projectRuntimeStatus = ProjectRuntimeStatus.RUNTIME_MODIFIED
+                                            }
                                         }
                                     }
                                 }
@@ -463,9 +673,13 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                                 is DesktopMemoryDumpLoadResult.Success -> {
                                     when (val loaded = activeRunner.loadMemoryImage(parsed.image)) {
                                         is MemoryImageLoadResult.Failure -> message = loaded.error.message()
-                                        is MemoryImageLoadResult.Success -> message =
-                                            "Loaded ${file.name} (${loaded.byteCount} bytes in " +
+                                        is MemoryImageLoadResult.Success -> {
+                                            message = "Loaded ${file.name} (${loaded.byteCount} bytes in " +
                                                 "${loaded.segmentCount} segments)."
+                                            if (projectWorkspace != null) {
+                                                projectRuntimeStatus = ProjectRuntimeStatus.RUNTIME_MODIFIED
+                                            }
+                                        }
                                     }
                                     runnerState = activeRunner.state
                                     display = activeRunner.displaySnapshot()
@@ -542,6 +756,9 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                                         "Merged ${file.name} through the ${activeRunner.machineId.displayName()} ROM " +
                                             "(${loadResult.keys.size} key taps)."
                                     }
+                                    if (runResult.status !is ExecutionStatus.Faulted && projectWorkspace != null) {
+                                        projectRuntimeStatus = ProjectRuntimeStatus.RUNTIME_MODIFIED
+                                    }
                                 }
                             }
                         },
@@ -575,6 +792,8 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                             cpu = runner?.cpuSnapshot()
                             operatingMode = OperatingMode.RUN
                             requestedToneHz = 0
+                            projectBasicBaseline = null
+                            projectBasicModified = false
                             message = "Reset complete."
                         },
                     ) { Text("Reset") }
@@ -657,6 +876,62 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                 },
                 dismissButton = {
                     TextButton(onClick = { showOpenRomGuide = false }) { Text("Cancel") }
+                },
+            )
+        }
+
+        if (showCreateProjectDialog) {
+            AlertDialog(
+                onDismissRequest = { showCreateProjectDialog = false },
+                title = { Text("Create Pokecom GO Studio Project") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Machine: ${selectedMachineId.displayName()}")
+                        OutlinedTextField(
+                            value = newProjectName,
+                            onValueChange = {
+                                newProjectName = it
+                                newProjectError = null
+                            },
+                            label = { Text("Project name") },
+                            singleLine = true,
+                        )
+                        Text("Starter sources")
+                        DesktopProjectTemplate.entries.forEach { template ->
+                            Button(
+                                enabled = newProjectTemplate != template,
+                                onClick = { newProjectTemplate = template },
+                            ) { Text(template.displayName) }
+                        }
+                        Text("Existing files will not be overwritten.")
+                        newProjectError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        if (newProjectName.isBlank()) {
+                            newProjectError = "Project name must not be blank."
+                            return@TextButton
+                        }
+                        val destination = selectAndRestoreFocus {
+                            selectProjectParentDirectory(ownerWindow)
+                        } ?: return@TextButton
+                        when (val created = DesktopProjectWorkspaceCreator.create(
+                            destination,
+                            newProjectName,
+                            selectedMachineId,
+                            newProjectTemplate,
+                        )) {
+                            is DesktopProjectCreateResult.Failure -> newProjectError = created.error.message()
+                            is DesktopProjectCreateResult.Success -> {
+                                showCreateProjectDialog = false
+                                openProject(created.manifestFile)
+                            }
+                        }
+                    }) { Text("Create in Folder…") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCreateProjectDialog = false }) { Text("Cancel") }
                 },
             )
         }
@@ -794,9 +1069,13 @@ private fun PocketKeyButton(
                 onPress = {
                     val activeRunner = runner
                     if (activeRunner != null) {
+                        val pressedAt = System.nanoTime()
                         activeRunner.pressKey(cap.key)
                         try {
                             tryAwaitRelease()
+                            val elapsedMilliseconds = (System.nanoTime() - pressedAt) / 1_000_000L
+                            val remainingHold = activeRunner.minimumSoftwareKeyHoldMilliseconds() - elapsedMilliseconds
+                            if (remainingHold > 0L) delay(remainingHold)
                         } finally {
                             activeRunner.releaseKey(cap.key)
                         }
@@ -937,6 +1216,51 @@ private fun selectPackageDestination(owner: Frame): File? = selectFile(
 
 private fun selectBasicFile(owner: Frame, title: String): File? = selectFile(owner, title, "*.bas")
 
+private fun selectProjectDirectory(owner: Frame): File? = selectDirectory(
+    owner,
+    "Choose Pokecom GO Studio Project Folder",
+)
+
+private fun selectProjectParentDirectory(owner: Frame): File? = selectDirectory(
+    owner,
+    "Choose Folder for New Pokecom GO Studio Project",
+)
+
+private fun selectDirectory(owner: Frame, title: String): File? {
+    if (System.getProperty("os.name").contains("mac", ignoreCase = true)) {
+        return selectMacDirectory(owner, title)
+    }
+    val chooser = JFileChooser().apply {
+        dialogTitle = title
+        fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+        isAcceptAllFileFilterUsed = false
+    }
+    return if (chooser.showOpenDialog(owner) == JFileChooser.APPROVE_OPTION) {
+        chooser.selectedFile
+    } else {
+        null
+    }
+}
+
+private fun selectMacDirectory(owner: Frame, title: String): File? {
+    val property = "apple.awt.fileDialogForDirectories"
+    val previous = System.getProperty(property)
+    System.setProperty(property, "true")
+    return try {
+        val dialog = FileDialog(owner, title, FileDialog.LOAD)
+        try {
+            dialog.isVisible = true
+            val directory = dialog.directory
+            val fileName = dialog.file
+            if (directory != null && fileName != null) File(directory, fileName) else null
+        } finally {
+            dialog.dispose()
+        }
+    } finally {
+        if (previous == null) System.clearProperty(property) else System.setProperty(property, previous)
+    }
+}
+
 private fun selectMemoryDumpFile(owner: Frame): File? = selectFile(owner, "Load PGP Memory Dump", "*.dmp")
 
 private fun selectMemoryDumpDestination(owner: Frame): File? = selectFile(
@@ -972,6 +1296,24 @@ private fun selectFile(
         owner.requestFocusInWindow()
     }
     return if (directory != null && fileName != null) File(directory, fileName) else null
+}
+
+@Composable
+private fun ProjectTreePanel(tree: DesktopProjectTreeSnapshot) {
+    Column(
+        modifier = Modifier.fillMaxWidth().widthIn(max = 900.dp),
+        horizontalAlignment = Alignment.Start,
+    ) {
+        Text("Project files", style = MaterialTheme.typography.titleMedium)
+        ProjectTreeGroup("Tracked", tree.tracked.map { it.definition.path })
+        ProjectTreeGroup("Untracked", tree.untracked.map { it.relativePath })
+    }
+}
+
+@Composable
+private fun ProjectTreeGroup(name: String, paths: List<String>) {
+    Text("$name (${paths.size})")
+    paths.forEach { path -> Text("  $path", fontFamily = FontFamily.Monospace) }
 }
 
 private fun DesktopBasicLoadError.message(machineName: String): String = when (this) {
@@ -1025,6 +1367,54 @@ private fun DesktopMemoryDumpLoadError.message(): String = when (this) {
     }
 }
 
+private fun DesktopProjectOpenError.message(): String = when (this) {
+    is DesktopProjectOpenError.CouldNotReadManifest -> "Could not read project: $message"
+    DesktopProjectOpenError.InvalidUtf8 -> "Project manifest is not valid UTF-8."
+    is DesktopProjectOpenError.InvalidManifest -> errors.joinToString("; ") { it.message() }
+}
+
+private fun DesktopProjectCreateError.message(): String = when (this) {
+    is DesktopProjectCreateError.DestinationExists -> "Project folder already exists: $path"
+    is DesktopProjectCreateError.CouldNotCreate -> "Could not create project: $message"
+}
+
+private fun ProjectManifestError.message(): String = when (this) {
+    is ProjectManifestError.InvalidJson -> "Invalid project JSON: $message"
+    is ProjectManifestError.UnsupportedFormat -> "Unsupported project format: $actual"
+    is ProjectManifestError.UnsupportedVersion -> "Unsupported project version: $actual"
+    ProjectManifestError.BlankName -> "Project name must not be blank."
+    is ProjectManifestError.UnsupportedMachine -> "Unsupported project machine: $actual"
+    is ProjectManifestError.InvalidSourceId -> "Invalid source id at index $sourceIndex: $actual"
+    is ProjectManifestError.DuplicateSourceId -> "Duplicate source id: $id"
+    is ProjectManifestError.InvalidSourcePath -> "Invalid path for source '$sourceId': $actual"
+    is ProjectManifestError.DuplicateSourcePath -> "Duplicate source path: $path"
+    is ProjectManifestError.InvalidLoadAddress -> "Invalid load address for source '$sourceId': $actual"
+    is ProjectManifestError.MissingLoadAddress -> "Raw binary source '$sourceId' needs loadAddress."
+    is ProjectManifestError.UnexpectedLoadAddress -> "Source '$sourceId' must not specify loadAddress."
+}
+
+private fun ProjectSourceType.displayName(): String = when (this) {
+    ProjectSourceType.BASIC -> "BASIC"
+    ProjectSourceType.MEMORY_DUMP -> "memory dump"
+    ProjectSourceType.RAW_BINARY -> "raw binary"
+    ProjectSourceType.ASSEMBLY -> "assembly"
+}
+
+private fun DesktopProjectBuildError.message(machineName: String): String = when (this) {
+    is DesktopProjectBuildError.MultipleBasicSources ->
+        "A project currently supports one BASIC program; found: ${sourceIds.joinToString()}."
+    is DesktopProjectBuildError.CouldNotReadSource -> "Could not read project source '$sourceId': $message"
+    is DesktopProjectBuildError.BasicCompile -> "Source '$sourceId': ${error.message(machineName)}"
+    is DesktopProjectBuildError.MemoryDumpParse -> "Source '$sourceId': ${error.message()}"
+    is DesktopProjectBuildError.EmptyRawBinary -> "Raw binary source '$sourceId' is empty."
+    is DesktopProjectBuildError.InvalidRawBinaryRange ->
+        "Source '$sourceId' does not fit in memory at 0x${startAddress.hex(4)} ($size bytes)."
+    is DesktopProjectBuildError.MemoryOverlap ->
+        "Source '$sourceId' overlaps '$previousSourceId' at 0x${address.hex(4)}."
+    is DesktopProjectBuildError.AssemblyNotImplemented ->
+        "Assembly source '$sourceId' cannot be built yet; the built-in assembler is not implemented."
+}
+
 private fun MemoryImageLoadError.message(): String = when (this) {
     is MemoryImageLoadError.ReadOnlyAddress ->
         "Memory dump line $sourceLine writes read-only address 0x${address.hex(4)}."
@@ -1061,6 +1451,7 @@ private fun com.digihori.pgp.desktop.rom.DesktopRomPackageError.message(): Strin
 }
 
 private const val FRAME_DELAY_MILLISECONDS: Long = 16L
+private const val PROJECT_SCAN_DELAY_MILLISECONDS: Long = 500L
 private const val AUTOMATIC_ROM_BOOT_CYCLES: Long = 1_000_000L
 private const val CPU_REFRESH_FRAME_INTERVAL: Int = 6
 private const val LCD_DOT_INSET_RATIO: Float = 0.14f
@@ -1082,3 +1473,11 @@ private fun parseHexAddress(value: String): Int? {
 private fun Boolean.bit(): Int = if (this) 1 else 0
 
 private fun MachineId.displayName(): String = MachineCatalog.find(this)?.displayName ?: value.uppercase()
+
+private enum class ProjectRuntimeStatus(val displayName: String) {
+    NOT_BUILT("not built"),
+    UP_TO_DATE("up to date"),
+    SOURCE_CHANGED("source changed"),
+    RUNTIME_MODIFIED("modified by quick load"),
+    BUILD_FAILED("build failed"),
+}
