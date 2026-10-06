@@ -202,6 +202,7 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
     var cpu by remember { mutableStateOf<CpuSnapshot?>(null) }
     var changedCpuFields by remember { mutableStateOf(emptySet<CpuField>()) }
     var debuggerStopReason by remember { mutableStateOf<DebuggerStopReason?>(null) }
+    var showDebuggerWindow by remember { mutableStateOf(false) }
     var memoryViewStartAddress by remember { mutableStateOf(DEFAULT_MEMORY_VIEW_ADDRESS) }
     var operatingMode by remember { mutableStateOf(OperatingMode.RUN) }
     var requestedToneHz by remember { mutableStateOf(0) }
@@ -232,6 +233,7 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
     var newProjectName by remember { mutableStateOf("New PGP Project") }
     var newProjectTemplate by remember { mutableStateOf(DesktopProjectTemplate.BASIC) }
     var newProjectError by remember { mutableStateOf<String?>(null) }
+    var requestProjectParentSelection by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
     val audioPlayer = remember { DesktopAudioPlayer() }
     val romHistory = remember { DesktopRomHistory() }
@@ -532,6 +534,89 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
         }
     }
 
+    LaunchedEffect(requestProjectParentSelection) {
+        if (!requestProjectParentSelection) return@LaunchedEffect
+        // Let the Compose modal disappear before showing the native macOS directory dialog.
+        delay(50)
+        val destination = runCatching {
+            selectAndRestoreFocus { selectProjectParentDirectory(ownerWindow) }
+        }.getOrElse { error ->
+            requestProjectParentSelection = false
+            newProjectError = "Could not choose project folder: ${error.message ?: error::class.simpleName}"
+            showCreateProjectDialog = true
+            return@LaunchedEffect
+        }
+        if (destination == null) {
+            requestProjectParentSelection = false
+            showCreateProjectDialog = true
+            return@LaunchedEffect
+        }
+        when (val created = DesktopProjectWorkspaceCreator.create(
+            destination,
+            newProjectName,
+            selectedMachineId,
+            newProjectTemplate,
+        )) {
+            is DesktopProjectCreateResult.Failure -> {
+                newProjectError = created.error.message()
+                showCreateProjectDialog = true
+            }
+            is DesktopProjectCreateResult.Success -> openProject(created.manifestFile)
+        }
+        requestProjectParentSelection = false
+    }
+
+    if (showDebuggerWindow) {
+        Window(
+            onCloseRequest = { showDebuggerWindow = false },
+            title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — Debugger",
+        ) {
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CpuRegisterPanel(cpu, changedCpuFields)
+                        debuggerStopReason?.let { Text("Debugger: ${it.displayName()}") }
+                        Button(
+                            enabled = runner != null && cpu != null,
+                            onClick = {
+                                checkpointRangeError = null
+                                showSaveCheckpointDialog = true
+                            },
+                        ) { Text("Save Debug Checkpoint") }
+                        DisassemblyPanel(
+                            runner = runner,
+                            snapshot = cpu,
+                            keyboardInput = keyboardInput,
+                            onSaveRange = {
+                                disassemblyStartAddress = (cpu?.programCounter ?: 0).hex(4)
+                                disassemblyEndAddress = ((cpu?.programCounter ?: 0) + 0xff)
+                                    .coerceAtMost(0xffff).hex(4)
+                                disassemblyRangeError = null
+                                showSaveDisassemblyDialog = true
+                            },
+                        )
+                        InstructionTracePanel(runner, executedCycles)
+                        MemoryMapPanel(
+                            regions = MachineCatalog.require(runner?.machineId ?: selectedMachineId).memoryRegions,
+                            onSelect = { memoryViewStartAddress = it.startAddress },
+                        )
+                        MemoryViewPanel(
+                            runner = runner,
+                            keyboardInput = keyboardInput,
+                            startAddress = memoryViewStartAddress,
+                            onStartAddressChange = { memoryViewStartAddress = it },
+                        )
+                        MemoryWatchPanel(runner, keyboardInput)
+                    }
+                }
+            }
+        }
+    }
+
     MaterialTheme {
         Surface(
             modifier = Modifier
@@ -647,38 +732,11 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                     runner,
                     MachineCatalog.require(runner?.machineId ?: selectedMachineId).keyboardLayout,
                 )
-                CpuRegisterPanel(cpu, changedCpuFields)
-                debuggerStopReason?.let { Text("Debugger: ${it.displayName()}") }
                 Button(
-                    enabled = runner != null && cpu != null,
-                    onClick = {
-                        checkpointRangeError = null
-                        showSaveCheckpointDialog = true
-                    },
-                ) { Text("Save Debug Checkpoint") }
-                DisassemblyPanel(
-                    runner = runner,
-                    snapshot = cpu,
-                    keyboardInput = keyboardInput,
-                    onSaveRange = {
-                        disassemblyStartAddress = (cpu?.programCounter ?: 0).hex(4)
-                        disassemblyEndAddress = ((cpu?.programCounter ?: 0) + 0xff).coerceAtMost(0xffff).hex(4)
-                        disassemblyRangeError = null
-                        showSaveDisassemblyDialog = true
-                    },
-                )
-                InstructionTracePanel(runner, executedCycles)
-                MemoryMapPanel(
-                    regions = MachineCatalog.require(runner?.machineId ?: selectedMachineId).memoryRegions,
-                    onSelect = { memoryViewStartAddress = it.startAddress },
-                )
-                MemoryViewPanel(
-                    runner = runner,
-                    keyboardInput = keyboardInput,
-                    startAddress = memoryViewStartAddress,
-                    onStartAddressChange = { memoryViewStartAddress = it },
-                )
-                MemoryWatchPanel(runner, keyboardInput)
+                    onClick = { showDebuggerWindow = true },
+                    enabled = !showDebuggerWindow,
+                ) { Text(if (showDebuggerWindow) "Debugger Open" else "Open Debugger") }
+                debuggerStopReason?.let { Text("Debugger: ${it.displayName()}") }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { showOpenRomGuide = true }) { Text("Open ROM") }
@@ -1013,21 +1071,9 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                             newProjectError = "Project name must not be blank."
                             return@TextButton
                         }
-                        val destination = selectAndRestoreFocus {
-                            selectProjectParentDirectory(ownerWindow)
-                        } ?: return@TextButton
-                        when (val created = DesktopProjectWorkspaceCreator.create(
-                            destination,
-                            newProjectName,
-                            selectedMachineId,
-                            newProjectTemplate,
-                        )) {
-                            is DesktopProjectCreateResult.Failure -> newProjectError = created.error.message()
-                            is DesktopProjectCreateResult.Success -> {
-                                showCreateProjectDialog = false
-                                openProject(created.manifestFile)
-                            }
-                        }
+                        newProjectError = null
+                        showCreateProjectDialog = false
+                        requestProjectParentSelection = true
                     }) { Text("Create in Folder…") }
                 },
                 dismissButton = {
