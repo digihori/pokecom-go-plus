@@ -32,6 +32,7 @@ internal object DesktopKeyMapper {
         put(Key.Spacebar, PocketKey.SPACE)
         put(Key.F1, PocketKey.DEF); put(Key.Escape, PocketKey.BREAK)
         put(Key.Backspace, PocketKey.CLEAR); put(Key.Delete, PocketKey.CLEAR)
+        put(Key.Insert, PocketKey.INSERT)
         put(Key.DirectionLeft, PocketKey.LEFT); put(Key.DirectionRight, PocketKey.RIGHT)
         put(Key.DirectionUp, PocketKey.UP); put(Key.DirectionDown, PocketKey.DOWN)
         put(Key.Plus, PocketKey.PLUS); put(Key.NumPadAdd, PocketKey.PLUS)

@@ -12,7 +12,7 @@ class MachineCatalogTest {
     fun exposesStableDefinitionsInUiOrder() {
         assertEquals(MachineId("pc-1245"), MachineCatalog.defaultDefinition.id)
         assertEquals(
-            listOf("pc-1245", "pc-1250", "pc-1251", "pc-1255"),
+            listOf("pc-1245", "pc-1250", "pc-1251", "pc-1255", "pc-1350"),
             MachineCatalog.definitions.map { it.id.value },
         )
         assertEquals(
@@ -35,6 +35,7 @@ class MachineCatalogTest {
         assertEquals(MachineGeneration.OLD, pc1245.generation)
         assertEquals(MachineMemoryBanking.None, pc1245.memoryBanking)
         assertEquals(16, pc1245.characterColumns)
+        assertEquals(1, pc1245.characterRows)
         assertEquals(setOf(OperatingMode.RUN, OperatingMode.PROGRAM), pc1245.supportedOperatingModes)
         assertTrue(!pc1245.supportsConfigurableRam)
 
@@ -43,6 +44,32 @@ class MachineCatalogTest {
         assertTrue(OperatingMode.RESERVE in pc1255.supportedOperatingModes)
         assertTrue(pc1255.supportsConfigurableRam)
         assertEquals(38_400L, pc1255.automaticKeyHoldCycles)
+    }
+
+    @Test
+    fun describesDebuggerMemoryRegionsForEachMachine() {
+        MachineCatalog.definitions.forEach { definition ->
+            assertTrue(definition.memoryRegions.any { it.kind == MachineMemoryRegionKind.ROM })
+            assertTrue(definition.memoryRegions.any { it.kind == MachineMemoryRegionKind.RAM })
+            assertTrue(definition.memoryRegions.any { it.kind == MachineMemoryRegionKind.DISPLAY })
+        }
+
+        val pc1251 = MachineCatalog.require(MachineId("pc-1251"))
+        val ram = pc1251.memoryRegions.single { it.id == "ram" }
+        val ramMirror = pc1251.memoryRegions.single { it.startAddress == 0xb000 }
+        assertEquals(0xb800, ram.startAddress)
+        assertEquals(0xc7ff, ram.endAddressInclusive)
+        assertEquals("ram", ramMirror.mirrorsRegionId)
+
+        val pc1255 = MachineCatalog.require(MachineId("pc-1255"))
+        assertEquals(0xa000, pc1255.memoryRegions.single { it.id == "ram" }.startAddress)
+        assertTrue(pc1255.memoryRegions.any { it.startAddress == 0x8000 && it.endAddressInclusive == 0x9fff })
+
+        val pc1350 = MachineCatalog.require(MachineId("pc-1350"))
+        assertEquals(MachineGeneration.S1, pc1350.generation)
+        assertEquals(25, pc1350.characterColumns)
+        assertEquals(4, pc1350.characterRows)
+        assertEquals(0x8000, pc1350.memoryRegions.single { it.id == "external-rom" }.startAddress)
     }
 
     @Test

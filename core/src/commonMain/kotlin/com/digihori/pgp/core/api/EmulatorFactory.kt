@@ -11,6 +11,9 @@ import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251MemoryImageLoadResult
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251Display
+import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350Display
+import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350Machine
+import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350RomDefinition
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.rom.RomSet
 
@@ -42,6 +45,7 @@ public object EmulatorFactory {
                             Pc1251Machine(romSet, model, configuration.pc1251FamilyMemoryMode),
                         )
                     }
+                    MachineFamily.PC_1350 -> Pc1350EmulatorSession(Pc1350Machine(romSet))
                 },
             )
         } catch (error: IllegalArgumentException) {
@@ -50,6 +54,87 @@ public object EmulatorFactory {
             )
         }
     }
+}
+
+private class Pc1350EmulatorSession(
+    private val machine: Pc1350Machine,
+) : EmulatorSession {
+    override val machineId: MachineId = Pc1350RomDefinition.MACHINE_ID
+    private var status: ExecutionStatus = ExecutionStatus.Ready
+
+    override fun reset() { machine.coldReset(); status = ExecutionStatus.Ready }
+    override fun step(): StepResult {
+        val result = machine.step()
+        status = result.stopReason.toExecutionStatus()
+        return StepResult(result.cycles, status)
+    }
+    override fun runCycles(cycleBudget: Long): RunResult {
+        val result = machine.runCycles(cycleBudget)
+        status = result.stopReason.toExecutionStatus()
+        return RunResult(result.executedCycles, result.executedInstructions, status)
+    }
+    override fun pressKey(key: PocketKey): InputResult =
+        if (machine.keyboardState.press(key)) InputResult.Accepted else InputResult.UnsupportedKey(key)
+    override fun releaseKey(key: PocketKey): InputResult =
+        if (machine.keyboardState.release(key)) InputResult.Accepted else InputResult.UnsupportedKey(key)
+    override fun setOperatingMode(mode: OperatingMode) = Unit
+    override fun cpuSnapshot(): CpuSnapshot {
+        val state = machine.cpuState
+        return CpuSnapshot(
+            state.programCounter, state.currentProgramCounter, state.opcode, state.dataPointer,
+            state.p, state.q, state.r, state.d, state.alu, state.carry, state.zero, state.xInput,
+            state.powerOn, state.ia, state.ib, state.fo, state.control, state.testPort,
+            ByteArray(state.internalRam.size) { state.internalRam[it].toByte() },
+        )
+    }
+    override fun memorySnapshot(startAddress: Int, length: Int): MemorySnapshot {
+        require(startAddress in 0..0xffff)
+        require(length >= 0 && length <= 0x10000 - startAddress)
+        return MemorySnapshot(startAddress, ByteArray(length) { machine.readMemory(startAddress + it).toByte() })
+    }
+    override fun displaySnapshot(): DisplaySnapshot {
+        val display = machine.displayState
+        val state = display.symbolState()
+        return DisplaySnapshot(
+            characterColumns = Pc1350Display.CHARACTER_COLUMNS,
+            characterWidth = Pc1350Display.CHARACTER_WIDTH,
+            dotRows = Pc1350Display.DOT_ROWS,
+            characterRows = Pc1350Display.CHARACTER_ROWS,
+            symbols = buildList {
+                if (state and 0x01 != 0) add(DisplaySymbol.SHIFT)
+                if (state and 0x02 != 0) add(DisplaySymbol.DEF)
+                if (state and 0x10 != 0) add(DisplaySymbol.RUN)
+                if (state and 0x20 != 0) add(DisplaySymbol.PRO)
+                if (state and 0x40 != 0) add(DisplaySymbol.KANA)
+                if (state and 0x80 != 0) add(DisplaySymbol.SMALL)
+            },
+            enabled = true,
+            revision = display.revision,
+            dots = display.copyDots(),
+        )
+    }
+    override fun audioSnapshot(): AudioSnapshot = AudioSnapshot(machine.buzzerState.frequencyHz, machine.buzzerState.revision)
+    override fun drainAudioSamples(): AudioPcmSnapshot =
+        AudioPcmSnapshot(Pc1245Buzzer.SAMPLE_RATE, machine.buzzerState.drainPcm())
+    override fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult =
+        machine.loadBasicProgram(program).toLoadResult()
+    override fun basicProgramSnapshot(): BasicProgramSnapshotResult =
+        machine.basicProgram().toSnapshotResult()
+    override fun loadMemoryImage(image: com.digihori.pgp.core.source.machine.AddressedMemoryImage): MemoryImageLoadResult {
+        val invalid = image.segments.firstNotNullOfOrNull { segment ->
+            (segment.startAddress..segment.endAddress).firstOrNull { it !in 0x2000..0x7fff }
+                ?.let { MemoryImageLoadError.ReadOnlyAddress(it, segment.sourceLine) }
+        }
+        if (invalid != null) return MemoryImageLoadResult.Failure(invalid)
+        image.segments.forEach { segment ->
+            segment.copyBytes().forEachIndexed { offset, byte ->
+                machine.writeMemory(segment.startAddress + offset, byte.toInt() and 0xff)
+            }
+        }
+        return MemoryImageLoadResult.Success(image.segments.size, image.byteCount)
+    }
+    override fun setMemoryAccessTracing(enabled: Boolean) = machine.setMemoryAccessTracing(enabled)
+    override fun drainMemoryAccesses(): List<MemoryAccess> = machine.drainMemoryAccesses()
 }
 
 public data class EmulatorConfiguration(
@@ -121,13 +206,14 @@ private class Pc1251EmulatorSession(
             )
         }
         return DisplaySnapshot(
-            24,
-            5,
-            7,
-            symbols,
-            display.enabled,
-            display.revision + machine.keyboardState.modeRevision,
-            dots,
+            characterColumns = 24,
+            characterWidth = 5,
+            dotRows = 7,
+            characterRows = 1,
+            symbols = symbols,
+            enabled = display.enabled,
+            revision = display.revision + machine.keyboardState.modeRevision,
+            dots = dots,
         )
     }
     override fun audioSnapshot(): AudioSnapshot = AudioSnapshot(
@@ -149,6 +235,8 @@ private class Pc1251EmulatorSession(
             is Pc1251MemoryImageLoadResult.ReadOnlyAddress ->
                 MemoryImageLoadResult.Failure(MemoryImageLoadError.ReadOnlyAddress(result.address, result.sourceLine))
         }
+    override fun setMemoryAccessTracing(enabled: Boolean) = machine.setMemoryAccessTracing(enabled)
+    override fun drainMemoryAccesses(): List<MemoryAccess> = machine.drainMemoryAccesses()
 }
 
 public sealed interface CreateSessionResult {
@@ -259,6 +347,7 @@ private class Pc1245EmulatorSession(
             characterColumns = Pc1245Display.CHARACTER_COLUMNS,
             characterWidth = Pc1245Display.CHARACTER_WIDTH,
             dotRows = Pc1245Display.DOT_ROWS,
+            characterRows = 1,
             symbols = activeDisplaySymbols(
                 state0 = display.symbolState0(),
                 state1 = display.symbolState1(),
@@ -321,6 +410,8 @@ private class Pc1245EmulatorSession(
             is com.digihori.pgp.core.emulator.machine.pc1245.Pc1245MemoryImageLoadResult.ReadOnlyAddress ->
                 MemoryImageLoadResult.Failure(MemoryImageLoadError.ReadOnlyAddress(result.address, result.sourceLine))
         }
+    override fun setMemoryAccessTracing(enabled: Boolean) = machine.setMemoryAccessTracing(enabled)
+    override fun drainMemoryAccesses(): List<MemoryAccess> = machine.drainMemoryAccesses()
 }
 
 private fun activeDisplaySymbols(

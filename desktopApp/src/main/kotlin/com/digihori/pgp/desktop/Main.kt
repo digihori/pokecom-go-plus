@@ -38,6 +38,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.input.pointer.pointerInput
@@ -53,11 +54,18 @@ import com.digihori.pgp.core.api.BasicProgramMemoryError
 import com.digihori.pgp.core.api.BasicProgramSnapshotResult
 import com.digihori.pgp.core.api.MemoryImageLoadError
 import com.digihori.pgp.core.api.MemoryImageLoadResult
+import com.digihori.pgp.core.api.MemoryAccessKind
 import com.digihori.pgp.core.api.CpuSnapshot
 import com.digihori.pgp.core.api.DisplaySnapshot
 import com.digihori.pgp.core.api.OperatingMode
 import com.digihori.pgp.core.api.MachineCatalog
 import com.digihori.pgp.core.api.MachineKeyboardLayout
+import com.digihori.pgp.core.api.MachineMemoryRegion
+import com.digihori.pgp.core.api.MachineMemoryRegionKind
+import com.digihori.pgp.core.debug.Sc61860InstructionFormatter
+import com.digihori.pgp.core.debug.Sc61860Disassembler
+import com.digihori.pgp.core.debug.Sc61860Assembler
+import com.digihori.pgp.core.debug.Sc61860AssemblyResult
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomInputUnsupported
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
 import com.digihori.pgp.core.rom.MachineId
@@ -95,9 +103,16 @@ import com.digihori.pgp.desktop.project.DesktopProjectManifestUpdater
 import com.digihori.pgp.desktop.project.DesktopProjectUpdateResult
 import com.digihori.pgp.desktop.input.Pc1245KeyboardLayout
 import com.digihori.pgp.desktop.input.Pc1251KeyboardLayout
+import com.digihori.pgp.desktop.input.Pc1350KeyboardLayout
 import com.digihori.pgp.desktop.input.PocketKeyCap
 import com.digihori.pgp.desktop.audio.DesktopAudioPlayer
 import com.digihori.pgp.desktop.display.CharacterCellGeometry
+import com.digihori.pgp.desktop.debug.CpuField
+import com.digihori.pgp.desktop.debug.CpuSnapshotDifference
+import com.digihori.pgp.desktop.debug.DebuggerStopReason
+import com.digihori.pgp.desktop.debug.DesktopDisassemblyModel
+import com.digihori.pgp.desktop.debug.DesktopMemoryViewModel
+import com.digihori.pgp.desktop.debug.DesktopDebuggerCheckpointWriter
 import com.digihori.pgp.desktop.rom.DesktopRomLoadError
 import com.digihori.pgp.desktop.rom.DesktopRomLoadResult
 import com.digihori.pgp.desktop.rom.DesktopRomLoader
@@ -113,6 +128,7 @@ import java.awt.EventQueue
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import java.io.File
+import java.time.Instant
 import javax.swing.JFileChooser
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -184,6 +200,9 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
     var executedCycles by remember { mutableLongStateOf(0L) }
     var display by remember { mutableStateOf<DisplaySnapshot?>(null) }
     var cpu by remember { mutableStateOf<CpuSnapshot?>(null) }
+    var changedCpuFields by remember { mutableStateOf(emptySet<CpuField>()) }
+    var debuggerStopReason by remember { mutableStateOf<DebuggerStopReason?>(null) }
+    var memoryViewStartAddress by remember { mutableStateOf(DEFAULT_MEMORY_VIEW_ADDRESS) }
     var operatingMode by remember { mutableStateOf(OperatingMode.RUN) }
     var requestedToneHz by remember { mutableStateOf(0) }
     var showOpenRomGuide by remember { mutableStateOf(false) }
@@ -193,6 +212,14 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
     var dumpStartAddress by remember { mutableStateOf("C000") }
     var dumpEndAddress by remember { mutableStateOf("C0FF") }
     var dumpRangeError by remember { mutableStateOf<String?>(null) }
+    var showSaveDisassemblyDialog by remember { mutableStateOf(false) }
+    var disassemblyStartAddress by remember { mutableStateOf("0000") }
+    var disassemblyEndAddress by remember { mutableStateOf("1FFF") }
+    var disassemblyRangeError by remember { mutableStateOf<String?>(null) }
+    var showSaveCheckpointDialog by remember { mutableStateOf(false) }
+    var checkpointStartAddress by remember { mutableStateOf("C000") }
+    var checkpointEndAddress by remember { mutableStateOf("C0FF") }
+    var checkpointRangeError by remember { mutableStateOf<String?>(null) }
     var focusRestoreRequest by remember { mutableLongStateOf(0L) }
     var projectWorkspace by remember { mutableStateOf<DesktopProjectWorkspace?>(null) }
     var projectChangeTracker by remember { mutableStateOf<DesktopProjectChangeTracker?>(null) }
@@ -262,6 +289,8 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                 executedCycles = bootResult?.executedCycles ?: 0L
                 display = newRunner.displaySnapshot()
                 cpu = newRunner.cpuSnapshot()
+                changedCpuFields = emptySet()
+                debuggerStopReason = newRunner.stopReason
                 operatingMode = OperatingMode.RUN
                 requestedToneHz = 0
                 romHistory.remember(file, result.session.machineId)
@@ -433,6 +462,7 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
             val tick = activeRunner.tick()
             executedCycles += tick.runResult?.executedCycles ?: 0L
             runnerState = activeRunner.state
+            debuggerStopReason = activeRunner.stopReason
             val latestDisplay = activeRunner.displaySnapshot()
             if (display?.revision != latestDisplay.revision || display?.enabled != latestDisplay.enabled) {
                 display = latestDisplay
@@ -458,6 +488,7 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
             if (status is ExecutionStatus.Faulted) {
                 audioPlayer.stop()
                 message = status.fault.message()
+                debuggerStopReason = activeRunner.stopReason
             }
         }
     }
@@ -611,8 +642,43 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                 Text("Executed cycles: $executedCycles")
                 Text("Requested tone: ${if (requestedToneHz == 0) "silent" else "$requestedToneHz Hz"}")
                 Text(message)
-                Pc1245LcdPanel(display)
-                CpuRegisterPanel(cpu)
+                PocketLcdPanel(display)
+                PocketSoftwareKeyboard(
+                    runner,
+                    MachineCatalog.require(runner?.machineId ?: selectedMachineId).keyboardLayout,
+                )
+                CpuRegisterPanel(cpu, changedCpuFields)
+                debuggerStopReason?.let { Text("Debugger: ${it.displayName()}") }
+                Button(
+                    enabled = runner != null && cpu != null,
+                    onClick = {
+                        checkpointRangeError = null
+                        showSaveCheckpointDialog = true
+                    },
+                ) { Text("Save Debug Checkpoint") }
+                DisassemblyPanel(
+                    runner = runner,
+                    snapshot = cpu,
+                    keyboardInput = keyboardInput,
+                    onSaveRange = {
+                        disassemblyStartAddress = (cpu?.programCounter ?: 0).hex(4)
+                        disassemblyEndAddress = ((cpu?.programCounter ?: 0) + 0xff).coerceAtMost(0xffff).hex(4)
+                        disassemblyRangeError = null
+                        showSaveDisassemblyDialog = true
+                    },
+                )
+                InstructionTracePanel(runner, executedCycles)
+                MemoryMapPanel(
+                    regions = MachineCatalog.require(runner?.machineId ?: selectedMachineId).memoryRegions,
+                    onSelect = { memoryViewStartAddress = it.startAddress },
+                )
+                MemoryViewPanel(
+                    runner = runner,
+                    keyboardInput = keyboardInput,
+                    startAddress = memoryViewStartAddress,
+                    onStartAddressChange = { memoryViewStartAddress = it },
+                )
+                MemoryWatchPanel(runner, keyboardInput)
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { showOpenRomGuide = true }) { Text("Open ROM") }
@@ -625,7 +691,7 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                                 selectBasicFile(ownerWindow, "Load BASIC source")
                             } ?: return@Button
                             val compiled = runCatching {
-                                DesktopBasicLoader.compilePc1245Program(file.readBytes())
+                                DesktopBasicLoader.compileProgram(file.readBytes(), activeRunner.machineId)
                             }.getOrElse {
                                 message = "Could not read BASIC source: ${it.message ?: it::class.simpleName}"
                                 return@Button
@@ -695,6 +761,35 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                             showSaveMemoryDumpDialog = true
                         },
                     ) { Text("Save Machine Code") }
+                    Button(
+                        onClick = {
+                            val sourceFile = selectAndRestoreFocus {
+                                selectAssemblyFile(ownerWindow)
+                            } ?: return@Button
+                            val assembled = runCatching {
+                                Sc61860Assembler.assemble(sourceFile.readText())
+                            }.getOrElse {
+                                message = "Could not read assembly source: ${it.message ?: it::class.simpleName}"
+                                return@Button
+                            }
+                            when (assembled) {
+                                is Sc61860AssemblyResult.Failure -> message =
+                                    "Assembly error at line ${assembled.line}: ${assembled.message}"
+                                is Sc61860AssemblyResult.Success -> {
+                                    val destination = selectAndRestoreFocus {
+                                        selectAssembledDumpDestination(ownerWindow)
+                                    } ?: return@Button
+                                    runCatching {
+                                        destination.writeBytes(DesktopMemoryDumpWriter.write(assembled.image))
+                                    }.onSuccess {
+                                        message = "Assembled ${assembled.image.byteCount} bytes into ${destination.name}."
+                                    }.onFailure {
+                                        message = "Could not save assembled output: ${it.message ?: it::class.simpleName}"
+                                    }
+                                }
+                            }
+                        },
+                    ) { Text("Assemble") }
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -768,6 +863,8 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                         onClick = {
                             runner?.run()
                             runnerState = runner?.state ?: RunnerState.PAUSED
+                            changedCpuFields = emptySet()
+                            debuggerStopReason = runner?.stopReason
                             message = "Running at normal speed."
                         },
                     ) { Text("Run") }
@@ -778,6 +875,8 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                             audioPlayer.stop()
                             runnerState = runner?.state ?: RunnerState.PAUSED
                             cpu = runner?.cpuSnapshot()
+                            changedCpuFields = emptySet()
+                            debuggerStopReason = runner?.stopReason
                             message = "Paused."
                         },
                     ) { Text("Pause") }
@@ -790,6 +889,8 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                             executedCycles = 0L
                             display = runner?.displaySnapshot()
                             cpu = runner?.cpuSnapshot()
+                            changedCpuFields = emptySet()
+                            debuggerStopReason = runner?.stopReason
                             operatingMode = OperatingMode.RUN
                             requestedToneHz = 0
                             projectBasicBaseline = null
@@ -800,11 +901,15 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                     Button(
                         enabled = runner != null && runnerState == RunnerState.PAUSED,
                         onClick = {
+                            val before = runner?.cpuSnapshot()
                             val result = runner?.step() ?: return@Button
                             runnerState = runner?.state ?: RunnerState.PAUSED
                             executedCycles += result.cycles
                             display = runner?.displaySnapshot()
-                            cpu = runner?.cpuSnapshot()
+                            val after = runner?.cpuSnapshot()
+                            changedCpuFields = CpuSnapshotDifference.changed(before, after)
+                            cpu = after
+                            debuggerStopReason = runner?.stopReason
                             val audio = runner?.audioSnapshot()
                             if (audio != null) {
                                 requestedToneHz = audio.frequencyHz
@@ -845,11 +950,6 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                         ) { Text("RSV mode") }
                     }
                 }
-
-                PocketSoftwareKeyboard(
-                    runner,
-                    MachineCatalog.require(runner?.machineId ?: selectedMachineId).keyboardLayout,
-                )
             }
         }
 
@@ -1018,6 +1118,135 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
             )
         }
 
+        if (showSaveDisassemblyDialog) {
+            AlertDialog(
+                onDismissRequest = { showSaveDisassemblyDialog = false },
+                title = { Text("Save Disassembly") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Enter an inclusive 16-bit hexadecimal address range.")
+                        OutlinedTextField(
+                            value = disassemblyStartAddress,
+                            onValueChange = { disassemblyStartAddress = it },
+                            label = { Text("Start address") },
+                            singleLine = true,
+                        )
+                        OutlinedTextField(
+                            value = disassemblyEndAddress,
+                            onValueChange = { disassemblyEndAddress = it },
+                            label = { Text("End address") },
+                            singleLine = true,
+                        )
+                        disassemblyRangeError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val start = parseHexAddress(disassemblyStartAddress)
+                        val end = parseHexAddress(disassemblyEndAddress)
+                        when {
+                            start == null -> disassemblyRangeError = "Start address must be 0000..FFFF."
+                            end == null -> disassemblyRangeError = "End address must be 0000..FFFF."
+                            end < start -> disassemblyRangeError = "End address must not be less than start address."
+                            else -> {
+                                val activeRunner = runner ?: return@TextButton
+                                showSaveDisassemblyDialog = false
+                                val destination = selectAndRestoreFocus {
+                                    selectDisassemblyDestination(ownerWindow)
+                                } ?: return@TextButton
+                                runCatching {
+                                    Sc61860Disassembler.renderAssembly(start, end, activeRunner::memoryByte)
+                                }.mapCatching { source ->
+                                    destination.writeText(source)
+                                    source.lineSequence().count() - 1
+                                }.onSuccess { instructionCount ->
+                                    message = "Saved $instructionCount disassembly lines " +
+                                        "(0x${start.hex(4)}..0x${end.hex(4)}) to ${destination.name}."
+                                }.onFailure {
+                                    message = "Could not save disassembly: ${it.message ?: it::class.simpleName}"
+                                }
+                            }
+                        }
+                    }) { Text("Save") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showSaveDisassemblyDialog = false }) { Text("Cancel") }
+                },
+            )
+        }
+
+        if (showSaveCheckpointDialog) {
+            AlertDialog(
+                onDismissRequest = { showSaveCheckpointDialog = false },
+                title = { Text("Save Debug Checkpoint") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Select the inclusive memory range to include (maximum 4096 bytes).")
+                        OutlinedTextField(
+                            value = checkpointStartAddress,
+                            onValueChange = { checkpointStartAddress = it },
+                            label = { Text("Start address") },
+                            singleLine = true,
+                        )
+                        OutlinedTextField(
+                            value = checkpointEndAddress,
+                            onValueChange = { checkpointEndAddress = it },
+                            label = { Text("End address") },
+                            singleLine = true,
+                        )
+                        checkpointRangeError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val start = parseHexAddress(checkpointStartAddress)
+                        val end = parseHexAddress(checkpointEndAddress)
+                        when {
+                            start == null || end == null -> checkpointRangeError = "Addresses must be 0000..FFFF."
+                            end < start -> checkpointRangeError = "End address must not be less than start address."
+                            end - start + 1 > DesktopEmulatorRunner.MAX_MEMORY_WATCH_BYTES ->
+                                checkpointRangeError = "A checkpoint range may contain at most 4096 bytes."
+                            else -> {
+                                val activeRunner = runner ?: return@TextButton
+                                activeRunner.pause()
+                                audioPlayer.stop()
+                                runnerState = activeRunner.state
+                                debuggerStopReason = activeRunner.stopReason
+                                val cpuSnapshot = activeRunner.cpuSnapshot()
+                                cpu = cpuSnapshot
+                                val checkpointBytes = runCatching {
+                                    DesktopDebuggerCheckpointWriter.write(
+                                        machineId = activeRunner.machineId.value,
+                                        capturedAt = Instant.now().toString(),
+                                        executedCycles = executedCycles,
+                                        cpu = cpuSnapshot,
+                                        memory = activeRunner.memorySnapshot(start, end - start + 1),
+                                        trace = activeRunner.instructionTrace(),
+                                        stopReason = activeRunner.stopReason?.displayName(),
+                                    )
+                                }.getOrElse {
+                                    checkpointRangeError = "Could not capture checkpoint: ${it.message ?: it::class.simpleName}"
+                                    return@TextButton
+                                }
+                                showSaveCheckpointDialog = false
+                                val destination = selectAndRestoreFocus {
+                                    selectCheckpointDestination(ownerWindow)
+                                } ?: return@TextButton
+                                runCatching { destination.writeBytes(checkpointBytes) }
+                                    .onSuccess { message = "Saved debug checkpoint to ${destination.name}." }
+                                    .onFailure {
+                                        message = "Could not save debug checkpoint: ${it.message ?: it::class.simpleName}"
+                                    }
+                            }
+                        }
+                    }) { Text("Save") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showSaveCheckpointDialog = false }) { Text("Cancel") }
+                },
+            )
+        }
+
         errorDialogMessage?.let { error ->
             AlertDialog(
                 onDismissRequest = { errorDialogMessage = null },
@@ -1032,7 +1261,7 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
 }
 
 @Composable
-private fun CpuRegisterPanel(snapshot: CpuSnapshot?) {
+private fun CpuRegisterPanel(snapshot: CpuSnapshot?, changedFields: Set<CpuField>) {
     val firstLine = if (snapshot == null) {
         "PC=----  CUR=----  OP=--  DP=----  P=--  Q=--  R=--  D=--"
     } else {
@@ -1052,7 +1281,418 @@ private fun CpuRegisterPanel(snapshot: CpuSnapshot?) {
         Text("CPU", style = MaterialTheme.typography.labelLarge)
         Text(firstLine, fontFamily = FontFamily.Monospace)
         Text(secondLine, fontFamily = FontFamily.Monospace)
+        if (changedFields.isNotEmpty()) {
+            Text(
+                "Changed: ${changedFields.joinToString { it.displayName }}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
     }
+}
+
+@Composable
+private fun DisassemblyPanel(
+    runner: DesktopEmulatorRunner?,
+    snapshot: CpuSnapshot?,
+    keyboardInput: DesktopKeyboardInput,
+    onSaveRange: () -> Unit,
+) {
+    var customStartAddress by remember(runner) { mutableStateOf<Int?>(null) }
+    var addressText by remember(runner) { mutableStateOf("") }
+    var addressError by remember(runner) { mutableStateOf(false) }
+    var breakpoints by remember(runner) { mutableStateOf(runner?.breakpoints().orEmpty()) }
+    val startAddress = customStartAddress ?: snapshot?.programCounter
+    val lines = if (runner == null || startAddress == null) {
+        emptyList()
+    } else {
+        runCatching {
+            DesktopDisassemblyModel.build(startAddress, DISASSEMBLY_LINE_COUNT, runner::memoryByte)
+        }.getOrDefault(emptyList())
+    }
+    Column(
+        modifier = Modifier.fillMaxWidth().widthIn(max = 900.dp),
+        horizontalAlignment = Alignment.Start,
+    ) {
+        Text("Disassembly", style = MaterialTheme.typography.labelLarge)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedTextField(
+                value = addressText,
+                onValueChange = {
+                    addressText = it
+                    addressError = false
+                },
+                label = { Text("Address (hex)") },
+                placeholder = { Text(startAddress?.hex(4).orEmpty()) },
+                isError = addressError,
+                singleLine = true,
+                modifier = Modifier
+                    .widthIn(max = 180.dp)
+                    .onFocusChanged { keyboardInput.setEnabled(!it.isFocused) },
+            )
+            Button(onClick = {
+                val address = parseHexAddress(addressText)
+                if (address == null) addressError = true else customStartAddress = address
+            }) { Text("Go") }
+            Button(
+                enabled = customStartAddress != null,
+                onClick = {
+                    customStartAddress = null
+                    addressText = ""
+                    addressError = false
+                },
+            ) { Text("Follow PC") }
+            Button(
+                enabled = runner != null,
+                onClick = onSaveRange,
+            ) { Text("Save range…") }
+        }
+        if (lines.isEmpty()) {
+            Text("No CPU state.", fontFamily = FontFamily.Monospace)
+        } else {
+            lines.forEachIndexed { index, line ->
+                val marker = if (index == 0) ">" else " "
+                val address = line.instruction.address
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    TextButton(
+                        onClick = {
+                            runner?.toggleBreakpoint(address)
+                            breakpoints = runner?.breakpoints().orEmpty()
+                        },
+                    ) { Text(if (address in breakpoints) "●" else "○") }
+                    TextButton(
+                        enabled = runner != null && runner.state != RunnerState.FAULTED,
+                        onClick = { runner?.runToAddress(address) },
+                    ) { Text("Run to") }
+                    Text(
+                        "$marker${address.hex(4)}  " +
+                            "${line.byteText.padEnd(DISASSEMBLY_BYTE_COLUMN_WIDTH)}  ${line.instructionText}",
+                        fontFamily = FontFamily.Monospace,
+                        color = if (index == 0) MaterialTheme.colorScheme.primary else Color.Unspecified,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MemoryViewPanel(
+    runner: DesktopEmulatorRunner?,
+    keyboardInput: DesktopKeyboardInput,
+    startAddress: Int,
+    onStartAddressChange: (Int) -> Unit,
+) {
+    var addressText by remember(runner) { mutableStateOf(startAddress.hex(4)) }
+    var addressError by remember(runner) { mutableStateOf(false) }
+    var refreshRevision by remember(runner) { mutableStateOf(0) }
+    LaunchedEffect(startAddress) {
+        addressText = startAddress.hex(4)
+        addressError = false
+    }
+    val lines = remember(runner, startAddress, refreshRevision) {
+        if (runner == null) {
+            emptyList()
+        } else {
+            runCatching {
+                DesktopMemoryViewModel.build(startAddress, MEMORY_VIEW_LINE_COUNT, runner::memoryByte)
+            }.getOrDefault(emptyList())
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth().widthIn(max = 900.dp),
+        horizontalAlignment = Alignment.Start,
+    ) {
+        Text("Memory", style = MaterialTheme.typography.labelLarge)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedTextField(
+                value = addressText,
+                onValueChange = {
+                    addressText = it
+                    addressError = false
+                },
+                label = { Text("Start address (hex)") },
+                isError = addressError,
+                singleLine = true,
+                modifier = Modifier
+                    .widthIn(max = 180.dp)
+                    .onFocusChanged { keyboardInput.setEnabled(!it.isFocused) },
+            )
+            Button(onClick = {
+                val address = parseHexAddress(addressText)
+                if (address == null) {
+                    addressError = true
+                } else {
+                    onStartAddressChange(address)
+                    refreshRevision++
+                }
+            }) { Text("Go") }
+            Button(
+                enabled = runner != null,
+                onClick = {
+                    onStartAddressChange((startAddress - MEMORY_VIEW_PAGE_SIZE) and 0xffff)
+                },
+            ) { Text("Previous") }
+            Button(
+                enabled = runner != null,
+                onClick = {
+                    onStartAddressChange((startAddress + MEMORY_VIEW_PAGE_SIZE) and 0xffff)
+                },
+            ) { Text("Next") }
+            Button(
+                enabled = runner != null,
+                onClick = { refreshRevision++ },
+            ) { Text("Refresh") }
+        }
+        if (lines.isEmpty()) {
+            Text("No memory available.", fontFamily = FontFamily.Monospace)
+        } else {
+            lines.forEach { line ->
+                Text(
+                    "${line.address.hex(4)}: ${line.hexText}  |${line.asciiText}|",
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InstructionTracePanel(
+    runner: DesktopEmulatorRunner?,
+    executionRevision: Long,
+) {
+    var enabled by remember(runner) { mutableStateOf(runner?.isInstructionTraceEnabled() == true) }
+    var localRevision by remember(runner) { mutableStateOf(0) }
+    val entries = remember(runner, executionRevision, localRevision) {
+        runner?.instructionTrace().orEmpty().takeLast(INSTRUCTION_TRACE_VISIBLE_LINES).asReversed()
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth().widthIn(max = 900.dp),
+        horizontalAlignment = Alignment.Start,
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Instruction trace", style = MaterialTheme.typography.labelLarge)
+            Button(
+                enabled = runner != null,
+                onClick = {
+                    enabled = !enabled
+                    runner?.setInstructionTraceEnabled(enabled)
+                    localRevision++
+                },
+            ) { Text(if (enabled) "Disable" else "Enable") }
+            Button(
+                enabled = runner != null && entries.isNotEmpty(),
+                onClick = {
+                    runner?.clearInstructionTrace()
+                    localRevision++
+                },
+            ) { Text("Clear") }
+            Text("${runner?.instructionTrace()?.size ?: 0}/256 instructions")
+        }
+        when {
+            !enabled && entries.isEmpty() -> Text("Tracing is disabled.", fontFamily = FontFamily.Monospace)
+            entries.isEmpty() -> Text("No instructions recorded yet.", fontFamily = FontFamily.Monospace)
+            else -> entries.forEach { entry ->
+                val instruction = entry.instruction
+                val bytes = instruction.bytes.joinToString(" ") { it.hex(2) }
+                Text(
+                    "#${entry.sequence.toString().padStart(6)}  " +
+                        "${instruction.address.hex(4)}  ${bytes.padEnd(DISASSEMBLY_BYTE_COLUMN_WIDTH)}  " +
+                        "${Sc61860InstructionFormatter.format(instruction).padEnd(14)}  " +
+                        "DP=${entry.dataPointer.hex(4)} P=${entry.p.hex(2)} " +
+                        "C=${entry.carry.bit()} Z=${entry.zero.bit()}",
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MemoryWatchPanel(
+    runner: DesktopEmulatorRunner?,
+    keyboardInput: DesktopKeyboardInput,
+) {
+    var startText by remember(runner) { mutableStateOf("C000") }
+    var endText by remember(runner) { mutableStateOf("C0FF") }
+    var error by remember(runner) { mutableStateOf<String?>(null) }
+    var activeRange by remember(runner) { mutableStateOf(runner?.memoryWatch()) }
+    var activeAccessRange by remember(runner) { mutableStateOf(runner?.memoryAccessWatchRange()) }
+
+    Column(
+        modifier = Modifier.fillMaxWidth().widthIn(max = 900.dp),
+        horizontalAlignment = Alignment.Start,
+    ) {
+        Text("Memory change watch", style = MaterialTheme.typography.labelLarge)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedTextField(
+                value = startText,
+                onValueChange = {
+                    startText = it
+                    error = null
+                },
+                label = { Text("Start (hex)") },
+                singleLine = true,
+                modifier = Modifier.widthIn(max = 150.dp)
+                    .onFocusChanged { keyboardInput.setEnabled(!it.isFocused) },
+            )
+            OutlinedTextField(
+                value = endText,
+                onValueChange = {
+                    endText = it
+                    error = null
+                },
+                label = { Text("End (hex)") },
+                singleLine = true,
+                modifier = Modifier.widthIn(max = 150.dp)
+                    .onFocusChanged { keyboardInput.setEnabled(!it.isFocused) },
+            )
+            Button(
+                enabled = runner != null,
+                onClick = {
+                    val start = parseHexAddress(startText)
+                    val end = parseHexAddress(endText)
+                    when {
+                        start == null || end == null -> error = "Addresses must be 0000..FFFF."
+                        end < start -> error = "End address must not be less than start address."
+                        end - start + 1 > DesktopEmulatorRunner.MAX_MEMORY_WATCH_BYTES ->
+                            error = "A watched range may contain at most 4096 bytes."
+                        else -> {
+                            runner?.setMemoryWatch(start, end)
+                            activeRange = start..end
+                            error = null
+                        }
+                    }
+                },
+            ) { Text("Watch") }
+            Button(
+                enabled = runner != null && activeRange != null,
+                onClick = {
+                    runner?.clearMemoryWatch()
+                    activeRange = null
+                },
+            ) { Text("Clear") }
+        }
+        activeRange?.let { Text("Watching 0x${it.first.hex(4)}..0x${it.last.hex(4)}") }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            fun setAccessWatch(reads: Boolean, writes: Boolean) {
+                val start = parseHexAddress(startText)
+                val end = parseHexAddress(endText)
+                when {
+                    start == null || end == null -> error = "Addresses must be 0000..FFFF."
+                    end < start -> error = "End address must not be less than start address."
+                    else -> {
+                        runner?.setMemoryAccessWatch(start, end, reads, writes)
+                        activeAccessRange = start..end
+                        error = null
+                    }
+                }
+            }
+            Button(enabled = runner != null, onClick = { setAccessWatch(true, false) }) { Text("Watch Read") }
+            Button(enabled = runner != null, onClick = { setAccessWatch(false, true) }) { Text("Watch Write") }
+            Button(enabled = runner != null, onClick = { setAccessWatch(true, true) }) { Text("Watch R/W") }
+            Button(
+                enabled = runner != null && activeAccessRange != null,
+                onClick = {
+                    runner?.clearMemoryAccessWatch()
+                    activeAccessRange = null
+                },
+            ) { Text("Clear R/W") }
+        }
+        activeAccessRange?.let { Text("Watching CPU access at 0x${it.first.hex(4)}..0x${it.last.hex(4)}") }
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        Text(
+            "Stops when a value changes; read access and same-value writes are not detected.",
+            style = MaterialTheme.typography.labelMedium,
+        )
+    }
+}
+
+@Composable
+private fun MemoryMapPanel(
+    regions: List<MachineMemoryRegion>,
+    onSelect: (MachineMemoryRegion) -> Unit,
+) {
+    val regionsById = regions.associateBy(MachineMemoryRegion::id)
+    Column(
+        modifier = Modifier.fillMaxWidth().widthIn(max = 900.dp),
+        horizontalAlignment = Alignment.Start,
+    ) {
+        Text("Memory map", style = MaterialTheme.typography.labelLarge)
+        regions.forEach { region ->
+            TextButton(onClick = { onSelect(region) }) {
+                val mirrorTarget = region.mirrorsRegionId?.let { id ->
+                    regionsById[id]?.displayName?.let { " → $it" }
+                }.orEmpty()
+                Text(
+                    "${region.startAddress.hex(4)}–${region.endAddressInclusive.hex(4)}  " +
+                        "${region.displayName} [${region.kind.displayName}]$mirrorTarget",
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+    }
+}
+
+private val MachineMemoryRegionKind.displayName: String
+    get() = when (this) {
+        MachineMemoryRegionKind.ROM -> "ROM"
+        MachineMemoryRegionKind.RAM -> "RAM"
+        MachineMemoryRegionKind.DISPLAY -> "VRAM"
+        MachineMemoryRegionKind.MIRROR -> "mirror"
+    }
+
+private val CpuField.displayName: String
+    get() = when (this) {
+        CpuField.CURRENT_PC -> "CUR"
+        CpuField.OPCODE -> "OP"
+        CpuField.CARRY -> "C"
+        CpuField.ZERO -> "Z"
+        CpuField.CONTROL -> "CTRL"
+        CpuField.INTERNAL_RAM -> "Internal RAM"
+        else -> name
+    }
+
+private fun DebuggerStopReason.displayName(): String = when (this) {
+    DebuggerStopReason.Reset -> "Reset"
+    DebuggerStopReason.UserPause -> "Paused by user"
+    DebuggerStopReason.StepComplete -> "Step complete"
+    is DebuggerStopReason.Breakpoint -> "Breakpoint at 0x${address.hex(4)}"
+    is DebuggerStopReason.RunToAddress -> "Run to address reached at 0x${address.hex(4)}"
+    is DebuggerStopReason.MemoryChanged -> {
+        val preview = changes.take(4).joinToString { change ->
+            "${change.address.hex(4)}:${change.before.hex(2)}→${change.after.hex(2)}"
+        }
+        val remaining = if (changes.size > 4) " (+${changes.size - 4} more)" else ""
+        "Memory changed after 0x${instructionAddress.hex(4)}: $preview$remaining"
+    }
+    is DebuggerStopReason.MemoryAccessed -> {
+        val preview = accesses.take(4).joinToString { access ->
+            val kind = if (access.kind == MemoryAccessKind.READ) "R" else "W"
+            "$kind:${access.address.hex(4)}=${access.value.hex(2)}"
+        }
+        val remaining = if (accesses.size > 4) " (+${accesses.size - 4} more)" else ""
+        "Memory access by 0x${instructionAddress.hex(4)}: $preview$remaining"
+    }
+    is DebuggerStopReason.Fault -> "Fault: ${fault.message()}"
 }
 
 @Composable
@@ -1112,9 +1752,11 @@ private fun PocketKeyButton(
 
 @Composable
 private fun PocketSoftwareKeyboard(runner: DesktopEmulatorRunner?, layout: MachineKeyboardLayout) {
-    val pc1251 = layout == MachineKeyboardLayout.PC_1251
-    val rows = if (pc1251) Pc1251KeyboardLayout.rows else Pc1245KeyboardLayout.rows
-    val columnCount = if (pc1251) Pc1251KeyboardLayout.COLUMN_COUNT else Pc1245KeyboardLayout.COLUMN_COUNT
+    val (rows, columnCount) = when (layout) {
+        MachineKeyboardLayout.PC_1245 -> Pc1245KeyboardLayout.rows to Pc1245KeyboardLayout.COLUMN_COUNT
+        MachineKeyboardLayout.PC_1251 -> Pc1251KeyboardLayout.rows to Pc1251KeyboardLayout.COLUMN_COUNT
+        MachineKeyboardLayout.PC_1350 -> Pc1350KeyboardLayout.rows to Pc1350KeyboardLayout.COLUMN_COUNT
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1147,17 +1789,20 @@ private fun PocketSoftwareKeyboard(runner: DesktopEmulatorRunner?, layout: Machi
 }
 
 @Composable
-private fun Pc1245LcdPanel(snapshot: DisplaySnapshot?) {
+private fun PocketLcdPanel(snapshot: DisplaySnapshot?) {
     val panelAspectRatio = if (snapshot == null) {
         LCD_PANEL_ASPECT_RATIO
-    } else {
+    } else if (snapshot.characterRows == 1) {
         CharacterCellGeometry.visualColumnCount(snapshot.characterColumns, snapshot.characterWidth) / 11f
+    } else {
+        CharacterCellGeometry.visualColumnCount(snapshot.characterColumns, snapshot.characterWidth).toFloat() /
+            CharacterCellGeometry.visualRowCount(snapshot.characterRows, snapshot.characterHeight)
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .widthIn(max = 800.dp)
+                .widthIn(max = 1_000.dp)
                 .aspectRatio(panelAspectRatio),
         ) {
             drawRect(LCD_BACKGROUND)
@@ -1167,17 +1812,30 @@ private fun Pc1245LcdPanel(snapshot: DisplaySnapshot?) {
                 snapshot.characterColumns,
                 snapshot.characterWidth,
             )
+            val visualRowCount = if (snapshot.characterRows == 1) {
+                snapshot.dotRows
+            } else {
+                CharacterCellGeometry.visualRowCount(snapshot.characterRows, snapshot.characterHeight)
+            }
             val cellWidth = size.width / visualColumnCount
-            val cellHeight = size.height / snapshot.dotRows
+            val cellHeight = size.height / visualRowCount
             val insetX = cellWidth * LCD_DOT_INSET_RATIO
             val insetY = cellHeight * LCD_DOT_INSET_RATIO
             for (row in 0 until snapshot.dotRows) {
                 for (column in 0 until snapshot.dotColumns) {
                     if (snapshot.isDotOn(column, row)) {
                         val visualColumn = CharacterCellGeometry.visualColumn(column, snapshot.characterWidth)
+                        val visualRow = if (snapshot.characterRows == 1) {
+                            row
+                        } else {
+                            CharacterCellGeometry.visualRow(row, snapshot.characterHeight)
+                        }
                         drawRect(
                             color = LCD_DOT,
-                            topLeft = Offset(visualColumn * cellWidth + insetX, row * cellHeight + insetY),
+                            topLeft = Offset(
+                                visualColumn * cellWidth + insetX,
+                                visualRow * cellHeight + insetY,
+                            ),
                             size = Size(cellWidth - insetX * 2, cellHeight - insetY * 2),
                         )
                     }
@@ -1263,10 +1921,33 @@ private fun selectMacDirectory(owner: Frame, title: String): File? {
 
 private fun selectMemoryDumpFile(owner: Frame): File? = selectFile(owner, "Load PGP Memory Dump", "*.dmp")
 
+private fun selectAssemblyFile(owner: Frame): File? = selectFile(owner, "Assemble SC61860 source", "*.asm")
+
 private fun selectMemoryDumpDestination(owner: Frame): File? = selectFile(
     owner = owner,
     title = "Save PGP Memory Dump",
     suggestedFile = "memory.dmp",
+    mode = FileDialog.SAVE,
+)
+
+private fun selectDisassemblyDestination(owner: Frame): File? = selectFile(
+    owner = owner,
+    title = "Save SC61860 Disassembly",
+    suggestedFile = "disassembly.asm",
+    mode = FileDialog.SAVE,
+)
+
+private fun selectAssembledDumpDestination(owner: Frame): File? = selectFile(
+    owner = owner,
+    title = "Save assembled PGP Memory Dump",
+    suggestedFile = "program.dmp",
+    mode = FileDialog.SAVE,
+)
+
+private fun selectCheckpointDestination(owner: Frame): File? = selectFile(
+    owner = owner,
+    title = "Save Pokecom GO Studio Debug Checkpoint",
+    suggestedFile = "checkpoint.pgpdebug.json",
     mode = FileDialog.SAVE,
 )
 
@@ -1328,6 +2009,8 @@ private fun DesktopBasicLoadError.message(machineName: String): String = when (t
         }
         "$machineName ROM input does not support $detail at ${error.line}:${error.column}."
     }
+    is DesktopBasicLoadError.UnsupportedMachine ->
+        "BASIC loading is not available for $machineName yet."
 }
 
 private fun CoreFault.message(): String = when (this) {
@@ -1341,6 +2024,8 @@ private fun DesktopBasicProgramCompileError.message(machineName: String): String
         "BASIC text error at ${error.line}:${error.column}: ${error.message}"
     is DesktopBasicProgramCompileError.Tokenize ->
         "$machineName OLD BASIC error at ${error.line}:${error.column}: ${error.message}"
+    is DesktopBasicProgramCompileError.S1Tokenize ->
+        "$machineName S1 BASIC error at ${error.line}:${error.column}: ${error.message}"
 }
 
 private fun BasicProgramMemoryError.message(): String = when (this) {
@@ -1411,8 +2096,8 @@ private fun DesktopProjectBuildError.message(machineName: String): String = when
         "Source '$sourceId' does not fit in memory at 0x${startAddress.hex(4)} ($size bytes)."
     is DesktopProjectBuildError.MemoryOverlap ->
         "Source '$sourceId' overlaps '$previousSourceId' at 0x${address.hex(4)}."
-    is DesktopProjectBuildError.AssemblyNotImplemented ->
-        "Assembly source '$sourceId' cannot be built yet; the built-in assembler is not implemented."
+    is DesktopProjectBuildError.Assembly ->
+        "Assembly source '$sourceId', line $line: $message"
 }
 
 private fun MemoryImageLoadError.message(): String = when (this) {
@@ -1454,6 +2139,13 @@ private const val FRAME_DELAY_MILLISECONDS: Long = 16L
 private const val PROJECT_SCAN_DELAY_MILLISECONDS: Long = 500L
 private const val AUTOMATIC_ROM_BOOT_CYCLES: Long = 1_000_000L
 private const val CPU_REFRESH_FRAME_INTERVAL: Int = 6
+private const val DISASSEMBLY_LINE_COUNT: Int = 10
+private const val DISASSEMBLY_BYTE_COLUMN_WIDTH: Int = 11
+private const val DEFAULT_MEMORY_VIEW_ADDRESS: Int = 0xc000
+private const val MEMORY_VIEW_LINE_COUNT: Int = 8
+private const val MEMORY_VIEW_PAGE_SIZE: Int =
+    DesktopMemoryViewModel.BYTES_PER_LINE * MEMORY_VIEW_LINE_COUNT
+private const val INSTRUCTION_TRACE_VISIBLE_LINES: Int = 32
 private const val LCD_DOT_INSET_RATIO: Float = 0.14f
 private const val LCD_PANEL_ASPECT_RATIO: Float = 95f / 11f
 private val LCD_BACKGROUND: Color = Color(0xffc9d2b0)

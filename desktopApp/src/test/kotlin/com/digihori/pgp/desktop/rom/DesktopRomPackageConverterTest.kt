@@ -3,6 +3,7 @@ package com.digihori.pgp.desktop.rom
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1245.RomImportError
 import com.digihori.pgp.core.api.MachineCatalog
+import com.digihori.pgp.core.api.MachineRomLayout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -11,9 +12,13 @@ class DesktopRomPackageConverterTest {
     @Test
     fun createsAPackageForEveryCatalogMachine() {
         val internal = ByteArray(Pc1245RomDefinition.INTERNAL_SIZE) { 0x11 }
-        val external = ByteArray(Pc1245RomDefinition.EXTERNAL_SIZE) { 0x22 }
 
         MachineCatalog.definitions.forEach { definition ->
+            val externalSize = when (definition.romLayout) {
+                MachineRomLayout.SC61860_INTERNAL_8K_EXTERNAL_16K -> 0x4000
+                MachineRomLayout.SC61860_INTERNAL_8K_EXTERNAL_32K -> 0x8000
+            }
+            val external = ByteArray(externalSize) { 0x22 }
             val converted = assertIs<DesktopRomPackageConversionResult.Success>(
                 DesktopRomPackageConverter.createPackage(definition.id, internal, external),
                 definition.displayName,

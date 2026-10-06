@@ -13,6 +13,8 @@ import com.digihori.pgp.core.api.ExecutionStatus
 import com.digihori.pgp.core.api.InputResult
 import com.digihori.pgp.core.api.MemorySnapshot
 import com.digihori.pgp.core.api.MemoryImageLoadResult
+import com.digihori.pgp.core.api.MemoryAccess
+import com.digihori.pgp.core.api.MemoryAccessKind
 import com.digihori.pgp.core.api.OperatingMode
 import com.digihori.pgp.core.api.PocketKey
 import com.digihori.pgp.core.api.RunResult
@@ -24,10 +26,15 @@ import com.digihori.pgp.core.runtime.CycleBudgetPlanner
 import com.digihori.pgp.core.runtime.KeyInputQueue
 import com.digihori.pgp.core.runtime.SpeedRatio
 import com.digihori.pgp.core.source.machine.AddressedMemoryImage
+import com.digihori.pgp.desktop.debug.DebuggerStopReason
+import com.digihori.pgp.desktop.debug.DesktopInstructionTraceEntry
+import com.digihori.pgp.core.debug.Sc61860DecodedInstruction
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class DesktopEmulatorRunnerTest {
     @Test
@@ -146,6 +153,7 @@ class DesktopEmulatorRunnerTest {
         assertEquals(1, session.resetCount)
         assertEquals(SpeedRatio.NORMAL, runner.speed)
         assertEquals(RunnerState.PAUSED, runner.state)
+        assertEquals(DebuggerStopReason.Reset, runner.stopReason)
     }
 
     @Test
@@ -193,6 +201,158 @@ class DesktopEmulatorRunnerTest {
 
         assertEquals(4, result.cycles)
         assertEquals(1, session.stepCount)
+        assertEquals(RunnerState.PAUSED, runner.state)
+        assertEquals(DebuggerStopReason.StepComplete, runner.stopReason)
+    }
+
+    @Test
+    fun recordsUserPauseAndClearsStopReasonWhenRunning() {
+        val runner = runner(FakeSession(), FakeClock())
+
+        runner.run()
+        assertNull(runner.stopReason)
+        runner.pause()
+
+        assertEquals(DebuggerStopReason.UserPause, runner.stopReason)
+    }
+
+    @Test
+    fun stopsBeforeExecutingBreakpointAndCanContinuePastIt() {
+        val session = FakeSession()
+        val clock = FakeClock()
+        val runner = DesktopEmulatorRunner(
+            session = session,
+            clock = clock,
+            planner = CycleBudgetPlanner(CycleBudgetPlanner.PC1245_CYCLES_PER_SECOND),
+            programCounterProvider = { 0x1000 + session.stepCount },
+        )
+        runner.toggleBreakpoint(0x1002)
+
+        runner.run()
+        clock.advance(1_000_000)
+        val stopped = runner.tick()
+
+        assertEquals(2, session.stepCount)
+        assertEquals(8, stopped.runResult?.executedCycles)
+        assertEquals(RunnerState.PAUSED, runner.state)
+        assertEquals(DebuggerStopReason.Breakpoint(0x1002), runner.stopReason)
+
+        runner.run()
+        clock.advance(1_000_000)
+        runner.tick()
+
+        assertEquals(RunnerState.RUNNING, runner.state)
+        assertEquals(null, runner.stopReason)
+        assertTrue(session.stepCount > 2)
+    }
+
+    @Test
+    fun runToAddressStopsOnceWithoutCreatingPersistentBreakpoint() {
+        val session = FakeSession()
+        val clock = FakeClock()
+        val runner = DesktopEmulatorRunner(
+            session = session,
+            clock = clock,
+            planner = CycleBudgetPlanner(CycleBudgetPlanner.PC1245_CYCLES_PER_SECOND),
+            programCounterProvider = { 0x2000 + session.stepCount },
+        )
+
+        runner.runToAddress(0x2003)
+        clock.advance(1_000_000)
+        runner.tick()
+
+        assertEquals(3, session.stepCount)
+        assertEquals(RunnerState.PAUSED, runner.state)
+        assertEquals(DebuggerStopReason.RunToAddress(0x2003), runner.stopReason)
+        assertTrue(runner.breakpoints().isEmpty())
+
+        runner.run()
+        clock.advance(1_000_000)
+        runner.tick()
+        assertEquals(RunnerState.RUNNING, runner.state)
+    }
+
+    @Test
+    fun instructionTraceIsOptInAndRetainsTheNewest256Instructions() {
+        val session = FakeSession()
+        val clock = FakeClock()
+        val runner = DesktopEmulatorRunner(
+            session = session,
+            clock = clock,
+            planner = CycleBudgetPlanner(CycleBudgetPlanner.PC1245_CYCLES_PER_SECOND),
+            traceEntryProvider = { sequence -> traceEntry(sequence) },
+        )
+
+        runner.run()
+        clock.advance(1_000_000)
+        runner.tick()
+        assertTrue(runner.instructionTrace().isEmpty())
+        assertEquals(listOf(288L), session.budgets)
+
+        runner.setInstructionTraceEnabled(true)
+        clock.advance(10_000_000)
+        runner.tick()
+
+        val trace = runner.instructionTrace()
+        assertEquals(256, trace.size)
+        assertEquals(464L, trace.first().sequence)
+        assertEquals(719L, trace.last().sequence)
+        assertEquals(720, session.stepCount)
+
+        runner.clearInstructionTrace()
+        assertTrue(runner.instructionTrace().isEmpty())
+    }
+
+    @Test
+    fun stopsAfterTheInstructionThatChangesWatchedMemory() {
+        val session = FakeSession()
+        val clock = FakeClock()
+        val runner = DesktopEmulatorRunner(
+            session = session,
+            clock = clock,
+            planner = CycleBudgetPlanner(CycleBudgetPlanner.PC1245_CYCLES_PER_SECOND),
+            programCounterProvider = { 0x1234 },
+            memoryBytesProvider = { _, length ->
+                ByteArray(length) { if (session.stepCount == 0) 0 else 0x7f }
+            },
+        )
+        runner.setMemoryWatch(0xc000, 0xc003)
+
+        runner.run()
+        clock.advance(1_000_000)
+        runner.tick()
+
+        assertEquals(RunnerState.PAUSED, runner.state)
+        val reason = assertIs<DebuggerStopReason.MemoryChanged>(runner.stopReason)
+        assertEquals(0x1234, reason.instructionAddress)
+        assertEquals(4, reason.changes.size)
+        assertEquals(0xc000, reason.changes.first().address)
+        assertEquals(0, reason.changes.first().before)
+        assertEquals(0x7f, reason.changes.first().after)
+        assertEquals(1, session.stepCount)
+    }
+
+    @Test
+    fun stopsOnSameValueWriteAccessWithoutRequiringAValueChange() {
+        val session = FakeSession(
+            memoryAccessOnStep = MemoryAccess(MemoryAccessKind.WRITE, 0xc123, 0),
+        )
+        val clock = FakeClock()
+        val runner = DesktopEmulatorRunner(
+            session = session,
+            clock = clock,
+            planner = CycleBudgetPlanner(CycleBudgetPlanner.PC1245_CYCLES_PER_SECOND),
+            programCounterProvider = { 0x4567 },
+        )
+        runner.setMemoryAccessWatch(0xc100, 0xc1ff, reads = false, writes = true)
+
+        runner.run()
+        clock.advance(1_000_000)
+        runner.tick()
+
+        val reason = assertIs<DebuggerStopReason.MemoryAccessed>(runner.stopReason)
+        assertEquals(0x4567, reason.instructionAddress)
+        assertEquals(0xc123, reason.accesses.single().address)
         assertEquals(RunnerState.PAUSED, runner.state)
     }
 
@@ -391,6 +551,25 @@ class DesktopEmulatorRunnerTest {
             ),
         )
 
+    private fun traceEntry(sequence: Long): DesktopInstructionTraceEntry =
+        DesktopInstructionTraceEntry(
+            sequence = sequence,
+            dataPointer = 0xc000,
+            p = 0,
+            q = 0,
+            r = 0,
+            d = 0,
+            carry = false,
+            zero = false,
+            instruction = Sc61860DecodedInstruction(
+                address = sequence.toInt() and 0xffff,
+                definition = null,
+                bytes = listOf(0),
+                operandValue = null,
+                targetAddress = null,
+            ),
+        )
+
     private class FakeClock(var now: Long = 0) : MonotonicClock {
         override fun nowNanoseconds(): Long = now
         fun advance(nanoseconds: Long) { now += nanoseconds }
@@ -400,6 +579,7 @@ class DesktopEmulatorRunnerTest {
         private val faultOnRun: Boolean = false,
         private val basicLoadResult: BasicProgramLoadResult? = null,
         override val machineId: MachineId = MachineId("pc-1245"),
+        private val memoryAccessOnStep: MemoryAccess? = null,
     ) : EmulatorSession {
         val budgets = mutableListOf<Long>()
         var resetCount = 0
@@ -408,10 +588,13 @@ class DesktopEmulatorRunnerTest {
         val releasedKeys = mutableListOf<PocketKey>()
         val inputEvents = mutableListOf<String>()
         var recordedOperatingMode = OperatingMode.RUN
+        var memoryTracing = false
+        val memoryAccesses = mutableListOf<MemoryAccess>()
 
         override fun reset() { resetCount++ }
         override fun step(): StepResult {
             stepCount++
+            if (memoryTracing) memoryAccessOnStep?.let(memoryAccesses::add)
             return StepResult(4, ExecutionStatus.Ready)
         }
         override fun runCycles(cycleBudget: Long): RunResult {
@@ -445,6 +628,8 @@ class DesktopEmulatorRunnerTest {
             basicLoadResult ?: BasicProgramLoadResult.Success(0xc000, 0xc000 + program.lastIndex, program.size)
         override fun basicProgramSnapshot(): BasicProgramSnapshotResult = unsupported()
         override fun loadMemoryImage(image: AddressedMemoryImage): MemoryImageLoadResult = unsupported()
+        override fun setMemoryAccessTracing(enabled: Boolean) { memoryTracing = enabled }
+        override fun drainMemoryAccesses(): List<MemoryAccess> = memoryAccesses.toList().also { memoryAccesses.clear() }
 
         private fun <T> unsupported(): T = error("Not used by runner tests")
     }

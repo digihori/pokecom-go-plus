@@ -5,7 +5,7 @@ import com.digihori.pgp.core.rom.MachineId
 /** Hardware variants which share the PC-1251 family ROM and peripherals. */
 public enum class Pc1251FamilyModel(
     public val machineId: MachineId,
-    internal val physicalRamStart: Int,
+    public val physicalRamStart: Int,
 ) {
     PC_1250(MachineId("pc-1250"), 0xc000),
     PC_1251(MachineId("pc-1251"), 0xb800),

@@ -22,7 +22,18 @@ public interface EmulatorSession {
     public fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult
     public fun basicProgramSnapshot(): BasicProgramSnapshotResult
     public fun loadMemoryImage(image: AddressedMemoryImage): MemoryImageLoadResult
+
+    public fun setMemoryAccessTracing(enabled: Boolean) {}
+    public fun drainMemoryAccesses(): List<MemoryAccess> = emptyList()
 }
+
+public enum class MemoryAccessKind { READ, WRITE }
+
+public data class MemoryAccess(
+    public val kind: MemoryAccessKind,
+    public val address: Int,
+    public val value: Int,
+)
 
 public data class StepResult(
     public val cycles: Int,
@@ -55,6 +66,8 @@ public enum class PocketKey {
     ENTER, SPACE, SHIFT, DEF, BREAK,
     PLUS, MINUS, MULTIPLY, DIVIDE, DOT, EQUALS,
     LEFT, RIGHT, UP, DOWN, CLEAR,
+    MODE, KANA, INSERT, DELETE,
+    LEFT_PAREN, RIGHT_PAREN, COLON, SEMICOLON, COMMA,
 }
 
 public enum class OperatingMode {
@@ -120,12 +133,15 @@ public enum class DisplaySymbol {
     RUN,
     PRO,
     RESERVE,
+    KANA,
+    SMALL,
 }
 
 public class DisplaySnapshot internal constructor(
     public val characterColumns: Int,
     public val characterWidth: Int,
     public val dotRows: Int,
+    public val characterRows: Int,
     public val symbols: List<DisplaySymbol>,
     public val enabled: Boolean,
     public val revision: Long,
@@ -136,7 +152,14 @@ public class DisplaySnapshot internal constructor(
     public val dotColumns: Int
         get() = characterColumns * characterWidth
 
+    public val characterHeight: Int
+        get() = dotRows / characterRows
+
     init {
+        require(characterRows > 0) { "Display character row count must be positive" }
+        require(dotRows > 0 && dotRows % characterRows == 0) {
+            "Display dot rows must divide evenly into character rows"
+        }
         require(content.size == dotColumns * dotRows) { "Display dot array has an invalid size" }
     }
 

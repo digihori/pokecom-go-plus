@@ -15,6 +15,7 @@ import com.digihori.pgp.core.api.MachineKeyboardLayout
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245CharacterInput
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251CharacterInput
+import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350CharacterInput
 
 internal interface DesktopKeyInputSink {
     val machineId: MachineId
@@ -117,6 +118,7 @@ internal class DesktopKeyboardInput {
         when (MachineCatalog.find(machineId)?.keyboardLayout) {
             MachineKeyboardLayout.PC_1251 -> Pc1251CharacterInput.keySequence(character)
             MachineKeyboardLayout.PC_1245, null -> Pc1245CharacterInput.keySequence(character)
+            MachineKeyboardLayout.PC_1350 -> Pc1350CharacterInput.keySequence(character)
         }
 
     private sealed interface ActiveInput {

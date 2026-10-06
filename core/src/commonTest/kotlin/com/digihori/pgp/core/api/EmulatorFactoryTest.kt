@@ -5,6 +5,7 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
+import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350RomDefinition
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.rom.RomComponent
 import com.digihori.pgp.core.rom.RomRole
@@ -22,9 +23,32 @@ class EmulatorFactoryTest {
     @Test
     fun exposesPc1245AsTheInitialSupportedMachine() {
         assertEquals(
-            listOf(MachineId("pc-1245"), MachineId("pc-1250"), MachineId("pc-1251"), MachineId("pc-1255")),
+            listOf(
+                MachineId("pc-1245"), MachineId("pc-1250"), MachineId("pc-1251"),
+                MachineId("pc-1255"), MachineId("pc-1350"),
+            ),
             EmulatorFactory.supportedMachineIds(),
         )
+    }
+
+    @Test
+    fun createsPc1350SessionWithFourLineDisplay() {
+        val romSet = RomSet(
+            Pc1350RomDefinition.MACHINE_ID,
+            listOf(
+                RomComponent(Pc1350RomDefinition.INTERNAL_ID, RomRole.INTERNAL, ByteArray(0x2000)),
+                RomComponent(Pc1350RomDefinition.EXTERNAL_ID, RomRole.EXTERNAL, ByteArray(0x8000)),
+            ),
+        )
+        val session = assertIs<CreateSessionResult.Success>(
+            EmulatorFactory.create(Pc1350RomDefinition.MACHINE_ID, romSet),
+        ).session
+
+        assertEquals(Pc1350RomDefinition.MACHINE_ID, session.machineId)
+        assertEquals(25, session.displaySnapshot().characterColumns)
+        assertEquals(4, session.displaySnapshot().characterRows)
+        assertEquals(150, session.displaySnapshot().dotColumns)
+        assertIs<BasicProgramLoadResult.Failure>(session.loadBasicProgram(byteArrayOf(0)))
     }
 
     @Test

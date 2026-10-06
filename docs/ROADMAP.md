@@ -123,14 +123,45 @@ PC-1245／1251ファミリーの基本機能を試せる最初の公開版を目
 - [ ] Intel HEX入出力
 - [ ] Raw Binary入出力（ロード開始アドレス指定）
 - [ ] Debugger Core
-- [ ] Disassembler
-- [ ] Assembler
+- [x] Debuggerの停止理由とStep後のCPU状態差分を扱う基盤
+- [x] 複数の実行ブレークポイントと継続実行
+- [x] Disassembly行を指定した1回限りのRun to Cursor
+- [x] 指定アドレスをHEX＋ASCIIで確認する読み取り専用メモリビュー
+- [x] Machine Definitionに基づく機種別メモリマップとMemory Viewへの移動
+- [x] 有効時だけ記録する固定長256命令トレース
+- [x] 指定範囲の値を比較し、変更した命令で停止するメモリ変更ウォッチ
+- [x] Assembler／Disassembler共通のSC61860命令定義と1命令Decoder
+- [x] 現在PCから先を表示する読み取り専用Disassemblyビュー
+- [x] 指定範囲をアセンブラ向けテキストへ保存するDisassembler
+- [x] ラベル、ORG、DBに対応したSC61860 AssemblerとプロジェクトBuild連携
+- [ ] PC-1360K解析支援（1360とのROM差分、未知アドレスアクセス停止、Read／Write・バンク履歴、メモリ差分）
+  - [x] 内容が変化したアドレス・変更前後の値・実行命令PCの記録
+  - [x] CPU論理アドレスでのRead／Writeアクセスイベントと、同値Writeを含む停止
+  - [ ] バンク切替イベントと物理ROM位置を含む履歴
+- [ ] PC-1360K実機調査用のチェックポイント出力と漢字ROMアクセス検証プログラム作成支援
+  - [x] CPU状態・指定メモリ・命令トレースを含むJSONチェックポイント出力
+  - [ ] 実機側チェックポイント取得手順と比較ツール
 - [ ] 5×7 Character Editor
 - [ ] WAV Encoder / Decoder
 
 ## Phase 6: 機種追加
 
 機種追加の順序は、仕様資料、Golden Test Data、利用目的を確認して決める。
+
+- [ ] 次期S1機種としてPC-1350を実装する（25文字×4行LCD、非連続VRAM、S1 BASIC）
+  - [x] Display SnapshotとStudio LCD描画を複数文字行へ対応
+  - [x] 内部ROM・外部ROM・RAMの基本メモリマップを実装
+  - [x] 20ブロックに分かれたLCD VRAMの論理配置を実装
+  - [x] 600バイトのVRAMを25文字×4行（150×32ドット）の表示平面へ変換
+  - [x] 12グループのキーマトリクスとCPU／Memory Bus／LCD／BuzzerのMachine接続
+  - [x] Machine CatalogとEmulatorFactoryへ登録しHeadless Sessionとして公開
+  - [x] PC-1350固有キーをCoreへ追加し、専用ソフトウェアキーボードを実装
+  - [x] S1 BASICのプログラム領域・開始／終了ポインタと配置処理を実装
+  - [x] BASICテキストをS1中間コードへ変換してLoad BASICへ接続
+  - [x] PCWAV互換のS1半角カナ（FE＋A1..DF）をTokenizerへ実装
+  - [x] PC-1350のShift記号を物理キー入力とソフトウェアキー凡例へ反映
+- [ ] 次期S2／バンク機種としてPC-1360を実装する（16KiB×8 ROMバンク）
+- [ ] PC-1360のバンクイベントをDebuggerの物理ROM履歴へ接続する
 
 - [x] 2機種目をPC-1251に決定し、ROM構成・メモリマップ・24桁LCDモデルを追加する
 - [x] PC-1251をHeadless Emulator Sessionとして公開する

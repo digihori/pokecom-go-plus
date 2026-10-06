@@ -11,6 +11,8 @@ import com.digihori.pgp.desktop.basic.DesktopBasicProgramCompileResult
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoadError
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoadResult
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoader
+import com.digihori.pgp.core.debug.Sc61860Assembler
+import com.digihori.pgp.core.debug.Sc61860AssemblyResult
 
 internal data class DesktopProjectArtifact(
     private val basicProgram: ByteArray?,
@@ -42,7 +44,7 @@ internal sealed interface DesktopProjectBuildError {
         val previousSourceId: String,
         val address: Int,
     ) : DesktopProjectBuildError
-    data class AssemblyNotImplemented(val sourceId: String) : DesktopProjectBuildError
+    data class Assembly(val sourceId: String, val line: Int, val message: String) : DesktopProjectBuildError
 }
 
 /** Compiles every source before an artifact is allowed to modify an emulator session. */
@@ -67,7 +69,7 @@ internal object DesktopProjectBuilder {
                 return@forEach
             }
             when (source.definition.type) {
-                ProjectSourceType.BASIC -> when (val compiled = DesktopBasicLoader.compilePc1245Program(bytes)) {
+                ProjectSourceType.BASIC -> when (val compiled = DesktopBasicLoader.compileProgram(bytes, workspace.definition.machineId)) {
                     is DesktopBasicProgramCompileResult.Failure -> errors +=
                         DesktopProjectBuildError.BasicCompile(source.definition.id, compiled.error)
                     is DesktopBasicProgramCompileResult.Success -> if (basicSources.size == 1) {
@@ -95,8 +97,21 @@ internal object DesktopProjectBuilder {
                         memorySegmentOwners += source.definition.id
                     }
                 }
-                ProjectSourceType.ASSEMBLY -> errors +=
-                    DesktopProjectBuildError.AssemblyNotImplemented(source.definition.id)
+                ProjectSourceType.ASSEMBLY -> when (val assembled = Sc61860Assembler.assemble(bytes.decodeToString())) {
+                    is Sc61860AssemblyResult.Failure -> errors += DesktopProjectBuildError.Assembly(
+                        source.definition.id,
+                        assembled.line,
+                        assembled.message,
+                    )
+                    is Sc61860AssemblyResult.Success -> assembled.image.segments.forEach { segment ->
+                        memorySegments += AddressedMemorySegmentData(
+                            segment.startAddress,
+                            segment.copyBytes(),
+                            segment.sourceLine,
+                        )
+                        memorySegmentOwners += source.definition.id
+                    }
+                }
             }
         }
 

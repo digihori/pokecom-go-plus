@@ -14,6 +14,8 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomInputError
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomInputResult
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomBasicInput
+import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350BasicTokenizeResult
+import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350BasicTokenizer
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.source.basic.BasicTextParseError
 import com.digihori.pgp.core.source.basic.BasicTextParseResult
@@ -40,6 +42,9 @@ internal object DesktopBasicLoader {
         val compiled = when (MachineCatalog.find(machineId)?.keyboardLayout) {
             MachineKeyboardLayout.PC_1251 -> Pc1251RomBasicInput.compile(document)
             MachineKeyboardLayout.PC_1245, null -> Pc1245RomBasicInput.compile(document)
+            MachineKeyboardLayout.PC_1350 -> return DesktopBasicLoadResult.Failure(
+                DesktopBasicLoadError.UnsupportedMachine(machineId),
+            )
         }
         return when (compiled) {
             is Pc1245RomInputResult.Failure -> DesktopBasicLoadResult.Failure(
@@ -50,6 +55,10 @@ internal object DesktopBasicLoader {
     }
 
     fun compilePc1245Program(bytes: ByteArray): DesktopBasicProgramCompileResult {
+        return compileProgram(bytes, Pc1245RomDefinition.MACHINE_ID)
+    }
+
+    fun compileProgram(bytes: ByteArray, machineId: MachineId): DesktopBasicProgramCompileResult {
         val text = decodeUtf8(bytes) ?: return DesktopBasicProgramCompileResult.Failure(
             DesktopBasicProgramCompileError.InvalidUtf8,
         )
@@ -59,7 +68,14 @@ internal object DesktopBasicLoader {
             )
             is BasicTextParseResult.Success -> parsed.document
         }
-        return when (val tokenized = Pc1245BasicTokenizer.tokenize(document)) {
+        return if (MachineCatalog.find(machineId)?.basicDialect == com.digihori.pgp.core.api.MachineBasicDialect.S1) {
+            when (val tokenized = Pc1350BasicTokenizer.tokenize(document)) {
+                is Pc1350BasicTokenizeResult.Success -> DesktopBasicProgramCompileResult.Success(tokenized.bytes)
+                is Pc1350BasicTokenizeResult.Failure -> DesktopBasicProgramCompileResult.Failure(
+                    DesktopBasicProgramCompileError.S1Tokenize(tokenized.error),
+                )
+            }
+        } else when (val tokenized = Pc1245BasicTokenizer.tokenize(document)) {
             is Pc1245BasicTokenizeResult.Success -> DesktopBasicProgramCompileResult.Success(tokenized.bytes)
             is Pc1245BasicTokenizeResult.Failure -> DesktopBasicProgramCompileResult.Failure(
                 DesktopBasicProgramCompileError.Tokenize(tokenized.error),
@@ -95,6 +111,7 @@ internal sealed interface DesktopBasicLoadError {
     data object InvalidUtf8 : DesktopBasicLoadError
     data class Parse(val error: BasicTextParseError) : DesktopBasicLoadError
     data class UnsupportedRomInput(val error: Pc1245RomInputError) : DesktopBasicLoadError
+    data class UnsupportedMachine(val machineId: MachineId) : DesktopBasicLoadError
 }
 
 internal sealed interface DesktopBasicProgramCompileResult {
@@ -108,6 +125,7 @@ internal sealed interface DesktopBasicProgramCompileError {
     data object InvalidUtf8 : DesktopBasicProgramCompileError
     data class Parse(val error: BasicTextParseError) : DesktopBasicProgramCompileError
     data class Tokenize(val error: Pc1245BasicTokenizeError) : DesktopBasicProgramCompileError
+    data class S1Tokenize(val error: com.digihori.pgp.core.emulator.machine.pc1350.Pc1350BasicTokenizeError) : DesktopBasicProgramCompileError
 }
 
 internal sealed interface DesktopBasicProgramDecodeResult {

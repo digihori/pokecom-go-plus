@@ -66,19 +66,36 @@ class DesktopProjectBuilderTest {
     }
 
     @Test
-    fun reportsAssemblyAsReservedButNotImplemented() {
+    fun assemblesAssemblySourceIntoTheProjectArtifact() {
         val root = Files.createTempDirectory("pgp-project-assembly-test")
         root.resolve("src").createDirectories()
-        root.resolve("src/main.asm").writeText("NOP\n")
+        root.resolve("src/main.asm").writeText("ORG 0xC000\nLII 0x12\nRTN\n")
         val workspace = openWorkspace(
             root,
             """{ "id": "main", "type": "assembly", "path": "src/main.asm" }""",
         )
 
-        val failure = assertIs<DesktopProjectBuildResult.Failure>(
+        val artifact = assertIs<DesktopProjectBuildResult.Success>(
             DesktopProjectBuilder.build(workspace),
+        ).artifact
+        val segment = checkNotNull(artifact.memoryImage).segments.single()
+        assertEquals(0xc000, segment.startAddress)
+        assertContentEquals(byteArrayOf(0x00, 0x12, 0x37), segment.copyBytes())
+    }
+
+    @Test
+    fun reportsAssemblyErrorWithSourceLine() {
+        val root = Files.createTempDirectory("pgp-project-assembly-error-test")
+        root.resolve("src").createDirectories()
+        root.resolve("src/main.asm").writeText("ORG 0xC000\nJRP 0xD000\n")
+        val workspace = openWorkspace(
+            root,
+            """{ "id": "main", "type": "assembly", "path": "src/main.asm" }""",
         )
-        assertIs<DesktopProjectBuildError.AssemblyNotImplemented>(failure.errors.single())
+
+        val failure = assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace))
+        val error = assertIs<DesktopProjectBuildError.Assembly>(failure.errors.single())
+        assertEquals(2, error.line)
     }
 
     private fun openWorkspace(root: java.nio.file.Path, sources: String): DesktopProjectWorkspace {

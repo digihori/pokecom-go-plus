@@ -12,6 +12,7 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1245.RomImportError
 import com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FlatRomImporter
+import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350FlatRomImporter
 import com.digihori.pgp.core.rom.MachineId
 
 internal object DesktopRomLoader {
@@ -29,6 +30,7 @@ internal object DesktopRomLoader {
         val imported = when (definition.family) {
             MachineFamily.PC_1245 -> Pc1245FlatRomImporter.importImage(image)
             MachineFamily.PC_1251 -> Pc1251FlatRomImporter.importImage(image, machineId)
+            MachineFamily.PC_1350 -> Pc1350FlatRomImporter.importImage(image)
         }
         return when (imported) {
             is RomImportResult.Failure -> DesktopRomLoadResult.Failure(

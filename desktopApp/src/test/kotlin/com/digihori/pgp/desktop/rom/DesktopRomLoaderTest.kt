@@ -7,6 +7,7 @@ import com.digihori.pgp.core.emulator.machine.pc1245.RomImportError
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350RomDefinition
 import com.digihori.pgp.core.source.machine.PgpMemoryDumpParseResult
 import com.digihori.pgp.core.source.machine.PgpMemoryDumpParser
 import kotlin.test.Test
@@ -46,6 +47,18 @@ class DesktopRomLoaderTest {
             Pc1251RomDefinition.MACHINE_ID,
             assertIs<DesktopRomLoadResult.Success>(result).session.machineId,
         )
+    }
+
+    @Test
+    fun createsAPc1350SessionFromALegacyImage() {
+        val result = DesktopRomLoader.loadLegacyImage(
+            Pc1350RomDefinition.MACHINE_ID,
+            ByteArray(Pc1350RomDefinition.LEGACY_IMAGE_SIZE),
+        )
+
+        val session = assertIs<DesktopRomLoadResult.Success>(result).session
+        assertEquals(Pc1350RomDefinition.MACHINE_ID, session.machineId)
+        assertEquals(4, session.displaySnapshot().characterRows)
     }
 
     @Test

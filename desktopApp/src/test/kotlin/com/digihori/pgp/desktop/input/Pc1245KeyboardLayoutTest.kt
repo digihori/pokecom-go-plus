@@ -10,7 +10,12 @@ class Pc1245KeyboardLayoutTest {
     fun containsEveryPc1245LogicalKeyExactlyOnce() {
         val keys = Pc1245KeyboardLayout.rows.flatten().map(PocketKeyCap::key)
 
-        assertEquals(PocketKey.entries.toSet(), keys.toSet())
+        val pc1350Only = setOf(
+            PocketKey.MODE, PocketKey.KANA, PocketKey.INSERT, PocketKey.DELETE,
+            PocketKey.LEFT_PAREN, PocketKey.RIGHT_PAREN, PocketKey.COLON,
+            PocketKey.SEMICOLON, PocketKey.COMMA,
+        )
+        assertEquals(PocketKey.entries.toSet() - pc1350Only, keys.toSet())
         assertEquals(keys.size, keys.distinct().size)
     }
 
@@ -29,5 +34,24 @@ class Pc1245KeyboardLayoutTest {
     fun shiftedExclamationLegendMatchesCharacterInputMapping() {
         val q = Pc1245KeyboardLayout.rows.flatten().single { it.key == PocketKey.Q }
         assertEquals("!", q.shiftedLabel)
+    }
+
+    @Test
+    fun pc1350RowsFitTheSixteenColumnGridAndContainMachineSpecificKeys() {
+        Pc1350KeyboardLayout.rows.forEach { row ->
+            val occupiedColumns = row.flatMap { cap -> cap.column until cap.column + cap.columnSpan }
+            assertTrue(occupiedColumns.all { it in 0 until Pc1350KeyboardLayout.COLUMN_COUNT })
+            assertEquals(occupiedColumns.size, occupiedColumns.distinct().size)
+        }
+        val keys = Pc1350KeyboardLayout.rows.flatten().map(PocketKeyCap::key).toSet()
+        assertTrue(
+            keys.containsAll(
+                setOf(
+                    PocketKey.MODE, PocketKey.KANA, PocketKey.INSERT, PocketKey.DELETE,
+                    PocketKey.LEFT_PAREN, PocketKey.RIGHT_PAREN, PocketKey.COLON,
+                    PocketKey.SEMICOLON, PocketKey.COMMA,
+                ),
+            ),
+        )
     }
 }

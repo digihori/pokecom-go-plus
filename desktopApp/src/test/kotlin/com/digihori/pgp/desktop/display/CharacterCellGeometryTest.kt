@@ -24,12 +24,23 @@ class CharacterCellGeometryTest {
     }
 
     @Test
+    fun insertsOneBlankRowBetweenFourEightDotCharacterRows() {
+        assertEquals(35, CharacterCellGeometry.visualRowCount(characterRows = 4, characterHeight = 8))
+        assertEquals(7, CharacterCellGeometry.visualRow(dotRow = 7, characterHeight = 8))
+        assertEquals(9, CharacterCellGeometry.visualRow(dotRow = 8, characterHeight = 8))
+        assertEquals(34, CharacterCellGeometry.visualRow(dotRow = 31, characterHeight = 8))
+    }
+
+    @Test
     fun rejectsInvalidGeometry() {
         assertFailsWith<IllegalArgumentException> {
             CharacterCellGeometry.visualColumnCount(characterColumns = 0, characterWidth = 5)
         }
         assertFailsWith<IllegalArgumentException> {
             CharacterCellGeometry.visualColumn(dotColumn = -1, characterWidth = 5)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            CharacterCellGeometry.visualRowCount(characterRows = 0, characterHeight = 8)
         }
     }
 }

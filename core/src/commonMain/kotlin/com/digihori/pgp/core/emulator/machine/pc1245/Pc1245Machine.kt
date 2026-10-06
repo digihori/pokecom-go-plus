@@ -3,6 +3,8 @@ package com.digihori.pgp.core.emulator.machine.pc1245
 import com.digihori.pgp.core.emulator.cpu.Sc61860Cpu
 import com.digihori.pgp.core.emulator.cpu.Sc61860RunResult
 import com.digihori.pgp.core.emulator.cpu.Sc61860StepResult
+import com.digihori.pgp.core.emulator.cpu.Sc61860BusAccessRecorder
+import com.digihori.pgp.core.api.MemoryAccess
 import com.digihori.pgp.core.rom.RomSet
 import com.digihori.pgp.core.source.machine.AddressedMemoryImage
 
@@ -15,7 +17,8 @@ internal class Pc1245Machine(
     private val buzzer: Pc1245Buzzer = Pc1245Buzzer()
     private val io: Pc1245Io = Pc1245Io(keyboard, display, buzzer)
     private val bus: Pc1245MemoryBus = Pc1245MemoryBus(romSet, display)
-    private val cpu: Sc61860Cpu = Sc61860Cpu(bus, io)
+    private val cpuBus = Sc61860BusAccessRecorder(bus)
+    private val cpu: Sc61860Cpu = Sc61860Cpu(cpuBus, io)
 
     init {
         coldReset()
@@ -99,6 +102,9 @@ internal class Pc1245Machine(
 
     internal val buzzerState
         get() = buzzer
+
+    internal fun setMemoryAccessTracing(enabled: Boolean) { cpuBus.enabled = enabled }
+    internal fun drainMemoryAccesses(): List<MemoryAccess> = cpuBus.drain()
 }
 
 internal sealed interface Pc1245MemoryImageLoadResult {

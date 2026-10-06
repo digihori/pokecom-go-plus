@@ -16,6 +16,8 @@ import com.digihori.pgp.core.api.ExecutionStatus
 import com.digihori.pgp.core.api.RunResult
 import com.digihori.pgp.core.api.StepResult
 import com.digihori.pgp.core.api.MachineCatalog
+import com.digihori.pgp.core.api.MemoryAccess
+import com.digihori.pgp.core.api.MemoryAccessKind
 import com.digihori.pgp.core.runtime.CycleBudget
 import com.digihori.pgp.core.runtime.CycleBudgetPlanner
 import com.digihori.pgp.core.runtime.KeyInputQueue
@@ -24,6 +26,10 @@ import com.digihori.pgp.core.runtime.SpeedRatio
 import com.digihori.pgp.desktop.input.DesktopKeyInputSink
 import com.digihori.pgp.desktop.input.DesktopCommandHistory
 import com.digihori.pgp.core.source.machine.AddressedMemoryImage
+import com.digihori.pgp.desktop.debug.DebuggerStopReason
+import com.digihori.pgp.desktop.debug.DesktopInstructionTraceEntry
+import com.digihori.pgp.desktop.debug.MemoryValueChange
+import com.digihori.pgp.core.debug.Sc61860InstructionDecoder
 
 internal fun interface MonotonicClock {
     fun nowNanoseconds(): Long
@@ -39,6 +45,11 @@ internal class DesktopEmulatorRunner(
     planner: CycleBudgetPlanner? = null,
     private val keyInputQueue: KeyInputQueue = defaultKeyInputQueue(session.machineId),
     private val commandHistory: DesktopCommandHistory = DesktopCommandHistory(),
+    private val programCounterProvider: () -> Int = { session.cpuSnapshot().programCounter },
+    private val traceEntryProvider: ((Long) -> DesktopInstructionTraceEntry)? = null,
+    private val memoryBytesProvider: (Int, Int) -> ByteArray = { start, length ->
+        session.memorySnapshot(start, length).copyBytes()
+    },
 ) : DesktopKeyInputSink {
     override val machineId get() = session.machineId
 
@@ -48,24 +59,46 @@ internal class DesktopEmulatorRunner(
     var state: RunnerState = RunnerState.PAUSED
         private set
 
+    var stopReason: DebuggerStopReason? = DebuggerStopReason.Reset
+        private set
+
     var speed: SpeedRatio = SpeedRatio.NORMAL
         private set
 
     private var previousTimeNanoseconds: Long? = null
     private var operatingMode: OperatingMode = OperatingMode.RUN
+    private val executionBreakpoints: MutableSet<Int> = mutableSetOf()
+    private var breakpointToSkipOnce: Int? = null
+    private var temporaryRunToAddress: Int? = null
+    private var instructionTraceEnabled: Boolean = false
+    private val instructionTrace: ArrayDeque<DesktopInstructionTraceEntry> = ArrayDeque()
+    private var nextTraceSequence: Long = 0
+    private var memoryWatchRange: IntRange? = null
+    private var memoryWatchBaseline: ByteArray? = null
+    private var memoryAccessWatch: MemoryAccessWatch? = null
 
     fun run() {
         if (state != RunnerState.PAUSED) return
+        breakpointToSkipOnce = when (val reason = stopReason) {
+            is DebuggerStopReason.Breakpoint -> reason.address
+            is DebuggerStopReason.RunToAddress -> reason.address
+            else -> null
+        }
         planner.reset()
         previousTimeNanoseconds = clock.nowNanoseconds()
         state = RunnerState.RUNNING
+        stopReason = null
     }
 
     fun pause() {
         applyTransition(keyInputQueue.cancel())
         planner.reset()
         previousTimeNanoseconds = null
-        if (state != RunnerState.FAULTED) state = RunnerState.PAUSED
+        if (state != RunnerState.FAULTED) {
+            if (state == RunnerState.RUNNING) stopReason = DebuggerStopReason.UserPause
+            state = RunnerState.PAUSED
+        }
+        temporaryRunToAddress = null
     }
 
     fun reset() {
@@ -77,6 +110,72 @@ internal class DesktopEmulatorRunner(
         operatingMode = OperatingMode.RUN
         commandHistory.clearPendingInput()
         state = RunnerState.PAUSED
+        stopReason = DebuggerStopReason.Reset
+        breakpointToSkipOnce = null
+        temporaryRunToAddress = null
+        clearInstructionTrace()
+        refreshMemoryWatchBaseline()
+        session.drainMemoryAccesses()
+    }
+
+    fun toggleBreakpoint(address: Int): Boolean {
+        val normalized = address and 0xffff
+        return if (executionBreakpoints.remove(normalized)) false else {
+            executionBreakpoints += normalized
+            true
+        }
+    }
+
+    fun breakpoints(): Set<Int> = executionBreakpoints.toSortedSet()
+
+    fun setInstructionTraceEnabled(enabled: Boolean) {
+        instructionTraceEnabled = enabled
+    }
+
+    fun isInstructionTraceEnabled(): Boolean = instructionTraceEnabled
+
+    fun instructionTrace(): List<DesktopInstructionTraceEntry> = instructionTrace.toList()
+
+    fun clearInstructionTrace() {
+        instructionTrace.clear()
+        nextTraceSequence = 0
+    }
+
+    fun setMemoryWatch(startAddress: Int, endAddressInclusive: Int) {
+        require(startAddress in 0..0xffff)
+        require(endAddressInclusive in startAddress..0xffff)
+        require(endAddressInclusive - startAddress + 1 <= MAX_MEMORY_WATCH_BYTES)
+        memoryWatchRange = startAddress..endAddressInclusive
+        refreshMemoryWatchBaseline()
+    }
+
+    fun clearMemoryWatch() {
+        memoryWatchRange = null
+        memoryWatchBaseline = null
+    }
+
+    fun memoryWatch(): IntRange? = memoryWatchRange
+
+    fun setMemoryAccessWatch(startAddress: Int, endAddressInclusive: Int, reads: Boolean, writes: Boolean) {
+        require(startAddress in 0..0xffff && endAddressInclusive in startAddress..0xffff)
+        require(reads || writes)
+        memoryAccessWatch = MemoryAccessWatch(startAddress..endAddressInclusive, reads, writes)
+        session.drainMemoryAccesses()
+        session.setMemoryAccessTracing(true)
+    }
+
+    fun clearMemoryAccessWatch() {
+        memoryAccessWatch = null
+        session.setMemoryAccessTracing(false)
+        session.drainMemoryAccesses()
+    }
+
+    fun memoryAccessWatchRange(): IntRange? = memoryAccessWatch?.range
+
+    fun runToAddress(address: Int) {
+        if (state == RunnerState.FAULTED) return
+        temporaryRunToAddress = address and 0xffff
+        if (state == RunnerState.PAUSED) run()
     }
 
     fun setSpeed(speed: SpeedRatio) {
@@ -90,8 +189,19 @@ internal class DesktopEmulatorRunner(
 
     fun step(): StepResult {
         pause()
-        val result = session.step()
-        if (result.status is ExecutionStatus.Faulted) state = RunnerState.FAULTED
+        val instructionAddress = if (memoryWatchRange != null || memoryAccessWatch != null) {
+            programCounterProvider() and 0xffff
+        } else 0
+        val result = stepSession()
+        val executionStatus = result.status
+        if (executionStatus is ExecutionStatus.Faulted) {
+            state = RunnerState.FAULTED
+            stopReason = DebuggerStopReason.Fault(executionStatus.fault)
+        } else {
+            stopReason = detectMemoryAccesses(instructionAddress)
+                ?: detectMemoryChanges(instructionAddress)
+                ?: DebuggerStopReason.StepComplete
+        }
         return result
     }
 
@@ -107,6 +217,7 @@ internal class DesktopEmulatorRunner(
         val resumeAfterLoad = state == RunnerState.RUNNING
         pause()
         val result = session.loadBasicProgram(program)
+        refreshMemoryWatchBaseline()
         if (resumeAfterLoad && state != RunnerState.FAULTED) run()
         return result
     }
@@ -117,12 +228,16 @@ internal class DesktopEmulatorRunner(
         val resumeAfterLoad = state == RunnerState.RUNNING
         pause()
         val result = session.loadMemoryImage(image)
+        refreshMemoryWatchBaseline()
         if (resumeAfterLoad && state != RunnerState.FAULTED) run()
         return result
     }
 
     fun memorySnapshot(startAddress: Int, length: Int): MemorySnapshot =
         session.memorySnapshot(startAddress, length)
+
+    fun memoryByte(address: Int): Int =
+        session.memorySnapshot(address and 0xffff, 1).copyBytes().single().toInt() and 0xff
 
     override fun pressKey(key: PocketKey): InputResult = session.pressKey(key)
 
@@ -165,7 +280,7 @@ internal class DesktopEmulatorRunner(
         applyTransition(keyInputQueue.start())
         while (!keyInputQueue.isIdle && status !is ExecutionStatus.Faulted) {
             val requestedCycles = keyInputQueue.limitCycles(Long.MAX_VALUE)
-            val partialResult = session.runCycles(requestedCycles)
+            val partialResult = runSessionCycles(requestedCycles)
             check(partialResult.executedCycles > 0) { "Session made no progress" }
             executedCycles += partialResult.executedCycles
             executedInstructions += partialResult.executedInstructions
@@ -180,7 +295,7 @@ internal class DesktopEmulatorRunner(
                 transition.key == PocketKey.ENTER &&
                 status !is ExecutionStatus.Faulted
             ) {
-                val settleResult = session.runCycles(BASIC_LINE_SETTLE_CYCLES)
+                val settleResult = runSessionCycles(BASIC_LINE_SETTLE_CYCLES)
                 executedCycles += settleResult.executedCycles
                 executedInstructions += settleResult.executedInstructions
                 status = settleResult.status
@@ -190,11 +305,14 @@ internal class DesktopEmulatorRunner(
         if (status is ExecutionStatus.Faulted) {
             applyTransition(keyInputQueue.cancel())
             state = RunnerState.FAULTED
+            stopReason = DebuggerStopReason.Fault(status.fault)
+            temporaryRunToAddress = null
         } else if (resumeAfterInput) {
             previousTimeNanoseconds = clock.nowNanoseconds()
         } else {
             state = RunnerState.PAUSED
         }
+        refreshMemoryWatchBaseline()
         return RunResult(executedCycles, executedInstructions, status)
     }
 
@@ -231,13 +349,24 @@ internal class DesktopEmulatorRunner(
         var status: ExecutionStatus = ExecutionStatus.Ready
         while (cyclesRemaining > 0 && status !is ExecutionStatus.Faulted) {
             val requestedCycles = keyInputQueue.limitCycles(cyclesRemaining)
-            val partialResult = session.runCycles(requestedCycles)
-            check(partialResult.executedCycles > 0) { "Session made no progress" }
+            val partial = runUntilBreakpoint(requestedCycles)
+            val partialResult = partial.result
             executedCycles += partialResult.executedCycles
             executedInstructions += partialResult.executedInstructions
             cyclesRemaining = (cyclesRemaining - partialResult.executedCycles).coerceAtLeast(0)
             status = partialResult.status
-            applyTransition(keyInputQueue.advance(partialResult.executedCycles))
+            if (partialResult.executedCycles > 0) {
+                applyTransition(keyInputQueue.advance(partialResult.executedCycles))
+            }
+            if (partial.stopReason != null) {
+                applyTransition(keyInputQueue.cancel())
+                state = RunnerState.PAUSED
+                previousTimeNanoseconds = null
+                planner.reset()
+                stopReason = partial.stopReason
+                break
+            }
+            check(partialResult.executedCycles > 0) { "Session made no progress" }
         }
         val result = RunResult(executedCycles, executedInstructions, status)
         if (status is ExecutionStatus.Faulted) {
@@ -245,8 +374,138 @@ internal class DesktopEmulatorRunner(
             state = RunnerState.FAULTED
             previousTimeNanoseconds = null
             planner.reset()
+            stopReason = DebuggerStopReason.Fault(status.fault)
+            temporaryRunToAddress = null
         }
         return RunnerTick(budget, result)
+    }
+
+    private fun runUntilBreakpoint(cycleBudget: Long): BreakpointRunResult {
+        if (
+            executionBreakpoints.isEmpty() && temporaryRunToAddress == null &&
+            !instructionTraceEnabled && memoryWatchRange == null && memoryAccessWatch == null
+        ) {
+            return BreakpointRunResult(session.runCycles(cycleBudget))
+        }
+        var cycles = 0L
+        var instructions = 0L
+        var status: ExecutionStatus = ExecutionStatus.Ready
+        while (cycles < cycleBudget && status !is ExecutionStatus.Faulted) {
+            val needsProgramCounter = temporaryRunToAddress != null ||
+                executionBreakpoints.isNotEmpty() || memoryWatchRange != null || memoryAccessWatch != null
+            val pc = if (needsProgramCounter) programCounterProvider() and 0xffff else 0
+            if (temporaryRunToAddress != null || executionBreakpoints.isNotEmpty()) {
+                if (pc == temporaryRunToAddress) {
+                    temporaryRunToAddress = null
+                    return BreakpointRunResult(
+                        RunResult(cycles, instructions, status),
+                        stopReason = DebuggerStopReason.RunToAddress(pc),
+                    )
+                }
+                if (pc in executionBreakpoints && pc != breakpointToSkipOnce) {
+                    return BreakpointRunResult(
+                        RunResult(cycles, instructions, status),
+                        stopReason = DebuggerStopReason.Breakpoint(pc),
+                    )
+                }
+            }
+            breakpointToSkipOnce = null
+            val step = stepSession()
+            cycles += step.cycles
+            instructions++
+            status = step.status
+            val accessStop = detectMemoryAccesses(pc)
+            if (accessStop != null) {
+                return BreakpointRunResult(
+                    RunResult(cycles, instructions, status),
+                    stopReason = accessStop,
+                )
+            }
+            val memoryStop = detectMemoryChanges(pc)
+            if (memoryStop != null) {
+                return BreakpointRunResult(
+                    RunResult(cycles, instructions, status),
+                    stopReason = memoryStop,
+                )
+            }
+        }
+        return BreakpointRunResult(RunResult(cycles, instructions, status))
+    }
+
+    private fun runSessionCycles(cycleBudget: Long): RunResult {
+        if (!instructionTraceEnabled) return session.runCycles(cycleBudget)
+        var cycles = 0L
+        var instructions = 0L
+        var status: ExecutionStatus = ExecutionStatus.Ready
+        while (cycles < cycleBudget && status !is ExecutionStatus.Faulted) {
+            val step = stepSession()
+            cycles += step.cycles
+            instructions++
+            status = step.status
+        }
+        return RunResult(cycles, instructions, status)
+    }
+
+    private fun stepSession(): StepResult {
+        if (instructionTraceEnabled) {
+            val entry = traceEntryProvider?.invoke(nextTraceSequence) ?: captureTraceEntry(nextTraceSequence)
+            if (instructionTrace.size == INSTRUCTION_TRACE_CAPACITY) instructionTrace.removeFirst()
+            instructionTrace.addLast(entry)
+            nextTraceSequence++
+        }
+        return session.step()
+    }
+
+    private fun captureTraceEntry(sequence: Long): DesktopInstructionTraceEntry {
+        val cpu = session.cpuSnapshot()
+        return DesktopInstructionTraceEntry(
+            sequence = sequence,
+            dataPointer = cpu.dataPointer,
+            p = cpu.p,
+            q = cpu.q,
+            r = cpu.r,
+            d = cpu.d,
+            carry = cpu.carry,
+            zero = cpu.zero,
+            instruction = Sc61860InstructionDecoder.decode(cpu.programCounter, ::memoryByte),
+        )
+    }
+
+    private fun refreshMemoryWatchBaseline() {
+        val range = memoryWatchRange ?: return
+        memoryWatchBaseline = memoryBytesProvider(range.first, range.last - range.first + 1)
+    }
+
+    private fun detectMemoryChanges(instructionAddress: Int): DebuggerStopReason.MemoryChanged? {
+        val range = memoryWatchRange ?: return null
+        val before = memoryWatchBaseline ?: return null
+        val after = memoryBytesProvider(range.first, before.size)
+        val changes = buildList {
+            before.indices.forEach { index ->
+                val oldValue = before[index].toInt() and 0xff
+                val newValue = after[index].toInt() and 0xff
+                if (oldValue != newValue) {
+                    add(MemoryValueChange(range.first + index, oldValue, newValue))
+                }
+            }
+        }
+        memoryWatchBaseline = after
+        return changes.takeIf { it.isNotEmpty() }?.let {
+            DebuggerStopReason.MemoryChanged(instructionAddress, it)
+        }
+    }
+
+    private fun detectMemoryAccesses(instructionAddress: Int): DebuggerStopReason.MemoryAccessed? {
+        val watch = memoryAccessWatch ?: return null
+        val matching = session.drainMemoryAccesses().filter { access ->
+            access.address in watch.range && when (access.kind) {
+                MemoryAccessKind.READ -> watch.reads
+                MemoryAccessKind.WRITE -> watch.writes
+            }
+        }
+        return matching.takeIf { it.isNotEmpty() }?.let {
+            DebuggerStopReason.MemoryAccessed(instructionAddress, it)
+        }
     }
 
     private fun applyTransition(transition: KeyTransition?) {
@@ -264,7 +523,7 @@ internal class DesktopEmulatorRunner(
         return true
     }
 
-    private companion object {
+    internal companion object {
         // Pokecom GO retained a released key for three 20 ms polling intervals.
         private fun defaultKeyInputQueue(machineId: com.digihori.pgp.core.rom.MachineId): KeyInputQueue {
             val definition = MachineCatalog.require(machineId)
@@ -275,8 +534,17 @@ internal class DesktopEmulatorRunner(
         }
 
         const val BASIC_LINE_SETTLE_CYCLES: Long = 57_600 // 200 ms after ENTER.
+        const val INSTRUCTION_TRACE_CAPACITY: Int = 256
+        const val MAX_MEMORY_WATCH_BYTES: Int = 4_096
     }
 }
+
+private data class MemoryAccessWatch(val range: IntRange, val reads: Boolean, val writes: Boolean)
+
+private data class BreakpointRunResult(
+    val result: RunResult,
+    val stopReason: DebuggerStopReason? = null,
+)
 
 internal enum class RunnerState {
     PAUSED,
