@@ -61,6 +61,29 @@ class DesktopProjectWorkspaceCreatorTest {
     }
 
     @Test
+    fun numbersTheDefaultProjectFolderWithoutOverwritingExistingProjects() {
+        val parent = Files.createTempDirectory("pgp-default-project-number-test")
+        parent.resolve("New-PGP-Project").toFile().mkdir()
+        parent.resolve("New-PGP-Project-2").toFile().mkdir()
+
+        val created = assertIs<DesktopProjectCreateResult.Success>(
+            DesktopProjectWorkspaceCreator.create(
+                parent.toFile(),
+                "New PGP Project",
+                MachineId("pc-1245"),
+                DesktopProjectTemplate.BASIC,
+            ),
+        )
+
+        assertEquals(
+            parent.resolve("New-PGP-Project-3/pgp-project.json").toFile(),
+            created.manifestFile,
+        )
+        assertTrue(parent.resolve("New-PGP-Project").toFile().isDirectory)
+        assertTrue(parent.resolve("New-PGP-Project-2").toFile().isDirectory)
+    }
+
+    @Test
     fun derivesPortableFolderNameFromDisplayName() {
         assertEquals("My-Game-Test", DesktopProjectWorkspaceCreator.folderName(" My Game/Test "))
     }

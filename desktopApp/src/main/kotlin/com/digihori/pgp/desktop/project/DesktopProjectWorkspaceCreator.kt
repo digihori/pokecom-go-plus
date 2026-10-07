@@ -30,7 +30,12 @@ internal object DesktopProjectWorkspaceCreator {
         machineId: MachineId,
         template: DesktopProjectTemplate,
     ): DesktopProjectCreateResult {
-        val projectDirectory = File(parentDirectory.absoluteFile, folderName(projectName))
+        val baseFolderName = folderName(projectName)
+        val projectDirectory = if (baseFolderName == DEFAULT_PROJECT_FOLDER_NAME) {
+            nextAvailableDefaultDirectory(parentDirectory.absoluteFile, baseFolderName)
+        } else {
+            File(parentDirectory.absoluteFile, baseFolderName)
+        }
         val manifestFile = File(projectDirectory, DesktopProjectWorkspaceLoader.DEFAULT_MANIFEST_NAME)
         if (projectDirectory.exists()) {
             return DesktopProjectCreateResult.Failure(
@@ -76,6 +81,17 @@ internal object DesktopProjectWorkspaceCreator {
         .trim('.', '-', ' ')
         .ifEmpty { "pgp-project" }
 
+    private fun nextAvailableDefaultDirectory(parentDirectory: File, baseFolderName: String): File {
+        val base = File(parentDirectory, baseFolderName)
+        if (!base.exists()) return base
+        var suffix = 2
+        while (true) {
+            val candidate = File(parentDirectory, "$baseFolderName-$suffix")
+            if (!candidate.exists()) return candidate
+            suffix++
+        }
+    }
+
     private fun DesktopProjectTemplate.files(root: File): List<SourceFile> = buildList {
         if (this@files != DesktopProjectTemplate.MACHINE_CODE) {
             add(
@@ -102,4 +118,6 @@ internal object DesktopProjectWorkspaceCreator {
         val file: File,
         val initialContent: String,
     )
+
+    private const val DEFAULT_PROJECT_FOLDER_NAME: String = "New-PGP-Project"
 }

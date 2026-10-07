@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -44,6 +46,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.FrameWindowScope
+import androidx.compose.ui.window.MenuBar
 import androidx.compose.ui.window.application
 import com.digihori.pgp.core.ProjectInfo
 import com.digihori.pgp.core.api.ExecutionStatus
@@ -120,6 +124,8 @@ import com.digihori.pgp.desktop.rom.DesktopRomLoadResult
 import com.digihori.pgp.desktop.rom.DesktopRomLoader
 import com.digihori.pgp.desktop.rom.DesktopRomLocator
 import com.digihori.pgp.desktop.rom.DesktopRomHistory
+import com.digihori.pgp.desktop.rom.DesktopRomLibrary
+import com.digihori.pgp.desktop.rom.DesktopRomLibraryResult
 import com.digihori.pgp.desktop.rom.DesktopRomPackageConversionResult
 import com.digihori.pgp.desktop.rom.DesktopRomPackageConverter
 import com.digihori.pgp.desktop.runner.DesktopEmulatorRunner
@@ -191,7 +197,7 @@ private val SUPPORTED_RENDER_APIS = setOf(
 )
 
 @Composable
-private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
+private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
     var runner by remember { mutableStateOf<DesktopEmulatorRunner?>(null) }
     var selectedMachineId by remember { mutableStateOf(MachineCatalog.defaultDefinition.id) }
     var runnerState by remember { mutableStateOf(RunnerState.PAUSED) }
@@ -208,8 +214,9 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
     var memoryViewStartAddress by remember { mutableStateOf(DEFAULT_MEMORY_VIEW_ADDRESS) }
     var operatingMode by remember { mutableStateOf(OperatingMode.RUN) }
     var requestedToneHz by remember { mutableStateOf(0) }
-    var showOpenRomGuide by remember { mutableStateOf(false) }
     var showCreateRomSetGuide by remember { mutableStateOf(false) }
+    var showRomManager by remember { mutableStateOf(false) }
+    var pendingRomRemoval by remember { mutableStateOf<MachineId?>(null) }
     var errorDialogMessage by remember { mutableStateOf<String?>(null) }
     var showSaveMemoryDumpDialog by remember { mutableStateOf(false) }
     var dumpStartAddress by remember { mutableStateOf("C000") }
@@ -231,20 +238,26 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
     var projectBasicModified by remember { mutableStateOf(false) }
     var changedProjectSources by remember { mutableStateOf(emptySet<String>()) }
     var projectRuntimeStatus by remember { mutableStateOf(ProjectRuntimeStatus.NOT_BUILT) }
+    var showProjectWindow by remember { mutableStateOf(false) }
     var showCreateProjectDialog by remember { mutableStateOf(false) }
     var newProjectName by remember { mutableStateOf("New PGP Project") }
     var newProjectTemplate by remember { mutableStateOf(DesktopProjectTemplate.BASIC) }
     var newProjectError by remember { mutableStateOf<String?>(null) }
     var requestProjectParentSelection by remember { mutableStateOf(false) }
-    val scrollState = rememberScrollState()
+    var machineMenuExpanded by remember { mutableStateOf(false) }
     val audioPlayer = remember { DesktopAudioPlayer() }
     val romHistory = remember { DesktopRomHistory() }
+    val romLibrary = remember { DesktopRomLibrary() }
+    var installedRomMachines by remember { mutableStateOf(romLibrary.installedMachineIds()) }
     val appFocusRequester = remember { FocusRequester() }
 
-    fun selectAndRestoreFocus(select: () -> File?): File? = try {
+    fun selectAndRestoreFocus(
+        restoreMainWindowFocus: Boolean = true,
+        select: () -> File?,
+    ): File? = try {
         select()
     } finally {
-        focusRestoreRequest++
+        if (restoreMainWindowFocus) focusRestoreRequest++
     }
 
     fun showError(value: String) {
@@ -257,12 +270,17 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
         startAutomatically: Boolean,
         reportErrors: Boolean = true,
         memoryMode: Pc1251FamilyMemoryMode = familyMemoryMode,
+        machineIdOverride: MachineId? = null,
     ): Boolean {
         val configuration = EmulatorConfiguration(pc1251FamilyMemoryMode = memoryMode)
         val result = runCatching {
             val bytes = file.readBytes()
             if (file.extension.equals("pgrom", ignoreCase = true)) {
-                DesktopRomLoader.loadPackage(bytes, configuration)
+                if (machineIdOverride == null) {
+                    DesktopRomLoader.loadPackage(bytes, configuration)
+                } else {
+                    DesktopRomLoader.loadPackageForMachine(bytes, machineIdOverride, configuration)
+                }
             } else {
                 val bankImage = if (MachineCatalog.require(selectedMachineId).family == MachineFamily.PC_1360) {
                     File(file.parentFile, "pc1360bank.bin").readBytes()
@@ -320,6 +338,78 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
         }
     }
 
+    fun importRom(file: File, targetMachineId: MachineId, reportErrors: Boolean = true): Boolean {
+        val packageBytes = runCatching {
+            val source = file.readBytes()
+            if (file.extension.equals("pgrom", ignoreCase = true)) {
+                source
+            } else {
+                val bankImage = if (MachineCatalog.require(targetMachineId).family == MachineFamily.PC_1360) {
+                    File(file.parentFile, "pc1360bank.bin").readBytes()
+                } else null
+                when (val converted = DesktopRomPackageConverter.convertLegacyImage(targetMachineId, source, bankImage)) {
+                    is DesktopRomPackageConversionResult.Success -> converted.packageBytes
+                    is DesktopRomPackageConversionResult.Failure ->
+                        error(DesktopRomLoadError.InvalidRom(converted.error).message())
+                }
+            }
+        }.getOrElse {
+            if (reportErrors) showError("Could not import ROM: ${it.message ?: it::class.simpleName}")
+            return false
+        }
+        return when (val installed = romLibrary.install(packageBytes, file.name)) {
+            is DesktopRomLibraryResult.Failure -> {
+                if (reportErrors) showError("Could not store ROM: ${installed.message}")
+                false
+            }
+            is DesktopRomLibraryResult.Success -> {
+                installedRomMachines = romLibrary.installedMachineIds()
+                val targetMachine = if (
+                    MachineCatalog.require(installed.machineId).family ==
+                    MachineCatalog.require(targetMachineId).family
+                ) targetMachineId else installed.machineId
+                selectedMachineId = targetMachine
+                loadRom(
+                    installed.file,
+                    startAutomatically = true,
+                    reportErrors = reportErrors,
+                    machineIdOverride = targetMachine,
+                )
+            }
+        }
+    }
+
+    fun chooseAndImportRom(machineId: MachineId) {
+        selectAndRestoreFocus { selectRomFile(ownerWindow, machineId) }
+            ?.let { importRom(it, machineId) }
+    }
+
+    fun switchMachine(machineId: MachineId) {
+        if (machineId !in installedRomMachines) return
+        selectedMachineId = machineId
+        loadRom(romLibrary.packageFile(machineId), startAutomatically = true, machineIdOverride = machineId)
+    }
+
+    fun removeStoredRom(machineId: MachineId) {
+        if (!romLibrary.remove(machineId)) {
+            showError("Could not remove the stored ${machineId.displayName()} ROM.")
+            return
+        }
+        installedRomMachines = romLibrary.installedMachineIds()
+        if (runner?.machineId?.let(romLibrary::packageFile) == romLibrary.packageFile(machineId)) {
+            runner?.pause()
+            audioPlayer.stop()
+            keyboardInput.attach(null)
+            runner = null
+            display = null
+            cpu = null
+            loadedRomName = null
+            loadedRomFile = null
+            runnerState = RunnerState.PAUSED
+        }
+        message = "Removed the stored ${machineId.displayName()} ROM."
+    }
+
     fun createRomSet() {
         val internalFile = selectAndRestoreFocus { selectInternalRomFile(ownerWindow, selectedMachineId) } ?: return
         val externalFile = selectAndRestoreFocus { selectExternalRomFile(ownerWindow, selectedMachineId) } ?: return
@@ -364,12 +454,22 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                     projectBasicModified = false
                 }
                 selectedMachineId = opened.workspace.definition.machineId
+                showProjectWindow = true
                 val sourceSummary = opened.workspace.sources
                     .groupingBy { it.definition.type }
                     .eachCount()
                     .entries
                     .joinToString { "${it.key.displayName()}: ${it.value}" }
-                message = "Opened project ${opened.workspace.definition.name} ($sourceSummary)."
+                val projectMachineId = opened.workspace.definition.machineId
+                if (projectMachineId in installedRomMachines && runner?.machineId != projectMachineId) {
+                    switchMachine(projectMachineId)
+                }
+                message = if (projectMachineId in installedRomMachines) {
+                    "Opened project ${opened.workspace.definition.name} ($sourceSummary)."
+                } else {
+                    "Opened project ${opened.workspace.definition.name} ($sourceSummary). " +
+                        "Register the ${projectMachineId.displayName()} ROM before Build & Load."
+                }
             }
         }
     }
@@ -443,21 +543,254 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
         }
     }
 
+    fun openProjectFromDisk() {
+        selectAndRestoreFocus(restoreMainWindowFocus = false) { selectProjectDirectory(ownerWindow) }
+            ?.let { File(it, DesktopProjectWorkspaceLoader.DEFAULT_MANIFEST_NAME) }
+            ?.let { openProject(it) }
+    }
+
+    fun loadBasicFromDisk() {
+        val activeRunner = runner ?: return
+        val file = selectAndRestoreFocus { selectBasicFile(ownerWindow, "Load BASIC source") } ?: return
+        val compiled = runCatching {
+            DesktopBasicLoader.compileProgram(file.readBytes(), activeRunner.machineId)
+        }.getOrElse {
+            showError("Could not read BASIC source: ${it.message ?: it::class.simpleName}")
+            return
+        }
+        when (compiled) {
+            is DesktopBasicProgramCompileResult.Failure ->
+                showError(compiled.error.message(activeRunner.machineId.displayName()))
+            is DesktopBasicProgramCompileResult.Success -> when (val loaded = activeRunner.loadBasicProgram(compiled.bytes)) {
+                is BasicProgramLoadResult.Failure -> {
+                    runnerState = activeRunner.state
+                    showError(loaded.error.message())
+                }
+                is BasicProgramLoadResult.Success -> {
+                    projectBasicBaseline = null
+                    projectBasicModified = false
+                    runnerState = activeRunner.state
+                    display = activeRunner.displaySnapshot()
+                    cpu = activeRunner.cpuSnapshot()
+                    message = "Loaded ${file.name} directly (${loaded.size} bytes at " +
+                        "0x${loaded.startAddress.hex(4)}..0x${loaded.endAddress.hex(4)})."
+                    if (projectWorkspace != null) projectRuntimeStatus = ProjectRuntimeStatus.RUNTIME_MODIFIED
+                }
+            }
+        }
+    }
+
+    fun loadMachineCodeFromDisk() {
+        val activeRunner = runner ?: return
+        val file = selectAndRestoreFocus { selectMemoryDumpFile(ownerWindow) } ?: return
+        val parsed = runCatching { DesktopMemoryDumpLoader.parse(file.readBytes()) }.getOrElse {
+            showError("Could not read memory dump: ${it.message ?: it::class.simpleName}")
+            return
+        }
+        when (parsed) {
+            is DesktopMemoryDumpLoadResult.Failure -> showError(parsed.error.message())
+            is DesktopMemoryDumpLoadResult.Success -> {
+                when (val loaded = activeRunner.loadMemoryImage(parsed.image)) {
+                    is MemoryImageLoadResult.Failure -> showError(loaded.error.message())
+                    is MemoryImageLoadResult.Success -> {
+                        message = "Loaded ${file.name} (${loaded.byteCount} bytes in " +
+                            "${loaded.segmentCount} segments)."
+                        if (projectWorkspace != null) projectRuntimeStatus = ProjectRuntimeStatus.RUNTIME_MODIFIED
+                    }
+                }
+                runnerState = activeRunner.state
+                display = activeRunner.displaySnapshot()
+                cpu = activeRunner.cpuSnapshot()
+            }
+        }
+    }
+
+    fun saveBasicToDisk() {
+        val activeRunner = runner ?: return
+        when (val snapshot = activeRunner.basicProgramSnapshot()) {
+            is BasicProgramSnapshotResult.Failure -> showError(snapshot.error.message())
+            is BasicProgramSnapshotResult.Success -> when (
+                val decoded = DesktopBasicLoader.detokenizeProgram(snapshot.copyBytes(), activeRunner.machineId)
+            ) {
+                is DesktopBasicProgramDecodeResult.Failure -> showError(
+                    "BASIC program error at byte ${decoded.error.offset}: ${decoded.error.message}",
+                )
+                is DesktopBasicProgramDecodeResult.GenericFailure -> showError(
+                    "BASIC program error at byte ${decoded.offset}: ${decoded.message}",
+                )
+                is DesktopBasicProgramDecodeResult.Success -> {
+                    val file = selectAndRestoreFocus { selectBasicSaveFile(ownerWindow) } ?: return
+                    runCatching { file.writeBytes(decoded.utf8Bytes) }
+                        .onSuccess { message = "Saved BASIC source to ${file.name}." }
+                        .onFailure { showError("Could not save BASIC source: ${it.message ?: it::class.simpleName}") }
+                }
+            }
+        }
+    }
+
+    fun typeBasicThroughRom() {
+        val activeRunner = runner ?: return
+        val file = selectAndRestoreFocus { selectBasicFile(ownerWindow, "Type BASIC through ROM") } ?: return
+        val loadResult = runCatching {
+            DesktopBasicLoader.compileRomInput(file.readBytes(), activeRunner.machineId)
+        }.getOrElse {
+            showError("Could not read BASIC source: ${it.message ?: it::class.simpleName}")
+            return
+        }
+        when (loadResult) {
+            is DesktopBasicLoadResult.Failure -> showError(loadResult.error.message(activeRunner.machineId.displayName()))
+            is DesktopBasicLoadResult.Success -> {
+                activeRunner.setOperatingMode(OperatingMode.PROGRAM)
+                operatingMode = OperatingMode.PROGRAM
+                val runResult = activeRunner.runKeySequenceImmediately(loadResult.keys)
+                executedCycles += runResult.executedCycles
+                runnerState = activeRunner.state
+                display = activeRunner.displaySnapshot()
+                cpu = activeRunner.cpuSnapshot()
+                requestedToneHz = activeRunner.audioSnapshot().frequencyHz
+                message = if (runResult.status is ExecutionStatus.Faulted) {
+                    "BASIC loading stopped: ${runResult.status}"
+                } else {
+                    "Merged ${file.name} through the ${activeRunner.machineId.displayName()} ROM " +
+                        "(${loadResult.keys.size} key taps)."
+                }
+                if (runResult.status !is ExecutionStatus.Faulted && projectWorkspace != null) {
+                    projectRuntimeStatus = ProjectRuntimeStatus.RUNTIME_MODIFIED
+                }
+            }
+        }
+    }
+
+    fun quickAssemble() {
+        val sourceFile = selectAndRestoreFocus { selectAssemblyFile(ownerWindow) } ?: return
+        val assembled = runCatching { Sc61860Assembler.assemble(sourceFile.readText()) }.getOrElse {
+            showError("Could not read assembly source: ${it.message ?: it::class.simpleName}")
+            return
+        }
+        when (assembled) {
+            is Sc61860AssemblyResult.Failure -> showError(
+                "Assembly error at line ${assembled.line}: ${assembled.message}",
+            )
+            is Sc61860AssemblyResult.Success -> {
+                val destination = selectAndRestoreFocus { selectAssembledDumpDestination(ownerWindow) } ?: return
+                runCatching { destination.writeBytes(DesktopMemoryDumpWriter.write(assembled.image)) }
+                    .onSuccess { message = "Assembled ${assembled.image.byteCount} bytes into ${destination.name}." }
+                    .onFailure { showError("Could not save assembled output: ${it.message ?: it::class.simpleName}") }
+            }
+        }
+    }
+
+    fun runEmulator() {
+        runner?.run()
+        runnerState = runner?.state ?: RunnerState.PAUSED
+        changedCpuFields = emptySet()
+        debuggerStopReason = runner?.stopReason
+        message = "Running at normal speed."
+    }
+
+    fun pauseEmulator() {
+        runner?.pause()
+        audioPlayer.stop()
+        runnerState = runner?.state ?: RunnerState.PAUSED
+        cpu = runner?.cpuSnapshot()
+        changedCpuFields = emptySet()
+        debuggerStopReason = runner?.stopReason
+        message = "Paused."
+    }
+
+    fun resetEmulator() {
+        runner?.reset()
+        audioPlayer.stop()
+        runnerState = runner?.state ?: RunnerState.PAUSED
+        executedCycles = 0L
+        display = runner?.displaySnapshot()
+        cpu = runner?.cpuSnapshot()
+        changedCpuFields = emptySet()
+        debuggerStopReason = runner?.stopReason
+        operatingMode = OperatingMode.RUN
+        requestedToneHz = 0
+        projectBasicBaseline = null
+        projectBasicModified = false
+        message = "Reset complete."
+    }
+
+    fun stepEmulator() {
+        val before = runner?.cpuSnapshot()
+        val result = runner?.step() ?: return
+        runnerState = runner?.state ?: RunnerState.PAUSED
+        executedCycles += result.cycles
+        display = runner?.displaySnapshot()
+        val after = runner?.cpuSnapshot()
+        changedCpuFields = CpuSnapshotDifference.changed(before, after)
+        cpu = after
+        debuggerStopReason = runner?.stopReason
+        requestedToneHz = runner?.audioSnapshot()?.frequencyHz ?: 0
+        message = "Executed one instruction (${result.cycles} cycles)."
+    }
+
+    fun setMode(mode: OperatingMode) {
+        runner?.setOperatingMode(mode)
+        operatingMode = mode
+        display = runner?.displaySnapshot()
+    }
+
+    fun setMemoryMode(mode: Pc1251FamilyMemoryMode) {
+        val file = loadedRomFile
+        val resume = runnerState == RunnerState.RUNNING
+        familyMemoryMode = mode
+        if (file == null) {
+            message = if (mode == Pc1251FamilyMemoryMode.EXPANDED) {
+                "Expanded RAM selected. It will apply when a ROM is loaded."
+            } else {
+                "Hardware RAM selected. It will apply when a ROM is loaded."
+            }
+        } else if (loadRom(file, resume, memoryMode = mode, machineIdOverride = runner?.machineId)) {
+            message = if (mode == Pc1251FamilyMemoryMode.EXPANDED) {
+                "Restarted with expanded PC-1255-size RAM."
+            } else {
+                "Restarted with ${selectedMachineId.displayName()} hardware RAM."
+            }
+        }
+    }
+
     DisposableEffect(audioPlayer) {
         onDispose(audioPlayer::close)
     }
 
     LaunchedEffect(Unit) {
         val previous = romHistory.lastSelection()
+        if (previous != null && romLibrary.isInstalled(previous.machineId)) {
+            selectedMachineId = previous.machineId
+            if (loadRom(
+                    romLibrary.packageFile(previous.machineId),
+                    startAutomatically = true,
+                    reportErrors = false,
+                    machineIdOverride = previous.machineId,
+                )
+            ) {
+                return@LaunchedEffect
+            }
+        }
         if (previous != null && previous.file.isFile) {
             selectedMachineId = previous.machineId
-            if (loadRom(previous.file, startAutomatically = true, reportErrors = false)) return@LaunchedEffect
-        } else if (previous != null) {
-            romHistory.clear()
+            if (importRom(previous.file, previous.machineId, reportErrors = false)) return@LaunchedEffect
+        }
+        val firstInstalled = MachineCatalog.definitions.firstOrNull { it.id in installedRomMachines }?.id
+        if (firstInstalled != null) {
+            selectedMachineId = firstInstalled
+            if (loadRom(
+                    romLibrary.packageFile(firstInstalled),
+                    startAutomatically = true,
+                    reportErrors = false,
+                    machineIdOverride = firstInstalled,
+                )
+            ) {
+                return@LaunchedEffect
+            }
         }
         DesktopRomLocator.findFirstAvailableRom()?.let { fallback ->
             selectedMachineId = fallback.machineId
-            loadRom(fallback.file, startAutomatically = true)
+            importRom(fallback.file, fallback.machineId)
         }
     }
 
@@ -544,7 +877,7 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
         // Let the Compose modal disappear before showing the native macOS directory dialog.
         delay(50)
         val destination = runCatching {
-            selectAndRestoreFocus { selectProjectParentDirectory(ownerWindow) }
+            selectAndRestoreFocus(restoreMainWindowFocus = false) { selectProjectParentDirectory(ownerWindow) }
         }.getOrElse { error ->
             requestProjectParentSelection = false
             newProjectError = "Could not choose project folder: ${error.message ?: error::class.simpleName}"
@@ -569,6 +902,87 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
             is DesktopProjectCreateResult.Success -> openProject(created.manifestFile)
         }
         requestProjectParentSelection = false
+    }
+
+    MenuBar {
+        Menu("File") {
+            Item("Register ROM…", onClick = { showRomManager = true })
+            Item("Manage ROMs…", onClick = { showRomManager = true })
+            Item("Create ROM Set…", onClick = { showCreateRomSetGuide = true })
+        }
+        Menu("Project") {
+            Item("New Project…", onClick = {
+                newProjectError = null
+                showCreateProjectDialog = true
+            })
+            Item("Open Project…", onClick = ::openProjectFromDisk)
+            Item(
+                "Show Project Files",
+                enabled = projectWorkspace != null && !showProjectWindow,
+                onClick = { showProjectWindow = true },
+            )
+            Separator()
+            Item(
+                "Build & Load",
+                enabled = projectWorkspace != null && runner != null && runnerState != RunnerState.FAULTED,
+                onClick = ::buildProject,
+            )
+            Item("Update Project", enabled = projectWorkspace != null, onClick = ::updateProject)
+        }
+        Menu("Program") {
+            Item(
+                "Load BASIC…",
+                enabled = runner != null && runnerState != RunnerState.FAULTED,
+                onClick = ::loadBasicFromDisk,
+            )
+            Item(
+                "Save BASIC…",
+                enabled = runner != null && runnerState != RunnerState.FAULTED,
+                onClick = ::saveBasicToDisk,
+            )
+            Item(
+                "Type BASIC through ROM…",
+                enabled = runner != null && runnerState != RunnerState.FAULTED,
+                onClick = ::typeBasicThroughRom,
+            )
+            Separator()
+            Item(
+                "Load Machine Code…",
+                enabled = runner != null && runnerState != RunnerState.FAULTED,
+                onClick = ::loadMachineCodeFromDisk,
+            )
+            Item("Save Machine Code…", enabled = runner != null, onClick = {
+                dumpRangeError = null
+                showSaveMemoryDumpDialog = true
+            })
+            Item("Quick Assemble…", onClick = ::quickAssemble)
+        }
+        Menu("Emulator") {
+            Item("Run", enabled = runner != null && runnerState == RunnerState.PAUSED, onClick = ::runEmulator)
+            Item("Pause", enabled = runnerState == RunnerState.RUNNING, onClick = ::pauseEmulator)
+            Item("Step", enabled = runner != null && runnerState == RunnerState.PAUSED, onClick = ::stepEmulator)
+            Item("Reset", enabled = runner != null, onClick = ::resetEmulator)
+            if (MachineCatalog.require(runner?.machineId ?: selectedMachineId).supportsConfigurableRam) {
+                Separator()
+                Item(
+                    "Expanded RAM",
+                    enabled = familyMemoryMode != Pc1251FamilyMemoryMode.EXPANDED,
+                    onClick = { setMemoryMode(Pc1251FamilyMemoryMode.EXPANDED) },
+                )
+                Item(
+                    "Hardware RAM",
+                    enabled = familyMemoryMode != Pc1251FamilyMemoryMode.HARDWARE,
+                    onClick = { setMemoryMode(Pc1251FamilyMemoryMode.HARDWARE) },
+                )
+            }
+        }
+        Menu("Debug") {
+            Item("Open Debugger", enabled = !showDebuggerWindow, onClick = { showDebuggerWindow = true })
+            Item("Save Debug Checkpoint…", enabled = runner != null && cpu != null, onClick = {
+                checkpointRangeError = null
+                showSaveCheckpointDialog = true
+            })
+        }
     }
 
     if (showDebuggerWindow) {
@@ -622,6 +1036,41 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
         }
     }
 
+    if (showProjectWindow) {
+        Window(
+            onCloseRequest = { showProjectWindow = false },
+            title = projectWorkspace?.let { "${ProjectInfo.STUDIO_DISPLAY_NAME} — ${it.definition.name}" }
+                ?: "${ProjectInfo.STUDIO_DISPLAY_NAME} — Project Files",
+        ) {
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        projectWorkspace?.let { workspace ->
+                            Text("Project: ${workspace.definition.name}")
+                            Text("Machine: ${workspace.definition.machineId.displayName()}")
+                            Text(
+                                "Runtime: ${projectRuntimeStatus.displayName}" +
+                                    if (changedProjectSources.isEmpty()) "" else
+                                        " — changed: ${changedProjectSources.joinToString()}",
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    enabled = runner != null && runnerState != RunnerState.FAULTED,
+                                    onClick = ::buildProject,
+                                ) { Text("Build & Load") }
+                                Button(onClick = ::updateProject) { Text("Update Project") }
+                            }
+                            projectTree?.let { ProjectTreePanel(it) }
+                        } ?: Text("No project is open.")
+                    }
+                }
+            }
+        }
+    }
+
     MaterialTheme {
         Surface(
             modifier = Modifier
@@ -632,419 +1081,204 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(24.dp),
+                    .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(
-                    space = 16.dp,
-                    alignment = Alignment.CenterVertically,
-                ),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(ProjectInfo.STUDIO_DISPLAY_NAME, style = MaterialTheme.typography.headlineMedium)
-                Text("Machine: ${selectedMachineId.displayName()}")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MachineCatalog.definitions.forEach { definition ->
-                        Button(
-                            enabled = selectedMachineId != definition.id,
-                            onClick = { selectedMachineId = definition.id },
-                        ) { Text(definition.displayName) }
-                    }
-                }
-                if (MachineCatalog.require(runner?.machineId ?: selectedMachineId).supportsConfigurableRam) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            enabled = familyMemoryMode != Pc1251FamilyMemoryMode.EXPANDED,
-                            onClick = {
-                                val file = loadedRomFile
-                                val resume = runnerState == RunnerState.RUNNING
-                                familyMemoryMode = Pc1251FamilyMemoryMode.EXPANDED
-                                if (file == null) {
-                                    message = "Expanded RAM selected. It will apply when a ROM is loaded."
-                                } else if (loadRom(
-                                        file,
-                                        resume,
-                                        memoryMode = Pc1251FamilyMemoryMode.EXPANDED,
-                                    )) {
-                                    message = "Restarted with expanded PC-1255-size RAM."
-                                }
-                            },
-                        ) { Text("Expanded RAM") }
-                        Button(
-                            enabled = familyMemoryMode != Pc1251FamilyMemoryMode.HARDWARE,
-                            onClick = {
-                                val file = loadedRomFile
-                                val resume = runnerState == RunnerState.RUNNING
-                                familyMemoryMode = Pc1251FamilyMemoryMode.HARDWARE
-                                if (file == null) {
-                                    message = "Hardware RAM selected. It will apply when a ROM is loaded."
-                                } else if (loadRom(
-                                        file,
-                                        resume,
-                                        memoryMode = Pc1251FamilyMemoryMode.HARDWARE,
-                                    )) {
-                                    message = "Restarted with ${selectedMachineId.displayName()} hardware RAM."
-                                }
-                            },
-                        ) { Text("Hardware RAM") }
-                    }
-                }
-                Text("ROM: ${loadedRomName ?: "not loaded"}")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = {
-                            selectAndRestoreFocus { selectProjectDirectory(ownerWindow) }
-                                ?.let { File(it, DesktopProjectWorkspaceLoader.DEFAULT_MANIFEST_NAME) }
-                                ?.let { openProject(it) }
-                        },
-                    ) { Text("Open Project") }
-                    Button(
-                        onClick = {
-                            newProjectError = null
-                            showCreateProjectDialog = true
-                        },
-                    ) { Text("Create Project") }
-                    Button(
-                        enabled = projectWorkspace != null && runner != null && runnerState != RunnerState.FAULTED,
-                        onClick = { buildProject() },
-                    ) { Text("Build & Load") }
-                    Button(
-                        enabled = projectWorkspace != null,
-                        onClick = { updateProject() },
-                    ) { Text("Update Project") }
-                }
-                Text(
-                    projectWorkspace?.let { workspace ->
-                        val changeStatus = if (changedProjectSources.isEmpty()) {
-                            "no external changes detected"
-                        } else {
-                            "changed: ${changedProjectSources.joinToString()}"
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Machine")
+                    Box {
+                        Button(onClick = { machineMenuExpanded = true }) {
+                            val displayedMachine = runner?.machineId ?: selectedMachineId
+                            Text(
+                                displayedMachine.displayName() +
+                                    if (displayedMachine in installedRomMachines) " ▾"
+                                    else " — ROM not registered ▾",
+                            )
                         }
-                        "Project: ${workspace.definition.name} — ${workspace.sources.size} sources, " +
-                            "$changeStatus; runtime: ${projectRuntimeStatus.displayName}"
-                    } ?: "Project: not open",
-                )
-                projectTree?.let { ProjectTreePanel(it) }
-                if (projectBasicBaseline != null) {
-                    Text("Emulator BASIC: ${if (projectBasicModified) "Modified" else "Synced"}")
+                        DropdownMenu(
+                            expanded = machineMenuExpanded,
+                            onDismissRequest = { machineMenuExpanded = false },
+                        ) {
+                            MachineCatalog.definitions.forEach { definition ->
+                                val installed = definition.id in installedRomMachines
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            if (installed) definition.displayName
+                                            else "${definition.displayName} — ROM not registered",
+                                        )
+                                    },
+                                    enabled = installed,
+                                    onClick = {
+                                        machineMenuExpanded = false
+                                        switchMachine(definition.id)
+                                    },
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text("Manage ROMs…") },
+                                onClick = {
+                                    machineMenuExpanded = false
+                                    showRomManager = true
+                                },
+                            )
+                        }
+                    }
+                    Text("ROM: ${if (runner?.machineId in installedRomMachines) "registered" else loadedRomName ?: "not loaded"}")
+                    projectWorkspace?.let { Text("Project: ${it.definition.name}") }
                 }
-                Text("RUN-mode command history: Alt+↑ / Alt+↓")
-                Text("State: ${runnerState.name}")
-                Text("Executed cycles: $executedCycles")
-                Text("Requested tone: ${if (requestedToneHz == 0) "silent" else "$requestedToneHz Hz"}")
-                Text(message)
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Button(
+                        enabled = runner != null && runnerState != RunnerState.FAULTED,
+                        onClick = {
+                            if (runnerState == RunnerState.RUNNING) pauseEmulator() else runEmulator()
+                        },
+                    ) { Text(if (runnerState == RunnerState.RUNNING) "Pause" else "Run") }
+                    Button(enabled = runner != null, onClick = ::resetEmulator) { Text("Reset") }
+                    Button(
+                        enabled = runner != null && runnerState == RunnerState.PAUSED,
+                        onClick = ::stepEmulator,
+                    ) { Text("Step") }
+                    val activeDefinition = MachineCatalog.require(runner?.machineId ?: selectedMachineId)
+                    if (activeDefinition.family == MachineFamily.PC_1245 ||
+                        activeDefinition.family == MachineFamily.PC_1251
+                    ) {
+                        Button(
+                            enabled = runner != null && operatingMode != OperatingMode.RUN,
+                            onClick = { setMode(OperatingMode.RUN) },
+                        ) { Text("RUN") }
+                        Button(
+                            enabled = runner != null && operatingMode != OperatingMode.PROGRAM,
+                            onClick = { setMode(OperatingMode.PROGRAM) },
+                        ) { Text("PRO") }
+                    }
+                    if (activeDefinition.family == MachineFamily.PC_1251) {
+                        Button(
+                            enabled = runner != null && operatingMode != OperatingMode.RESERVE,
+                            onClick = { setMode(OperatingMode.RESERVE) },
+                        ) { Text("RSV") }
+                    }
+                }
+
                 PocketLcdPanel(display)
                 PocketSoftwareKeyboard(
                     runner,
                     MachineCatalog.require(runner?.machineId ?: selectedMachineId).keyboardLayout,
                 )
-                Button(
-                    onClick = { showDebuggerWindow = true },
-                    enabled = !showDebuggerWindow,
-                ) { Text(if (showDebuggerWindow) "Debugger Open" else "Open Debugger") }
-                debuggerStopReason?.let { Text("Debugger: ${it.displayName()}") }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { showOpenRomGuide = true }) { Text("Open ROM") }
-                    Button(onClick = { showCreateRomSetGuide = true }) { Text("Create ROM Set") }
-                    Button(
-                        enabled = runner != null && runnerState != RunnerState.FAULTED,
-                        onClick = {
-                            val activeRunner = runner ?: return@Button
-                            val file = selectAndRestoreFocus {
-                                selectBasicFile(ownerWindow, "Load BASIC source")
-                            } ?: return@Button
-                            val compiled = runCatching {
-                                DesktopBasicLoader.compileProgram(file.readBytes(), activeRunner.machineId)
-                            }.getOrElse {
-                                message = "Could not read BASIC source: ${it.message ?: it::class.simpleName}"
-                                return@Button
-                            }
-                            when (compiled) {
-                                is DesktopBasicProgramCompileResult.Failure ->
-                                    message = compiled.error.message(activeRunner.machineId.displayName())
-                                is DesktopBasicProgramCompileResult.Success -> {
-                                    when (val loaded = activeRunner.loadBasicProgram(compiled.bytes)) {
-                                        is BasicProgramLoadResult.Failure -> {
-                                            runnerState = activeRunner.state
-                                            message = loaded.error.message()
-                                        }
-                                        is BasicProgramLoadResult.Success -> {
-                                            projectBasicBaseline = null
-                                            projectBasicModified = false
-                                            runnerState = activeRunner.state
-                                            display = activeRunner.displaySnapshot()
-                                            cpu = activeRunner.cpuSnapshot()
-                                            message = "Loaded ${file.name} directly (${loaded.size} bytes at " +
-                                                "0x${loaded.startAddress.hex(4)}..0x${loaded.endAddress.hex(4)})."
-                                            if (projectWorkspace != null) {
-                                                projectRuntimeStatus = ProjectRuntimeStatus.RUNTIME_MODIFIED
-                                            }
-                                        }
-                                    }
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        Text(message)
+                        Text(
+                            buildString {
+                                append("${runnerState.name}  •  $executedCycles cycles")
+                                if (requestedToneHz != 0) append("  •  $requestedToneHz Hz")
+                                projectWorkspace?.let {
+                                    append("  •  ${projectRuntimeStatus.displayName}")
+                                    if (changedProjectSources.isNotEmpty()) append("  •  Source changed")
                                 }
-                            }
-                        },
-                    ) { Text("Load BASIC") }
-                    Button(
-                        enabled = runner != null && runnerState != RunnerState.FAULTED,
-                        onClick = {
-                            val activeRunner = runner ?: return@Button
-                            val file = selectAndRestoreFocus {
-                                selectMemoryDumpFile(ownerWindow)
-                            } ?: return@Button
-                            val parsed = runCatching { DesktopMemoryDumpLoader.parse(file.readBytes()) }
-                                .getOrElse {
-                                    message = "Could not read memory dump: ${it.message ?: it::class.simpleName}"
-                                    return@Button
-                                }
-                            when (parsed) {
-                                is DesktopMemoryDumpLoadResult.Failure -> message = parsed.error.message()
-                                is DesktopMemoryDumpLoadResult.Success -> {
-                                    when (val loaded = activeRunner.loadMemoryImage(parsed.image)) {
-                                        is MemoryImageLoadResult.Failure -> message = loaded.error.message()
-                                        is MemoryImageLoadResult.Success -> {
-                                            message = "Loaded ${file.name} (${loaded.byteCount} bytes in " +
-                                                "${loaded.segmentCount} segments)."
-                                            if (projectWorkspace != null) {
-                                                projectRuntimeStatus = ProjectRuntimeStatus.RUNTIME_MODIFIED
-                                            }
-                                        }
-                                    }
-                                    runnerState = activeRunner.state
-                                    display = activeRunner.displaySnapshot()
-                                    cpu = activeRunner.cpuSnapshot()
-                                }
-                            }
-                        },
-                    ) { Text("Load Machine Code") }
-                    Button(
-                        enabled = runner != null,
-                        onClick = {
-                            dumpRangeError = null
-                            showSaveMemoryDumpDialog = true
-                        },
-                    ) { Text("Save Machine Code") }
-                    Button(
-                        onClick = {
-                            val sourceFile = selectAndRestoreFocus {
-                                selectAssemblyFile(ownerWindow)
-                            } ?: return@Button
-                            val assembled = runCatching {
-                                Sc61860Assembler.assemble(sourceFile.readText())
-                            }.getOrElse {
-                                message = "Could not read assembly source: ${it.message ?: it::class.simpleName}"
-                                return@Button
-                            }
-                            when (assembled) {
-                                is Sc61860AssemblyResult.Failure -> message =
-                                    "Assembly error at line ${assembled.line}: ${assembled.message}"
-                                is Sc61860AssemblyResult.Success -> {
-                                    val destination = selectAndRestoreFocus {
-                                        selectAssembledDumpDestination(ownerWindow)
-                                    } ?: return@Button
-                                    runCatching {
-                                        destination.writeBytes(DesktopMemoryDumpWriter.write(assembled.image))
-                                    }.onSuccess {
-                                        message = "Assembled ${assembled.image.byteCount} bytes into ${destination.name}."
-                                    }.onFailure {
-                                        message = "Could not save assembled output: ${it.message ?: it::class.simpleName}"
-                                    }
-                                }
-                            }
-                        },
-                    ) { Text("Assemble") }
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        enabled = runner != null && runnerState != RunnerState.FAULTED,
-                        onClick = {
-                            val activeRunner = runner ?: return@Button
-                            when (val snapshot = activeRunner.basicProgramSnapshot()) {
-                                is BasicProgramSnapshotResult.Failure -> message = snapshot.error.message()
-                                is BasicProgramSnapshotResult.Success -> {
-                                    when (val decoded = DesktopBasicLoader.detokenizeProgram(snapshot.copyBytes(), activeRunner.machineId)) {
-                                        is DesktopBasicProgramDecodeResult.Failure ->
-                                            message = "BASIC program error at byte ${decoded.error.offset}: " +
-                                                decoded.error.message
-                                        is DesktopBasicProgramDecodeResult.GenericFailure ->
-                                            message = "BASIC program error at byte ${decoded.offset}: ${decoded.message}"
-                                        is DesktopBasicProgramDecodeResult.Success -> {
-                                            val file = selectAndRestoreFocus {
-                                                selectBasicSaveFile(ownerWindow)
-                                            } ?: return@Button
-                                            runCatching { file.writeBytes(decoded.utf8Bytes) }
-                                                .onSuccess { message = "Saved BASIC source to ${file.name}." }
-                                                .onFailure {
-                                                    message = "Could not save BASIC source: " +
-                                                        (it.message ?: it::class.simpleName)
-                                                }
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                    ) { Text("Save BASIC") }
-                    Button(
-                        enabled = runner != null && runnerState != RunnerState.FAULTED,
-                        onClick = {
-                            val activeRunner = runner ?: return@Button
-                            val file = selectAndRestoreFocus {
-                                selectBasicFile(ownerWindow, "Type BASIC through ROM")
-                            } ?: return@Button
-                            val loadResult = runCatching {
-                                DesktopBasicLoader.compileRomInput(file.readBytes(), activeRunner.machineId)
-                            }.getOrElse {
-                                message = "Could not read BASIC source: ${it.message ?: it::class.simpleName}"
-                                return@Button
-                            }
-                            when (loadResult) {
-                                is DesktopBasicLoadResult.Failure ->
-                                    message = loadResult.error.message(activeRunner.machineId.displayName())
-                                is DesktopBasicLoadResult.Success -> {
-                                    activeRunner.setOperatingMode(OperatingMode.PROGRAM)
-                                    operatingMode = OperatingMode.PROGRAM
-                                    val runResult = activeRunner.runKeySequenceImmediately(loadResult.keys)
-                                    executedCycles += runResult.executedCycles
-                                    runnerState = activeRunner.state
-                                    display = activeRunner.displaySnapshot()
-                                    cpu = activeRunner.cpuSnapshot()
-                                    requestedToneHz = activeRunner.audioSnapshot().frequencyHz
-                                    message = if (runResult.status is ExecutionStatus.Faulted) {
-                                        "BASIC loading stopped: ${runResult.status}"
-                                    } else {
-                                        "Merged ${file.name} through the ${activeRunner.machineId.displayName()} ROM " +
-                                            "(${loadResult.keys.size} key taps)."
-                                    }
-                                    if (runResult.status !is ExecutionStatus.Faulted && projectWorkspace != null) {
-                                        projectRuntimeStatus = ProjectRuntimeStatus.RUNTIME_MODIFIED
-                                    }
-                                }
-                            }
-                        },
-                    ) { Text("Type BASIC") }
-                    Button(
-                        enabled = runner != null && runnerState == RunnerState.PAUSED,
-                        onClick = {
-                            runner?.run()
-                            runnerState = runner?.state ?: RunnerState.PAUSED
-                            changedCpuFields = emptySet()
-                            debuggerStopReason = runner?.stopReason
-                            message = "Running at normal speed."
-                        },
-                    ) { Text("Run") }
-                    Button(
-                        enabled = runnerState == RunnerState.RUNNING,
-                        onClick = {
-                            runner?.pause()
-                            audioPlayer.stop()
-                            runnerState = runner?.state ?: RunnerState.PAUSED
-                            cpu = runner?.cpuSnapshot()
-                            changedCpuFields = emptySet()
-                            debuggerStopReason = runner?.stopReason
-                            message = "Paused."
-                        },
-                    ) { Text("Pause") }
-                    Button(
-                        enabled = runner != null,
-                        onClick = {
-                            runner?.reset()
-                            audioPlayer.stop()
-                            runnerState = runner?.state ?: RunnerState.PAUSED
-                            executedCycles = 0L
-                            display = runner?.displaySnapshot()
-                            cpu = runner?.cpuSnapshot()
-                            changedCpuFields = emptySet()
-                            debuggerStopReason = runner?.stopReason
-                            operatingMode = OperatingMode.RUN
-                            requestedToneHz = 0
-                            projectBasicBaseline = null
-                            projectBasicModified = false
-                            message = "Reset complete."
-                        },
-                    ) { Text("Reset") }
-                    Button(
-                        enabled = runner != null && runnerState == RunnerState.PAUSED,
-                        onClick = {
-                            val before = runner?.cpuSnapshot()
-                            val result = runner?.step() ?: return@Button
-                            runnerState = runner?.state ?: RunnerState.PAUSED
-                            executedCycles += result.cycles
-                            display = runner?.displaySnapshot()
-                            val after = runner?.cpuSnapshot()
-                            changedCpuFields = CpuSnapshotDifference.changed(before, after)
-                            cpu = after
-                            debuggerStopReason = runner?.stopReason
-                            val audio = runner?.audioSnapshot()
-                            if (audio != null) {
-                                requestedToneHz = audio.frequencyHz
-                            }
-                            message = "Executed one instruction (${result.cycles} cycles)."
-                        },
-                    ) { Text("Step") }
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        enabled = runner != null && operatingMode != OperatingMode.RUN,
-                        onClick = {
-                            runner?.setOperatingMode(OperatingMode.RUN)
-                            operatingMode = OperatingMode.RUN
-                            display = runner?.displaySnapshot()
-                        },
-                    ) { Text("RUN mode") }
-                    Button(
-                        enabled = runner != null && operatingMode != OperatingMode.PROGRAM,
-                        onClick = {
-                            runner?.setOperatingMode(OperatingMode.PROGRAM)
-                            operatingMode = OperatingMode.PROGRAM
-                            display = runner?.displaySnapshot()
-                        },
-                    ) { Text("PRO mode") }
-                    if (OperatingMode.RESERVE in MachineCatalog.require(
-                            runner?.machineId ?: selectedMachineId,
-                        ).supportedOperatingModes
-                    ) {
-                        Button(
-                            enabled = runner != null && operatingMode != OperatingMode.RESERVE,
-                            onClick = {
-                                runner?.setOperatingMode(OperatingMode.RESERVE)
-                                operatingMode = OperatingMode.RESERVE
-                                display = runner?.displaySnapshot()
+                                debuggerStopReason?.let { append("  •  ${it.displayName()}") }
                             },
-                        ) { Text("RSV mode") }
+                            style = MaterialTheme.typography.labelMedium,
+                        )
                     }
                 }
+
             }
         }
 
-        if (showOpenRomGuide) {
+        if (showRomManager) {
             AlertDialog(
-                onDismissRequest = { showOpenRomGuide = false },
-                title = { Text("Open ${selectedMachineId.displayName()} ROM") },
+                onDismissRequest = { showRomManager = false },
+                title = { Text("ROM Library") },
                 text = {
-                    Text(
-                        "Machine: ${selectedMachineId.displayName()}\n\nChoose one of the following files:\n\n" +
-                            "• PGP ROM package (.pgrom)\n" +
-                            "  Created by PGP from separate physical ROM dumps.\n\n" +
-                            if (MachineCatalog.require(selectedMachineId).family == MachineFamily.PC_1360) {
-                                "• Pokecom GO compatible pc1360mem.bin\n" +
-                                    "  Keep pc1360bank.bin in the same folder; PGP loads both files together."
-                            } else {
-                                "• Pokecom GO compatible image (.bin)\n" +
-                                    "  It can be opened directly; conversion is not required."
-                            },
-                    )
+                    Column(
+                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text("Registered ROMs are copied into the application data folder and remain available when the original files are moved or deleted.")
+                        MachineCatalog.definitions
+                            .filter { definition ->
+                                definition.family != MachineFamily.PC_1251 || definition.id.value == "pc-1251"
+                            }
+                            .forEach { definition ->
+                            val installed = definition.id in installedRomMachines
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column {
+                                    Text(
+                                        if (definition.family == MachineFamily.PC_1251) {
+                                            "PC-1250 / PC-1251 / PC-1255 family"
+                                        } else {
+                                            definition.displayName
+                                        },
+                                    )
+                                    val metadata = romLibrary.metadata(definition.id)
+                                    Text(
+                                        if (installed) {
+                                            "Registered and verified" +
+                                                (metadata?.let { " — ${it.sourceName}" } ?: "")
+                                        } else {
+                                            "ROM not registered"
+                                        },
+                                    )
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    TextButton(onClick = { chooseAndImportRom(definition.id) }) {
+                                        Text(if (installed) "Replace…" else "Register…")
+                                    }
+                                    if (installed) {
+                                        TextButton(onClick = { pendingRomRemoval = definition.id }) {
+                                            Text("Remove")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 },
                 confirmButton = {
+                    TextButton(onClick = { showRomManager = false }) { Text("Close") }
+                },
+            )
+        }
+
+        pendingRomRemoval?.let { machineId ->
+            AlertDialog(
+                onDismissRequest = { pendingRomRemoval = null },
+                title = {
+                    Text(
+                        if (MachineCatalog.require(machineId).family == MachineFamily.PC_1251) {
+                            "Remove PC-1250 / PC-1251 / PC-1255 family ROM?"
+                        } else {
+                            "Remove ${machineId.displayName()} ROM?"
+                        },
+                    )
+                },
+                text = { Text("The application-managed copy will be deleted. The original ROM file is not changed.") },
+                confirmButton = {
                     TextButton(onClick = {
-                        showOpenRomGuide = false
-                        selectAndRestoreFocus { selectRomFile(ownerWindow, selectedMachineId) }
-                            ?.let { loadRom(it, startAutomatically = false) }
-                    }) { Text("Choose File") }
+                        pendingRomRemoval = null
+                        removeStoredRom(machineId)
+                    }) { Text("Remove") }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showOpenRomGuide = false }) { Text("Cancel") }
+                    TextButton(onClick = { pendingRomRemoval = null }) { Text("Cancel") }
                 },
             )
         }

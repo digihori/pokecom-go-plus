@@ -197,6 +197,18 @@ PC-1360K解析ではDisassembly、Memory、Access History、Bank Historyの同�
 - Checkpoint間および実機Checkpointとの差分表示
 - PC-1360Kの漢字ROM／work RAM観測
 - Assembly Workspace、Listing、Symbol Mapとの連携
+- AIが解析できるversion付きDebug Contextの出力
+- localhost MCP経由の読み取り専用Debuggerツール
+- AIが提案したBreakpoint、Watch、Step、Continueの承認付き実行
 
 機種固有の観測点を追加する場合も、Debugger UIからMemory Bus内部へ直接アクセスせず、Core SessionのSnapshotまたは
 明示イベントとして公開する。
+
+## 14. AI Debug Context
+
+AI連携では画面のスクリーンショットを主入力にせず、機種、停止理由、CPU、bank、Disassembly、Memory Watch、
+Breakpoint、直近Trace、Symbol／Source Mapを構造化して渡す。各Contextには`schemaVersion`とSession revisionを
+含め、取得後にResetや機種切替が行われた古いContextからの操作を拒否する。
+
+ROM由来データは必要な範囲のDisassemblyまたはbyte列に限定し、ROM全体をDebug Contextへ含めない。
+詳細な接続モデルと安全方針は[AI_INTEGRATION.md](AI_INTEGRATION.md)を参照する。

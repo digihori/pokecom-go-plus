@@ -237,6 +237,18 @@ PGP Emulator
 クラウドストレージはファイル受け渡し手段として扱い、PGP
 Coreが特定のクラウドサービスへ依存しないようにする。
 
+### 5.5 AIによる開発・解析支援
+
+Pokecom GO Studioが持つProject、Assembler、Debugger、Emulator Sessionを構造化されたツールとして
+外部AIへ公開し、BASIC作成、マシン語解析、実行中デバッグを対話的に進められるようにする。
+
+AIを単なるコード生成チャットとして扱わず、Studioが返す機種定義、Memory Map、Diagnostics、
+Disassembly、Symbol、Trace、CPU Snapshotを根拠に仮説を立て、ユーザーの承認後にBuildやデバッグ操作を
+実行する共同開発者として位置付ける。
+
+初期接続はlocalhost限定のMCPを想定する。AIサービスへの認証とモデル選択は外部AIクライアントへ任せ、
+StudioとCoreを特定AIベンダーへ依存させない。詳細は[AI_INTEGRATION.md](AI_INTEGRATION.md)を参照する。
+
 ------------------------------------------------------------------------
 
 ## 6. 想定機能

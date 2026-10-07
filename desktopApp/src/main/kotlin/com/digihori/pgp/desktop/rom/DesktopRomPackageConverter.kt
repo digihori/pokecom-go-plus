@@ -12,6 +12,32 @@ import com.digihori.pgp.core.api.MachineCatalog
 import com.digihori.pgp.core.api.MachineFamily
 
 internal object DesktopRomPackageConverter {
+    fun convertLegacyImage(
+        machineId: MachineId,
+        image: ByteArray,
+        bankImage: ByteArray? = null,
+    ): DesktopRomPackageConversionResult {
+        val imported = when (MachineCatalog.find(machineId)?.family) {
+            MachineFamily.PC_1245 -> Pc1245FlatRomImporter.importImage(image)
+            MachineFamily.PC_1251 -> com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FlatRomImporter
+                .importImage(image, machineId)
+            MachineFamily.PC_1350 -> com.digihori.pgp.core.emulator.machine.pc1350.Pc1350FlatRomImporter
+                .importImage(image)
+            MachineFamily.PC_1360 -> if (bankImage == null) {
+                RomImportResult.Failure(RomImportError.InvalidImageSize(listOf(0x20000), 0))
+            } else {
+                Pc1360LegacyRomImporter.importImages(image, bankImage)
+            }
+            null -> RomImportResult.Failure(RomImportError.UnsupportedMachine(machineId))
+        }
+        return when (imported) {
+            is RomImportResult.Failure -> DesktopRomPackageConversionResult.Failure(imported.error)
+            is RomImportResult.Success -> DesktopRomPackageConversionResult.Success(
+                DesktopRomPackage.write(imported.romSet, title = "${machineId.value.uppercase()} ROM"),
+            )
+        }
+    }
+
     fun createPackage(
         machineId: MachineId,
         internal: ByteArray,

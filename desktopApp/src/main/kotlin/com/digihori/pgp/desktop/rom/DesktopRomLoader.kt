@@ -15,6 +15,7 @@ import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FlatRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350FlatRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360LegacyRomImporter
 import com.digihori.pgp.core.rom.MachineId
+import com.digihori.pgp.core.rom.RomSet
 
 internal object DesktopRomLoader {
     fun loadPc1245LegacyImage(image: ByteArray): DesktopRomLoadResult =
@@ -71,6 +72,35 @@ internal object DesktopRomLoader {
                 is CreateSessionResult.Success -> DesktopRomLoadResult.Success(created.session)
             }
         }
+
+    fun loadPackageForMachine(
+        packageBytes: ByteArray,
+        machineId: MachineId,
+        configuration: EmulatorConfiguration = EmulatorConfiguration(),
+    ): DesktopRomLoadResult = when (val read = DesktopRomPackage.read(packageBytes)) {
+        is DesktopRomPackageReadResult.Failure -> DesktopRomLoadResult.Failure(
+            DesktopRomLoadError.InvalidPackage(read.error),
+        )
+        is DesktopRomPackageReadResult.Success -> {
+            val packageDefinition = MachineCatalog.find(read.romSet.machineId)
+            val targetDefinition = MachineCatalog.find(machineId)
+            if (packageDefinition == null || targetDefinition == null || packageDefinition.family != targetDefinition.family) {
+                DesktopRomLoadResult.Failure(
+                    DesktopRomLoadError.SessionCreation(
+                        CreateSessionError.MachineIdMismatch(machineId, read.romSet.machineId),
+                    ),
+                )
+            } else {
+                val targetRomSet = RomSet(machineId, read.romSet.components)
+                when (val created = EmulatorFactory.create(machineId, targetRomSet, configuration)) {
+                    is CreateSessionResult.Failure -> DesktopRomLoadResult.Failure(
+                        DesktopRomLoadError.SessionCreation(created.error),
+                    )
+                    is CreateSessionResult.Success -> DesktopRomLoadResult.Success(created.session)
+                }
+            }
+        }
+    }
 }
 
 internal sealed interface DesktopRomLoadResult {

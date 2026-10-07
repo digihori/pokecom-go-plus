@@ -498,6 +498,10 @@ Machine Configuration
 
 UIへCPU内部の可変オブジェクトを公開せず、SnapshotとDebugger Commandを介して操作する。
 
+同じ境界を将来のAI連携にも使用する。MCP層はCPUやMemory Busを直接操作せず、Studio UIと共通の
+Application Serviceからversion付きSnapshotを取得し、検証済みCommandを発行する。AI接続の構成、
+ツール候補、承認境界は[AI_INTEGRATION.md](AI_INTEGRATION.md)を参照する。
+
 ## 13. セーブ状態
 
 Java `Serializable`やJVM固有のオブジェクト形式を使用しない。
@@ -671,7 +675,20 @@ Studio層が担当するものは次の通り。
 
 Core APIを検証するため、最初のUIは完成したIDEを目指さず、機能確認用の小さな画面とする。
 
-### 16.1 Pokecom GO Player
+### 16.1 Studio ROM Library
+
+Studioへ取り込んだROMは元ファイルのパスを実行時の正本にせず、OSのアプリ専用データ領域へ
+機種別の`.pgrom`としてコピーする。`.pgrom`のmanifest、component size、hashを検証し、
+有効なEmulator Sessionを生成できることを確認してから登録する。
+
+各機種またはROMを共有する機種ファミリーは一つの有効なROM setを持ち、再取込みはそのコピーを
+置換する。PC-1250／1251／1255は一つのPC-1251系ROMを共有し、機種選択時に同じcomponentから
+各モデルのRAM構成を持つSessionを生成する。機種選択UIでは登録済みROMを利用できる機種だけを
+実行対象として選択でき、選択後は保存済みROMからSessionを再生成して自動RUNする。
+削除はROM管理画面から明示的に行い、プロジェクト、ログ、リポジトリにはROM本体を含めない。
+保存処理は一時ファイルからのatomic moveを優先し、不完全な書込みを有効なROMとして扱わない。
+
+### 16.2 Pokecom GO Player
 
 PlayerはAndroid／iOS向けの軽量な実行環境とする。共通Coreを利用するが、Studioの開発支援UIには
 依存しない。Player層は次を担当する。
@@ -829,6 +846,22 @@ ProgramImage <──> TransferProtocol <──> PCM Samples / WAV Data
 ### 19.3 Character Editor
 
 5×7エディタのデータモデルと変換処理はUIから分離する。
+
+### 19.4 AI / MCP Integration
+
+AI連携はDesktop固有のAdapterとして配置し、`core/commonMain`をAI SDK、ネットワーク、認証へ依存させない。
+
+```text
+AI Client ── localhost MCP ── Studio AI Adapter
+                                  ↓
+                         Application Services
+                    ┌─────────────┼─────────────┐
+                 Project       Debugger      Emulator
+```
+
+初期MCPは読み取り専用とし、状態変更はツール単位の権限とStudio側承認を必要とする。ROM全体や任意ファイルを
+公開せず、対象ProjectとSessionにscopeを限定する。Studio UIとMCP AdapterはBuild、Assembly、Debuggerの
+同じサービスを利用し、AI専用の別実装を作らない。
 
 ```text
 DotPattern

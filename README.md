@@ -8,6 +8,9 @@ Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向け�
 現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す
 マルチプラットフォーム開発環境です。
 
+将来はStudioのProject、Assembler、Debuggerをlocalhost MCP経由でAIから利用できるようにし、
+BASIC作成、既存マシン語の解析、実行中デバッグを安全な承認付き操作で支援することを目指します。
+
 PGPは次の2製品と共有Emulator Coreで構成します。
 
 - **Pokecom GO Studio** — macOS／Windows／Linux向けのポケコン開発環境
@@ -259,6 +262,7 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 - [アーキテクチャ](docs/ARCHITECTURE.md)
 - [Emulator Core公開API](docs/CORE_API.md)
 - [Debugger](docs/DEBUGGER.md)
+- [AI連携構想](docs/AI_INTEGRATION.md)
 - [SC61860機種世代](docs/MACHINE_FAMILIES.md)
 - [PC-1245機種定義](docs/machines/PC-1245.md)
 - [PC-1350次期機種定義](docs/machines/PC-1350.md)
