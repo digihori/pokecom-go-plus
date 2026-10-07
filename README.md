@@ -37,16 +37,22 @@ Pokecom GO PlayerはCoreとStudioが安定した後に開発します。
 - 外部エディタ向け複数ソースプロジェクトの作成、変更検知、Build & Load
 - LCD表示、CPU状態表示、サウンド出力
 - 実機RAM容量と拡張RAMモードの切り替え
+- File／Project／Program／Emulator／Debugに分けたメニューバー
+- 機種別ROM Library、専用Project Filesウィンドウ、独立Debuggerウィンドウ
 
-## 画面例
+## 画面構成
 
-機種とROMを選び、LCD、CPU状態、BASIC／マシン語の入出力を同じ画面で操作できる。
+メインウィンドウはLCD、機種別ソフトウェアキーボード、Run／Pause／Reset／Step、対応機種の
+RUN／PRO／RSV操作に集中する。右上の機種プルダウンでは、ROM Libraryへ登録済みの機種だけを切り替えられる。
 
-![Pokecom GO Studioの機種選択、LCD、CPU状態、ファイル操作](docs/images/pokecom-go-studio-overview.png)
+- `File`: ROMの登録・管理とROM set作成
+- `Project`: 新規作成、Open、Project Files／Assembly Workspace表示、Build & Load
+- `Program`: BASIC／マシン語の単発入出力とQuick Assemble
+- `Emulator`: 実行制御とRAM profile
+- `Debug`: DebuggerとCheckpoint
 
-機種別ソフトウェアキーボードは、実機のキー配列、SHIFT表記、予約語表記を反映する。
-
-![PC-1245のLCD、操作ボタン、ソフトウェアキーボード](docs/images/pokecom-go-studio-keyboard.png)
+プロジェクトツリーは専用のProject Filesウィンドウ、CPU、Disassembly、Memory、TraceはDebuggerウィンドウへ
+分離している。機種別ソフトウェアキーボードは実機のキー配列、SHIFT表記、予約語表記を反映する。
 
 ## プロジェクトの位置付け
 
@@ -98,7 +104,8 @@ DMG／MSI／DEBを生成する場合は、`jpackage`を含む完全なJDK 21が�
 ### 起動前の準備
 
 PGPはROMイメージを同梱しない。利用者自身が正当に入手した、対象機種のROMイメージを用意する必要がある。
-ROMは起動後に`Select ROM`から選択できるほか、上記の既定位置へ置けば初回起動時に自動検出される。
+ROMは起動後に`File` → `Register ROM…`または`Manage ROMs…`から登録できる。上記の既定位置へ置けば
+初回起動時に自動検出され、検証済み`.pgrom`としてアプリ専用領域へ取り込まれる。
 
 ソースからのビルドにはJDK 21を使用する。Gradle本体を別途インストールする必要はない。
 
@@ -106,7 +113,7 @@ ROMは起動後に`Select ROM`から選択できるほか、上記の既定位�
 
 Finderで`run-pgp.command`をダブルクリックするか、ターミナルで次を実行する。
 Android Studio付属のJDK 21とローカルGradleキャッシュはスクリプトが自動設定する。
-前回選択したROMがある場合は、その機種とファイルを自動的に復元する。履歴がない場合は、既定位置の
+前回使用した機種のROMがLibraryにある場合は、アプリ内コピーから自動的に復元する。履歴がない場合は、既定位置の
 `local-data/roms/pc-1245/pc1245mem.bin`、続いて
 `local-data/roms/pc-1251/pc1251mem.bin`を探索し、最初に見つかったROMをロードして実行する。
 
@@ -145,13 +152,13 @@ ROM起動後にUTF-8の`.bas`ファイルを指定して読み込める。通常
 
 ### ROMセットの作成
 
-`Create ROM Set`を選び、対象機種と、吸い出した内部ROM・外部ROMを指定する。
+`File` → `Create ROM Set…`を選び、対象機種と、吸い出した内部ROM・外部ROMを指定する。
 現在対応しているPC-1245／1251ファミリーでは8KiBの内部ROMと16KiBの外部ROMを使用する。
 保存先を選ぶと、サイズとSHA-256を記録した`.pgrom` v1パッケージを生成する。
-生成したファイルは`Select ROM`から直接読み込める。元のROMと生成物はリポジトリへ追加せず、
+生成したファイルはROM Libraryの`Register…`から登録できる。元のROMと生成物はリポジトリへ追加せず、
 `local-data/`などGit管理外の場所に保存する。
 
-既存のPokecom GO用32/64KiBイメージは、互換入力として`Select ROM`から直接起動できる。
+既存のPokecom GO用32/64KiBイメージは、ROM Libraryから互換入力として直接登録できる。
 
 ### ビルドと自動テスト
 

@@ -28,7 +28,7 @@ DebuggerはCPUやMemory Busの可変内部状態をUIへ直接公開しない。
 - CPU、選択メモリ、Traceを含むDebug Checkpoint JSON出力
 - PC-1360の命令実行位置に対応する物理ROM component、bank、offsetの記録
 
-DebuggerはStudioメイン画面の`Open Debugger`から開く。現状は単一の縦スクロールウィンドウであり、
+Debuggerは`Debug` → `Open Debugger`から独立ウィンドウとして開く。現状は単一の縦スクロールウィンドウであり、
 パネル分割や独立ウィンドウ化は今後の課題である。
 
 ## 3. 実行制御と停止理由

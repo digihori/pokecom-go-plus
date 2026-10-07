@@ -1,7 +1,7 @@
 # Pokecom GO Studio はじめに
 
-このガイドでは、Pokecom GO Studio Technical PreviewでROMを開き、PC-1245または
-PC-1250／1251／1255を起動してBASICプログラムを実行するまでを説明する。
+このガイドでは、Pokecom GO Studio Technical PreviewのROM LibraryへROMを登録し、対応機種を起動して
+BASICプログラムを実行するまでを説明する。
 
 ## 1. 用意するもの
 
@@ -18,6 +18,8 @@ ROMイメージはPGPのリポジトリおよび配布物には含まれない�
 - PC-1250
 - PC-1251
 - PC-1255
+- PC-1350
+- PC-1360
 
 PC-1250／1251／1255は同じROM系統を使い、主な違いであるRAM容量は機種選択と
 `Hardware RAM`／`Expanded RAM`で切り替える。
@@ -45,6 +47,20 @@ Windowsでは次を使用する。
 登録したROMはアプリ専用領域へコピーされる。次回起動時は、前回使用した機種と保存済みROMを
 自動的に復元するため、元ファイルを再選択する必要はない。
 
+### 2.1 画面構成
+
+メインウィンドウはLCD、ソフトウェアキーボード、実行操作を表示する。ファイル操作と開発機能は画面上部の
+メニューバーから開く。
+
+- `File`: ROMの登録・管理、ROM set作成
+- `Project`: Projectの新規作成、Open、Project Files／Assembly Workspace表示、Build & Load
+- `Program`: BASIC／マシン語の単発入出力、Quick Assemble
+- `Emulator`: Run／Pause／Step／ResetとRAM profile
+- `Debug`: Debugger、Debug Checkpoint
+
+プロジェクトを開くとProject Filesウィンドウが開き、ファイルツリーとBuild操作を表示する。CPU、Memory、
+Disassembly、Traceは`Debug` → `Open Debugger`で開く独立Debuggerウィンドウへ表示する。
+
 ## 3. 機種を選ぶ
 
 画面右上の機種プルダウンには全対応機種が表示される。ROM登録済みの機種だけを選択でき、選択すると
@@ -60,7 +76,7 @@ PC-1250／1251／1255では次のRAMモードも選べる。
 
 エミュレータならではの互換性を優先する現在の既定値は`Expanded RAM`である。
 
-## 4. ROMを開く
+## 4. ROMを登録する
 
 ### 4.1 Pokecom GO形式のROMイメージ
 
@@ -77,8 +93,8 @@ PC-1245の例では、`0x0000..0x1fff`から内部ROM 8KiB、`0x4000..0x7fff`か
 
 ### 4.2 `.pgrom`パッケージ
 
-`Open ROM`から`.pgrom`を選択する。パッケージ内の機種ID、各ROMのサイズ、SHA-256を
-検証し、すべて正しい場合だけ起動する。
+ROM Libraryで対象機種または機種ファミリーの`Register…`を押し、`.pgrom`を選択する。パッケージ内の
+機種ID、各ROMのサイズ、SHA-256を検証し、有効なSessionを生成できる場合だけ保存して起動する。
 
 `.pgrom`の中身を確認するだけなら、一般的なZIPツールで展開できる。内容を変更して
 再圧縮するとmanifestのサイズやSHA-256と一致しなくなるため、編集には使用しない。
@@ -92,28 +108,28 @@ PC-1245／1251ファミリーでは、ROM吸い出し時に得られる次の2�
 
 操作手順：
 
-1. 画面上部で対象機種を選ぶ。
-2. `Create ROM Set`を押す。
+1. `File` → `Create ROM Set…`を選ぶ。
+2. ダイアログに表示された対象機種を確認する。
 3. 説明を確認して`Continue`を押す。
 4. 最初のファイル選択で内部ROMを選ぶ。
 5. 次のファイル選択で外部ROMを選ぶ。
 6. 最後のダイアログで出力先と`.pgrom`ファイル名を指定する。
-7. 作成後、`Open ROM`から生成したファイルを開く。
+7. 作成後、`File` → `Manage ROMs…`から生成したファイルを登録する。
 
 ファイル名は判定に使用しない。PGPがサイズを検証し、manifestとSHA-256を自動生成する。
 バンクROM機種向けの一括選択UIはまだ実装途中である。
 
 ## 5. エミュレータを動かす
 
-ROMを開いた直後は停止状態になる。`Run`を押すとCPU実行を開始する。
+ROMの登録、機種切替、起動時復元に成功すると自動的にRUNする。メイン画面の`Pause`で停止できる。
 
 - `Run`: CPU実行を開始
 - `Pause`: CPU実行を一時停止
 - `Reset`: 機種をリセットして停止
 - `Step`: 停止中にCPU命令を1つ実行
-- `RUN mode`: BASICの実行モード
-- `PRO mode`: BASICの編集モード
-- `RSV mode`: 対応機種の予約語登録モード
+- `RUN`: BASICの実行モード（PC-1245／1251系のみ表示）
+- `PRO`: BASICの編集モード（PC-1245／1251系のみ表示）
+- `RSV`: 予約語登録モード（PC-1251系のみ表示）
 
 画面キーボードは実機の配列とSHIFT操作を再現する。PCの物理キーボードも使用できる。
 ポケコンのSHIFTは、原則としてSHIFTキーを押して状態を点灯させ、その後に対象キーを押す。
@@ -123,16 +139,16 @@ ROMを開いた直後は停止状態になる。`Run`を押すとCPU実行を開
 長い行や特殊文字を含む通常の開発用途では、Tokenizer方式の`Load BASIC`を使用する。
 
 1. ROMを起動する。
-2. `Load BASIC`を押す。
+2. `Program` → `Load BASIC…`を選ぶ。
 3. UTF-8の`.bas`ファイルを選ぶ。
-4. `RUN mode`へ切り替える。
-5. 必要なら`Run`でCPU実行を開始する。
+4. 対応機種ではメイン画面の`RUN`へ切り替える。
+5. 停止している場合は`Run`でCPU実行を開始する。
 6. 実機と同様に`RUN`コマンドを入力する。
 
 `Load BASIC`はテキストを機種用の中間コードへ変換し、プログラム領域へ直接配置する。
 長い1行を実機ROMの編集バッファへ入力する制限を受けない。
 
-`Type BASIC`は、テキストをキー操作へ変換して実機ROMの編集処理に入力する互換方式である。
+`Program` → `Type BASIC through ROM…`は、テキストをキー操作へ変換して実機ROMの編集処理に入力する互換方式である。
 実機に近く手軽だが、1行入力長の上限があるため、長い行には使用しない。
 
 特殊文字のエスケープ表記やテキスト仕様は[BASICテキスト形式](BASIC_TEXT_FORMAT.md)を参照する。
@@ -149,9 +165,10 @@ ROMを開いた直後は停止状態になる。`Run`を押すとCPU実行を開
 ZIP内の`manifest.json`、componentサイズ、SHA-256、機種IDのいずれかが一致していない。
 手作業で修正せず、元のROMファイルから`Create ROM Set`で作り直す。
 
-### 従来形式ROMを開いても動かない
+### 従来形式ROMを登録しても動かない
 
-`.bin`を開く前に選んだ機種が正しいか確認する。PC-1245用ROMをPC-1251として開くことはできない。
+ROM Libraryで正しい機種または機種ファミリーの`Register…`を押したか確認する。PC-1245用ROMを
+PC-1251系として登録することはできない。
 
 ### `Load BASIC`が失敗する
 

@@ -101,6 +101,10 @@ PC-1245／1251ファミリーの基本機能を試せる最初の公開版を目
 - [x] 新規プロジェクトの既定フォルダ名が既存フォルダと重複する場合は通し番号で回避する
   - [x] `New-PGP-Project`が存在する場合は`New-PGP-Project-2`、`-3`の順に最初の空き名を選ぶ
   - [x] 番号決定後にも既存ファイルやフォルダを上書きしないことを検証する
+  - [x] 番号付きフォルダを作成した場合は`pgp-project.json`の`name`にも同じ通し番号を付ける
+- [x] 新規プロジェクトのAssembly初期ソースを実用的な構文サンプルにする
+  - [x] 編集・削除可能なサンプルであることを先頭コメントで明示する
+  - [x] `ORG`、ラベル、即値命令、アドレス参照、相対分岐、`DB`を含むAssembler文書の例を使用する
 - [x] Tracked／Untrackedを表示する軽量なプロジェクトツリーを実装する
 - [x] ファイル構成変更をツリーへ自動反映し、Manifestは明示操作時だけ更新する
 - [x] 明示的なUpdate Projectで追加・削除されたソースをManifestへ同期する
@@ -121,7 +125,7 @@ PC-1245／1251ファミリーの基本機能を試せる最初の公開版を目
 - [ ] ROM Import Wizardを実装する（入力slot一覧、inline検証、Pokecom GO形式から`.pgrom`への変換）
 - [ ] バンク機の物理ROMをBank 0..Nの一覧で割り当て、一括選択できるようにする
 - [x] 前回使用したROMと機種の保存・自動読込み
-- [x] ROMイメージの読込み成功後は、前回ROMの復元と明示的なOpen ROMのどちらでも自動的にRUNを開始する
+- [x] ROMイメージの読込み成功後は、ROM Libraryからの復元、登録、機種切替のいずれでも自動的にRUNを開始する
   - [x] ROM検証またはSession生成に失敗した場合はRUNせず、エラーを表示する
 - [ ] 将来のROM管理画面から機種／ROM setを切り替えた場合も同じ自動RUN規則を適用する
 - [ ] Studio／Playerで共有する機種別ROMライブラリの設計と永続化を実装する
@@ -185,17 +189,24 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
   - [ ] マクロ定義、引数、展開、ローカルラベル、再帰制限と診断の仕様を定義する
   - [ ] Include、条件Assembly、文字列／データ定義などの採用範囲を検討する
   - [ ] マクロ展開後も元ファイルと行番号へ対応できる診断・Listing情報を保持する
-- [ ] 外部エディタでの反復開発に対応するAssembly Workspaceを実装する
-  - [ ] プロジェクトのAssembly入力と生成物を分けたツリーを専用ウィンドウに表示する
-  - [ ] 外部エディタによる変更を検出し、最後に成功したAssemblyより新しい入力へ`*`を表示する
-  - [ ] `Assemble`は保存先を毎回要求せずメモリ上の成果物とプレビューを更新する
-  - [ ] Assembly失敗時は前回成功した成果物を保持し、ファイル・行番号・ソース行を含む診断を表示する
-  - [ ] MemoryセグメントとDisassemblyをプレビューし、将来はListingとSymbol Mapを追加する
-  - [ ] `Build`成功時だけ`build/`へ`program.dmp`等を生成し、生成物はプロジェクト入力から除外する
-  - [ ] `Build & Load`は同じビルド処理を使用し、全入力の成功後にだけ成果物をエミュレータへ一括ロードする
-  - [ ] Source変更、Assembly済み、Build済み、EmulatorへLoad済みの状態を個別に表示する
-  - [ ] 診断から設定済みの外部エディタで該当ファイル・行を開けるようにする
-  - [ ] 現在の単発変換は補助機能`Quick Assemble`として残す
+- [x] 外部エディタでの反復開発に対応するAssembly Workspaceを実装する
+  - [x] プロジェクトのAssembly入力と生成物を分けたツリーを専用ウィンドウに表示する
+  - [x] 外部エディタによる変更を検出し、最後に成功したAssemblyより新しい入力へ`*`を表示する
+  - [x] `Assemble`は保存先を毎回要求せずメモリ上の成果物とプレビューを更新する
+  - [x] Assembly失敗時は前回成功した成果物を保持し、ファイル・行番号・ソース行を含む診断を表示する
+  - [x] Memoryセグメント、Disassembly、Listing、Symbol Mapをプレビューする
+  - [x] `Build`成功時だけ`build/`へ`program.dmp`、Listing、Mapを生成し、生成物はプロジェクト入力から除外する
+  - [x] `Build & Load`は同じビルド処理を使用し、全入力の成功後にだけ成果物をエミュレータへ一括ロードする
+  - [x] Source変更、Assembly済み、Build済み、EmulatorへLoad済みの状態を個別に表示する
+  - [x] 診断から設定済みの外部エディタで該当ファイル・行を開けるようにする
+  - [x] 現在の単発変換は補助機能`Quick Assemble`として残す
+- [ ] Assembly Workspaceの外部エディタ操作とSources表示を改善する
+  - [ ] Studio内にExternal Editor設定を追加し、実行ファイル、引数テンプレート、行指定を保存する
+  - [ ] macOS／Windows／Linuxで代表的なエディタを自動検出し、手動選択とTest起動も提供する
+  - [ ] `PGP_EDITOR`はアプリ設定を上書きする上級者向け手段として維持する
+  - [ ] 起動できない場合はOS別の環境変数設定だけでなくExternal Editor設定画面へ誘導する
+  - [x] SourcesのOpen操作を行末の右寄せからファイル名の直後へ移動する
+  - [x] Open操作をテキストリンク風表示ではなく、ボタンと明確に分かる外観にする
 - [ ] Pokecom GO Studioを外部AIから操作できるAI／MCP連携を実装する
   - [ ] [AI連携構想](AI_INTEGRATION.md)に従い、Studio UIとAIから共用するApplication Service境界を定義する
   - [ ] Capability、Machine、ROM登録状態、Project、Diagnosticsを返すversion付きschemaを定義する

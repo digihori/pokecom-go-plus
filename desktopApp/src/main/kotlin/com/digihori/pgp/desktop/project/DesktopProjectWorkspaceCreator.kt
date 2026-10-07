@@ -7,10 +7,10 @@ import com.digihori.pgp.core.project.ProjectSourceType
 import com.digihori.pgp.core.rom.MachineId
 import java.io.File
 
-internal enum class DesktopProjectTemplate(val displayName: String) {
-    BASIC("BASIC only"),
-    MACHINE_CODE("Machine code only"),
-    BASIC_AND_MACHINE_CODE("BASIC + machine code"),
+internal enum class DesktopProjectStarter(val displayName: String) {
+    BASIC("BASIC"),
+    MEMORY_DUMP("Machine code (.dmp)"),
+    ASSEMBLY("Assembly (.asm)"),
 }
 
 internal sealed interface DesktopProjectCreateResult {
@@ -28,24 +28,26 @@ internal object DesktopProjectWorkspaceCreator {
         parentDirectory: File,
         projectName: String,
         machineId: MachineId,
-        template: DesktopProjectTemplate,
+        starters: Set<DesktopProjectStarter>,
     ): DesktopProjectCreateResult {
         val baseFolderName = folderName(projectName)
-        val projectDirectory = if (baseFolderName == DEFAULT_PROJECT_FOLDER_NAME) {
+        val destination = if (baseFolderName == DEFAULT_PROJECT_FOLDER_NAME) {
             nextAvailableDefaultDirectory(parentDirectory.absoluteFile, baseFolderName)
         } else {
-            File(parentDirectory.absoluteFile, baseFolderName)
+            ProjectDestination(File(parentDirectory.absoluteFile, baseFolderName), projectName.trim())
         }
+        val projectDirectory = destination.directory
         val manifestFile = File(projectDirectory, DesktopProjectWorkspaceLoader.DEFAULT_MANIFEST_NAME)
         if (projectDirectory.exists()) {
             return DesktopProjectCreateResult.Failure(
                 DesktopProjectCreateError.DestinationExists(projectDirectory.path),
             )
         }
-        val sourceFiles = template.files(projectDirectory)
+        require(starters.isNotEmpty()) { "At least one starter source is required" }
+        val sourceFiles = starters.files(projectDirectory)
 
         val definition = ProjectDefinition(
-            name = projectName.trim(),
+            name = destination.projectName,
             machineId = machineId,
             sources = sourceFiles.map { it.definition },
         )
@@ -81,19 +83,21 @@ internal object DesktopProjectWorkspaceCreator {
         .trim('.', '-', ' ')
         .ifEmpty { "pgp-project" }
 
-    private fun nextAvailableDefaultDirectory(parentDirectory: File, baseFolderName: String): File {
+    private fun nextAvailableDefaultDirectory(parentDirectory: File, baseFolderName: String): ProjectDestination {
         val base = File(parentDirectory, baseFolderName)
-        if (!base.exists()) return base
+        if (!base.exists()) return ProjectDestination(base, DEFAULT_PROJECT_DISPLAY_NAME)
         var suffix = 2
         while (true) {
             val candidate = File(parentDirectory, "$baseFolderName-$suffix")
-            if (!candidate.exists()) return candidate
+            if (!candidate.exists()) {
+                return ProjectDestination(candidate, "$DEFAULT_PROJECT_DISPLAY_NAME $suffix")
+            }
             suffix++
         }
     }
 
-    private fun DesktopProjectTemplate.files(root: File): List<SourceFile> = buildList {
-        if (this@files != DesktopProjectTemplate.MACHINE_CODE) {
+    private fun Set<DesktopProjectStarter>.files(root: File): List<SourceFile> = buildList {
+        if (DesktopProjectStarter.BASIC in this@files) {
             add(
                 SourceFile(
                     ProjectSource("main", ProjectSourceType.BASIC, "src/main.bas"),
@@ -102,12 +106,27 @@ internal object DesktopProjectWorkspaceCreator {
                 ),
             )
         }
-        if (this@files != DesktopProjectTemplate.BASIC) {
+        if (DesktopProjectStarter.MEMORY_DUMP in this@files) {
             add(
                 SourceFile(
                     ProjectSource("machine", ProjectSourceType.MEMORY_DUMP, "src/machine.dmp"),
                     File(root, "src/machine.dmp"),
                     "; Replace this starter byte with your machine-code data.\nC000: 00\n",
+                ),
+            )
+        }
+        if (DesktopProjectStarter.ASSEMBLY in this@files) {
+            add(
+                SourceFile(
+                    ProjectSource("assembly", ProjectSourceType.ASSEMBLY, "src/main.asm"),
+                    File(root, "src/main.asm"),
+                    "; Sample SC61860 program. Edit or remove this example.\n\n" +
+                        "ORG 0xC000\n\n" +
+                        "START: LII 0x12\n" +
+                        "       LIDP TABLE\n" +
+                        "       JRP DONE\n" +
+                        "TABLE: DB 0x01, &02, 3\n" +
+                        "DONE:  RTN\n",
                 ),
             )
         }
@@ -119,5 +138,11 @@ internal object DesktopProjectWorkspaceCreator {
         val initialContent: String,
     )
 
+    private data class ProjectDestination(
+        val directory: File,
+        val projectName: String,
+    )
+
     private const val DEFAULT_PROJECT_FOLDER_NAME: String = "New-PGP-Project"
+    private const val DEFAULT_PROJECT_DISPLAY_NAME: String = "New PGP Project"
 }

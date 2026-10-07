@@ -1,21 +1,23 @@
 # Pokecom GO Studio projects
 
 Pokecom GO Studioは内蔵テキストエディタを持たず、任意の外部エディタで管理するソースを
-プロジェクトとして読み込む。プロジェクトは対象機種と複数の入力ソースを結び付ける。
+プロジェクトとして読み込む。現在のformat version 1は対象機種と複数の入力ソースを結び付ける。
 
 本書はプロジェクト管理の基本仕様を定義する。実装済みの範囲と今後実装する範囲は
 `docs/ROADMAP.md`で管理する。
 
 現在はプロジェクト定義の読み込み、検証、ソースファイルの外部変更検知、プロジェクト全体の
-Build & Loadを実装している。プロジェクト機能は実行方法を決めず、ロード後の`RUN`、`DEF-S`、
-`CALL &C000`等はユーザーがポケコン上で操作する。Assemblerは今後接続する。従来の
+Build & LoadとAssemblyソースのBuild連携を実装している。プロジェクト機能は実行方法を決めず、ロード後の
+`RUN`、`DEF-S`、`CALL &C000`等はユーザーがポケコン上で操作する。従来の
 `Load BASIC`、`Load Machine Code`、`Type BASIC`は単発操作として引き続き利用できる。
 
 ## Manifest
 
 プロジェクトのルートにUTF-8の`pgp-project.json`を配置する。
 基本仕様として、Studioの`Create Project`はユーザーが選んだ親フォルダの下へプロジェクト名のフォルダを作り、
-その中へManifestと`src/`を生成する。既存のプロジェクトフォルダ、Manifest、初期ソースは上書きしない。
+その中へManifestと`src/`を生成する。作成時はBASIC、Memory Dump、Assemblyをチェックボックスで
+組み合わせて初期ソースにできる。既存のプロジェクトフォルダ、Manifest、初期ソースは上書きしない。
+既定名が重複して通し番号付きフォルダを作る場合は、Manifestの表示名にも同じ番号を付ける。
 
 ```text
 selected-parent/
@@ -23,12 +25,12 @@ selected-parent/
     ├── pgp-project.json
     ├── src/
     │   ├── main.bas
-    │   └── main.dmp
+    │   ├── machine.dmp
+    │   └── main.asm
     └── build/
 ```
 
-プロジェクト表示名とフォルダ名は別に管理する。初期ソース名はBASIC、Memory Dumpともに`main`を
-使用し、拡張子で区別する。作成後の追加、削除、改名、サブフォルダへの移動は通常のファイラーや
+プロジェクト表示名とフォルダ名は別に管理する。作成後の追加、削除、改名、サブフォルダへの移動は通常のファイラーや
 外部エディタから自由に行える。
 
 ```json
@@ -64,7 +66,7 @@ selected-parent/
 | `basic` | Tokenizerへ渡すBASICテキスト | Build & Load対応 |
 | `memory-dump` | アドレス付き`.dmp` | Build & Load対応 |
 | `raw-binary` | 指定アドレスへ置くRaw Binary | Build & Load対応 |
-| `assembly` | 内蔵SC61860 Assemblerへ渡すソース | 予約済み |
+| `assembly` | 内蔵SC61860 Assemblerへ渡すソース | Build & Load対応 |
 
 Raw Binaryだけは16進ロードアドレスを必須とする。
 
@@ -81,7 +83,8 @@ Raw Binaryだけは16進ロードアドレスを必須とする。
 
 ## Project tree
 
-Studioはプロジェクト内のファイルとManifestを比較し、常時参照できるツリーとして表示する。
+Studioはプロジェクト内のファイルとManifestを比較し、専用のProject Filesウィンドウへツリー表示する。
+プロジェクトを開くと同ウィンドウが前面に開き、閉じた後は`Project` → `Show Project Files`で再表示できる。
 
 ```text
 Mogura Game
@@ -109,38 +112,41 @@ UntrackedをManifestへ追加する。監視だけではManifestを書き換え�
 一時ファイルや隠しファイルはツリーの対象外とする。ファイル内容の変更は`changed`表示だけを更新し、
 EmulatorやManifestへ自動反映しない。
 
-## Build and Emulator update
+## Build & Load
 
-ソースから成果物を作る操作と、成果物をEmulatorへ反映する操作は分離する。
+現在のStudioは`Build & Load`で全ソースを検証・変換し、すべて成功した場合だけ成果物をEmulatorへ一括ロードする。
+Project Filesウィンドウと`Project`メニューのどちらからでも実行できる。
 
-- `Build`: Tokenize、Assembly、形式検証、配置重複検査を行い、成果物を作る。Emulatorは変更しない
-- `Update Emulator`: 必要なら最新ソースをBuildし、成功した成果物だけをEmulatorへロードする
+- BASICをTokenizerで対象機種の中間コードへ変換する
+- Assemblyを内蔵SC61860 Assemblerで変換する
+- Memory DumpとRaw Binaryを解析する
+- 配置範囲の重複とSessionの書込み規則を検証する
+- 失敗した場合はEmulatorを変更しない
 
-BASIC利用者は通常`Update Emulator`だけで作業でき、Assembler利用者はEmulatorを変更せず
-`Build`してListing、Symbol Map、Binary等を確認できる。状態表示もSource、Build、Emulatorを分ける。
-
-```text
-Sources:  Changed
-Build:    Out of date
-Emulator: Previous build loaded
-```
+Assemblyソースを含むプロジェクトでは`Project` → `Open Assembly Workspace`から専用ウィンドウを開ける。
+プロジェクト未選択時にもWorkspace自体は開くことができ、そこからプロジェクトを新規作成またはOpenできる。
+`Assemble`はメモリ上のMemory、Disassembly、Listing、Symbol Mapプレビューだけを更新し、失敗時は
+最後に成功したプレビューを保持する。`Build`は同じ変換結果から`build/program.dmp`、
+`build/program.lst`、`build/program.map`を生成する。`Build & Load`も同じビルド処理を経由する。
+現時点の状態表示は`Not built`、`Up to date`、`Source changed`、`Runtime modified`、`Build failed`を使用する。
 
 ## External editing workflow
 
-1. Studioで`Open Project`を選び、`pgp-project.json`を含むプロジェクトフォルダを指定する。
+1. `Project` → `Open Project…`を選び、`pgp-project.json`を含むプロジェクトフォルダを指定する。
 2. BASIC、ダンプ、アセンブリ等を任意の外部エディタで編集する。
 3. Studioは内容のハッシュを定期的に比較し、作成、変更、削除を検知する。
-4. `Update Emulator`は全ソースを先に検証・変換し、成功した場合だけロード処理へ進む。
+4. `Build & Load`は全ソースを先に検証・変換し、成功した場合だけロード処理へ進む。
 5. ロード後は、ポケコンへ`RUN`、`DEF-S`、`CALL`等を直接入力して実行する。
 
 ファイルシステムのタイムスタンプ精度に依存しないため、同じサイズの上書き保存も検知する。
 変更検知自体は自動だが、編集中の不完全な状態をEmulatorへ自動ロードしない。
-Studioは`source changed`を表示し、ユーザーが`Update Emulator`を実行した時だけ最新ソースを反映する。
+Studioは`Source changed`を表示し、ユーザーが`Build & Load`を実行した時だけ最新ソースを反映する。
+Assembly Workspaceでは最後に成功したAssembly後に変更された入力へ`*`を表示する。
 
-プロジェクトのBASICをEmulatorへロードした後だけ、ロード直後のBASICプログラムを基準として
-`Emulator BASIC: Synced`を表示する。PROモード等でEmulator内のBASICプログラムが変更された場合は
-`Emulator BASIC: Modified`へ変わる。通常のプログラム実行による変数や表示内容の変更は対象外とする。
-ROM変更、Reset、別プロジェクトのOpen、単発の`Load BASIC`ではこの追跡を終了する。
+プロジェクトのBASICをEmulatorへロードした後は、内部的にロード直後のBASICプログラムを基準として追跡する。
+PROモード等でEmulator内のBASICプログラムが変更された状態をProject Filesへ表示するUIは今後再配置する。
+通常のプログラム実行による変数や表示内容の変更は追跡対象外とする。ROM変更、Reset、別プロジェクトのOpen、
+単発の`Load BASIC`ではこの追跡を終了する。
 
 現在は1プロジェクトにつきBASICプログラムを1ファイルまで登録できる。複数の`.dmp`と
 Raw Binaryは登録できるが、配置範囲が重なる場合はEmulatorへロードせずBuildエラーにする。

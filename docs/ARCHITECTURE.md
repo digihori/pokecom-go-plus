@@ -659,7 +659,7 @@ player-ios
 
 ## 16. Pokecom GO Studio
 
-最初のUIはCompose Desktopを第一候補とする。
+Studio UIはCompose Desktopで実装する。
 
 Studio層が担当するものは次の通り。
 
@@ -673,7 +673,17 @@ Studio層が担当するものは次の通り。
 - 外部ファイル変更の監視
 - Desktop向けパッケージング
 
-Core APIを検証するため、最初のUIは完成したIDEを目指さず、機能確認用の小さな画面とする。
+現在のウィンドウ構成は次の責務分離を採用する。
+
+- メインウィンドウ: 機種選択、LCD、機種別キーボード、Run／Pause／Reset／Step、動作モード、状態通知
+- ネイティブメニューバー: File／Project／Program／Emulator／Debug操作
+- ROM Libraryダイアログ: 機種別ROMの登録、置換、削除、検証状態
+- Project Filesウィンドウ: Tracked／Untrackedツリー、外部変更、Build & Load、Manifest更新
+- Debuggerウィンドウ: CPU、Disassembly、Memory、Watch、Trace、Checkpoint
+- Assembly Workspace: Sources／生成物、Diagnostics、Memory／Disassembly Preview、Listing／Map
+
+メインウィンドウへすべての開発操作を並べず、LCDと実機操作を行いながら必要な開発ウィンドウを併用する。
+各ウィンドウがCoreの可変状態を直接所有せず、同じSession、Snapshot、Application Serviceを参照する。
 
 ### 16.1 Studio ROM Library
 

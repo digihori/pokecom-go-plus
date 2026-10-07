@@ -36,6 +36,9 @@ class Sc61860AssemblerTest {
             byteArrayOf(0x00, 0x01, 0x2c, 0x04, 0xaa.toByte(), 0xbb.toByte(), 0xcc.toByte(), 0x78, 0xc0.toByte(), 0x00),
             result.image.segments.single().copyBytes(),
         )
+        assertEquals(listOf(Sc61860AssemblySymbol("START", 0xc000, 2), Sc61860AssemblySymbol("DONE", 0xc007, 5)), result.symbols)
+        assertEquals(listOf(2, 3, 4, 5), result.listing.map { it.line })
+        assertEquals(listOf(0xc000, 0xc002, 0xc004, 0xc007), result.listing.map { it.address })
     }
 
     @Test
@@ -48,4 +51,3 @@ class Sc61860AssemblerTest {
         assertEquals("Forward target is out of range", result.message)
     }
 }
-

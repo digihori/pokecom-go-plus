@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -96,7 +97,7 @@ import com.digihori.pgp.desktop.project.DesktopProjectBuildResult
 import com.digihori.pgp.desktop.project.DesktopProjectBuilder
 import com.digihori.pgp.desktop.project.DesktopProjectCreateError
 import com.digihori.pgp.desktop.project.DesktopProjectCreateResult
-import com.digihori.pgp.desktop.project.DesktopProjectTemplate
+import com.digihori.pgp.desktop.project.DesktopProjectStarter
 import com.digihori.pgp.desktop.project.DesktopProjectWorkspaceCreator
 import com.digihori.pgp.desktop.project.DesktopProjectOpenError
 import com.digihori.pgp.desktop.project.DesktopProjectOpenResult
@@ -106,6 +107,17 @@ import com.digihori.pgp.desktop.project.DesktopProjectTreeScanner
 import com.digihori.pgp.desktop.project.DesktopProjectTreeSnapshot
 import com.digihori.pgp.desktop.project.DesktopProjectManifestUpdater
 import com.digihori.pgp.desktop.project.DesktopProjectUpdateResult
+import com.digihori.pgp.desktop.project.DesktopAssemblyDiagnostic
+import com.digihori.pgp.desktop.project.DesktopAssemblySourceResult
+import com.digihori.pgp.desktop.project.DesktopAssemblyWorkspaceCompiler
+import com.digihori.pgp.desktop.project.DesktopAssemblyWorkspaceResult
+import com.digihori.pgp.desktop.project.DesktopExternalEditor
+import com.digihori.pgp.desktop.project.DesktopExternalEditorResult
+import com.digihori.pgp.desktop.project.DesktopProjectBuildOutputWriter
+import com.digihori.pgp.desktop.project.renderDisassembly
+import com.digihori.pgp.desktop.project.renderListing
+import com.digihori.pgp.desktop.project.renderMap
+import com.digihori.pgp.desktop.project.renderMemorySummary
 import com.digihori.pgp.desktop.input.Pc1245KeyboardLayout
 import com.digihori.pgp.desktop.input.Pc1251KeyboardLayout
 import com.digihori.pgp.desktop.input.Pc1350KeyboardLayout
@@ -237,11 +249,16 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
     var projectBasicBaseline by remember { mutableStateOf<ByteArray?>(null) }
     var projectBasicModified by remember { mutableStateOf(false) }
     var changedProjectSources by remember { mutableStateOf(emptySet<String>()) }
+    var changedAssemblySources by remember { mutableStateOf(emptySet<String>()) }
     var projectRuntimeStatus by remember { mutableStateOf(ProjectRuntimeStatus.NOT_BUILT) }
     var showProjectWindow by remember { mutableStateOf(false) }
+    var showAssemblyWorkspace by remember { mutableStateOf(false) }
+    var assemblyPreview by remember { mutableStateOf(emptyList<DesktopAssemblySourceResult>()) }
+    var assemblyDiagnostics by remember { mutableStateOf(emptyList<DesktopAssemblyDiagnostic>()) }
+    var assemblyStatus by remember { mutableStateOf("Not assembled") }
     var showCreateProjectDialog by remember { mutableStateOf(false) }
     var newProjectName by remember { mutableStateOf("New PGP Project") }
-    var newProjectTemplate by remember { mutableStateOf(DesktopProjectTemplate.BASIC) }
+    var newProjectStarters by remember { mutableStateOf(setOf(DesktopProjectStarter.BASIC)) }
     var newProjectError by remember { mutableStateOf<String?>(null) }
     var requestProjectParentSelection by remember { mutableStateOf(false) }
     var machineMenuExpanded by remember { mutableStateOf(false) }
@@ -448,6 +465,10 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
                 projectChangeTracker = DesktopProjectChangeTracker(opened.workspace)
                 projectTree = DesktopProjectTreeScanner.scan(opened.workspace)
                 changedProjectSources = emptySet()
+                changedAssemblySources = emptySet()
+                assemblyPreview = emptyList()
+                assemblyDiagnostics = emptyList()
+                assemblyStatus = "Not assembled"
                 projectRuntimeStatus = ProjectRuntimeStatus.NOT_BUILT
                 if (resetBasicTracking) {
                     projectBasicBaseline = null
@@ -491,6 +512,67 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
         }
     }
 
+    fun assembleWorkspace() {
+        val workspace = projectWorkspace ?: return
+        when (val result = DesktopAssemblyWorkspaceCompiler.compile(workspace)) {
+            is DesktopAssemblyWorkspaceResult.Failure -> {
+                assemblyDiagnostics = result.diagnostics
+                assemblyStatus = "Assembly failed — last successful preview retained"
+                message = "Assembly failed with ${result.diagnostics.size} diagnostic(s)."
+            }
+            is DesktopAssemblyWorkspaceResult.Success -> {
+                assemblyPreview = result.sources
+                assemblyDiagnostics = emptyList()
+                changedAssemblySources = emptySet()
+                val bytes = result.sources.sumOf { it.image.byteCount }
+                assemblyStatus = "Assembled — $bytes bytes from ${result.sources.size} source(s)"
+                message = assemblyStatus
+            }
+        }
+    }
+
+    fun openExternalSource(file: File, line: Int? = null) {
+        when (val opened = DesktopExternalEditor.open(file, line)) {
+            DesktopExternalEditorResult.Opened -> message = "Opened ${file.name}."
+            is DesktopExternalEditorResult.Failed -> showError(
+                "Could not open external editor: ${opened.message}",
+            )
+        }
+    }
+
+    fun buildProjectOutputs(): DesktopProjectBuildResult.Success? {
+        val workspace = projectWorkspace ?: return null
+        return when (val built = DesktopProjectBuilder.build(workspace)) {
+            is DesktopProjectBuildResult.Failure -> {
+                projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
+                when (val assembly = DesktopAssemblyWorkspaceCompiler.compile(workspace)) {
+                    is DesktopAssemblyWorkspaceResult.Failure -> {
+                        assemblyDiagnostics = assembly.diagnostics
+                        assemblyStatus = "Build failed — last successful preview retained"
+                    }
+                    is DesktopAssemblyWorkspaceResult.Success -> Unit
+                }
+                val machineName = runner?.machineId?.displayName() ?: workspace.definition.machineId.displayName()
+                showError(built.errors.joinToString("\n") { it.message(machineName) })
+                null
+            }
+            is DesktopProjectBuildResult.Success -> {
+                val output = runCatching { DesktopProjectBuildOutputWriter.write(workspace, built.artifact) }
+                    .getOrElse {
+                        projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
+                        showError("Could not write build output: ${it.message ?: it::class.simpleName}")
+                        return null
+                    }
+                assemblyPreview = built.artifact.assemblySources
+                assemblyDiagnostics = emptyList()
+                changedAssemblySources = emptySet()
+                assemblyStatus = "Built${output?.let { " — ${it.path}" }.orEmpty()}"
+                message = assemblyStatus
+                built
+            }
+        }
+    }
+
     fun buildProject() {
         val workspace = projectWorkspace ?: return
         val activeRunner = runner ?: return
@@ -502,12 +584,7 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
             )
             return
         }
-        when (val built = DesktopProjectBuilder.build(workspace)) {
-            is DesktopProjectBuildResult.Failure -> {
-                projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
-                showError(built.errors.joinToString("\n") { it.message(activeRunner.machineId.displayName()) })
-            }
-            is DesktopProjectBuildResult.Success -> {
+        buildProjectOutputs()?.let { built ->
                 when (val applied = DesktopProjectArtifactLoader.load(activeRunner, built.artifact)) {
                     is DesktopProjectApplyResult.BasicFailure -> {
                         projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
@@ -539,7 +616,6 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
                         projectBasicModified = false
                     }
                 }
-            }
         }
     }
 
@@ -851,6 +927,9 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
             }
             if (changes.isNotEmpty()) {
                 changedProjectSources = changedProjectSources + changes.map { it.source.definition.id }
+                changedAssemblySources = changedAssemblySources + changes
+                    .filter { it.source.definition.type == ProjectSourceType.ASSEMBLY }
+                    .map { it.source.definition.id }
                 projectRuntimeStatus = ProjectRuntimeStatus.SOURCE_CHANGED
                 message = "External changes detected: " + changes.joinToString { change ->
                     "${change.source.definition.path} (${change.kind.name.lowercase()})"
@@ -893,7 +972,7 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
             destination,
             newProjectName,
             selectedMachineId,
-            newProjectTemplate,
+            newProjectStarters,
         )) {
             is DesktopProjectCreateResult.Failure -> {
                 newProjectError = created.error.message()
@@ -920,6 +999,10 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
                 "Show Project Files",
                 enabled = projectWorkspace != null && !showProjectWindow,
                 onClick = { showProjectWindow = true },
+            )
+            Item(
+                "Open Assembly Workspace",
+                onClick = { showAssemblyWorkspace = true },
             )
             Separator()
             Item(
@@ -1061,10 +1144,129 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
                                     enabled = runner != null && runnerState != RunnerState.FAULTED,
                                     onClick = ::buildProject,
                                 ) { Text("Build & Load") }
+                                Button(
+                                    onClick = { showAssemblyWorkspace = true },
+                                ) { Text("Assembly Workspace") }
                                 Button(onClick = ::updateProject) { Text("Update Project") }
                             }
                             projectTree?.let { ProjectTreePanel(it) }
                         } ?: Text("No project is open.")
+                    }
+                }
+            }
+        }
+    }
+
+    if (showAssemblyWorkspace) {
+        Window(
+            onCloseRequest = { showAssemblyWorkspace = false },
+            title = projectWorkspace?.let { "${ProjectInfo.STUDIO_DISPLAY_NAME} — ${it.definition.name} — Assembly" }
+                ?: "${ProjectInfo.STUDIO_DISPLAY_NAME} — Assembly Workspace",
+        ) {
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        val workspace = projectWorkspace
+                        if (workspace == null) {
+                            Text("No project is open.")
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = ::openProjectFromDisk) { Text("Open Project…") }
+                                Button(onClick = {
+                                    newProjectError = null
+                                    showCreateProjectDialog = true
+                                }) { Text("New Project…") }
+                            }
+                        } else {
+                            Text("Assembly Workspace", style = MaterialTheme.typography.titleLarge)
+                            Text(assemblyStatus)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                val hasAssemblySources = workspace.sources.any {
+                                    it.definition.type == ProjectSourceType.ASSEMBLY
+                                }
+                                Button(enabled = hasAssemblySources, onClick = ::assembleWorkspace) {
+                                    Text("Assemble")
+                                }
+                                Button(enabled = hasAssemblySources, onClick = { buildProjectOutputs() }) {
+                                    Text("Build")
+                                }
+                                Button(
+                                    enabled = hasAssemblySources && runner != null && runnerState != RunnerState.FAULTED,
+                                    onClick = ::buildProject,
+                                ) { Text("Build & Load") }
+                            }
+                            Text("Sources", style = MaterialTheme.typography.titleMedium)
+                            val assemblySources = workspace.sources.filter {
+                                it.definition.type == ProjectSourceType.ASSEMBLY
+                            }
+                            val untrackedAssemblyFiles = projectTree?.untracked.orEmpty().filter {
+                                it.file.extension.equals("asm", ignoreCase = true)
+                            }
+                            if (assemblySources.isEmpty() && untrackedAssemblyFiles.isEmpty()) {
+                                Text("No Assembly sources. Add an .asm file under src, then select Update Project.")
+                            }
+                            assemblySources.forEach { source ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Text(
+                                        "  ${source.definition.path}" +
+                                            if (source.definition.id in changedAssemblySources) " *" else "",
+                                        fontFamily = FontFamily.Monospace,
+                                    )
+                                    Button(onClick = { openExternalSource(source.file) }) { Text("Open") }
+                                }
+                            }
+                            untrackedAssemblyFiles.forEach { source ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Text("  ${source.relativePath} * (untracked)", fontFamily = FontFamily.Monospace)
+                                    Button(onClick = { openExternalSource(source.file) }) { Text("Open") }
+                                }
+                            }
+                            if (untrackedAssemblyFiles.isNotEmpty()) {
+                                Button(onClick = ::updateProject) { Text("Add to Project") }
+                            }
+                            Text("Outputs", style = MaterialTheme.typography.titleMedium)
+                            Text("  build/program.dmp\n  build/program.lst\n  build/program.map", fontFamily = FontFamily.Monospace)
+                            Text("Diagnostics", style = MaterialTheme.typography.titleMedium)
+                            if (assemblyDiagnostics.isEmpty()) Text("No diagnostics.")
+                            assemblyDiagnostics.forEach { diagnostic ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    Text(
+                                        buildString {
+                                            append(diagnostic.source.definition.path).append(':')
+                                                .append(diagnostic.line ?: "?").append(": ").append(diagnostic.message)
+                                            diagnostic.sourceText?.let { append("\n  ").append(it) }
+                                        },
+                                        fontFamily = FontFamily.Monospace,
+                                    )
+                                    TextButton(onClick = {
+                                        openExternalSource(diagnostic.source.file, diagnostic.line)
+                                    }) { Text("Open at line") }
+                                }
+                            }
+                            assemblyPreview.forEach { result ->
+                                Text(result.source.definition.path, style = MaterialTheme.typography.titleMedium)
+                                AssemblyPreviewSection("Memory", result.renderMemorySummary())
+                                AssemblyPreviewSection("Disassembly", result.renderDisassembly())
+                                AssemblyPreviewSection("Listing", result.renderListing())
+                            }
+                            if (assemblyPreview.isNotEmpty()) {
+                                AssemblyPreviewSection("Symbol Map", assemblyPreview.renderMap())
+                            }
+                        }
                     }
                 }
             }
@@ -1300,11 +1502,21 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
                             singleLine = true,
                         )
                         Text("Starter sources")
-                        DesktopProjectTemplate.entries.forEach { template ->
-                            Button(
-                                enabled = newProjectTemplate != template,
-                                onClick = { newProjectTemplate = template },
-                            ) { Text(template.displayName) }
+                        DesktopProjectStarter.entries.forEach { starter ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(
+                                    checked = starter in newProjectStarters,
+                                    onCheckedChange = { checked ->
+                                        newProjectStarters = if (checked) {
+                                            newProjectStarters + starter
+                                        } else {
+                                            newProjectStarters - starter
+                                        }
+                                        newProjectError = null
+                                    },
+                                )
+                                Text(starter.displayName)
+                            }
                         }
                         Text("Existing files will not be overwritten.")
                         newProjectError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -1314,6 +1526,10 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
                     TextButton(onClick = {
                         if (newProjectName.isBlank()) {
                             newProjectError = "Project name must not be blank."
+                            return@TextButton
+                        }
+                        if (newProjectStarters.isEmpty()) {
+                            newProjectError = "Select at least one starter source."
                             return@TextButton
                         }
                         newProjectError = null
@@ -2322,6 +2538,16 @@ private fun ProjectTreePanel(tree: DesktopProjectTreeSnapshot) {
 private fun ProjectTreeGroup(name: String, paths: List<String>) {
     Text("$name (${paths.size})")
     paths.forEach { path -> Text("  $path", fontFamily = FontFamily.Monospace) }
+}
+
+@Composable
+private fun AssemblyPreviewSection(title: String, content: String) {
+    Text(title, style = MaterialTheme.typography.titleSmall)
+    Text(
+        content.ifBlank { "(empty)" },
+        modifier = Modifier.fillMaxWidth().widthIn(max = 1100.dp),
+        fontFamily = FontFamily.Monospace,
+    )
 }
 
 private fun DesktopBasicLoadError.message(machineName: String): String = when (this) {

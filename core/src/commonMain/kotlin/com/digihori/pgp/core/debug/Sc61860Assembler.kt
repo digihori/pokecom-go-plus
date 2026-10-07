@@ -6,20 +6,39 @@ import com.digihori.pgp.core.source.machine.AddressedMemoryImageFactory
 import com.digihori.pgp.core.source.machine.AddressedMemorySegmentData
 
 public sealed interface Sc61860AssemblyResult {
-    public data class Success(public val image: AddressedMemoryImage) : Sc61860AssemblyResult
+    public data class Success(
+        public val image: AddressedMemoryImage,
+        public val symbols: List<Sc61860AssemblySymbol>,
+        public val listing: List<Sc61860AssemblyListingLine>,
+    ) : Sc61860AssemblyResult
     public data class Failure(public val line: Int, public val message: String) : Sc61860AssemblyResult
 }
+
+public data class Sc61860AssemblySymbol(
+    public val name: String,
+    public val address: Int,
+    public val line: Int,
+)
+
+public data class Sc61860AssemblyListingLine(
+    public val line: Int,
+    public val address: Int,
+    public val bytes: List<Int>,
+    public val sourceText: String,
+)
 
 public object Sc61860Assembler {
     public fun assemble(source: String): Sc61860AssemblyResult {
         val statements = parseStatements(source)
         val labels = mutableMapOf<String, Int>()
+        val symbols = mutableListOf<Sc61860AssemblySymbol>()
         var address: Int? = null
 
         statements.forEach { statement ->
             statement.label?.let { label ->
                 val current = address ?: return failure(statement, "ORG is required before a label")
                 if (labels.put(label.uppercase(), current) != null) return failure(statement, "Duplicate label: $label")
+                symbols += Sc61860AssemblySymbol(label, current, statement.line)
             }
             val operation = statement.operation ?: return@forEach
             if (operation.equals("ORG", ignoreCase = true)) {
@@ -37,6 +56,7 @@ public object Sc61860Assembler {
         val segments = mutableListOf<AddressedMemorySegmentData>()
         var segmentStart: Int? = null
         val segmentBytes = mutableListOf<Byte>()
+        val listing = mutableListOf<Sc61860AssemblyListingLine>()
         fun flush() {
             val start = segmentStart ?: return
             if (segmentBytes.isNotEmpty()) {
@@ -65,13 +85,19 @@ public object Sc61860Assembler {
                 is EncodeResult.Failure -> return failure(statement, encoded.message)
                 is EncodeResult.Success -> {
                     segmentBytes += encoded.bytes.toList()
+                    listing += Sc61860AssemblyListingLine(
+                        line = statement.line,
+                        address = current,
+                        bytes = encoded.bytes.map { it.toInt() and 0xff },
+                        sourceText = statement.sourceText,
+                    )
                     address = current + encoded.bytes.size
                 }
             }
         }
         flush()
         return when (val created = AddressedMemoryImageFactory.create(segments)) {
-            is AddressedMemoryImageCreateResult.Success -> Sc61860AssemblyResult.Success(created.image)
+            is AddressedMemoryImageCreateResult.Success -> Sc61860AssemblyResult.Success(created.image, symbols, listing)
             AddressedMemoryImageCreateResult.Empty -> Sc61860AssemblyResult.Failure(0, "Assembly produced no data")
             is AddressedMemoryImageCreateResult.InvalidSegment ->
                 Sc61860AssemblyResult.Failure(0, "Generated segment is outside the 16-bit address space")
@@ -191,13 +217,19 @@ public object Sc61860Assembler {
             }
             val operation = content.takeWhile { !it.isWhitespace() }.ifEmpty { null }
             val operand = operation?.let { content.drop(it.length).trim() }.orEmpty()
-            Statement(index + 1, label, operation, operand)
+            Statement(index + 1, label, operation, operand, original)
         }
 
     private fun failure(statement: Statement, message: String): Sc61860AssemblyResult.Failure =
         Sc61860AssemblyResult.Failure(statement.line, message)
 
-    private data class Statement(val line: Int, val label: String?, val operation: String?, val operand: String)
+    private data class Statement(
+        val line: Int,
+        val label: String?,
+        val operation: String?,
+        val operand: String,
+        val sourceText: String,
+    )
     private sealed interface EncodeResult {
         data class Success(val bytes: ByteArray) : EncodeResult
         data class Failure(val message: String) : EncodeResult

@@ -123,6 +123,25 @@ class DesktopProjectBuilderTest {
         assertEquals(2, error.line)
     }
 
+    @Test
+    fun writesDumpListingAndMapFromTheSameSuccessfulBuild() {
+        val root = Files.createTempDirectory("pgp-project-assembly-output-test")
+        root.resolve("src").createDirectories()
+        root.resolve("src/main.asm").writeText("ORG 0xC000\nSTART: LII 0x12\nRTN\n")
+        val workspace = openWorkspace(
+            root,
+            """{ "id": "main", "type": "assembly", "path": "src/main.asm" }""",
+        )
+        val built = assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(workspace))
+
+        val dump = checkNotNull(DesktopProjectBuildOutputWriter.write(workspace, built.artifact))
+
+        assertEquals(root.resolve("build/program.dmp").toFile(), dump)
+        assertTrue(dump.readText().contains("C000 00 12 37"))
+        assertTrue(root.resolve("build/program.lst").toFile().readText().contains("START: LII 0x12"))
+        assertTrue(root.resolve("build/program.map").toFile().readText().contains("C000  START  src/main.asm:2"))
+    }
+
     private fun openWorkspace(
         root: java.nio.file.Path,
         sources: String,

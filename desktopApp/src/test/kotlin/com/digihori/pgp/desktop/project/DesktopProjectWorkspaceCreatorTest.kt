@@ -19,7 +19,7 @@ class DesktopProjectWorkspaceCreatorTest {
                 root.toFile(),
                 "New project",
                 MachineId("pc-1245"),
-                DesktopProjectTemplate.BASIC_AND_MACHINE_CODE,
+                setOf(DesktopProjectStarter.BASIC, DesktopProjectStarter.MEMORY_DUMP),
             ),
         )
         val projectRoot = root.resolve("New-project")
@@ -44,7 +44,7 @@ class DesktopProjectWorkspaceCreatorTest {
                 parent.toFile(),
                 "New project",
                 MachineId("pc-1245"),
-                DesktopProjectTemplate.BASIC,
+                setOf(DesktopProjectStarter.BASIC),
             ),
         )
         assertIs<DesktopProjectCreateError.DestinationExists>(
@@ -53,7 +53,7 @@ class DesktopProjectWorkspaceCreatorTest {
                     parent.toFile(),
                     "New project",
                     MachineId("pc-1245"),
-                    DesktopProjectTemplate.BASIC,
+                    setOf(DesktopProjectStarter.BASIC),
                 ),
             ).error,
         )
@@ -71,7 +71,7 @@ class DesktopProjectWorkspaceCreatorTest {
                 parent.toFile(),
                 "New PGP Project",
                 MachineId("pc-1245"),
-                DesktopProjectTemplate.BASIC,
+                setOf(DesktopProjectStarter.BASIC),
             ),
         )
 
@@ -79,6 +79,10 @@ class DesktopProjectWorkspaceCreatorTest {
             parent.resolve("New-PGP-Project-3/pgp-project.json").toFile(),
             created.manifestFile,
         )
+        val workspace = assertIs<DesktopProjectOpenResult.Success>(
+            DesktopProjectWorkspaceLoader.open(created.manifestFile),
+        ).workspace
+        assertEquals("New PGP Project 3", workspace.definition.name)
         assertTrue(parent.resolve("New-PGP-Project").toFile().isDirectory)
         assertTrue(parent.resolve("New-PGP-Project-2").toFile().isDirectory)
     }
@@ -86,5 +90,34 @@ class DesktopProjectWorkspaceCreatorTest {
     @Test
     fun derivesPortableFolderNameFromDisplayName() {
         assertEquals("My-Game-Test", DesktopProjectWorkspaceCreator.folderName(" My Game/Test "))
+    }
+
+    @Test
+    fun createsAllSelectedStarterSourcesIncludingAssembly() {
+        val root = Files.createTempDirectory("pgp-project-starters-test")
+
+        val created = assertIs<DesktopProjectCreateResult.Success>(
+            DesktopProjectWorkspaceCreator.create(
+                root.toFile(),
+                "All sources",
+                MachineId("pc-1360"),
+                DesktopProjectStarter.entries.toSet(),
+            ),
+        )
+        val workspace = assertIs<DesktopProjectOpenResult.Success>(
+            DesktopProjectWorkspaceLoader.open(created.manifestFile),
+        ).workspace
+
+        assertEquals(
+            listOf(ProjectSourceType.BASIC, ProjectSourceType.MEMORY_DUMP, ProjectSourceType.ASSEMBLY),
+            workspace.sources.map { it.definition.type },
+        )
+        val assembly = root.resolve("All-sources/src/main.asm").readText()
+        assertTrue(assembly.contains("Sample SC61860 program"))
+        assertTrue(assembly.contains("START: LII 0x12"))
+        assertTrue(assembly.contains("LIDP TABLE"))
+        assertTrue(assembly.contains("JRP DONE"))
+        assertTrue(assembly.contains("TABLE: DB 0x01, &02, 3"))
+        assertTrue(assembly.contains("DONE:  RTN"))
     }
 }

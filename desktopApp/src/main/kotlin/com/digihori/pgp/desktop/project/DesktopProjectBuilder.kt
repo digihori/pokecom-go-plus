@@ -11,12 +11,11 @@ import com.digihori.pgp.desktop.basic.DesktopBasicProgramCompileResult
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoadError
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoadResult
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoader
-import com.digihori.pgp.core.debug.Sc61860Assembler
-import com.digihori.pgp.core.debug.Sc61860AssemblyResult
 
 internal data class DesktopProjectArtifact(
     private val basicProgram: ByteArray?,
     val memoryImage: AddressedMemoryImage?,
+    val assemblySources: List<DesktopAssemblySourceResult>,
 ) {
     fun copyBasicProgram(): ByteArray? = basicProgram?.copyOf()
 }
@@ -59,8 +58,33 @@ internal object DesktopProjectBuilder {
         var basicProgram: ByteArray? = null
         val memorySegments = mutableListOf<AddressedMemorySegmentData>()
         val memorySegmentOwners = mutableListOf<String>()
+        val assemblySources = when (val assembly = DesktopAssemblyWorkspaceCompiler.compile(workspace)) {
+            is DesktopAssemblyWorkspaceResult.Success -> assembly.sources
+            is DesktopAssemblyWorkspaceResult.Failure -> {
+                assembly.diagnostics.forEach { diagnostic ->
+                    errors += DesktopProjectBuildError.Assembly(
+                        diagnostic.source.definition.id,
+                        diagnostic.line ?: 0,
+                        diagnostic.message,
+                    )
+                }
+                emptyList()
+            }
+        }
+        val assemblyById = assemblySources.associateBy { it.source.definition.id }
 
         workspace.sources.forEach { source ->
+            if (source.definition.type == ProjectSourceType.ASSEMBLY) {
+                assemblyById[source.definition.id]?.image?.segments?.forEach { segment ->
+                    memorySegments += AddressedMemorySegmentData(
+                        segment.startAddress,
+                        segment.copyBytes(),
+                        segment.sourceLine,
+                    )
+                    memorySegmentOwners += source.definition.id
+                }
+                return@forEach
+            }
             val bytes = runCatching { source.file.readBytes() }.getOrElse {
                 errors += DesktopProjectBuildError.CouldNotReadSource(
                     source.definition.id,
@@ -97,21 +121,7 @@ internal object DesktopProjectBuilder {
                         memorySegmentOwners += source.definition.id
                     }
                 }
-                ProjectSourceType.ASSEMBLY -> when (val assembled = Sc61860Assembler.assemble(bytes.decodeToString())) {
-                    is Sc61860AssemblyResult.Failure -> errors += DesktopProjectBuildError.Assembly(
-                        source.definition.id,
-                        assembled.line,
-                        assembled.message,
-                    )
-                    is Sc61860AssemblyResult.Success -> assembled.image.segments.forEach { segment ->
-                        memorySegments += AddressedMemorySegmentData(
-                            segment.startAddress,
-                            segment.copyBytes(),
-                            segment.sourceLine,
-                        )
-                        memorySegmentOwners += source.definition.id
-                    }
-                }
+                ProjectSourceType.ASSEMBLY -> error("Handled before reading source bytes")
             }
         }
 
@@ -135,6 +145,6 @@ internal object DesktopProjectBuilder {
         }
 
         if (errors.isNotEmpty()) return DesktopProjectBuildResult.Failure(errors)
-        return DesktopProjectBuildResult.Success(DesktopProjectArtifact(basicProgram, memoryImage))
+        return DesktopProjectBuildResult.Success(DesktopProjectArtifact(basicProgram, memoryImage, assemblySources))
     }
 }
