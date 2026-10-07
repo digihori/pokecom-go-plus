@@ -14,6 +14,9 @@ import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251Display
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350Display
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350Machine
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360Display
+import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360Machine
+import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360RomDefinition
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.rom.RomSet
 
@@ -46,6 +49,7 @@ public object EmulatorFactory {
                         )
                     }
                     MachineFamily.PC_1350 -> Pc1350EmulatorSession(Pc1350Machine(romSet))
+                    MachineFamily.PC_1360 -> Pc1360EmulatorSession(Pc1360Machine(romSet))
                 },
             )
         } catch (error: IllegalArgumentException) {
@@ -53,6 +57,84 @@ public object EmulatorFactory {
                 CreateSessionError.InvalidRomSet(error.message ?: "Invalid ROM set"),
             )
         }
+    }
+}
+
+private class Pc1360EmulatorSession(
+    private val machine: Pc1360Machine,
+) : EmulatorSession {
+    override val machineId: MachineId = Pc1360RomDefinition.MACHINE_ID
+    private var status: ExecutionStatus = ExecutionStatus.Ready
+    override fun reset() { machine.coldReset(); status = ExecutionStatus.Ready }
+    override fun step(): StepResult = machine.step().let {
+        status = it.stopReason.toExecutionStatus()
+        StepResult(it.cycles, status)
+    }
+    override fun runCycles(cycleBudget: Long): RunResult = machine.runCycles(cycleBudget).let {
+        status = it.stopReason.toExecutionStatus()
+        RunResult(it.executedCycles, it.executedInstructions, status)
+    }
+    override fun pressKey(key: PocketKey): InputResult =
+        if (machine.keyboardState.press(key)) InputResult.Accepted else InputResult.UnsupportedKey(key)
+    override fun releaseKey(key: PocketKey): InputResult =
+        if (machine.keyboardState.release(key)) InputResult.Accepted else InputResult.UnsupportedKey(key)
+    override fun setOperatingMode(mode: OperatingMode) = Unit
+    override fun cpuSnapshot(): CpuSnapshot = machine.cpuState.let { state ->
+        CpuSnapshot(
+            state.programCounter, state.currentProgramCounter, state.opcode, state.dataPointer,
+            state.p, state.q, state.r, state.d, state.alu, state.carry, state.zero, state.xInput,
+            state.powerOn, state.ia, state.ib, state.fo, state.control, state.testPort,
+            ByteArray(state.internalRam.size) { state.internalRam[it].toByte() },
+        )
+    }
+    override fun memorySnapshot(startAddress: Int, length: Int): MemorySnapshot {
+        require(startAddress in 0..0xffff && length >= 0 && length <= 0x10000 - startAddress)
+        return MemorySnapshot(startAddress, ByteArray(length) { machine.readMemory(startAddress + it).toByte() })
+    }
+    override fun displaySnapshot(): DisplaySnapshot {
+        val display = machine.displayState
+        val symbols = display.symbolState()
+        return DisplaySnapshot(
+            Pc1360Display.CHARACTER_COLUMNS, Pc1360Display.CHARACTER_WIDTH,
+            Pc1360Display.DOT_ROWS, Pc1360Display.CHARACTER_ROWS,
+            buildList {
+                if (symbols and 0x02 != 0) add(DisplaySymbol.SHIFT)
+                if (symbols and 0x04 != 0) add(DisplaySymbol.DEF)
+                if (symbols and 0x08 != 0) add(DisplaySymbol.RUN)
+                if (symbols and 0x10 != 0) add(DisplaySymbol.PRO)
+                if (symbols and 0x40 != 0) add(DisplaySymbol.KANA)
+                if (symbols and 0x01 != 0) add(DisplaySymbol.SMALL)
+            },
+            true, display.revision, display.copyDots(),
+            interCharacterColumnGap = 0,
+            interCharacterRowGap = 0,
+        )
+    }
+    override fun audioSnapshot(): AudioSnapshot = AudioSnapshot(machine.buzzerState.frequencyHz, machine.buzzerState.revision)
+    override fun drainAudioSamples(): AudioPcmSnapshot = AudioPcmSnapshot(Pc1245Buzzer.SAMPLE_RATE, machine.buzzerState.drainPcm())
+    override fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult = machine.loadBasicProgram(program).toLoadResult()
+    override fun basicProgramSnapshot(): BasicProgramSnapshotResult = machine.basicProgram().toSnapshotResult()
+    override fun loadMemoryImage(image: com.digihori.pgp.core.source.machine.AddressedMemoryImage): MemoryImageLoadResult {
+        val invalid = image.segments.firstNotNullOfOrNull { segment ->
+            (segment.startAddress..segment.endAddress).firstOrNull { it !in 0x2000..0x3fff && it !in 0x8000..0xffff }
+                ?.let { MemoryImageLoadError.ReadOnlyAddress(it, segment.sourceLine) }
+        }
+        if (invalid != null) return MemoryImageLoadResult.Failure(invalid)
+        image.segments.forEach { segment -> segment.copyBytes().forEachIndexed { offset, byte ->
+            machine.writeMemory(segment.startAddress + offset, byte.toInt() and 0xff)
+        } }
+        return MemoryImageLoadResult.Success(image.segments.size, image.byteCount)
+    }
+    override fun setMemoryAccessTracing(enabled: Boolean) = machine.setMemoryAccessTracing(enabled)
+    override fun drainMemoryAccesses(): List<MemoryAccess> = machine.drainMemoryAccesses()
+    override fun selectedRomBank(): Int = machine.selectedRomBank
+    override fun drainBankSwitchEvents(): List<BankSwitchEvent> = machine.drainBankSwitchEvents()
+    override fun resolveRomLocation(address: Int): PhysicalRomLocation? = when (address) {
+        in 0x0000..0x1fff -> PhysicalRomLocation(Pc1360RomDefinition.INTERNAL_ID, null, address)
+        in 0x4000..0x7fff -> PhysicalRomLocation(
+            Pc1360RomDefinition.bankId(machine.selectedRomBank), machine.selectedRomBank, address - 0x4000,
+        )
+        else -> null
     }
 }
 
@@ -111,6 +193,8 @@ private class Pc1350EmulatorSession(
             enabled = true,
             revision = display.revision,
             dots = display.copyDots(),
+            interCharacterColumnGap = 0,
+            interCharacterRowGap = 0,
         )
     }
     override fun audioSnapshot(): AudioSnapshot = AudioSnapshot(machine.buzzerState.frequencyHz, machine.buzzerState.revision)

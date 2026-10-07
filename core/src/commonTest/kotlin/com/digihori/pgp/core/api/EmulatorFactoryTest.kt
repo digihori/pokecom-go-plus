@@ -6,6 +6,8 @@ import com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360ComponentRomImporter
+import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360RomDefinition
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.rom.RomComponent
 import com.digihori.pgp.core.rom.RomRole
@@ -25,10 +27,33 @@ class EmulatorFactoryTest {
         assertEquals(
             listOf(
                 MachineId("pc-1245"), MachineId("pc-1250"), MachineId("pc-1251"),
-                MachineId("pc-1255"), MachineId("pc-1350"),
+                MachineId("pc-1255"), MachineId("pc-1350"), MachineId("pc-1360"),
             ),
             EmulatorFactory.supportedMachineIds(),
         )
+    }
+
+    @Test
+    fun createsPc1360SessionWithBankedRom() {
+        val romSet = assertIs<RomImportResult.Success>(
+            Pc1360ComponentRomImporter.importImages(ByteArray(0x2000), List(8) { ByteArray(0x4000) }),
+        ).romSet
+        val session = assertIs<CreateSessionResult.Success>(
+            EmulatorFactory.create(Pc1360RomDefinition.MACHINE_ID, romSet),
+        ).session
+        assertEquals(0, session.selectedRomBank())
+        assertEquals(25, session.displaySnapshot().characterColumns)
+        assertEquals(0, session.displaySnapshot().interCharacterColumnGap)
+        assertEquals(0, session.displaySnapshot().interCharacterRowGap)
+        assertIs<BasicProgramLoadResult.Success>(session.loadBasicProgram(byteArrayOf(0xff.toByte(), 0xff.toByte())))
+        assertEquals("bank-0", session.resolveRomLocation(0x4000)?.componentId?.value)
+        val controlWrite = assertIs<PgpMemoryDumpParseResult.Success>(
+            PgpMemoryDumpParser.parse("2000 A5\n27FF 5A\n3FFF C3"),
+        ).image
+        assertEquals(MemoryImageLoadResult.Success(3, 3), session.loadMemoryImage(controlWrite))
+        assertEquals(0xa5, session.memorySnapshot(0x2000, 1).copyBytes()[0].toInt() and 0xff)
+        assertEquals(0x5a, session.memorySnapshot(0x27ff, 1).copyBytes()[0].toInt() and 0xff)
+        assertEquals(0xc3, session.memorySnapshot(0x3fff, 1).copyBytes()[0].toInt() and 0xff)
     }
 
     @Test
@@ -48,6 +73,8 @@ class EmulatorFactoryTest {
         assertEquals(25, session.displaySnapshot().characterColumns)
         assertEquals(4, session.displaySnapshot().characterRows)
         assertEquals(150, session.displaySnapshot().dotColumns)
+        assertEquals(0, session.displaySnapshot().interCharacterColumnGap)
+        assertEquals(0, session.displaySnapshot().interCharacterRowGap)
         assertIs<BasicProgramLoadResult.Failure>(session.loadBasicProgram(byteArrayOf(0)))
     }
 

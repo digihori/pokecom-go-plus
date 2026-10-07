@@ -1,6 +1,7 @@
 package com.digihori.pgp.core.api
 
 import com.digihori.pgp.core.rom.MachineId
+import com.digihori.pgp.core.rom.RomComponentId
 import com.digihori.pgp.core.source.machine.AddressedMemoryImage
 
 public interface EmulatorSession {
@@ -25,7 +26,22 @@ public interface EmulatorSession {
 
     public fun setMemoryAccessTracing(enabled: Boolean) {}
     public fun drainMemoryAccesses(): List<MemoryAccess> = emptyList()
+    public fun selectedRomBank(): Int? = null
+    public fun drainBankSwitchEvents(): List<BankSwitchEvent> = emptyList()
+    public fun resolveRomLocation(address: Int): PhysicalRomLocation? = null
 }
+
+public data class PhysicalRomLocation(
+    public val componentId: RomComponentId,
+    public val bank: Int?,
+    public val offset: Int,
+)
+
+public data class BankSwitchEvent(
+    public val previousBank: Int,
+    public val selectedBank: Int,
+    public val selectorValue: Int,
+)
 
 public enum class MemoryAccessKind { READ, WRITE }
 
@@ -66,7 +82,7 @@ public enum class PocketKey {
     ENTER, SPACE, SHIFT, DEF, BREAK,
     PLUS, MINUS, MULTIPLY, DIVIDE, DOT, EQUALS,
     LEFT, RIGHT, UP, DOWN, CLEAR,
-    MODE, KANA, INSERT, DELETE,
+    MODE, KANA, SMALL, INSERT, DELETE,
     LEFT_PAREN, RIGHT_PAREN, COLON, SEMICOLON, COMMA,
 }
 
@@ -146,6 +162,8 @@ public class DisplaySnapshot internal constructor(
     public val enabled: Boolean,
     public val revision: Long,
     dots: ByteArray,
+    public val interCharacterColumnGap: Int = 1,
+    public val interCharacterRowGap: Int = 1,
 ) {
     private val content: ByteArray = dots.copyOf()
 
@@ -156,6 +174,8 @@ public class DisplaySnapshot internal constructor(
         get() = dotRows / characterRows
 
     init {
+        require(interCharacterColumnGap >= 0) { "Display column gap must not be negative" }
+        require(interCharacterRowGap >= 0) { "Display row gap must not be negative" }
         require(characterRows > 0) { "Display character row count must be positive" }
         require(dotRows > 0 && dotRows % characterRows == 0) {
             "Display dot rows must divide evenly into character rows"

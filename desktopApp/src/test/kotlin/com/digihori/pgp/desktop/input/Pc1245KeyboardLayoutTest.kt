@@ -11,7 +11,7 @@ class Pc1245KeyboardLayoutTest {
         val keys = Pc1245KeyboardLayout.rows.flatten().map(PocketKeyCap::key)
 
         val pc1350Only = setOf(
-            PocketKey.MODE, PocketKey.KANA, PocketKey.INSERT, PocketKey.DELETE,
+            PocketKey.MODE, PocketKey.KANA, PocketKey.SMALL, PocketKey.INSERT, PocketKey.DELETE,
             PocketKey.LEFT_PAREN, PocketKey.RIGHT_PAREN, PocketKey.COLON,
             PocketKey.SEMICOLON, PocketKey.COMMA,
         )
@@ -53,5 +53,31 @@ class Pc1245KeyboardLayoutTest {
                 ),
             ),
         )
+    }
+
+    @Test
+    fun pc1360ShowsDomesticShiftLegends() {
+        val caps = Pc1360KeyboardLayout.rows.flatten().associateBy(PocketKeyCap::key)
+        assertEquals("<", caps.getValue(PocketKey.COMMA).shiftedLabel)
+        assertEquals(">", caps.getValue(PocketKey.COLON).shiftedLabel)
+        assertEquals("(", caps.getValue(PocketKey.DIVIDE).shiftedLabel)
+        assertEquals(")", caps.getValue(PocketKey.SEMICOLON).shiftedLabel)
+        assertEquals("¥", caps.getValue(PocketKey.MULTIPLY).shiftedLabel)
+        assertEquals("KANA", caps.getValue(PocketKey.KANA).primaryLabel)
+        assertEquals("SML", caps.getValue(PocketKey.SMALL).primaryLabel)
+        assertTrue(PocketKey.LEFT_PAREN !in caps)
+        assertTrue(PocketKey.RIGHT_PAREN !in caps)
+        Pc1360KeyboardLayout.rows.forEach { row ->
+            val occupied = row.flatMap { it.column until it.column + it.columnSpan }
+            assertEquals(occupied.size, occupied.distinct().size)
+        }
+    }
+
+    @Test
+    fun pc1350KanaKeyShowsShiftedSmallLegend() {
+        val kana = Pc1350KeyboardLayout.rows.flatten().single { it.key == PocketKey.KANA }
+
+        assertEquals("KANA", kana.primaryLabel)
+        assertEquals("SML", kana.shiftedLabel)
     }
 }

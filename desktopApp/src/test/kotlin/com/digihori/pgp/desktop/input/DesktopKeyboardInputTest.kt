@@ -7,6 +7,7 @@ import com.digihori.pgp.core.api.PocketKey
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360RomDefinition
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -39,6 +40,23 @@ class DesktopKeyboardInputTest {
 
         assertEquals(listOf(listOf(PocketKey.SHIFT, PocketKey.NUM_1)), pc1245.sequences)
         assertEquals(listOf(listOf(PocketKey.SHIFT, PocketKey.DOWN)), pc1251.sequences)
+    }
+
+    @Test
+    fun convertsPc1360ParenthesesToShiftedDivideAndSemicolon() {
+        val sink = FakeSink(Pc1360RomDefinition.MACHINE_ID)
+        val input = DesktopKeyboardInput().also { it.attach(sink) }
+        input.handle(Key.Nine, '('.code, KeyEventType.KeyDown)
+        input.handle(Key.Nine, '('.code, KeyEventType.KeyUp)
+        input.handle(Key.Zero, ')'.code, KeyEventType.KeyDown)
+        input.handle(Key.Zero, ')'.code, KeyEventType.KeyUp)
+        assertEquals(
+            listOf(
+                listOf(PocketKey.SHIFT, PocketKey.DIVIDE),
+                listOf(PocketKey.SHIFT, PocketKey.SEMICOLON),
+            ),
+            sink.sequences,
+        )
     }
 
     @Test

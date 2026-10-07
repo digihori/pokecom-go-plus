@@ -24,6 +24,7 @@ class DisplaySnapshotTest {
 
         assertEquals(150, snapshot.dotColumns)
         assertEquals(8, snapshot.characterHeight)
+        assertEquals(1, snapshot.interCharacterColumnGap)
         assertFalse(snapshot.isDotOn(0, 0))
         assertTrue(snapshot.isDotOn(149, 31))
     }

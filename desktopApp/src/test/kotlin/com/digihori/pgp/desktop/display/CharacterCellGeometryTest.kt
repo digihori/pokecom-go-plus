@@ -24,6 +24,46 @@ class CharacterCellGeometryTest {
     }
 
     @Test
+    fun continuousDisplayDoesNotInsertCharacterColumnGaps() {
+        assertEquals(
+            150,
+            CharacterCellGeometry.visualColumnCount(
+                characterColumns = 25,
+                characterWidth = 6,
+                gapColumns = 0,
+            ),
+        )
+        assertEquals(
+            149,
+            CharacterCellGeometry.visualColumn(
+                dotColumn = 149,
+                characterWidth = 6,
+                gapColumns = 0,
+            ),
+        )
+    }
+
+    @Test
+    fun continuousDisplayDoesNotInsertCharacterRowGaps() {
+        assertEquals(
+            32,
+            CharacterCellGeometry.visualRowCount(
+                characterRows = 4,
+                characterHeight = 8,
+                gapRows = 0,
+            ),
+        )
+        assertEquals(
+            31,
+            CharacterCellGeometry.visualRow(
+                dotRow = 31,
+                characterHeight = 8,
+                gapRows = 0,
+            ),
+        )
+    }
+
+    @Test
     fun insertsOneBlankRowBetweenFourEightDotCharacterRows() {
         assertEquals(35, CharacterCellGeometry.visualRowCount(characterRows = 4, characterHeight = 8))
         assertEquals(7, CharacterCellGeometry.visualRow(dotRow = 7, characterHeight = 8))

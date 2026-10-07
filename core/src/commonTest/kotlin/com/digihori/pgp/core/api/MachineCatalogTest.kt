@@ -12,7 +12,7 @@ class MachineCatalogTest {
     fun exposesStableDefinitionsInUiOrder() {
         assertEquals(MachineId("pc-1245"), MachineCatalog.defaultDefinition.id)
         assertEquals(
-            listOf("pc-1245", "pc-1250", "pc-1251", "pc-1255", "pc-1350"),
+            listOf("pc-1245", "pc-1250", "pc-1251", "pc-1255", "pc-1350", "pc-1360"),
             MachineCatalog.definitions.map { it.id.value },
         )
         assertEquals(
@@ -70,6 +70,11 @@ class MachineCatalogTest {
         assertEquals(25, pc1350.characterColumns)
         assertEquals(4, pc1350.characterRows)
         assertEquals(0x8000, pc1350.memoryRegions.single { it.id == "external-rom" }.startAddress)
+
+        val pc1360 = MachineCatalog.require(MachineId("pc-1360"))
+        assertEquals(MachineGeneration.S2, pc1360.generation)
+        assertEquals(MachineBasicDialect.S2, pc1360.basicDialect)
+        assertEquals(MachineMemoryBanking.Banked(0x4000, 0x7fff, 8), pc1360.memoryBanking)
     }
 
     @Test

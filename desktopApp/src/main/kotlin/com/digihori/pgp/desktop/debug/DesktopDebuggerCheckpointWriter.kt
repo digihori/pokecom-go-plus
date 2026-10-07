@@ -51,6 +51,11 @@ internal object DesktopDebuggerCheckpointWriter {
                         put("address", entry.instruction.address.hex(4))
                         put("bytes", entry.instruction.bytes.joinToString("") { it.hex(2) })
                         put("instruction", Sc61860InstructionFormatter.format(entry.instruction))
+                        entry.romLocation?.let { location ->
+                            put("romComponent", location.componentId.value)
+                            location.bank?.let { put("romBank", it) }
+                            put("romOffset", location.offset.hex(4))
+                        }
                         put("dp", entry.dataPointer.hex(4)); put("p", entry.p.hex(2))
                         put("carry", entry.carry); put("zero", entry.zero)
                     })

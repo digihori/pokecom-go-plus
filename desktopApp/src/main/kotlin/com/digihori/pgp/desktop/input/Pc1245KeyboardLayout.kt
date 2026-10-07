@@ -132,7 +132,7 @@ internal object Pc1350KeyboardLayout {
             cap(PocketKey.MULTIPLY, "×", 14), cap(PocketKey.SEMICOLON, ";", 15),
         ),
         listOf(
-            cap(PocketKey.KANA, "KANA", 0),
+            cap(PocketKey.KANA, "KANA", 0, shifted = "SML"),
             cap(PocketKey.Z, "Z", 1), cap(PocketKey.X, "X", 2), cap(PocketKey.C, "C", 3),
             cap(PocketKey.V, "V", 4), cap(PocketKey.B, "B", 5), cap(PocketKey.N, "N", 6), cap(PocketKey.M, "M", 7),
             cap(PocketKey.SPACE, "SPACE", 8), cap(PocketKey.ENTER, "ENTER", 9, span = 2),
@@ -154,4 +154,45 @@ internal object Pc1350KeyboardLayout {
         column = column,
         columnSpan = span,
     )
+}
+
+internal object Pc1360KeyboardLayout {
+    const val COLUMN_COUNT: Int = 16
+
+    val rows: List<List<PocketKeyCap>> = listOf(
+        listOf(
+            cap(PocketKey.MODE, "MODE", 0), cap(PocketKey.BREAK, "BRK", 1),
+            cap(PocketKey.DOWN, "↓", 2), cap(PocketKey.UP, "↑", 3),
+            cap(PocketKey.LEFT, "←", 4), cap(PocketKey.RIGHT, "→", 5),
+            cap(PocketKey.KANA, "KANA", 6), cap(PocketKey.DELETE, "DEL", 7),
+            cap(PocketKey.INSERT, "INS", 8), cap(PocketKey.SHIFT, "SHIFT", 9), cap(PocketKey.CLEAR, "CE", 10),
+            cap(PocketKey.NUM_7, "7", 11), cap(PocketKey.NUM_8, "8", 12), cap(PocketKey.NUM_9, "9", 13),
+            cap(PocketKey.COMMA, ",", 14, shifted = "<"), cap(PocketKey.COLON, ":", 15, shifted = ">"),
+        ),
+        Pc1350KeyboardLayout.rows[1].map { cap ->
+            when (cap.key) {
+                PocketKey.DIVIDE -> cap.copy(shiftedLabel = "(")
+                PocketKey.COLON -> cap.copy(key = PocketKey.SEMICOLON, primaryLabel = ";", shiftedLabel = ")")
+                else -> cap
+            }
+        },
+        Pc1350KeyboardLayout.rows[2].filterNot { it.key == PocketKey.SEMICOLON }.map { cap ->
+            if (cap.key == PocketKey.MULTIPLY) cap.copy(shiftedLabel = "¥") else cap
+        },
+        Pc1350KeyboardLayout.rows[3].filterNot { it.key == PocketKey.COMMA }.map { cap ->
+            if (cap.key == PocketKey.KANA) {
+                cap.copy(key = PocketKey.SMALL, primaryLabel = "SML", shiftedLabel = null)
+            } else {
+                cap
+            }
+        },
+    )
+
+    private fun cap(
+        key: PocketKey,
+        label: String,
+        column: Int,
+        span: Int = 1,
+        shifted: String? = null,
+    ): PocketKeyCap = PocketKeyCap(key, label, shiftedLabel = shifted, column = column, columnSpan = span)
 }

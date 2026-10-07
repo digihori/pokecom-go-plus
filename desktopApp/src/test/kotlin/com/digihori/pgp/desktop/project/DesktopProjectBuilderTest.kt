@@ -84,6 +84,31 @@ class DesktopProjectBuilderTest {
     }
 
     @Test
+    fun combinesMultiplePc1360AssemblySourcesIntoOneArtifact() {
+        val root = Files.createTempDirectory("pgp-project-pc1360-multi-assembly-test")
+        root.resolve("src").createDirectories()
+        root.resolve("src/main.asm").writeText("ORG 0x2000\nLII 0x12\nRTN\n")
+        root.resolve("src/helper.asm").writeText("ORG 0x2100\nLII 0x34\nRTN\n")
+        val workspace = openWorkspace(
+            root,
+            """
+            { "id": "main", "type": "assembly", "path": "src/main.asm" },
+            { "id": "helper", "type": "assembly", "path": "src/helper.asm" }
+            """.trimIndent(),
+            machineId = "pc-1360",
+        )
+
+        val artifact = assertIs<DesktopProjectBuildResult.Success>(
+            DesktopProjectBuilder.build(workspace),
+        ).artifact
+        val segments = checkNotNull(artifact.memoryImage).segments
+
+        assertEquals(listOf(0x2000, 0x2100), segments.map { it.startAddress })
+        assertContentEquals(byteArrayOf(0x00, 0x12, 0x37), segments[0].copyBytes())
+        assertContentEquals(byteArrayOf(0x00, 0x34, 0x37), segments[1].copyBytes())
+    }
+
+    @Test
     fun reportsAssemblyErrorWithSourceLine() {
         val root = Files.createTempDirectory("pgp-project-assembly-error-test")
         root.resolve("src").createDirectories()
@@ -98,7 +123,11 @@ class DesktopProjectBuilderTest {
         assertEquals(2, error.line)
     }
 
-    private fun openWorkspace(root: java.nio.file.Path, sources: String): DesktopProjectWorkspace {
+    private fun openWorkspace(
+        root: java.nio.file.Path,
+        sources: String,
+        machineId: String = "pc-1245",
+    ): DesktopProjectWorkspace {
         val manifest = root.resolve(DesktopProjectWorkspaceLoader.DEFAULT_MANIFEST_NAME)
         manifest.writeText(
             """
@@ -106,7 +135,7 @@ class DesktopProjectBuilderTest {
               "format": "pgp-project",
               "formatVersion": 1,
               "name": "Build test",
-              "machineId": "pc-1245",
+              "machineId": "$machineId",
               "sources": [$sources]
             }
             """.trimIndent(),

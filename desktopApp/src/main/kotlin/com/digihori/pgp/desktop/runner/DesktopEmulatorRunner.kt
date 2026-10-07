@@ -468,6 +468,7 @@ internal class DesktopEmulatorRunner(
             carry = cpu.carry,
             zero = cpu.zero,
             instruction = Sc61860InstructionDecoder.decode(cpu.programCounter, ::memoryByte),
+            romLocation = session.resolveRomLocation(cpu.programCounter),
         )
     }
 

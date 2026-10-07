@@ -55,6 +55,7 @@ import com.digihori.pgp.core.api.BasicProgramSnapshotResult
 import com.digihori.pgp.core.api.MemoryImageLoadError
 import com.digihori.pgp.core.api.MemoryImageLoadResult
 import com.digihori.pgp.core.api.MemoryAccessKind
+import com.digihori.pgp.core.api.MachineFamily
 import com.digihori.pgp.core.api.CpuSnapshot
 import com.digihori.pgp.core.api.DisplaySnapshot
 import com.digihori.pgp.core.api.OperatingMode
@@ -104,6 +105,7 @@ import com.digihori.pgp.desktop.project.DesktopProjectUpdateResult
 import com.digihori.pgp.desktop.input.Pc1245KeyboardLayout
 import com.digihori.pgp.desktop.input.Pc1251KeyboardLayout
 import com.digihori.pgp.desktop.input.Pc1350KeyboardLayout
+import com.digihori.pgp.desktop.input.Pc1360KeyboardLayout
 import com.digihori.pgp.desktop.input.PocketKeyCap
 import com.digihori.pgp.desktop.audio.DesktopAudioPlayer
 import com.digihori.pgp.desktop.display.CharacterCellGeometry
@@ -262,7 +264,10 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
             if (file.extension.equals("pgrom", ignoreCase = true)) {
                 DesktopRomLoader.loadPackage(bytes, configuration)
             } else {
-                DesktopRomLoader.loadLegacyImage(selectedMachineId, bytes, configuration)
+                val bankImage = if (MachineCatalog.require(selectedMachineId).family == MachineFamily.PC_1360) {
+                    File(file.parentFile, "pc1360bank.bin").readBytes()
+                } else null
+                DesktopRomLoader.loadLegacyImage(selectedMachineId, bytes, configuration, bankImage)
             }
         }
             .getOrElse {
@@ -858,10 +863,12 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                             when (val snapshot = activeRunner.basicProgramSnapshot()) {
                                 is BasicProgramSnapshotResult.Failure -> message = snapshot.error.message()
                                 is BasicProgramSnapshotResult.Success -> {
-                                    when (val decoded = DesktopBasicLoader.detokenizePc1245Program(snapshot.copyBytes())) {
+                                    when (val decoded = DesktopBasicLoader.detokenizeProgram(snapshot.copyBytes(), activeRunner.machineId)) {
                                         is DesktopBasicProgramDecodeResult.Failure ->
                                             message = "BASIC program error at byte ${decoded.error.offset}: " +
                                                 decoded.error.message
+                                        is DesktopBasicProgramDecodeResult.GenericFailure ->
+                                            message = "BASIC program error at byte ${decoded.offset}: ${decoded.message}"
                                         is DesktopBasicProgramDecodeResult.Success -> {
                                             val file = selectAndRestoreFocus {
                                                 selectBasicSaveFile(ownerWindow)
@@ -1020,9 +1027,13 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                         "Machine: ${selectedMachineId.displayName()}\n\nChoose one of the following files:\n\n" +
                             "• PGP ROM package (.pgrom)\n" +
                             "  Created by PGP from separate physical ROM dumps.\n\n" +
-                            "• Pokecom GO compatible image (.bin)\n" +
-                            "  A 32 KiB or 64 KiB address-space image. It can be opened directly; " +
-                            "conversion is not required.",
+                            if (MachineCatalog.require(selectedMachineId).family == MachineFamily.PC_1360) {
+                                "• Pokecom GO compatible pc1360mem.bin\n" +
+                                    "  Keep pc1360bank.bin in the same folder; PGP loads both files together."
+                            } else {
+                                "• Pokecom GO compatible image (.bin)\n" +
+                                    "  It can be opened directly; conversion is not required."
+                            },
                     )
                 },
                 confirmButton = {
@@ -1091,7 +1102,11 @@ private fun App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
                         "Machine: ${selectedMachineId.displayName()}\n\n" +
                             "You will choose three items in this order:\n\n" +
                             "1. Internal ROM dump — exactly 8 KiB (8192 bytes)\n" +
-                            "2. External ROM dump — exactly 16 KiB (16384 bytes)\n" +
+                            if (MachineCatalog.require(selectedMachineId).family == MachineFamily.PC_1360) {
+                                "2. Bank ROM dump — exactly 128 KiB (8 × 16 KiB)\n"
+                            } else {
+                                "2. External ROM dump — use the size required by this machine\n"
+                            } +
                             "3. Destination for the new .pgrom file\n\n" +
                             "File names do not matter. PGP validates each size and creates the manifest " +
                             "and SHA-256 values automatically.",
@@ -1561,7 +1576,10 @@ private fun InstructionTracePanel(
                         "${instruction.address.hex(4)}  ${bytes.padEnd(DISASSEMBLY_BYTE_COLUMN_WIDTH)}  " +
                         "${Sc61860InstructionFormatter.format(instruction).padEnd(14)}  " +
                         "DP=${entry.dataPointer.hex(4)} P=${entry.p.hex(2)} " +
-                        "C=${entry.carry.bit()} Z=${entry.zero.bit()}",
+                        "C=${entry.carry.bit()} Z=${entry.zero.bit()}" +
+                        (entry.romLocation?.let { location ->
+                            "  ROM=${location.componentId.value}+${location.offset.hex(4)}"
+                        } ?: ""),
                     fontFamily = FontFamily.Monospace,
                 )
             }
@@ -1802,6 +1820,7 @@ private fun PocketSoftwareKeyboard(runner: DesktopEmulatorRunner?, layout: Machi
         MachineKeyboardLayout.PC_1245 -> Pc1245KeyboardLayout.rows to Pc1245KeyboardLayout.COLUMN_COUNT
         MachineKeyboardLayout.PC_1251 -> Pc1251KeyboardLayout.rows to Pc1251KeyboardLayout.COLUMN_COUNT
         MachineKeyboardLayout.PC_1350 -> Pc1350KeyboardLayout.rows to Pc1350KeyboardLayout.COLUMN_COUNT
+        MachineKeyboardLayout.PC_1360 -> Pc1360KeyboardLayout.rows to Pc1360KeyboardLayout.COLUMN_COUNT
     }
     Column(
         modifier = Modifier
@@ -1839,10 +1858,21 @@ private fun PocketLcdPanel(snapshot: DisplaySnapshot?) {
     val panelAspectRatio = if (snapshot == null) {
         LCD_PANEL_ASPECT_RATIO
     } else if (snapshot.characterRows == 1) {
-        CharacterCellGeometry.visualColumnCount(snapshot.characterColumns, snapshot.characterWidth) / 11f
+        CharacterCellGeometry.visualColumnCount(
+            snapshot.characterColumns,
+            snapshot.characterWidth,
+            snapshot.interCharacterColumnGap,
+        ) / 11f
     } else {
-        CharacterCellGeometry.visualColumnCount(snapshot.characterColumns, snapshot.characterWidth).toFloat() /
-            CharacterCellGeometry.visualRowCount(snapshot.characterRows, snapshot.characterHeight)
+        CharacterCellGeometry.visualColumnCount(
+            snapshot.characterColumns,
+            snapshot.characterWidth,
+            snapshot.interCharacterColumnGap,
+        ).toFloat() / CharacterCellGeometry.visualRowCount(
+            snapshot.characterRows,
+            snapshot.characterHeight,
+            snapshot.interCharacterRowGap,
+        )
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Canvas(
@@ -1857,11 +1887,16 @@ private fun PocketLcdPanel(snapshot: DisplaySnapshot?) {
             val visualColumnCount = CharacterCellGeometry.visualColumnCount(
                 snapshot.characterColumns,
                 snapshot.characterWidth,
+                snapshot.interCharacterColumnGap,
             )
             val visualRowCount = if (snapshot.characterRows == 1) {
                 snapshot.dotRows
             } else {
-                CharacterCellGeometry.visualRowCount(snapshot.characterRows, snapshot.characterHeight)
+                CharacterCellGeometry.visualRowCount(
+                    snapshot.characterRows,
+                    snapshot.characterHeight,
+                    snapshot.interCharacterRowGap,
+                )
             }
             val cellWidth = size.width / visualColumnCount
             val cellHeight = size.height / visualRowCount
@@ -1870,11 +1905,19 @@ private fun PocketLcdPanel(snapshot: DisplaySnapshot?) {
             for (row in 0 until snapshot.dotRows) {
                 for (column in 0 until snapshot.dotColumns) {
                     if (snapshot.isDotOn(column, row)) {
-                        val visualColumn = CharacterCellGeometry.visualColumn(column, snapshot.characterWidth)
+                        val visualColumn = CharacterCellGeometry.visualColumn(
+                            column,
+                            snapshot.characterWidth,
+                            snapshot.interCharacterColumnGap,
+                        )
                         val visualRow = if (snapshot.characterRows == 1) {
                             row
                         } else {
-                            CharacterCellGeometry.visualRow(row, snapshot.characterHeight)
+                            CharacterCellGeometry.visualRow(
+                                row,
+                                snapshot.characterHeight,
+                                snapshot.interCharacterRowGap,
+                            )
                         }
                         drawRect(
                             color = LCD_DOT,
@@ -1907,8 +1950,12 @@ private fun selectInternalRomFile(owner: Frame, machineId: MachineId): File? = s
 
 private fun selectExternalRomFile(owner: Frame, machineId: MachineId): File? = selectFile(
     owner,
-    "Select ${machineId.displayName()} external ROM (16 KiB)",
-    "external.bin",
+    if (MachineCatalog.require(machineId).family == MachineFamily.PC_1360) {
+        "Select ${machineId.displayName()} bank ROM (128 KiB)"
+    } else {
+        "Select ${machineId.displayName()} external ROM"
+    },
+    if (MachineCatalog.require(machineId).family == MachineFamily.PC_1360) "pc1360bank.bin" else "external.bin",
 )
 
 private fun selectPackageDestination(owner: Frame): File? = selectFile(
@@ -2072,6 +2119,10 @@ private fun DesktopBasicProgramCompileError.message(machineName: String): String
         "$machineName OLD BASIC error at ${error.line}:${error.column}: ${error.message}"
     is DesktopBasicProgramCompileError.S1Tokenize ->
         "$machineName S1 BASIC error at ${error.line}:${error.column}: ${error.message}"
+    is DesktopBasicProgramCompileError.S2Tokenize ->
+        "$machineName S2 BASIC error at ${error.line}:${error.column}: ${error.message}"
+    is DesktopBasicProgramCompileError.UnsupportedMachine ->
+        "BASIC compilation is not available for $machineName yet."
 }
 
 private fun BasicProgramMemoryError.message(): String = when (this) {

@@ -13,6 +13,7 @@ import com.digihori.pgp.core.emulator.machine.pc1245.RomImportError
 import com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FlatRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350FlatRomImporter
+import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360LegacyRomImporter
 import com.digihori.pgp.core.rom.MachineId
 
 internal object DesktopRomLoader {
@@ -23,6 +24,7 @@ internal object DesktopRomLoader {
         machineId: MachineId,
         image: ByteArray,
         configuration: EmulatorConfiguration = EmulatorConfiguration(),
+        bankImage: ByteArray? = null,
     ): DesktopRomLoadResult {
         val definition = MachineCatalog.find(machineId) ?: return DesktopRomLoadResult.Failure(
                 DesktopRomLoadError.SessionCreation(CreateSessionError.UnsupportedMachine(machineId)),
@@ -31,6 +33,11 @@ internal object DesktopRomLoader {
             MachineFamily.PC_1245 -> Pc1245FlatRomImporter.importImage(image)
             MachineFamily.PC_1251 -> Pc1251FlatRomImporter.importImage(image, machineId)
             MachineFamily.PC_1350 -> Pc1350FlatRomImporter.importImage(image)
+            MachineFamily.PC_1360 -> if (bankImage == null) {
+                RomImportResult.Failure(RomImportError.InvalidImageSize(listOf(0x20000), 0))
+            } else {
+                Pc1360LegacyRomImporter.importImages(image, bankImage)
+            }
         }
         return when (imported) {
             is RomImportResult.Failure -> DesktopRomLoadResult.Failure(

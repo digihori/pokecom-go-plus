@@ -1,65 +1,25 @@
 package com.digihori.pgp.core.emulator.machine.pc1350
 
+import com.digihori.pgp.core.emulator.machine.FourLineDisplay
+
 internal class Pc1350Display {
-    private val vramColumns = ByteArray(VRAM_COLUMN_COUNT)
-    private var symbols: Int = 0
-
-    var revision: Long = 0
-        private set
-
-    fun writeMemory(address: Int, value: Int) {
-        val block = VRAM_BLOCK_STARTS.indexOfFirst { address in it until it + VRAM_BLOCK_SIZE }
-        if (block >= 0) {
-            val index = block * VRAM_BLOCK_SIZE + address - VRAM_BLOCK_STARTS[block]
-            val byte = (value and 0xff).toByte()
-            if (vramColumns[index] != byte) {
-                vramColumns[index] = byte
-                revision++
-            }
-        } else if (address == SYMBOL_ADDRESS && symbols != (value and 0xff)) {
-            symbols = value and 0xff
-            revision++
-        }
-    }
-
-    fun reset() {
-        val changed = vramColumns.any { it.toInt() != 0 } || symbols != 0
-        vramColumns.fill(0)
-        symbols = 0
-        if (changed) revision++
-    }
-
-    fun copyVramColumns(): ByteArray = vramColumns.copyOf()
-
-    /** Converts the line-major VRAM bytes into the row-major dot plane used by DisplaySnapshot. */
-    fun copyDots(): ByteArray {
-        val dots = ByteArray(DOT_COLUMNS * DOT_ROWS)
-        for (characterRow in 0 until CHARACTER_ROWS) {
-            val sourceRowStart = characterRow * DOT_COLUMNS
-            val destinationRowStart = characterRow * CHARACTER_HEIGHT
-            for (column in 0 until DOT_COLUMNS) {
-                val bits = vramColumns[sourceRowStart + column].toInt() and 0xff
-                for (row in 0 until CHARACTER_HEIGHT) {
-                    if (bits and (1 shl row) != 0) {
-                        dots[(destinationRowStart + row) * DOT_COLUMNS + column] = 1
-                    }
-                }
-            }
-        }
-        return dots
-    }
-
-    fun symbolState(): Int = symbols
+    private val delegate = FourLineDisplay(VRAM_BLOCK_STARTS, SYMBOL_ADDRESS)
+    val revision: Long get() = delegate.revision
+    fun writeMemory(address: Int, value: Int) = delegate.writeMemory(address, value)
+    fun reset() = delegate.reset()
+    fun copyVramColumns(): ByteArray = delegate.copyVramColumns()
+    fun copyDots(): ByteArray = delegate.copyDots()
+    fun symbolState(): Int = delegate.symbolState()
 
     companion object {
-        const val CHARACTER_COLUMNS: Int = 25
-        const val CHARACTER_ROWS: Int = 4
-        const val CHARACTER_WIDTH: Int = 6
-        const val CHARACTER_HEIGHT: Int = 8
-        const val DOT_COLUMNS: Int = CHARACTER_COLUMNS * CHARACTER_WIDTH
-        const val DOT_ROWS: Int = CHARACTER_ROWS * CHARACTER_HEIGHT
-        const val VRAM_BLOCK_SIZE: Int = 30
-        const val VRAM_COLUMN_COUNT: Int = DOT_COLUMNS * CHARACTER_ROWS
+        const val CHARACTER_COLUMNS: Int = FourLineDisplay.CHARACTER_COLUMNS
+        const val CHARACTER_ROWS: Int = FourLineDisplay.CHARACTER_ROWS
+        const val CHARACTER_WIDTH: Int = FourLineDisplay.CHARACTER_WIDTH
+        const val CHARACTER_HEIGHT: Int = FourLineDisplay.CHARACTER_HEIGHT
+        const val DOT_COLUMNS: Int = FourLineDisplay.DOT_COLUMNS
+        const val DOT_ROWS: Int = FourLineDisplay.DOT_ROWS
+        const val VRAM_BLOCK_SIZE: Int = FourLineDisplay.VRAM_BLOCK_SIZE
+        const val VRAM_COLUMN_COUNT: Int = FourLineDisplay.VRAM_COLUMN_COUNT
         const val SYMBOL_ADDRESS: Int = 0x783c
 
         val VRAM_BLOCK_STARTS: List<Int> = listOf(

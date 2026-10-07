@@ -17,6 +17,7 @@ class DesktopRomPackageConverterTest {
             val externalSize = when (definition.romLayout) {
                 MachineRomLayout.SC61860_INTERNAL_8K_EXTERNAL_16K -> 0x4000
                 MachineRomLayout.SC61860_INTERNAL_8K_EXTERNAL_32K -> 0x8000
+                MachineRomLayout.SC61860_INTERNAL_8K_BANKED_16K_X8 -> 0x20000
             }
             val external = ByteArray(externalSize) { 0x22 }
             val converted = assertIs<DesktopRomPackageConversionResult.Success>(
