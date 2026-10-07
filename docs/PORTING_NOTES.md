@@ -56,6 +56,55 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - Verification: 各機種の実装時にトークン表とメモリ構成を個別確認する。PC-1360Kは詳細が
   判明するまで実装保留
 
+### PC-1360起動基盤
+
+- Date: 2026-10-07
+- PGP files: `Pc1360Rom.kt`、`Pc1360MemoryBus.kt`、`Pc1360Display.kt`、
+  `Pc1360Keyboard.kt`、`Pc1360Machine.kt`、Machine Catalog、Desktop ROM入出力とtest
+- Reference repository: Pokecom GO
+- Reference commit: `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`
+- Reference files: `Sc61860_1360.java`、`KeyBoard1360.java`、`MainLoop1360.java`
+- Provenance/license: 同一作者のPokecom GOを参照。Android固有構造は移植していない
+- Reused behavior: 8KiB内部ROM、16KiB×8 ROMバンク、`0x3400`の下位3bitによる選択、
+  `0x4000..0x7fff`のバンク窓、`0x8000..0xffff` RAM、LCD配置、シンボルbit、
+  `0x3e00`の1起点キーグループ選択とキーマトリクス
+- Design changes: ROMを9個の不変componentへ分割し、Memory Busがbank状態を所有する。
+  PC-1350と共通の25×4表示変換を抽出し、UIへ物理VRAM配置を公開しない。
+  bank切替はCore APIの明示イベントとして公開する
+- Verification: 単体テスト、Catalog／Factory／Desktopテスト、およびローカル実ROMで起動、
+  LCD更新、ROM bank切替を確認。FOによるRAM bank処理は仕様不明のため未実装
+
+### PC-1360 S2 BASICと物理ROM履歴
+
+- Date: 2026-10-07
+- PGP files: `Pc1360BasicCodec.kt`、`Pc1360BasicProgramMemory.kt`、Core Session、
+  Desktop BASIC入出力、Instruction Trace、Checkpoint Writerとtest
+- Reference repositories: PCWAV、Pokecom GO
+- Reused behavior: S2の`FF` program envelope、big-endian行番号、`FE xx` keyword、
+  `1F hh ll`行番号参照、直接格納半角カナ、プログラム開始`0x8030`、管理pointer
+  `0xffd7..0xffda`
+- Design changes: ファイル転送用header/checksumをRAM内program imageから分離した。
+  命令traceは論理PCに加え、不変ROM component ID、bank番号、component内offsetを保持する
+- Scope: PC-1360K向け漢字／CP932 2byte文字とFO経由RAM bankは実装しない
+
+### PC-1360国内版キーボード刻印
+
+- Date: 2026-10-07
+- Source: 国内向けPC-1360実機のユーザー確認
+- Finding: 右端のSHIFT割当は\`, → <\`、\`: → >\`、\`/ → (\`、\`; → )\`、
+  \`* → ¥\`。独立した括弧キーとして扱わない
+- Design: PC-1360専用Character InputとStudio keyboard layoutへ反映する。
+  PC-1360Kの配列は未確認のため追加しない
+
+### PC-1360解析用マシン語ロード範囲
+
+- Date: 2026-10-07
+- Scope: PC-1360の`.dmp`、Assembler、プロジェクト成果物を`0x2000..0x3fff`およびRAMへ
+  ロード可能にする。1360Kで漢字用ワークメモリとなる`0x2000..0x27ff`も拒否しない
+- Design: Studio固有の解除ボタンは設けず、PC-1360 Sessionの`loadMemoryImage`とMemory Busで
+  書込み可能範囲を定義する。他機種のガードは変更しない
+- Excluded: FO経由RAM bankおよびPC-1360K固有メモリは仕様不明のため実装しない
+
 ### PC-1245初期機種仕様
 
 - Date: 2026-10-02

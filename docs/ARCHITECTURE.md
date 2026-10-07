@@ -476,6 +476,7 @@ Machine Configuration
 ## 12. Debugger Core
 
 デバッグ機能はUIの付加機能ではなく、Coreの正式な機能として設計する。
+現在のStudio機能、停止条件、Trace、Checkpoint、既知の制約は[DEBUGGER.md](DEBUGGER.md)にまとめる。
 
 初期Debugger Coreは次を担当する。
 

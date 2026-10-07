@@ -18,8 +18,9 @@ PGPは次の2製品と共有Emulator Coreで構成します。
 
 ## 現在の状態
 
-プロジェクトは初期実装段階です。Pokecom GO Studioの最初の対象機種としてPC-1245と
-PC-1250／1251／1255ファミリーを実装しています。macOSでは実ROMの起動、物理／画面キーボード入力、BASICと
+プロジェクトは初期実装段階です。Pokecom GO StudioではPC-1245、PC-1250／1251／1255ファミリー、
+PC-1350を実装し、PC-1360は実ROM起動、16KiB×8 ROMバンク、LCD、キー入力、S2 BASICに対応しています。
+macOSでは実ROMの起動、物理／画面キーボード入力、BASICと
 マシン語の入出力、LCD表示、サウンド出力まで動作確認済みです。WindowsではROM起動、キー入力、BASICと
 サウンド、Linux x86_64ではROM起動、基本操作、サウンド、tar.gz／DEB配布物を手動確認しています。
 Pokecom GO PlayerはCoreとStudioが安定した後に開発します。
@@ -257,6 +258,7 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 - [プロジェクト構想](docs/PGP_CONCEPT.md)
 - [アーキテクチャ](docs/ARCHITECTURE.md)
 - [Emulator Core公開API](docs/CORE_API.md)
+- [Debugger](docs/DEBUGGER.md)
 - [SC61860機種世代](docs/MACHINE_FAMILIES.md)
 - [PC-1245機種定義](docs/machines/PC-1245.md)
 - [PC-1350次期機種定義](docs/machines/PC-1350.md)
