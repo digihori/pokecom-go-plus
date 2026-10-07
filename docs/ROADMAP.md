@@ -17,6 +17,11 @@ PC-1245／1251ファミリーの基本機能を試せる最初の公開版を目
 - [x] Technical PreviewのRelease Notesを作成する
 - [ ] リポジトリをPublicへ変更する
 
+## Technical Preview 0.2
+
+PC-1350／1360、ROM Library、新しいStudio UI、Project／Debugger改善、Assembly Workspace初版を含む
+早期評価版。公開条件と結果は[0.2 release checklist](RELEASE_CHECKLIST_0.2.0-alpha.1.md)で管理する。
+
 ## Phase 0: プロジェクト基盤
 
 - [x] 構想書とアーキテクチャ文書を作成する

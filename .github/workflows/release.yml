@@ -7,7 +7,7 @@ on:
       - "v*"
 
 env:
-  RELEASE_VERSION: 0.1.0-alpha.1
+  RELEASE_VERSION: 0.2.0-alpha.1
 
 jobs:
   package:
@@ -139,5 +139,5 @@ jobs:
         run: |
           gh release create "${GITHUB_REF_NAME}" release-assets/* \
             --prerelease \
-            --title "Pokecom GO Studio Technical Preview 0.1" \
-            --notes-file docs/RELEASE_NOTES_0.1.0-alpha.1.md
+            --title "Pokecom GO Studio Technical Preview 0.2" \
+            --notes-file docs/RELEASE_NOTES_0.2.0-alpha.1.md
