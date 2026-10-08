@@ -1,10 +1,27 @@
 # Machine Code File Formats
 
-PGPはマシン語の入力形式として、次の3形式を対象とする。
+PGPはマシン語のアドレス付きファイル形式として、次の2形式を正式に扱う。
 
-- PGP Memory Dump (`.dmp`)
+- PGP Memory Dump (`.dmp`、Studio／Projectの標準形式)
 - Intel HEX (`.hex`、未実装)
-- Raw Binary (`.bin`、ロード開始アドレスの指定が必要、未実装)
+
+Raw Binary (`.bin`)はアドレス情報を持たないため、通常のStudio sourceまたはbuild成果物にはしない。
+互換import時に限って開始addressを一度指定し、直ちにアドレス付きmemory imageへ変換する。Projectへ保存する
+場合は`.dmp`へ変換し、将来はIntel HEXへの変換も選択可能にする。各画面が`.bin`用の開始address入力欄を
+個別に持つ設計にはしない。
+
+既存Project manifestの`raw-binary` sourceは移行期間の後方互換入力として読み込める状態を維持するが、
+新規Project作成や通常の追加操作では生成しない。読込み後は`.dmp`への変換を案内する。
+
+## 共通の扱い
+
+- Studio内部では、入力形式にかかわらずアドレス付きデータ領域の集合へ変換して扱う。
+- Assemblerの標準成果物は`.dmp`とする。
+- Debugger、Emulator load、Project build、AI解析、WAV Toolは同じmemory image表現を受け渡す。
+- Studioからの標準保存形式は`.dmp`、外部交換・厳密なchecksum用途はIntel HEXとする。
+- Raw Binaryの開始address指定はimport境界だけに置き、変換後の各Toolでは再入力させない。
+- 複数領域や非連続領域を保持できるのは`.dmp`とIntel HEXであり、利用先が単一連続領域を要求する場合は
+  暗黙にgapを埋めず、明示的なエラーにする。
 
 ## PGP Memory Dump (`.dmp`)
 
@@ -45,3 +62,15 @@ A000 : FF EEFF
 
 パーサーはファイルをアドレス付きデータ領域の集合へ変換する。メモリへの書き込み可否は、
 対象機種とMemory Profileのポリシーが別途判定する。
+
+## Intel HEX (`.hex`)
+
+Intel HEXは外部Toolや実機関連Toolとの交換形式とする。実装時にはrecord checksumを検証し、16-bitのPGP
+address空間へ正規化したアドレス付きデータ領域の集合を生成する。未対応のaddress拡張や16-bit範囲外のdataを
+黙って切り詰めない。
+
+## Raw Binary (`.bin`) import
+
+Raw Binary importは、入力byte列とユーザーが一度指定した開始addressから単一の連続領域を生成する変換操作である。
+空ファイル、16-bit address空間を越える入力は拒否する。変換結果をProjectへ追加するときは`.dmp`として保存し、
+元の`.bin`と開始addressをProject sourceの組として保持しない。

@@ -111,7 +111,7 @@ Linux DEBのメニュー項目はカテゴリ未指定のため「その他」�
 - Pokecom GO Player（Android／iOS）の実装
 - PC-126x、PC-13xx、PC-14xx系への対応
 - Debugger、Assembler、Disassembler、Character Editor
-- Intel HEX、Raw Binary、WAVの入出力
+- Intel HEX、Raw Binary import、WAVの入出力
 - バンクROM機種向けの完成版ROM Import Wizard
 - ゲームパッド対応
 - インストーラー、署名、公証、ストア配布

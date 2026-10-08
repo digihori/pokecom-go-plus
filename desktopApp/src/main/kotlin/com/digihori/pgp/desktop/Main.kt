@@ -76,6 +76,14 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomInputUnsupported
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.source.machine.PgpMemoryDumpError
+import com.digihori.pgp.core.source.machine.PgpMemoryDumpWriter
+import com.digihori.pgp.core.wav.CodecDiagnostic
+import com.digihori.pgp.core.wav.CodecResult
+import com.digihori.pgp.core.wav.LogicalByteSequence
+import com.digihori.pgp.core.wav.OldPayloadType
+import com.digihori.pgp.core.wav.OldWavCodec
+import com.digihori.pgp.core.wav.OldWavDecoding
+import com.digihori.pgp.core.wav.WavByteSequence
 import com.digihori.pgp.core.project.ProjectManifestError
 import com.digihori.pgp.core.project.ProjectSourceType
 import com.digihori.pgp.desktop.basic.DesktopBasicLoadError
@@ -84,11 +92,15 @@ import com.digihori.pgp.desktop.basic.DesktopBasicLoader
 import com.digihori.pgp.desktop.basic.DesktopBasicProgramCompileError
 import com.digihori.pgp.desktop.basic.DesktopBasicProgramCompileResult
 import com.digihori.pgp.desktop.basic.DesktopBasicProgramDecodeResult
+import com.digihori.pgp.desktop.basic.DesktopOldBasicTransferAdapter
+import com.digihori.pgp.desktop.basic.DesktopOldBasicTransferResult
 import com.digihori.pgp.desktop.input.DesktopKeyboardInput
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoadError
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoadResult
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoader
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpWriter
+import com.digihori.pgp.desktop.machine.DesktopContiguousMemoryImage
+import com.digihori.pgp.desktop.machine.DesktopContiguousMemoryImageResult
 import com.digihori.pgp.desktop.project.DesktopProjectChangeTracker
 import com.digihori.pgp.desktop.project.DesktopProjectApplyResult
 import com.digihori.pgp.desktop.project.DesktopProjectArtifactLoader
@@ -253,6 +265,10 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
     var projectRuntimeStatus by remember { mutableStateOf(ProjectRuntimeStatus.NOT_BUILT) }
     var showProjectWindow by remember { mutableStateOf(false) }
     var showAssemblyWorkspace by remember { mutableStateOf(false) }
+    var showOldWavTool by remember { mutableStateOf(false) }
+    var oldWavFilename by remember { mutableStateOf("PROGRAM") }
+    var oldWavPasswordProtected by remember { mutableStateOf(false) }
+    var oldWavStatus by remember { mutableStateOf("Select an OLD BASIC source, binary image, or WAV file.") }
     var assemblyPreview by remember { mutableStateOf(emptyList<DesktopAssemblySourceResult>()) }
     var assemblyDiagnostics by remember { mutableStateOf(emptyList<DesktopAssemblyDiagnostic>()) }
     var assemblyStatus by remember { mutableStateOf("Not assembled") }
@@ -280,6 +296,112 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
     fun showError(value: String) {
         message = value
         errorDialogMessage = value
+    }
+
+    fun encodeOldBasicWav(dialogOwner: Frame) {
+        val source = selectBasicFile(dialogOwner, "Encode OLD BASIC as WAV") ?: return
+        val compiled = runCatching { DesktopBasicLoader.compilePc1245Program(source.readBytes()) }.getOrElse {
+            oldWavStatus = "Could not read BASIC source: ${it.message ?: it::class.simpleName}"
+            return
+        }
+        val body = when (compiled) {
+            is DesktopBasicProgramCompileResult.Failure -> {
+                oldWavStatus = compiled.error.message("OLD BASIC")
+                return
+            }
+            is DesktopBasicProgramCompileResult.Success -> when (
+                val adapted = DesktopOldBasicTransferAdapter.toTransferBody(compiled.bytes)
+            ) {
+                is DesktopOldBasicTransferResult.Success -> adapted.bytes
+                is DesktopOldBasicTransferResult.Failure -> {
+                    oldWavStatus = adapted.message
+                    return
+                }
+            }
+        }
+        val result = OldWavCodec.encodeBasic(
+            filename = oldWavFilename.ifBlank { source.nameWithoutExtension },
+            body = LogicalByteSequence(body),
+            passwordProtected = oldWavPasswordProtected,
+        )
+        val encoded = when (result) {
+            is CodecResult.Failure -> {
+                oldWavStatus = result.diagnostics.displayText()
+                return
+            }
+            is CodecResult.Success -> result.value
+        }
+        val destination = selectOldWavDestination(
+            dialogOwner,
+            "${encoded.payload.normalizedFilename.ifBlank { "program" }}.wav",
+        ) ?: return
+        runCatching { destination.writeBytes(encoded.wav.bytes.copyBytes()) }
+            .onSuccess {
+                oldWavStatus = "Encoded OLD BASIC: ${destination.name} (${encoded.wav.bytes.size} bytes)"
+            }
+            .onFailure { oldWavStatus = "Could not save WAV: ${it.message ?: it::class.simpleName}" }
+    }
+
+    fun encodeOldBinaryWav(dialogOwner: Frame) {
+        val source = selectOldBinaryFile(dialogOwner) ?: return
+        val loaded = runCatching { DesktopMemoryDumpLoader.parse(source.readBytes()) }.getOrElse {
+            oldWavStatus = "Could not read binary image: ${it.message ?: it::class.simpleName}"
+            return
+        }
+        val image = when (loaded) {
+            is DesktopMemoryDumpLoadResult.Success -> loaded.image
+            is DesktopMemoryDumpLoadResult.Failure -> {
+                oldWavStatus = loaded.error.message()
+                return
+            }
+        }
+        val contiguous = when (val result = DesktopContiguousMemoryImage.flatten(image)) {
+            is DesktopContiguousMemoryImageResult.Success -> result
+            is DesktopContiguousMemoryImageResult.Failure -> {
+                oldWavStatus = result.message
+                return
+            }
+        }
+        val result = OldWavCodec.encodeBinary(
+            filename = oldWavFilename.ifBlank { source.nameWithoutExtension },
+            startAddress = contiguous.startAddress,
+            body = LogicalByteSequence(contiguous.bytes),
+        )
+        val encoded = when (result) {
+            is CodecResult.Failure -> {
+                oldWavStatus = result.diagnostics.displayText()
+                return
+            }
+            is CodecResult.Success -> result.value
+        }
+        val destination = selectOldWavDestination(
+            dialogOwner,
+            "${encoded.payload.normalizedFilename.ifBlank { "program" }}.wav",
+        ) ?: return
+        runCatching { destination.writeBytes(encoded.wav.bytes.copyBytes()) }
+            .onSuccess {
+                oldWavStatus = "Encoded OLD binary: ${destination.name} (${encoded.wav.bytes.size} bytes)"
+            }
+            .onFailure { oldWavStatus = "Could not save WAV: ${it.message ?: it::class.simpleName}" }
+    }
+
+    fun decodeOldWav(dialogOwner: Frame) {
+        val source = selectOldWavFile(dialogOwner) ?: return
+        val input = runCatching { WavByteSequence(source.readBytes()) }.getOrElse {
+            oldWavStatus = "Could not read WAV: ${it.message ?: it::class.simpleName}"
+            return
+        }
+        val result = OldWavCodec.decode(input)
+        val decoded = when (result) {
+            is CodecResult.Failure -> {
+                oldWavStatus = result.diagnostics.displayText()
+                return
+            }
+            is CodecResult.Success -> result.value
+        }
+        saveOldWavDecoded(dialogOwner, decoded, result.diagnostics)?.let { saveResult ->
+            oldWavStatus = saveResult
+        }
     }
 
     fun loadRom(
@@ -1040,6 +1162,13 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
             })
             Item("Quick Assemble…", onClick = ::quickAssemble)
         }
+        Menu("Tools") {
+            Item(
+                "OLD WAV Encoder / Decoder",
+                enabled = !showOldWavTool,
+                onClick = { showOldWavTool = true },
+            )
+        }
         Menu("Emulator") {
             Item("Run", enabled = runner != null && runnerState == RunnerState.PAUSED, onClick = ::runEmulator)
             Item("Pause", enabled = runnerState == RunnerState.RUNNING, onClick = ::pauseEmulator)
@@ -1065,6 +1194,28 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
                 checkpointRangeError = null
                 showSaveCheckpointDialog = true
             })
+        }
+    }
+
+    if (showOldWavTool) {
+        Window(
+            onCloseRequest = { showOldWavTool = false },
+            title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — OLD WAV Encoder / Decoder",
+        ) {
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    OldWavToolPanel(
+                        filename = oldWavFilename,
+                        onFilenameChange = { oldWavFilename = it },
+                        passwordProtected = oldWavPasswordProtected,
+                        onPasswordProtectedChange = { oldWavPasswordProtected = it },
+                        status = oldWavStatus,
+                        onEncodeBasic = { encodeOldBasicWav(window) },
+                        onEncodeBinary = { encodeOldBinaryWav(window) },
+                        onDecode = { decodeOldWav(window) },
+                    )
+                }
+            }
         }
     }
 
@@ -2501,6 +2652,32 @@ private fun selectBasicSaveFile(owner: Frame): File? = selectFile(
     mode = FileDialog.SAVE,
 )
 
+private fun selectOldWavFile(owner: Frame): File? = selectFile(
+    owner = owner,
+    title = "Decode OLD WAV",
+    suggestedFile = "*.wav",
+)
+
+private fun selectOldBinaryFile(owner: Frame): File? = selectFile(
+    owner = owner,
+    title = "Encode PGP memory dump as OLD WAV",
+    suggestedFile = "*.dmp",
+)
+
+private fun selectOldWavDestination(owner: Frame, suggestedFile: String): File? = selectFile(
+    owner = owner,
+    title = "Save OLD WAV",
+    suggestedFile = suggestedFile,
+    mode = FileDialog.SAVE,
+)
+
+private fun selectOldDecodedDestination(owner: Frame, suggestedFile: String): File? = selectFile(
+    owner = owner,
+    title = "Save decoded OLD program",
+    suggestedFile = suggestedFile,
+    mode = FileDialog.SAVE,
+)
+
 private fun selectFile(
     owner: Frame,
     title: String,
@@ -2520,6 +2697,98 @@ private fun selectFile(
         owner.requestFocusInWindow()
     }
     return if (directory != null && fileName != null) File(directory, fileName) else null
+}
+
+@Composable
+private fun OldWavToolPanel(
+    filename: String,
+    onFilenameChange: (String) -> Unit,
+    passwordProtected: Boolean,
+    onPasswordProtectedChange: (Boolean) -> Unit,
+    status: String,
+    onEncodeBasic: () -> Unit,
+    onEncodeBinary: () -> Unit,
+    onDecode: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Text("OLD WAV Encoder / Decoder", style = MaterialTheme.typography.titleLarge)
+        Text("PC-1245 / PC-1250 / PC-1251 / PC-1255 OLD transfer format")
+        OutlinedTextField(
+            value = filename,
+            onValueChange = onFilenameChange,
+            label = { Text("Pocket computer filename") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().widthIn(max = 480.dp),
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = passwordProtected, onCheckedChange = onPasswordProtectedChange)
+            Text("Password-protected BASIC type (12)")
+        }
+        Button(onClick = onEncodeBasic) { Text("Encode BASIC source…") }
+        Text("Binary input uses an addressed .dmp file and must contain one contiguous range.")
+        Button(onClick = onEncodeBinary) { Text("Encode memory dump…") }
+        Text("Decode", style = MaterialTheme.typography.titleMedium)
+        Button(onClick = onDecode) { Text("Decode WAV…") }
+        Text(status)
+    }
+}
+
+private fun saveOldWavDecoded(
+    owner: Frame,
+    decoded: OldWavDecoding,
+    diagnostics: List<CodecDiagnostic>,
+): String? {
+    val payload = decoded.payload
+    val baseName = payload.filename.ifBlank { "program" }
+    val output = when (payload.type) {
+        OldPayloadType.BASIC,
+        OldPayloadType.PASSWORD_PROTECTED_BASIC,
+        -> when (val adapted = DesktopOldBasicTransferAdapter.fromTransferBody(payload.body.copyBytes())) {
+            is DesktopOldBasicTransferResult.Failure -> return adapted.message
+            is DesktopOldBasicTransferResult.Success -> when (
+                val result = DesktopBasicLoader.detokenizePc1245Program(adapted.bytes)
+            ) {
+            is DesktopBasicProgramDecodeResult.Success -> DecodedOldProgram("$baseName.bas", result.utf8Bytes)
+            is DesktopBasicProgramDecodeResult.Failure -> return "Could not decode OLD BASIC at " +
+                "0x${result.error.offset.hex(4)}: ${result.error.message}"
+            is DesktopBasicProgramDecodeResult.GenericFailure -> return "Could not decode OLD BASIC at " +
+                "0x${result.offset.hex(4)}: ${result.message}"
+            }
+        }
+        OldPayloadType.BINARY -> {
+            val startAddress = payload.startAddress ?: return "OLD binary has no start address."
+            DecodedOldProgram(
+                "$baseName.dmp",
+                PgpMemoryDumpWriter.write(startAddress, payload.body.copyBytes()).encodeToByteArray(),
+            )
+        }
+    }
+    val destination = selectOldDecodedDestination(owner, output.suggestedFile) ?: return null
+    return runCatching { destination.writeBytes(output.bytes) }.fold(
+        onSuccess = {
+            buildString {
+                append("Decoded ${payload.type.displayName()}: ${destination.name} (${output.bytes.size} bytes)")
+                payload.startAddress?.let { append(", start 0x${it.hex(4)}") }
+                if (diagnostics.isNotEmpty()) append(" — ${diagnostics.displayText()}")
+            }
+        },
+        onFailure = { "Could not save decoded program: ${it.message ?: it::class.simpleName}" },
+    )
+}
+
+private data class DecodedOldProgram(val suggestedFile: String, val bytes: ByteArray)
+
+private fun OldPayloadType.displayName(): String = when (this) {
+    OldPayloadType.BASIC -> "OLD BASIC"
+    OldPayloadType.PASSWORD_PROTECTED_BASIC -> "password-protected OLD BASIC"
+    OldPayloadType.BINARY -> "OLD binary"
+}
+
+private fun List<CodecDiagnostic>.displayText(): String = joinToString("; ") { diagnostic ->
+    "${diagnostic.stage.name.lowercase()}: ${diagnostic.message}"
 }
 
 @Composable

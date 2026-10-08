@@ -174,7 +174,8 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
 - [x] `.dmp`のメモリ配置とDesktop入力
 - [x] `.dmp`のDesktop出力
 - [ ] Intel HEX入出力
-- [ ] Raw Binary入出力（ロード開始アドレス指定）
+- [ ] Raw Binaryを開始address付きで一度だけimportし、`.dmp`へ変換する共通導線
+- [ ] 新規Project sourceを`.dmp`／Intel HEXへ統一し、既存`raw-binary` manifestを後方互換入力にする
 - [ ] Debugger Core
 - [x] Debuggerの停止理由とStep後のCPU状態差分を扱う基盤
 - [x] 複数の実行ブレークポイントと継続実行
@@ -234,6 +235,50 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
   - [ ] 実機側チェックポイント取得手順と比較ツール
 - [ ] 5×7 Character Editor
 - [ ] WAV Encoder / Decoder
+  - [x] `pcwav`参照commitからOLD系payload、checksum、PCM/WAV仕様を文書化する
+  - [x] `pcwav`参照commitからS1／S2のpayload、checksum、PCM動作と未対応範囲を文書化する
+  - [x] raw／logical／PCMの不変データ型、範囲mapping、構造化diagnostic、codec resultを定義する
+  - [x] OLDのnibble swap、logical checksum、8-byte挿入、80-data-byte累積resetを実装する
+  - [x] OLD BASIC `02`／`12`とBinary `62`のraw payload Encoderを実装する
+  - [x] OLD raw payload Decoderとchecksum／終端／宣言長／余剰data診断を実装する
+  - [x] OLDの2.048秒leader、W0／W1、19-unit byte framingをPCM Signal Encoderへ実装する
+  - [x] PCM WAV Writer／Readerと8／16-bit・mono／stereo正規化をUI非依存で実装する
+  - [x] OLD PCM Signal Decoderとraw byte位置／nibble同期位置の解析情報をUI非依存で実装する
+  - [x] OLD系の転送・信号・WAV container codecをUI非依存の統合APIで接続する
+  - [x] OLD BASIC / Binaryの固定vectorと境界長testを追加する
+  - [x] Studioの「Tools」からOLD WAV Encode / Decodeを開ける最小UIを実装する
+  - [x] OLD WAV Toolの初期UI確認で判明した問題を修正する
+    - [x] Toolから開いたfile dialogを閉じた後、メイン画面ではなくWAV Tool windowへfocusを戻す
+    - [x] Emulator BASICの外枠`FF ... FF`をOLD転送bodyの`... F0`へ変換するadapterを追加し、Encodeエラーを解消する
+    - [x] OLD転送bodyの`... F0`をEmulator BASICの`FF ... FF`へ戻すadapterを追加し、Decode後のsource保存を成立させる
+    - [x] Binaryの開始address欄と`.bin`直接入出力を廃止し、単一連続領域の`.dmp`入出力へ置き換える
+    - [ ] Intel HEXをaddress付き交換形式として追加する
+  - [ ] WAVを転送形式として解釈せずraw byte列へ復号するRaw Decode解析ツールを追加する
+    - [ ] raw byte列のhex表示とファイル保存に対応する
+    - [ ] sample rate、channel、bit depth、検出byte数、同期位置などの解析情報を表示する
+    - [ ] OLD／S1／S2 payloadとして解釈できないWAVでも信号Decode結果を確認できるようにする
+  - [ ] Raw Decode結果をOLD／S1／S2の候補形式で比較解析するWAV Analyzerを追加する
+    - [ ] 上段にPCM波形を表示し、sample／時間軸のzoom、pan、cursor、範囲選択に対応する
+    - [ ] 縮小時は区間内min／max envelope、拡大時は個々のsampleとedgeを表示して長いWAVでも形を失わない
+    - [ ] 波形へthreshold後のON／OFF level、W0／W1、leader、sync、byte境界をoverlay表示する
+    - [ ] channel原波形とmono正規化後波形を切り替え、DC offset、振幅、thresholdを確認できるようにする
+    - [ ] 下段左にoffset付きraw byte列、下段右に選択した形式の変換後byte列、構造、文字表現を表示する
+    - [ ] 波形範囲、signal unit、raw byte、logical byte、文字位置を相互選択・強調表示する
+    - [ ] type、header、filename、address、body、terminator、checksumを領域別に可視化する
+    - [ ] checksum一致／不一致、同期喪失、未定義byte、途中終端、余剰dataを位置付きで表示する
+    - [ ] OLD／S1／S2を自動断定せず、候補ごとの解析結果と信頼度を比較できるようにする
+    - [ ] payload解釈に失敗しても波形、ON／OFF、W0／W1、raw byteまでの成功結果を残す
+    - [ ] sample rate、channel、bit depth、duration、peak、DC offset、検出edge／byte数をsummary表示する
+    - [ ] raw／変換後byte列、文字変換結果、解析diagnosticを個別にexportできるようにする
+  - [ ] S1 WAV Codecを実装する
+    - [ ] S1共通信号と4.096秒leader、16-unit byte framingを実装する
+    - [ ] S1 Binary `67`を単一連続領域の`.dmp`／Intel HEX入出力として実装する
+    - [ ] S1 BASIC `07`、120-byte chunk、半角カナ、物理trailer `FF`を実装する
+  - [ ] S2 BASIC WAV Codecを実装する
+    - [ ] type `27`／`37`、`FE token`、`1F line reference`、CP932 textを実装する
+    - [ ] 実機fixtureで暫定tail checksumを確定してから互換対応を完了する
+  - [ ] S2 Binaryは一次資料または実機fixtureで仕様を確定するまで未対応とする
+  - [ ] 実機録音fixtureでDecode許容範囲を確定する
 
 ## Phase 6: 機種追加
 

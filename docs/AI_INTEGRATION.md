@@ -28,7 +28,7 @@ BASICだけの機種非限定プロジェクトでは、AIが現在の実行機�
 
 ### 2.2 既存マシン語の解析
 
-1. AIが`.dmp`、Raw Binary、メモリ上のコードをStudio経由で検査する。
+1. AIが`.dmp`、Intel HEX、またはRaw Binary import後のアドレス付きimageをStudio経由で検査する。
 2. Memory Mapとロード範囲を取得し、StudioのDisassemblerで命令境界を確定する。
 3. 制御フロー、CALL関係、メモリアクセス、ROMルーチン、bank切替を分析する。
 4. 仮ラベル、コメント、サブルーチン一覧をAssembly Workspaceのプレビューへ提示する。

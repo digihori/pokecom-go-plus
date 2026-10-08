@@ -852,6 +852,15 @@ ProgramImage <──> TransferProtocol <──> PCM Samples / WAV Data
 ```
 
 機種依存の転送プロトコルと、WAVコンテナの入出力を分離する。
+最初に実装するOLD系のraw payload、checksum、PCM framing、Decode境界は
+[WAV_OLD_FORMAT.md](WAV_OLD_FORMAT.md)を正とする。
+S1／S2の参照動作、未確定checksum、S2 Binary未対応の境界は
+[WAV_S1_S2_FORMAT.md](WAV_S1_S2_FORMAT.md)を正とする。
+Studio向けの統合入口は分離した各codecを合成する薄いfacadeとし、ファイルパス、Compose state、
+Emulator SessionをCore APIへ持ち込まない。
+マシン語ファイルの共通方針は[MACHINE_CODE_FORMATS.md](MACHINE_CODE_FORMATS.md)を正とする。Studio／Projectの
+標準はアドレス付き`.dmp`、交換形式はIntel HEXとし、Raw Binaryは開始addressを一度指定してアドレス付きimageへ
+変換するimport境界に限定する。
 
 ### 19.3 Character Editor
 

@@ -44,6 +44,74 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 以下には仕様抽出と、PGP向けに再設計・実装した機能の由来を記録する。
 
+### マシン語ファイル形式の統一方針
+
+- Date: 2026-10-08
+- Scope: Studio、Project、Assembler、Debugger、AI解析、WAV Toolで扱うマシン語image
+- Decision: PGP `.dmp`を内部・Project・標準出力形式、Intel HEXを外部交換形式とする。両形式はaddress付き
+  data領域の集合へ正規化してから各機能へ渡す
+- Raw Binary: 通常sourceにはせず、互換import時に開始addressを一度だけ指定して`.dmp`相当へ変換する。
+  既存Projectの`raw-binary`は移行期間の後方互換入力として維持する
+- OLD WAV: Binary formatは単一の開始addressと連続bodyだけを表せるため、`.dmp`／Intel HEX入力が複数領域または
+  gapを含む場合は拒否する。暗黙のzero-fillや巨大な連結imageは生成しない
+- Boundary: file parser／writerとRaw Binary import UIはDesktop、アドレス付きmemory imageと連続領域の検証は
+  共通logicに置き、Emulator SessionやWAV codecへfile pathを渡さない
+
+### OLD系WAV転送仕様
+
+- Date: 2026-10-08
+- PGP files: `docs/WAV_OLD_FORMAT.md`、`docs/ARCHITECTURE.md`、`docs/ROADMAP.md`、Desktop `Main.kt`、
+  Core `wav/WavCodecModel.kt`、`wav/OldTransferChecksum.kt`、`wav/OldPayloadEncoder.kt`、
+  `wav/OldPayloadDecoder.kt`、`wav/OldSignalEncoder.kt`、`wav/PcmWavWriter.kt`、
+  `wav/PcmWavReader.kt`、`wav/OldSignalDecoder.kt`、`wav/OldWavCodec.kt`とtest
+- Reference repository: pcwav
+- Reference commit: `14e1ef53596f0d8791b6d14965061f63846d11a7`
+- Reference files: `Format/Old.pm`、`Common.pm`、`WavWriter.pm`、`WavReader.pm`、
+  `PcmNormalize.pm`、`RawDecode.pm`、OLD BASIC／Binary Encode／Decode、CLI entry points
+- Provenance/license: 同一作者のpcwavを読み取り専用で参照。コードは移植せず、観測した形式仕様を再記述
+- Reused behavior: type／filename／metadata layout、bodyのnibble swap、8-byte単位かつ80-data-byteごとに
+  resetする累積checksum、OLD byte framing、8000 Hz 8-bit mono WAV出力、Decode入力範囲
+- Design changes: Program、転送payload、信号、WAV containerを分離し、固定1000 ms skipと入力末尾依存の
+  body終端を仕様化しない。Desktop file I/OとEmulator Sessionをcodecへ持ち込まない。raw／logical／PCMは
+  コピー所有する不変型で区別し、将来のAnalyzer向けに座標空間付きrangeとmappingを共通model化する。
+  公開BASIC payload Encoderは不完全なbodyを許容する参照側低レベルwrapperと異なり、末尾`F0`を検証する。
+  Decoderは入力末尾を無条件にbodyへ含めず、BASIC `F0`またはBinary宣言長で停止して余剰rawをwarningにする。
+  Signal Encoderはpayload解釈と分離し、任意raw列をPCM化できる入口も持つ。WAV codecはbyte列だけを扱い、
+  filesystemをStudio adapterへ残す。ReaderはRIFF外の余剰byteをwarningとして保持する。Signal Decoderは固定の
+  1000 ms skipを持たず、完成raw byteのPCM範囲とnibble同期位置を解析用に返す。統合APIは各codecを置換せず、
+  中間結果と全段階のdiagnosticを保持して合成する薄いfacadeとする。Studioの最小UIだけがnative file dialogと
+  filesystemを担当し、ProjectまたはEmulator SessionなしでBASIC／BinaryのEncodeとDecodeを実行する
+- Verification: 参照commitからBASIC／Binary固定vectorを抽出し、参照library内でpayloadおよびPCM→rawの
+  round tripを確認。共通modelの不変性、range、result invariantsをCore testで確認し、Desktop／Android／
+  iOSを含む全体buildを通過。OLD checksumはname block、20-byte body、0／1／7／8／9／79／80／81／88-byte
+  境界、80-byte reset、end-around carryを固定testで確認。BASIC／Binary payloadはpcwav固定vector、filename
+  正規化、password type、address範囲、BASIC終端、Analyzer用body mappingを確認。Decoderは同じ境界長、header／
+  body checksum位置、truncation、余剰data、未知filename byte、reserved metadata warningを確認。Signal Encoderは
+  leader、`A5`のbit順、sample数式、raw-to-PCM mapping、`00` byteのpcwav波形を固定testで確認。WAVはcanonical
+  header、末尾odd-length data、未知odd chunk、8-bit mono、16-bit stereo、truncation、非対応sample rateを確認。
+  Signal DecoderはEncoder出力、16 kHz相当、先頭無音＋振幅低下、末尾欠損、無信号、および
+  WAV Reader→Normalizer→Signal Decoder→Payload Decoderの一貫経路を確認。統合APIはBASIC、パスワード付き
+  BASIC、Binaryのround trip、複数層warningの集約、WAV／信号段階の失敗伝播を確認。BASIC／Binaryの
+  1／7／8／9／79／80／81／88-byte境界を完全なWAV経路でも往復し、raw／PCM／WAV長を固定式で確認
+
+### S1／S2 WAV参照動作
+
+- Date: 2026-10-09
+- PGP files: `docs/WAV_S1_S2_FORMAT.md`、`docs/WAV_OLD_FORMAT.md`、`docs/ARCHITECTURE.md`、
+  `docs/ROADMAP.md`
+- Reference repository: pcwav
+- Reference commit: `14e1ef53596f0d8791b6d14965061f63846d11a7`
+- Reference files: `WavWriter.pm`、`RawDecode.pm`、`Common.pm`、`Format/S1.pm`、S1 Binary Encode／Decode、
+  S1／S2 BASIC Encode／Decode、`TextCodec.pm`、CLI entry points
+- Provenance/license: 同一作者のpcwavを読み取り専用で参照。今回コードは移植せず、観測した動作と未確定事項を文書化
+- Observed behavior: S1／S2共通の4.096秒leaderと16-unit byte framing、S1 Binary `67`の開始address＋宣言長、
+  S1 BASIC `07`、S2 BASIC `27`／`37`、120-byte chunk、nibble swap、BASIC物理trailer `FF`、S1半角カナ、
+  S2 `FE` token／`1F` line reference／CP932 text
+- Limitations: S2 Binary実装は存在しない。S2 tail checksumは参照コード自身が暫定と記載し、S1／S2 Decodeには
+  checksum byteを読み飛ばして実比較しない経路がある。実機fixtureなしにこれらを確定仕様としない
+- PGP decision: S1 Binaryは`.dmp`／Intel HEXの単一連続領域だけを受理する。S2 Binaryは一次資料または実機fixtureを
+  得るまで実装しない。PGP Decoderは各層のchecksumと位置を構造化diagnosticとして検証する
+
 ### SC61860機種世代
 
 - Date: 2026-10-02
