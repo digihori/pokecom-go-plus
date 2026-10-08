@@ -865,6 +865,7 @@ Emulator SessionをCore APIへ持ち込まない。
 ### 19.3 Character Editor
 
 5×7エディタのデータモデルと変換処理はUIから分離する。
+最小試作のformat、責務境界、対象外機能は[CHARACTER_EDITOR.md](CHARACTER_EDITOR.md)を正とする。
 
 ### 19.4 AI / MCP Integration
 

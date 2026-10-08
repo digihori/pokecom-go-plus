@@ -233,7 +233,12 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
 - [ ] PC-1360K実機調査用のチェックポイント出力と漢字ROMアクセス検証プログラム作成支援
   - [x] CPU状態・指定メモリ・命令トレースを含むJSONチェックポイント出力
   - [ ] 実機側チェックポイント取得手順と比較ツール
-- [ ] 5×7 Character Editor
+- [x] 5×7 Character Editor最小試作
+  - [x] サイズ、packing方向、bit方向を差し替え可能なDotPattern formatを定義する
+  - [x] byte列との相互変換とBASIC `DATA`／Assembler `DB`出力をCoreへ実装する
+  - [x] Studioの`Tools`から独立windowを開き、単一文字をクリック／ドラッグ編集する
+  - [x] Clear、Invert、数値入力のApply、出力Copyを実装する
+  - [ ] Undo／Redo、複数文字、ファイル入出力、Emulator preview、機種固有UDC形式
 - [ ] WAV Encoder / Decoder
   - [x] `pcwav`参照commitからOLD系payload、checksum、PCM/WAV仕様を文書化する
   - [x] `pcwav`参照commitからS1／S2のpayload、checksum、PCM動作と未対応範囲を文書化する

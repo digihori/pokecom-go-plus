@@ -94,6 +94,7 @@ import com.digihori.pgp.desktop.basic.DesktopBasicProgramCompileResult
 import com.digihori.pgp.desktop.basic.DesktopBasicProgramDecodeResult
 import com.digihori.pgp.desktop.basic.DesktopOldBasicTransferAdapter
 import com.digihori.pgp.desktop.basic.DesktopOldBasicTransferResult
+import com.digihori.pgp.desktop.character.CharacterEditorPanel
 import com.digihori.pgp.desktop.input.DesktopKeyboardInput
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoadError
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoadResult
@@ -266,6 +267,7 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
     var showProjectWindow by remember { mutableStateOf(false) }
     var showAssemblyWorkspace by remember { mutableStateOf(false) }
     var showOldWavTool by remember { mutableStateOf(false) }
+    var showCharacterEditor by remember { mutableStateOf(false) }
     var oldWavFilename by remember { mutableStateOf("PROGRAM") }
     var oldWavPasswordProtected by remember { mutableStateOf(false) }
     var oldWavStatus by remember { mutableStateOf("Select an OLD BASIC source, binary image, or WAV file.") }
@@ -1164,6 +1166,11 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
         }
         Menu("Tools") {
             Item(
+                "Character Editor",
+                enabled = !showCharacterEditor,
+                onClick = { showCharacterEditor = true },
+            )
+            Item(
                 "OLD WAV Encoder / Decoder",
                 enabled = !showOldWavTool,
                 onClick = { showOldWavTool = true },
@@ -1194,6 +1201,19 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
                 checkpointRangeError = null
                 showSaveCheckpointDialog = true
             })
+        }
+    }
+
+    if (showCharacterEditor) {
+        Window(
+            onCloseRequest = { showCharacterEditor = false },
+            title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — Character Editor",
+        ) {
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    CharacterEditorPanel()
+                }
+            }
         }
     }
 
