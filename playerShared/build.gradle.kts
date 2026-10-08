@@ -3,7 +3,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
@@ -24,19 +23,16 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(libs.kotlinx.serialization.json)
+            api(project(":core"))
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
-        }
-        named("desktopTest").dependencies {
-            implementation(libs.kotlinx.serialization.json)
         }
     }
 }
 
 android {
-    namespace = "com.digihori.pgp.core"
+    namespace = "com.digihori.pgp.player.shared"
     compileSdk = 36
 
     defaultConfig {

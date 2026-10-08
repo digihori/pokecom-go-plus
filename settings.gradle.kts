@@ -17,4 +17,6 @@ dependencyResolutionManagement {
 rootProject.name = "pokecom-go-plus"
 
 include(":core")
+include(":playerShared")
 include(":desktopApp")
+include(":androidApp")

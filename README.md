@@ -69,15 +69,17 @@ RUN／PRO／RSV操作に集中する。右上の機種プルダウンでは、RO
 - Windows
 - Linux
 
-Core成熟後に、実行機能へ特化したPokecom GO PlayerをAndroidおよびiOSへ展開します。
-Playerにはデバッガ、アセンブラ、逆アセンブラなどの開発機能を搭載しません。
+実行機能へ特化したPokecom GO PlayerはAndroid最小プロトタイプの開発を開始しています。
+iOSは後続対象です。Playerにはデバッガ、アセンブラ、逆アセンブラなどの開発機能を搭載しません。
 
 ## リポジトリ構成
 
 ```text
 pokecom-go-plus/
 ├── core/          Kotlin Multiplatformの共有Core
+├── playerShared/  Android／iOS Playerで共有する実行・表示モデル
 ├── desktopApp/    Pokecom GO Studio（現在のCompose Desktop実装）
+├── androidApp/    Pokecom GO Player（Android最小プロトタイプ）
 ├── docs/          構想・設計・移植記録・ロードマップ
 ├── local-data/    ローカルROM等（Git管理外）
 └── test-data/     再配布可能なテストデータ
@@ -91,6 +93,7 @@ ROMイメージをコミットしない。
 ## 開発環境
 
 - JDK 21
+- Android SDK 36（Android Playerをビルドする場合）
 - Gradle Wrapper（同梱）
 - Kotlin 2.4.20
 - Compose Multiplatform 1.12.1
@@ -138,8 +141,28 @@ Linuxでは次を実行する。
 ./gradlew :desktopApp:run
 ```
 
-両環境ともCIによるビルドと自動テストは実施しているが、画面操作、音声、ファイル選択を含む
+Windows／LinuxともCIによるビルドと自動テストは実施しているが、画面操作、音声、ファイル選択を含む
 手動スモークテストは公開前の確認項目である。
+
+### Android Playerプロトタイプ
+
+Android SDK 36を設定した環境で、debug APKを生成する。
+
+```bash
+./gradlew :androidApp:assembleDebug
+```
+
+生成物は`androidApp/build/outputs/apk/debug/androidApp-debug.apk`へ出力される。現在はAndroidアプリの
+起動、SAFによる`.pgrom`／PC-1245 legacy ROMの取込み、検証、アプリ専用領域への保存と再起動時の
+再検証、単一エミュレータセッションの生成、可変サイズLCD描画、PC-1245ソフトウェアキーボードまで
+実装している。Androidの画面フレームに同期したRun／Pause／Reset、自作PC-1245スキンへのLCD重ね表示、
+およびスキン画像上の全52キーからの直接入力も利用できる。
+`Enlarge display`でLCD周辺だけを切り出したController Displayへ切り替え、`Show full device`で
+通常の実機スキン表示へ戻せる。
+動作モードは機種定義に従って表示し、PC-1245ではRUN／PROを切り替えられる。RSV対応機種を追加した場合は
+同じPlayer UIへRSVも表示される。
+実行画面はスクロールせず、端末の利用可能領域へスキンを縦横比維持で固定表示する。Run／Pause／Reset、
+表示部拡大、動作モードは右上のオーバーフローメニューから操作する。
 
 ### BASICテキストの読み込み
 
@@ -253,7 +276,7 @@ Desktopアプリを起動する場合：
   Windowsでは発音中のクリックノイズに加え、BASICをBREAKした後もアプリ終了までクリックノイズが
   続く場合がある。Java Soundの出力ラインと無音バッファの停止条件を再設計する必要がある。
 - PC-1245／1250の`0xb000..0xbfff`周辺のミラー仕様は再確認が必要である。
-- Pokecom GO Player（Android／iOS）は未実装である。
+- Pokecom GO PlayerはAndroid最小プロトタイプを実装中であり、iOS版と実行画面は未実装である。
 
 公開版に向けた確認状況は[Technical Preview公開チェックリスト](docs/PUBLIC_RELEASE_CHECKLIST.md)を参照する。
 

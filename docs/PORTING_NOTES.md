@@ -1273,3 +1273,98 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - Boundary: Memory Bus、LCD controller、I/Oなど機種固有回路の実装はCatalogへ押し込まず、familyごとの
   Machine実装に残す。Catalogは静的な能力と実装選択のmetadataを担当する。
 - Validation: IDの一意性、UI順、PC-1251 family全modelの登録、世代・bank・mode・timingをcommonTestで固定する。
+
+### PC-1245 Playerスキン
+
+- Date: 2026-10-08
+- Asset: `androidApp/src/main/res/drawable-nodpi/skin_pc1245.png`（1206×616 RGBA PNG）
+- Origin: Pokecom GOで使用していた画像を、リポジトリ作者が所有する実機を参考に独自のイラストとして
+  描き起こしたもの。メーカー提供画像や取扱説明書の画像を複製したものではない。
+- Ownership: 画像の作成者およびPGPリポジトリ作者が同一であり、PGPでの利用・再配布を許諾する。
+- Boundary: 画像resourceはAndroidアプリが所有する。設計canvas、表示範囲、LCD領域は`playerShared`の
+  `PlayerSkinCatalog`で保持し、画像読込みと描画はCoreへ持ち込まない。
+- Calibration: イラストにLCD境界線がないため、初期LCD矩形は調整可能な暫定値として分離した。
+  Android端末上の表示確認後に座標だけを微調整する。
+
+### PC-1245 Playerスキンキー入力
+
+- Date: 2026-10-08
+- PGP files: `PlayerSkinCatalog.kt`、`SkinDefinition.kt`、Android `PlayerApp.kt`
+- Provenance: PGP独自設計。作者自身が作成したPC-1245スキン画像上でキー矩形を計測。
+- Design: `PocketKey`と設計画像座標の矩形だけをPlayer共有層へ保持し、Composeのタッチ処理は
+  Androidアプリへ限定する。描画と同じ`SkinLayoutEngine`の変換でキー領域を拡縮する。
+- Behavior: スキン上のキーを押している間だけ既存の単一セッションへpressを送り、指を離すか
+  gestureがキャンセルされたときに必ずreleaseする。スキンキーがある場合は仮設グリッドキーボードを表示しない。
+- Verification: PC-1245の52キー領域、ENTERの横長領域、共有層のDesktop／iOS Simulatorテスト、
+  Android unit test、Lint、debug APK生成を確認。
+
+### Player Controller Display手動切替
+
+- Date: 2026-10-08
+- PGP files: `PlayerScreenState.kt`、`SkinLayoutEngine.kt`、Android `MainActivity.kt`／`PlayerApp.kt`
+- Design: 表示モードと切替規則、スキン切出し計算はPlayer共有層に置く。Androidはボタンと画像描画、
+  lifecycleだけを担当し、CoreやDesktopへ画面APIを持ち込まない。
+- Behavior: `Enlarge display`でLCD周辺の`controllerDisplayRegion`へ切り替え、実行状態を保ったまま
+  スキンのキーを非表示にする。切替時は押下中のキーを安全に解放し、`Show full device`で全体表示へ戻る。
+- Scope: ゲームパッド接続検出と自動切替は後続。初期プロトはゲームパッドなしでも確認できる手動切替とする。
+- Verification: 共有切替規則のDesktop／iOS Simulatorテスト、Android unit test、Lint、debug APK生成を確認。
+
+### Player RUN／PRO／RSV動作モード
+
+- Date: 2026-10-08
+- PGP files: `PlayerSession.kt`、`PlayerScreenState.kt`、Android `MainActivity.kt`／`PlayerApp.kt`
+- Source of truth: Coreの`MachineCatalog.supportedOperatingModes`と`EmulatorSession.setOperatingMode()`。
+- Design: Player共有Sessionが現在モードと対応モード集合を保持し、未対応モードをCoreへ送らない。
+  Androidは共有画面状態からボタンを生成するため、機種名によるUI分岐を持たない。
+- Behavior: PC-1245にはRUN／PROだけを表示する。RSV対応機種では同じUIにRSVを追加する。
+  モード切替前に押下中のキーを解放し、Reset後はCoreとPlayer状態の双方をRUNへ戻す。
+- Verification: PROGRAMへの切替、PC-1245でのRESERVE拒否、ResetによるRUN復帰を共有層テストで確認。
+  Desktop／iOS Simulatorテスト、Android unit test、Lint、debug APK生成を確認。
+
+### Player固定スキン画面と操作メニュー
+
+- Date: 2026-10-08
+- PGP files: Android `PlayerApp.kt`、`strings.xml`
+- Layout: エミュレーター画面から縦スクロール、タイトル、スキン外の常設ボタンを除去する。
+  スキンは利用可能な幅と高さの両方を`SkinLayoutEngine`へ渡し、縦横比を保って常に一画面へ収める。
+- Menu: Run／Pause／Reset、Controller Display切替、機種対応範囲内のRUN／PRO／RSVを右上の
+  オーバーフローメニューへ集約する。
+- LCD: スキンへ合成するLCD Surfaceの角丸を廃止し、調整可能な矩形領域をそのまま描画する。
+- Boundary: この画面構成とメニューはAndroid UIの責務とし、CoreおよびDesktop UIへ持ち込まない。
+
+### Android Playerスキンキー押下アニメーション
+
+- Date: 2026-10-08
+- PGP file: Android `PlayerApp.kt`
+- Behavior: タッチ開始から解放まで対象キーへ半透明の明色を重ね、解放またはgesture cancellation後に
+  120msでフェードアウトする。押下開始側は35msとして入力への即応感を保つ。
+- Boundary: 視覚フィードバックはComposeだけが保持し、共有キー座標、PlayerSession、Core入力状態を変更しない。
+
+### Android Playerフルスクリーン表示
+
+- Date: 2026-10-08
+- PGP file: Android `MainActivity.kt`
+- Behavior: ステータスバーを非表示にし、ジェスチャーナビゲーションではナビゲーションバーも非表示にする。
+  Compose側はカットアウト等を含む`safeDrawing`ではなく`navigationBars` Insetsだけを適用し、ステータスバー跡を
+  残さず描画する。旧3ボタン／2ボタン方式では表示中のナビゲーションバーだけをスキン領域から除外する。
+- Detection: Androidに公開されたナビゲーション方式APIがないため、platformの
+  `config_navBarInteractionMode`を参照する。取得できない場合はナビゲーションバーを残す安全側へ倒す。
+- Lifecycle: windowがfocusを取り戻したときにもsystem bar方針を再適用し、一時表示後の状態を復元する。
+- Boundary: system bar制御はAndroid hostだけの責務とし、Player共有層やCoreへ持ち込まない。
+
+### PlayerモバイルUI後続要件
+
+- Date: 2026-10-08
+- Status: Android最小プロトタイプの現時点での区切り。以下は未実装の後続要件。
+- Orientation: 縦持ちへは回転させず横向き専用とする。ただし端末を左右反転した場合は、両方の横向きへ
+  180度追従する。Androidでは`sensorLandscape`相当を候補とする。
+- Menu visibility: スキンと重なっても識別できるよう、3点メニューへ薄いグレーの円形背景を付け、
+  アイコンとタッチ領域を現在より大きくする。
+- LCD status: 16桁のdot matrixだけでなくSHIFT、DEF等の機種別statusを表示する。PC-1245／1251／1261系の
+  RUN／PRO／RSVは実機ではハードスイッチだが、Playerでは現在モードをLCD statusとして明示する。
+- Information menu: バージョン、プライバシーポリシー、Pokecom GO Studioへの案内を3点メニューへ追加する。
+- Program I/O: 各種プログラムのロード／セーブも3点メニューから実行する。PlayerではStudioのProject、
+  Assembler、Debuggerを導入せず、エミュレーターへ読み書きする実行用プログラムのファイル入出力として扱う。
+  対象形式、機種別ロード先、上書き確認、Android／iOSのdocument picker／共有方法は実装前に整理する。
+- Open decision: 機種切替を3点メニューへ置く案を検討する。ROM Libraryからの選択、Session再生成、
+  実行・表示モードの復元まで含めて画面遷移を設計してから実装する。

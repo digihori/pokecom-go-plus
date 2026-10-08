@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Pokecom GO Player</string>
+    <string name="rom_missing_title">ROM not registered</string>
+    <string name="rom_missing_description">Import a ROM image obtained from your own PC-1245 to start the Player.</string>
+    <string name="import_rom">Import ROM</string>
+    <string name="loading_rom">Loading ROM…</string>
+    <string name="rom_error_title">ROM could not be loaded</string>
+    <string name="rom_error_read">The selected ROM could not be read.</string>
+    <string name="rom_error_validation">The selected file is not a valid supported ROM.</string>
+    <string name="rom_error_session">An emulator session could not be created from this ROM.</string>
+    <string name="rom_error_storage">The ROM could not be saved in the application storage.</string>
+    <string name="choose_another_rom">Choose another ROM</string>
+    <string name="lcd_content_description">Pocket computer LCD display</string>
+    <string name="run_emulator">Run</string>
+    <string name="pause_emulator">Pause</string>
+    <string name="reset_emulator">Reset</string>
+    <string name="pc1245_skin_content_description">PC-1245 device skin</string>
+    <string name="enlarge_display">Enlarge display</string>
+    <string name="show_full_device">Show full device</string>
+    <string name="player_menu_symbol">⋮</string>
+    <string name="operating_mode_menu_item">%1$s %2$s mode</string>
+</resources>
