@@ -12,15 +12,6 @@ internal class DesktopAudioPlayer(
     private var sink: PcmSink? = null
     private var sampleRate: Int? = null
 
-    /** Keeps a device line open only while the emulated machine is actively requesting a tone. */
-    fun update(snapshot: AudioPcmSnapshot, toneActive: Boolean): Result<Unit> {
-        if (!toneActive) {
-            stop()
-            return Result.success(Unit)
-        }
-        return write(snapshot)
-    }
-
     fun write(snapshot: AudioPcmSnapshot): Result<Unit> {
         if (snapshot.sampleCount == 0) return Result.success(Unit)
         return runCatching {

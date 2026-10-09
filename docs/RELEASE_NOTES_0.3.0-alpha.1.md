@@ -29,7 +29,6 @@ checksum files are provided for every platform.
 - Minimal 5×7 Character Editor with drawing, erase, clear, invert, numeric input, and BASIC／assembly output formats
 - OLD WAV encoder／decoder prototype
 - Source-build guide for macOS, Windows, Linux, and Android
-- Windows audio shutdown handling to prevent residual clicks after emulation stops
 
 ## Android Player preview
 

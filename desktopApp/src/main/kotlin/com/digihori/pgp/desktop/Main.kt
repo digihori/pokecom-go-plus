@@ -1047,14 +1047,9 @@ private fun FrameWindowScope.App(
             val audio = activeRunner.audioSnapshot()
             requestedToneHz = audio.frequencyHz
             if (activeRunner.state == RunnerState.RUNNING) {
-                audioPlayer.update(
-                    snapshot = activeRunner.drainAudioSamples(),
-                    toneActive = audio.frequencyHz > 0,
-                ).onFailure {
+                audioPlayer.write(activeRunner.drainAudioSamples()).onFailure {
                     message = "Audio output unavailable: ${it.message ?: it::class.simpleName}"
                 }
-            } else {
-                audioPlayer.stop()
             }
             val status = tick.runResult?.status
             if (status is ExecutionStatus.Faulted) {

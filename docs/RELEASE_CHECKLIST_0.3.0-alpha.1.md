@@ -17,7 +17,7 @@
 - [x] Local JDK 21 `./gradlew build` succeeds after the versioned release changes
 - [x] `git diff --check` succeeds
 - [ ] macOS Studio release-candidate package is installed or opened and smoke-tested
-- [ ] Windows Studio package is smoke-tested, including confirmation that audio stops cleanly after program exit
+- [ ] Windows Studio package receives a current launch, sound, and basic-operation smoke test
 - [ ] Linux Studio package receives a current launch and basic-operation smoke test
 - [ ] Android Player APK is installed and smoke-tested with ROM import, restart restoration, LCD, keys, and modes
 - [x] GitHub Actions CI succeeds for the release-candidate commit, including the Android Player job
