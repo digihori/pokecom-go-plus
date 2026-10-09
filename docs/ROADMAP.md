@@ -132,6 +132,9 @@ Pokecom GO Playerの最小プロトタイプを初めて同梱する早期評価
 ## Phase 4: Pokecom GO Studio対応拡大
 
 - [ ] Windowsでのビルド・配布
+- [ ] Windowsでサウンド使用プログラムの終了後にクリックノイズが鳴り続ける問題を解消する
+  - [ ] オーディオラインの終了条件と無音バッファ処理を見直す
+  - [ ] 通常再生を崩さず、プログラム終了、BREAK、Pause、Reset、アプリ終了を実機で確認する
 - [ ] Linuxでのビルド・配布
 - [ ] ROM Import Wizardを実装する（入力slot一覧、inline検証、Pokecom GO形式から`.pgrom`への変換）
 - [ ] バンク機の物理ROMをBank 0..Nの一覧で割り当て、一括選択できるようにする

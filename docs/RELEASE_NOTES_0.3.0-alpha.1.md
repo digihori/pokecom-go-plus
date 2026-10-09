@@ -59,8 +59,8 @@ The Android Player preview currently provides the PC-1245 skin and interaction m
 
 - macOS: principal Studio workflows have been tested during development; packaged-app confirmation remains a
   release-candidate check.
-- Windows x64: automated tests and packaging run in GitHub Actions. Audio shutdown changes require a manual
-  release-candidate check on Windows.
+- Windows x64: automated tests and packaging run in GitHub Actions. A manual check confirmed normal sound
+  playback, but also confirmed the click-noise limitation described below.
 - Linux x86_64: automated tests and DEB／tar.gz packaging run in GitHub Actions; a current manual UI pass remains
   pending.
 - Android: automated tests and APK generation run in GitHub Actions. Installation and ROM-based operation require
@@ -80,6 +80,8 @@ The Android Player preview currently provides the PC-1245 skin and interaction m
 - Assembly Workspace and the assembler remain early implementations; expressions, constants, macros, include
   files, and conditional assembly are not yet supported.
 - Physical PC-keyboard input is logical-text oriented. A game-oriented physical-key mode is planned.
+- On Windows, click noise may continue indefinitely after a program that used sound finishes. Audio-line
+  shutdown detection and silent-buffer handling require further work.
 - Save-state compatibility and stable public APIs are not guaranteed between Technical Preview releases.
 - Linux ARM64 and native Windows ARM64 packages are not available.
 
