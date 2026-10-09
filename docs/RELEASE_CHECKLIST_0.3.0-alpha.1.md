@@ -19,7 +19,7 @@
 - [x] macOS Studio release-candidate package is installed or opened and smoke-tested
 - [x] Windows Studio package receives a current launch, sound, and basic-operation smoke test
   - [x] Sound playback checked; persistent click noise after a sounding program finishes is recorded as a known issue
-- [ ] Linux Studio package receives a current launch and basic-operation smoke test
+- [x] Linux Studio package receives a current launch and basic-operation smoke test
 - [x] Android Player APK is installed and smoke-tested; an older debug-signed build had to be uninstalled first
 - [x] GitHub Actions CI succeeds for the release-candidate commit, including the Android Player job
 - [x] Manually dispatched release workflow produces every expected artifact without publishing a Release
@@ -52,6 +52,5 @@ The release workflow creates unsigned Desktop packages and a debug-signed Androi
 in any package or test input. Do not create or push the release tag until the release-candidate checks above have
 been reviewed.
 
-Release candidate packaging was checked on macOS, Windows, and Android. Windows retains the documented
-post-program click-noise issue. Linux packages are produced by the release workflow, but the current package has
-not received a manual UI smoke test.
+Release candidate packaging was checked on macOS, Windows, Linux, and Android. Windows retains the documented
+post-program click-noise issue.
