@@ -41,3 +41,30 @@ jobs:
       - name: Build and test (Windows)
         if: runner.os == 'Windows'
         run: .\gradlew.bat :core:desktopTest :desktopApp:build --no-daemon
+
+  android-player:
+    name: Build and test (Android Player)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Test and build Player APK
+        run: ./gradlew :playerShared:testDebugUnitTest :androidApp:testDebugUnitTest :androidApp:assembleDebug --no-daemon

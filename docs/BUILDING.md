@@ -199,9 +199,10 @@ androidApp/build/outputs/apk/debug/androidApp-debug.apk
 
 ## 7. GitHub Actions
 
-pushおよびPull Requestでは`.github/workflows/ci.yml`が自動テストを実行する。
-`.github/workflows/release.yml`を手動実行すると、macOS、Windows、Linuxでテストとパッケージ作成を行い、
-workflow artifactを生成する。検証済みのversion tagをpushした場合だけGitHub prereleaseを公開する。
+pushおよびPull Requestでは`.github/workflows/ci.yml`がDesktopの3 OSとAndroid Playerの自動テストを
+実行する。`.github/workflows/release.yml`を手動実行すると、macOS、Windows、LinuxのStudioパッケージと
+Android Playerのdebug APKを生成し、workflow artifactとして保存する。検証済みのversion tagをpushした
+場合だけGitHub prereleaseを公開する。Playerのdebug APKはストア配布用の正式署名版ではない。
 
 ## 8. よくある問題
 

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
 
-> **Technical Preview 0.2（開発中）** — 早期評価版です。仕様と実装は今後も変更される可能性があります。
+> **Technical Preview 0.3（公開準備中）** — 早期評価版です。仕様と実装は今後も変更される可能性があります。
 
 Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向けプログラムを
 現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す
@@ -26,7 +26,7 @@ PC-1350を実装し、PC-1360は実ROM起動、16KiB×8 ROMバンク、LCD、キ
 macOSでは実ROMの起動、物理／画面キーボード入力、BASICと
 マシン語の入出力、LCD表示、サウンド出力まで動作確認済みです。WindowsではROM起動、キー入力、BASICと
 サウンド、Linux x86_64ではROM起動、基本操作、サウンド、tar.gz／DEB配布物を手動確認しています。
-Pokecom GO PlayerはCoreとStudioが安定した後に開発します。
+Pokecom GO PlayerはAndroid向け最小プロトタイプを実装し、Technical Preview 0.3で初めて配布する予定です。
 
 現在利用できる主な機能は次のとおりです。
 
@@ -197,20 +197,22 @@ ROM起動後にUTF-8の`.bas`ファイルを指定して読み込める。通常
 
 ### Technical Preview配布物
 
-Technical Previewではソースコードに加え、macOS、Windows、Linux向けの実行配布物を
-GitHub Releasesへ掲載する予定である。これらはDeveloper ID等による正式署名やmacOS公証を行わないため、
+Technical Previewではソースコード、macOS／Windows／Linux向けStudio配布物、およびAndroid向けPlayer
+プレビューAPKをGitHub Releasesへ掲載する予定である。StudioはDeveloper ID等による正式署名やmacOS公証を
+行わない。Player APKはAndroidのデバッグ署名を使用し、ストア配布用の正式署名版ではない。
 OSのセキュリティ警告が表示される可能性がある。ROMイメージは配布物にも含めない。
 
 配布物にはPGPの`LICENSE`と`THIRD_PARTY_NOTICES.md`をアプリresourceとして含め、
 Releaseには各ファイルのSHA-256チェックサムを掲載する。
 
-`.github/workflows/release.yml`をGitHub Actionsから手動実行すると、3環境でテスト後に配布物を生成し、
-14日間保持されるworkflow artifactとして取得できる。`v0.2.0-alpha.1` tagをpushした場合は、
+`.github/workflows/release.yml`をGitHub Actionsから手動実行すると、Studioを3環境、PlayerをAndroid環境で
+テストして配布物を生成し、14日間保持されるworkflow artifactとして取得できる。`v0.3.0-alpha.1` tagをpushした場合は、
 同じ成果物を使ってprereleaseのGitHub Releaseを自動作成する。公開候補の検証が完了するまではtagを作成しない。
 
 GitHubへpushした場合とPull Requestを更新した場合は、GitHub ActionsがmacOS、Windows、
-Linux上でCoreのDesktopテストとDesktopアプリのビルド・テストを実行する。CIにはROMを
-渡さず、再配布可能な合成データだけを使用する。
+Linux上でCoreのDesktopテストとDesktopアプリのビルド・テストを実行し、別のAndroid環境で
+Playerの共有層テスト、Android固有テスト、APK生成を行う。CIにはROMを渡さず、再配布可能な
+合成データだけを使用する。
 
 ローカルでのDMG／MSI／DEB生成方法は[ソースからのビルド](docs/BUILDING.md)を参照する。
 
@@ -309,6 +311,7 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 - [SC61860 Assembler／Disassembler](docs/SC61860_ASSEMBLY.md)
 - [ロードマップ](docs/ROADMAP.md)
 - [Technical Preview公開チェックリスト](docs/PUBLIC_RELEASE_CHECKLIST.md)
+- [Technical Preview 0.3 Release Notes](docs/RELEASE_NOTES_0.3.0-alpha.1.md)
 - [Technical Preview 0.2 Release Notes](docs/RELEASE_NOTES_0.2.0-alpha.1.md)
 - [Technical Preview 0.1 Release Notes](docs/RELEASE_NOTES_0.1.0-alpha.1.md)
 - [移植記録](docs/PORTING_NOTES.md)
