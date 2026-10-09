@@ -675,15 +675,19 @@ Studio層が担当するものは次の通り。
 
 現在のウィンドウ構成は次の責務分離を採用する。
 
-- メインウィンドウ: 機種選択、LCD、機種別キーボード、Run／Pause／Reset／Step、動作モード、状態通知
+- メインウィンドウ: 左側のProjectツリー、機種選択、LCD、機種別キーボード、Run／Pause／Reset／Step、動作モード、状態通知
 - ネイティブメニューバー: File／Project／Program／Emulator／Debug操作
 - ROM Libraryダイアログ: 機種別ROMの登録、置換、削除、検証状態
-- Project Filesウィンドウ: Tracked／Untrackedツリー、外部変更、Build & Load、Manifest更新
 - Debuggerウィンドウ: CPU、Disassembly、Memory、Watch、Trace、Checkpoint
 - Assembly Workspace: Sources／生成物、Diagnostics、Memory／Disassembly Preview、Listing／Map
 
-メインウィンドウへすべての開発操作を並べず、LCDと実機操作を行いながら必要な開発ウィンドウを併用する。
+メインウィンドウはProjectとEmulatorの常用情報だけに絞り、LCDと実機操作を行いながら必要な開発ウィンドウを併用する。
 各ウィンドウがCoreの可変状態を直接所有せず、同じSession、Snapshot、Application Serviceを参照する。
+
+Studioの外観は各画面へ色や角丸を直書きせず、共通のテーマプリセットからMaterial 3の配色と形状を供給する。
+LCDやドットエディタなどMaterialの標準役割だけでは表せない色も、用途別のStudio component tokenとして
+同じテーマ境界から供給する。新しいテーマはプリセットとtoken setを追加して切り替え、各ツールウィンドウを
+個別に変更しない。初期プリセットは計器を意識した`INSTRUMENT`とする。
 
 ### 16.1 Studio ROM Library
 

@@ -1,5 +1,8 @@
 package com.digihori.pgp.desktop
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.focusable
@@ -10,11 +13,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -155,6 +161,8 @@ import com.digihori.pgp.desktop.rom.DesktopRomPackageConversionResult
 import com.digihori.pgp.desktop.rom.DesktopRomPackageConverter
 import com.digihori.pgp.desktop.runner.DesktopEmulatorRunner
 import com.digihori.pgp.desktop.runner.RunnerState
+import com.digihori.pgp.desktop.theme.LocalStudioComponentColors
+import com.digihori.pgp.desktop.theme.PgpStudioTheme
 import java.awt.FileDialog
 import java.awt.Frame
 import java.awt.EventQueue
@@ -264,7 +272,6 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
     var changedProjectSources by remember { mutableStateOf(emptySet<String>()) }
     var changedAssemblySources by remember { mutableStateOf(emptySet<String>()) }
     var projectRuntimeStatus by remember { mutableStateOf(ProjectRuntimeStatus.NOT_BUILT) }
-    var showProjectWindow by remember { mutableStateOf(false) }
     var showAssemblyWorkspace by remember { mutableStateOf(false) }
     var showOldWavTool by remember { mutableStateOf(false) }
     var showCharacterEditor by remember { mutableStateOf(false) }
@@ -599,7 +606,6 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
                     projectBasicModified = false
                 }
                 selectedMachineId = opened.workspace.definition.machineId
-                showProjectWindow = true
                 val sourceSummary = opened.workspace.sources
                     .groupingBy { it.definition.type }
                     .eachCount()
@@ -1120,11 +1126,6 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
             })
             Item("Open Project…", onClick = ::openProjectFromDisk)
             Item(
-                "Show Project Files",
-                enabled = projectWorkspace != null && !showProjectWindow,
-                onClick = { showProjectWindow = true },
-            )
-            Item(
                 "Open Assembly Workspace",
                 onClick = { showAssemblyWorkspace = true },
             )
@@ -1209,7 +1210,7 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
             onCloseRequest = { showCharacterEditor = false },
             title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — Character Editor",
         ) {
-            MaterialTheme {
+            PgpStudioTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     CharacterEditorPanel()
                 }
@@ -1222,7 +1223,7 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
             onCloseRequest = { showOldWavTool = false },
             title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — OLD WAV Encoder / Decoder",
         ) {
-            MaterialTheme {
+            PgpStudioTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     OldWavToolPanel(
                         filename = oldWavFilename,
@@ -1244,7 +1245,7 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
             onCloseRequest = { showDebuggerWindow = false },
             title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — Debugger",
         ) {
-            MaterialTheme {
+            PgpStudioTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     Column(
                         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -1290,51 +1291,13 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
         }
     }
 
-    if (showProjectWindow) {
-        Window(
-            onCloseRequest = { showProjectWindow = false },
-            title = projectWorkspace?.let { "${ProjectInfo.STUDIO_DISPLAY_NAME} — ${it.definition.name}" }
-                ?: "${ProjectInfo.STUDIO_DISPLAY_NAME} — Project Files",
-        ) {
-            MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    Column(
-                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        projectWorkspace?.let { workspace ->
-                            Text("Project: ${workspace.definition.name}")
-                            Text("Machine: ${workspace.definition.machineId.displayName()}")
-                            Text(
-                                "Runtime: ${projectRuntimeStatus.displayName}" +
-                                    if (changedProjectSources.isEmpty()) "" else
-                                        " — changed: ${changedProjectSources.joinToString()}",
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(
-                                    enabled = runner != null && runnerState != RunnerState.FAULTED,
-                                    onClick = ::buildProject,
-                                ) { Text("Build & Load") }
-                                Button(
-                                    onClick = { showAssemblyWorkspace = true },
-                                ) { Text("Assembly Workspace") }
-                                Button(onClick = ::updateProject) { Text("Update Project") }
-                            }
-                            projectTree?.let { ProjectTreePanel(it) }
-                        } ?: Text("No project is open.")
-                    }
-                }
-            }
-        }
-    }
-
     if (showAssemblyWorkspace) {
         Window(
             onCloseRequest = { showAssemblyWorkspace = false },
             title = projectWorkspace?.let { "${ProjectInfo.STUDIO_DISPLAY_NAME} — ${it.definition.name} — Assembly" }
                 ?: "${ProjectInfo.STUDIO_DISPLAY_NAME} — Assembly Workspace",
         ) {
-            MaterialTheme {
+            PgpStudioTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     Column(
                         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -1444,7 +1407,7 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
         }
     }
 
-    MaterialTheme {
+    PgpStudioTheme {
         Surface(
             modifier = Modifier
                 .fillMaxSize()
@@ -1507,46 +1470,97 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
                 }
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    Button(
-                        enabled = runner != null && runnerState != RunnerState.FAULTED,
-                        onClick = {
-                            if (runnerState == RunnerState.RUNNING) pauseEmulator() else runEmulator()
-                        },
-                    ) { Text(if (runnerState == RunnerState.RUNNING) "Pause" else "Run") }
-                    Button(enabled = runner != null, onClick = ::resetEmulator) { Text("Reset") }
-                    Button(
-                        enabled = runner != null && runnerState == RunnerState.PAUSED,
-                        onClick = ::stepEmulator,
-                    ) { Text("Step") }
-                    val activeDefinition = MachineCatalog.require(runner?.machineId ?: selectedMachineId)
-                    if (activeDefinition.family == MachineFamily.PC_1245 ||
-                        activeDefinition.family == MachineFamily.PC_1251
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.width(260.dp).fillMaxHeight(),
                     ) {
-                        Button(
-                            enabled = runner != null && operatingMode != OperatingMode.RUN,
-                            onClick = { setMode(OperatingMode.RUN) },
-                        ) { Text("RUN") }
-                        Button(
-                            enabled = runner != null && operatingMode != OperatingMode.PROGRAM,
-                            onClick = { setMode(OperatingMode.PROGRAM) },
-                        ) { Text("PRO") }
+                        Column(
+                            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text("Project", style = MaterialTheme.typography.titleMedium)
+                            projectWorkspace?.let { workspace ->
+                                Text(workspace.definition.name, style = MaterialTheme.typography.titleSmall)
+                                Text(
+                                    "${workspace.definition.machineId.displayName()}  •  " +
+                                        projectRuntimeStatus.displayName,
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                                if (changedProjectSources.isNotEmpty()) {
+                                    Text(
+                                        "Changed: ${changedProjectSources.joinToString()}",
+                                        style = MaterialTheme.typography.labelMedium,
+                                    )
+                                }
+                                Button(
+                                    enabled = runner != null && runnerState != RunnerState.FAULTED,
+                                    onClick = ::buildProject,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) { Text("Build & Load", maxLines = 1, softWrap = false) }
+                                Button(
+                                    onClick = ::updateProject,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) { Text("Update", maxLines = 1, softWrap = false) }
+                                Button(
+                                    onClick = { showAssemblyWorkspace = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) { Text("Assembly Workspace", maxLines = 1, softWrap = false) }
+                                projectTree?.let { ProjectTreePanel(it) }
+                            } ?: Text("No project is open.")
+                        }
                     }
-                    if (activeDefinition.family == MachineFamily.PC_1251) {
-                        Button(
-                            enabled = runner != null && operatingMode != OperatingMode.RESERVE,
-                            onClick = { setMode(OperatingMode.RESERVE) },
-                        ) { Text("RSV") }
+
+                    Column(
+                        modifier = Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Button(
+                                enabled = runner != null && runnerState != RunnerState.FAULTED,
+                                onClick = {
+                                    if (runnerState == RunnerState.RUNNING) pauseEmulator() else runEmulator()
+                                },
+                            ) { Text(if (runnerState == RunnerState.RUNNING) "Pause" else "Run") }
+                            Button(enabled = runner != null, onClick = ::resetEmulator) { Text("Reset") }
+                            Button(
+                                enabled = runner != null && runnerState == RunnerState.PAUSED,
+                                onClick = ::stepEmulator,
+                            ) { Text("Step") }
+                            val activeDefinition = MachineCatalog.require(runner?.machineId ?: selectedMachineId)
+                            if (activeDefinition.family == MachineFamily.PC_1245 ||
+                                activeDefinition.family == MachineFamily.PC_1251
+                            ) {
+                                Button(
+                                    enabled = runner != null && operatingMode != OperatingMode.RUN,
+                                    onClick = { setMode(OperatingMode.RUN) },
+                                ) { Text("RUN") }
+                                Button(
+                                    enabled = runner != null && operatingMode != OperatingMode.PROGRAM,
+                                    onClick = { setMode(OperatingMode.PROGRAM) },
+                                ) { Text("PRO") }
+                            }
+                            if (activeDefinition.family == MachineFamily.PC_1251) {
+                                Button(
+                                    enabled = runner != null && operatingMode != OperatingMode.RESERVE,
+                                    onClick = { setMode(OperatingMode.RESERVE) },
+                                ) { Text("RSV") }
+                            }
+                        }
+
+                        PocketLcdPanel(display)
+                        PocketSoftwareKeyboard(
+                            runner,
+                            MachineCatalog.require(runner?.machineId ?: selectedMachineId).keyboardLayout,
+                        )
                     }
                 }
-
-                PocketLcdPanel(display)
-                PocketSoftwareKeyboard(
-                    runner,
-                    MachineCatalog.require(runner?.machineId ?: selectedMachineId).keyboardLayout,
-                )
 
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceVariant,
@@ -2386,28 +2400,60 @@ private fun PocketKeyButton(
     runner: DesktopEmulatorRunner?,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        color = if (runner == null) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primaryContainer,
-        shape = MaterialTheme.shapes.small,
-        modifier = modifier.pointerInput(runner, cap.key) {
-            detectTapGestures(
-                onPress = {
-                    val activeRunner = runner
-                    if (activeRunner != null) {
-                        val pressedAt = System.nanoTime()
-                        activeRunner.pressKey(cap.key)
-                        try {
-                            tryAwaitRelease()
-                            val elapsedMilliseconds = (System.nanoTime() - pressedAt) / 1_000_000L
-                            val remainingHold = activeRunner.minimumSoftwareKeyHoldMilliseconds() - elapsedMilliseconds
-                            if (remainingHold > 0L) delay(remainingHold)
-                        } finally {
-                            activeRunner.releaseKey(cap.key)
-                        }
-                    }
-                },
-            )
+    var isPressed by remember(runner, cap.key) { mutableStateOf(false) }
+    val componentColors = LocalStudioComponentColors.current
+    val keyColor by animateColorAsState(
+        targetValue = when {
+            runner == null -> componentColors.softwareKeyDisabled
+            isPressed -> componentColors.softwareKeyPressed
+            else -> componentColors.softwareKey
         },
+        animationSpec = tween(durationMillis = SOFTWARE_KEY_ANIMATION_MILLISECONDS),
+        label = "software key color",
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (isPressed) componentColors.onSoftwareKeyPressed else componentColors.onSoftwareKey,
+        animationSpec = tween(durationMillis = SOFTWARE_KEY_ANIMATION_MILLISECONDS),
+        label = "software key content color",
+    )
+    val pressOffset by animateDpAsState(
+        targetValue = if (isPressed) 2.dp else 0.dp,
+        animationSpec = tween(durationMillis = SOFTWARE_KEY_ANIMATION_MILLISECONDS),
+        label = "software key offset",
+    )
+    val shadowElevation by animateDpAsState(
+        targetValue = if (isPressed || runner == null) 0.dp else 2.dp,
+        animationSpec = tween(durationMillis = SOFTWARE_KEY_ANIMATION_MILLISECONDS),
+        label = "software key elevation",
+    )
+    Surface(
+        color = keyColor,
+        contentColor = contentColor,
+        shape = MaterialTheme.shapes.small,
+        shadowElevation = shadowElevation,
+        modifier = modifier
+            .offset(y = pressOffset)
+            .pointerInput(runner, cap.key) {
+                detectTapGestures(
+                    onPress = {
+                        val activeRunner = runner
+                        if (activeRunner != null) {
+                            val pressedAt = System.nanoTime()
+                            isPressed = true
+                            activeRunner.pressKey(cap.key)
+                            try {
+                                tryAwaitRelease()
+                                val elapsedMilliseconds = (System.nanoTime() - pressedAt) / 1_000_000L
+                                val remainingHold = activeRunner.minimumSoftwareKeyHoldMilliseconds() - elapsedMilliseconds
+                                if (remainingHold > 0L) delay(remainingHold)
+                            } finally {
+                                activeRunner.releaseKey(cap.key)
+                                isPressed = false
+                            }
+                        }
+                    },
+                )
+            },
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 2.dp, vertical = 3.dp),
@@ -2476,6 +2522,7 @@ private fun PocketSoftwareKeyboard(runner: DesktopEmulatorRunner?, layout: Machi
 
 @Composable
 private fun PocketLcdPanel(snapshot: DisplaySnapshot?) {
+    val componentColors = LocalStudioComponentColors.current
     val panelAspectRatio = if (snapshot == null) {
         LCD_PANEL_ASPECT_RATIO
     } else if (snapshot.characterRows == 1) {
@@ -2502,7 +2549,7 @@ private fun PocketLcdPanel(snapshot: DisplaySnapshot?) {
                 .widthIn(max = 1_000.dp)
                 .aspectRatio(panelAspectRatio),
         ) {
-            drawRect(LCD_BACKGROUND)
+            drawRect(componentColors.lcdBackground)
             if (snapshot == null) return@Canvas
 
             val visualColumnCount = CharacterCellGeometry.visualColumnCount(
@@ -2541,7 +2588,7 @@ private fun PocketLcdPanel(snapshot: DisplaySnapshot?) {
                             )
                         }
                         drawRect(
-                            color = LCD_DOT,
+                            color = componentColors.lcdDot,
                             topLeft = Offset(
                                 visualColumn * cellWidth + insetX,
                                 visualRow * cellHeight + insetY,
@@ -2994,8 +3041,7 @@ private const val MEMORY_VIEW_PAGE_SIZE: Int =
 private const val INSTRUCTION_TRACE_VISIBLE_LINES: Int = 32
 private const val LCD_DOT_INSET_RATIO: Float = 0.14f
 private const val LCD_PANEL_ASPECT_RATIO: Float = 95f / 11f
-private val LCD_BACKGROUND: Color = Color(0xffc9d2b0)
-private val LCD_DOT: Color = Color(0xff263126)
+private const val SOFTWARE_KEY_ANIMATION_MILLISECONDS: Int = 70
 
 private fun Int.hex(width: Int): String = (this and if (width == 2) 0xff else 0xffff)
     .toString(16)

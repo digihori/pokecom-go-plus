@@ -38,7 +38,7 @@ Pokecom GO PlayerはCoreとStudioが安定した後に開発します。
 - LCD表示、CPU状態表示、サウンド出力
 - 実機RAM容量と拡張RAMモードの切り替え
 - File／Project／Program／Emulator／Debugに分けたメニューバー
-- 機種別ROM Library、専用Project Filesウィンドウ、独立Debuggerウィンドウ
+- 機種別ROM Library、メイン画面のProjectツリー、独立Debuggerウィンドウ
 
 ## 画面構成
 
@@ -46,12 +46,12 @@ Pokecom GO PlayerはCoreとStudioが安定した後に開発します。
 RUN／PRO／RSV操作に集中する。右上の機種プルダウンでは、ROM Libraryへ登録済みの機種だけを切り替えられる。
 
 - `File`: ROMの登録・管理とROM set作成
-- `Project`: 新規作成、Open、Project Files／Assembly Workspace表示、Build & Load
+- `Project`: 新規作成、Open、Assembly Workspace表示、Build & Load
 - `Program`: BASIC／マシン語の単発入出力とQuick Assemble
 - `Emulator`: 実行制御とRAM profile
 - `Debug`: DebuggerとCheckpoint
 
-プロジェクトツリーは専用のProject Filesウィンドウ、CPU、Disassembly、Memory、TraceはDebuggerウィンドウへ
+プロジェクトツリーはメイン画面左側、CPU、Disassembly、Memory、TraceはDebuggerウィンドウへ
 分離している。機種別ソフトウェアキーボードは実機のキー配列、SHIFT表記、予約語表記を反映する。
 
 ## プロジェクトの位置付け

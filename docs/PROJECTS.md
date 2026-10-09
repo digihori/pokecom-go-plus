@@ -83,8 +83,7 @@ Raw Binaryだけは16進ロードアドレスを必須とする。
 
 ## Project tree
 
-Studioはプロジェクト内のファイルとManifestを比較し、専用のProject Filesウィンドウへツリー表示する。
-プロジェクトを開くと同ウィンドウが前面に開き、閉じた後は`Project` → `Show Project Files`で再表示できる。
+Studioはプロジェクト内のファイルとManifestを比較し、メイン画面左側へツリー表示する。
 
 ```text
 Mogura Game
@@ -115,7 +114,7 @@ EmulatorやManifestへ自動反映しない。
 ## Build & Load
 
 現在のStudioは`Build & Load`で全ソースを検証・変換し、すべて成功した場合だけ成果物をEmulatorへ一括ロードする。
-Project Filesウィンドウと`Project`メニューのどちらからでも実行できる。
+メイン画面のProjectペインと`Project`メニューのどちらからでも実行できる。
 
 - BASICをTokenizerで対象機種の中間コードへ変換する
 - Assemblyを内蔵SC61860 Assemblerで変換する
@@ -144,7 +143,7 @@ Studioは`Source changed`を表示し、ユーザーが`Build & Load`を実行�
 Assembly Workspaceでは最後に成功したAssembly後に変更された入力へ`*`を表示する。
 
 プロジェクトのBASICをEmulatorへロードした後は、内部的にロード直後のBASICプログラムを基準として追跡する。
-PROモード等でEmulator内のBASICプログラムが変更された状態をProject Filesへ表示するUIは今後再配置する。
+PROモード等でEmulator内のBASICプログラムが変更された状態をProjectペインへ表示するUIは今後再配置する。
 通常のプログラム実行による変数や表示内容の変更は追跡対象外とする。ROM変更、Reset、別プロジェクトのOpen、
 単発の`Load BASIC`ではこの追跡を終了する。
 

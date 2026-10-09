@@ -53,12 +53,12 @@ Windowsでは次を使用する。
 メニューバーから開く。
 
 - `File`: ROMの登録・管理、ROM set作成
-- `Project`: Projectの新規作成、Open、Project Files／Assembly Workspace表示、Build & Load
+- `Project`: Projectの新規作成、Open、Assembly Workspace表示、Build & Load
 - `Program`: BASIC／マシン語の単発入出力、Quick Assemble
 - `Emulator`: Run／Pause／Step／ResetとRAM profile
 - `Debug`: Debugger、Debug Checkpoint
 
-プロジェクトを開くとProject Filesウィンドウが開き、ファイルツリーとBuild操作を表示する。CPU、Memory、
+プロジェクトを開くとメイン画面左側へファイルツリーとBuild操作を表示する。CPU、Memory、
 Disassembly、Traceは`Debug` → `Open Debugger`で開く独立Debuggerウィンドウへ表示する。
 
 ## 3. 機種を選ぶ
