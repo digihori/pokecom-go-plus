@@ -42,11 +42,11 @@
 ## Publication
 
 - [x] Versioned release-preparation commit is pushed to `main`
-- [ ] Annotated `v0.3.0-alpha.1` tag is created from the verified commit
-- [ ] Tag is pushed and the release workflow succeeds on macOS, Windows, Linux, and Android
-- [ ] GitHub prerelease contains every expected Studio and Player asset
-- [ ] Published Release Notes and asset names identify Technical Preview 0.3
-- [ ] Published checksums match downloaded assets
+- [x] Annotated `v0.3.0-alpha.1` tag is created from the verified commit
+- [x] Tag is pushed and the release workflow succeeds on macOS, Windows, Linux, and Android
+- [x] GitHub prerelease contains every expected Studio and Player asset
+- [x] Published Release Notes and asset names identify Technical Preview 0.3
+- [x] Published checksums match GitHub's SHA-256 digest metadata for every packaged asset
 
 The release workflow creates unsigned Desktop packages and a debug-signed Android APK. No ROM image is included
 in any package or test input. Do not create or push the release tag until the release-candidate checks above have
