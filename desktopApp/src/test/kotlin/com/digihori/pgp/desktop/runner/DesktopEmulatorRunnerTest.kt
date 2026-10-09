@@ -304,6 +304,28 @@ class DesktopEmulatorRunnerTest {
     }
 
     @Test
+    fun instructionTraceCapacityCanChangeAndTrimsTheOldestEntries() {
+        val session = FakeSession()
+        val clock = FakeClock()
+        val runner = DesktopEmulatorRunner(
+            session = session,
+            clock = clock,
+            planner = CycleBudgetPlanner(CycleBudgetPlanner.PC1245_CYCLES_PER_SECOND),
+            traceEntryProvider = { sequence -> traceEntry(sequence) },
+        )
+        runner.setInstructionTraceCapacity(16)
+        runner.setInstructionTraceEnabled(true)
+        runner.run()
+        clock.advance(1_000_000)
+        runner.tick()
+
+        assertEquals(16, runner.instructionTraceCapacity())
+        assertEquals(16, runner.instructionTrace().size)
+        assertEquals(56L, runner.instructionTrace().first().sequence)
+        assertEquals(71L, runner.instructionTrace().last().sequence)
+    }
+
+    @Test
     fun stopsAfterTheInstructionThatChangesWatchedMemory() {
         val session = FakeSession()
         val clock = FakeClock()

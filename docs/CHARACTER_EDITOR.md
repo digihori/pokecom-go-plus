@@ -17,7 +17,8 @@ Studioの`Tools > Character Editor`から開き、ROMや実行中のEmulator Ses
 出力変換として追加する。
 
 最小試作では、単一文字のドット編集、クリックとドラッグによる描画・消去、Clear、Invert、数値列との
-双方向変換、HEX表示、BASIC `DATA`、Assembler `DB`、クリップボードへのコピーを提供する。
+双方向変換を提供する。出力は`&NN`、10進数、`$NN`、`0xNN`の4行を選択可能なテキストとして表示し、
+必要な行または範囲を通常のコピー操作でクリップボードへコピーする。
 
 数値入力はカンマまたは空白区切りとし、10進数、`0xNN`、`&NN`を受け付ける。入力途中の不完全な値で
 編集中のパターンを失わないよう、`Apply to grid`が成功した場合だけグリッドへ反映する。
@@ -28,7 +29,7 @@ Studioの`Tools > Character Editor`から開き、ROMや実行中のEmulator Ses
 担当する。UI toolkit、ファイル、クリップボード、Emulator Sessionには依存しない。
 
 `desktopApp`はCompose state、グリッド描画、pointer座標変換、ドラッグ操作、入力エラー表示、
-クリップボード操作、独立ウィンドウを担当する。
+選択可能な出力表示、独立ウィンドウを担当する。
 
 幅、高さ、列／行優先、LSB／MSB方向は`DotPatternFormat`で定義する。新しい形式はこの定義と、必要なら
 機種固有の出力変換を追加し、グリッドUIへ機種別のbyte処理を埋め込まない。

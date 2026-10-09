@@ -104,6 +104,9 @@ DMG／MSI／DEBを生成する場合は、`jpackage`を含む完全なJDK 21が�
 
 ## ビルドとテスト
 
+公開ソースの取得、JDK設定、OS別ビルド、配布パッケージ生成、生成物の場所、典型的なエラーは
+[ソースからのビルド](docs/BUILDING.md)を正本とする。以下は日常的に使う起動・テスト手順の要約である。
+
 ### 起動前の準備
 
 PGPはROMイメージを同梱しない。利用者自身が正当に入手した、対象機種のROMイメージを用意する必要がある。
@@ -209,6 +212,8 @@ GitHubへpushした場合とPull Requestを更新した場合は、GitHub Action
 Linux上でCoreのDesktopテストとDesktopアプリのビルド・テストを実行する。CIにはROMを
 渡さず、再配布可能な合成データだけを使用する。
 
+ローカルでのDMG／MSI／DEB生成方法は[ソースからのビルド](docs/BUILDING.md)を参照する。
+
 Coreの共通テストだけを実行する場合：
 
 ```bash
@@ -273,8 +278,8 @@ Desktopアプリを起動する場合：
 - ROM Importerの操作ガイドと、バンクROMを持つ機種の一括選択UIは暫定実装である。
 - ROM経由のBASIC入力には実機同様の1行入力長制限がある。長い行にはTokenizer方式を使用する。
 - サウンド出力は初期実装で、プログラムによっては音の途切れや波形差が発生する可能性がある。
-  Windowsでは発音中のクリックノイズに加え、BASICをBREAKした後もアプリ終了までクリックノイズが
-  続く場合がある。Java Soundの出力ラインと無音バッファの停止条件を再設計する必要がある。
+  WindowsでBASICをBREAKした後もクリックノイズが続く問題に対し、無音遷移時にJava Soundの
+  出力ラインをflush／closeする修正を加えた。Windows実機での再確認は必要である。
 - PC-1245／1250の`0xb000..0xbfff`周辺のミラー仕様は再確認が必要である。
 - Pokecom GO PlayerはAndroid最小プロトタイプを実装中であり、iOS版と実行画面は未実装である。
 
@@ -288,6 +293,7 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 ## ドキュメント
 
 - [はじめに](docs/GETTING_STARTED.md)
+- [ソースからのビルド](docs/BUILDING.md)
 - [プロジェクト構想](docs/PGP_CONCEPT.md)
 - [アーキテクチャ](docs/ARCHITECTURE.md)
 - [Emulator Core公開API](docs/CORE_API.md)

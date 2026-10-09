@@ -5,16 +5,23 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.rememberScrollbarAdapter
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,7 +55,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
@@ -164,14 +173,17 @@ import com.digihori.pgp.desktop.runner.RunnerState
 import com.digihori.pgp.desktop.theme.LocalStudioComponentColors
 import com.digihori.pgp.desktop.theme.PgpStudioTheme
 import java.awt.FileDialog
+import java.awt.Desktop
 import java.awt.Frame
 import java.awt.EventQueue
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import java.io.File
+import java.net.URI
 import java.time.Instant
 import javax.swing.JFileChooser
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
@@ -180,11 +192,12 @@ fun main() {
     configureSkikoRenderApi()
     application {
         val keyboardInput = remember { DesktopKeyboardInput() }
+        val quitApplication = {
+            keyboardInput.attach(null)
+            exitApplication()
+        }
         Window(
-            onCloseRequest = {
-                keyboardInput.attach(null)
-                exitApplication()
-            },
+            onCloseRequest = quitApplication,
             onPreviewKeyEvent = keyboardInput::handle,
             title = ProjectInfo.STUDIO_DISPLAY_NAME,
         ) {
@@ -197,7 +210,7 @@ fun main() {
                 window.addWindowFocusListener(listener)
                 onDispose { window.removeWindowFocusListener(listener) }
             }
-            App(keyboardInput, window)
+            App(keyboardInput, window, quitApplication)
         }
     }
 }
@@ -230,7 +243,11 @@ private val SUPPORTED_RENDER_APIS = setOf(
 )
 
 @Composable
-private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindow: Frame) {
+private fun FrameWindowScope.App(
+    keyboardInput: DesktopKeyboardInput,
+    ownerWindow: Frame,
+    onQuit: () -> Unit,
+) {
     var runner by remember { mutableStateOf<DesktopEmulatorRunner?>(null) }
     var selectedMachineId by remember { mutableStateOf(MachineCatalog.defaultDefinition.id) }
     var runnerState by remember { mutableStateOf(RunnerState.PAUSED) }
@@ -287,6 +304,10 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
     var newProjectError by remember { mutableStateOf<String?>(null) }
     var requestProjectParentSelection by remember { mutableStateOf(false) }
     var machineMenuExpanded by remember { mutableStateOf(false) }
+    var showAboutWindow by remember { mutableStateOf(false) }
+    var showSettingsWindow by remember { mutableStateOf(false) }
+    var showHelpWindow by remember { mutableStateOf(false) }
+    var projectPaneWidth by remember { mutableStateOf(DEFAULT_PROJECT_PANE_WIDTH) }
     val audioPlayer = remember { DesktopAudioPlayer() }
     val romHistory = remember { DesktopRomHistory() }
     val romLibrary = remember { DesktopRomLibrary() }
@@ -1026,9 +1047,14 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
             val audio = activeRunner.audioSnapshot()
             requestedToneHz = audio.frequencyHz
             if (activeRunner.state == RunnerState.RUNNING) {
-                audioPlayer.write(activeRunner.drainAudioSamples()).onFailure {
+                audioPlayer.update(
+                    snapshot = activeRunner.drainAudioSamples(),
+                    toneActive = audio.frequencyHz > 0,
+                ).onFailure {
                     message = "Audio output unavailable: ${it.message ?: it::class.simpleName}"
                 }
+            } else {
+                audioPlayer.stop()
             }
             val status = tick.runResult?.status
             if (status is ExecutionStatus.Faulted) {
@@ -1044,6 +1070,7 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
         while (isActive) {
             delay(PROJECT_SCAN_DELAY_MILLISECONDS)
             val changes = runCatching { withContext(Dispatchers.IO) { tracker.scan() } }.getOrElse {
+                if (it is CancellationException) throw it
                 message = "Could not check project files: ${it.message ?: it::class.simpleName}"
                 continue
             }
@@ -1051,6 +1078,7 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
                 projectTree = runCatching {
                     withContext(Dispatchers.IO) { DesktopProjectTreeScanner.scan(workspace) }
                 }.getOrElse {
+                    if (it is CancellationException) throw it
                     message = "Could not refresh project tree: ${it.message ?: it::class.simpleName}"
                     projectTree
                 }
@@ -1114,6 +1142,16 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
     }
 
     MenuBar {
+        Menu(ProjectInfo.STUDIO_DISPLAY_NAME) {
+            Item(
+                "About ${ProjectInfo.STUDIO_DISPLAY_NAME}…",
+                enabled = !showAboutWindow,
+                onClick = { showAboutWindow = true },
+            )
+            Item("Settings…", enabled = !showSettingsWindow, onClick = { showSettingsWindow = true })
+            Separator()
+            Item("Quit ${ProjectInfo.STUDIO_DISPLAY_NAME}", onClick = onQuit)
+        }
         Menu("File") {
             Item("Register ROM…", onClick = { showRomManager = true })
             Item("Manage ROMs…", onClick = { showRomManager = true })
@@ -1182,6 +1220,29 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
             Item("Pause", enabled = runnerState == RunnerState.RUNNING, onClick = ::pauseEmulator)
             Item("Step", enabled = runner != null && runnerState == RunnerState.PAUSED, onClick = ::stepEmulator)
             Item("Reset", enabled = runner != null, onClick = ::resetEmulator)
+            Separator()
+            Item(
+                "Previous Command (Alt+↑)",
+                enabled = runner?.commandHistorySize()?.let { it > 0 } == true && operatingMode == OperatingMode.RUN,
+                onClick = {
+                    message = if (runner?.recallPreviousCommand() == true) {
+                        "Recalled the previous RUN-mode command."
+                    } else {
+                        "No RUN-mode command is available."
+                    }
+                },
+            )
+            Item(
+                "Next Command (Alt+↓)",
+                enabled = runner?.commandHistorySize()?.let { it > 0 } == true && operatingMode == OperatingMode.RUN,
+                onClick = {
+                    message = if (runner?.recallNextCommand() == true) {
+                        "Recalled the next RUN-mode command."
+                    } else {
+                        "No newer RUN-mode command is available."
+                    }
+                },
+            )
             if (MachineCatalog.require(runner?.machineId ?: selectedMachineId).supportsConfigurableRam) {
                 Separator()
                 Item(
@@ -1202,6 +1263,114 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
                 checkpointRangeError = null
                 showSaveCheckpointDialog = true
             })
+        }
+        Menu("Help") {
+            Item("Help Contents…", enabled = !showHelpWindow, onClick = { showHelpWindow = true })
+            Separator()
+            Item("Getting Started", onClick = {
+                openDocumentationUrl(GETTING_STARTED_URL)?.let { message = it }
+            })
+            Item("Keyboard and Command History", onClick = {
+                openDocumentationUrl(PROJECTS_HELP_URL)?.let { message = it }
+            })
+            Item("Debugger Guide", onClick = {
+                openDocumentationUrl(DEBUGGER_HELP_URL)?.let { message = it }
+            })
+            Separator()
+            Item("Pokecom GO Plus on GitHub", onClick = {
+                openDocumentationUrl(REPOSITORY_URL)?.let { message = it }
+            })
+        }
+    }
+
+    if (showAboutWindow) {
+        Window(
+            onCloseRequest = { showAboutWindow = false },
+            title = "About ${ProjectInfo.STUDIO_DISPLAY_NAME}",
+        ) {
+            PgpStudioTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+                    ) {
+                        SelectionContainer {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Text(ProjectInfo.STUDIO_DISPLAY_NAME, style = MaterialTheme.typography.headlineMedium)
+                                Text("Version ${ProjectInfo.VERSION}")
+                                Text("Pocket-computer development environment")
+                                Text("Copyright © 2026 Y Horiuchi", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        Button(onClick = {
+                            openDocumentationUrl(REPOSITORY_URL)?.let { message = it }
+                        }) { Text("Open GitHub") }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showSettingsWindow) {
+        Window(
+            onCloseRequest = { showSettingsWindow = false },
+            title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — Settings",
+        ) {
+            PgpStudioTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    StudioScrollableColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = 20.dp,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Text("Settings", style = MaterialTheme.typography.headlineSmall)
+                        SettingsSection("Appearance") {
+                            Text("Theme")
+                            Text("INSTRUMENT", fontFamily = FontFamily.Monospace)
+                            Text(
+                                "Additional theme presets can be added without changing individual screens.",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        SettingsSection("Keyboard input") {
+                            Text("Host characters use cycle-paced logical input.")
+                            Text("Command history: Alt+↑ / Alt+↓", fontFamily = FontFamily.Monospace)
+                        }
+                        Text(
+                            "This is the initial settings screen. Persistent options will be added as they are introduced.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (showHelpWindow) {
+        Window(
+            onCloseRequest = { showHelpWindow = false },
+            title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — Help",
+        ) {
+            PgpStudioTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    StudioScrollableColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = 20.dp,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text("Help", style = MaterialTheme.typography.headlineSmall)
+                        Text("The current documentation is maintained with the source repository.")
+                        HelpLink("Getting Started", GETTING_STARTED_URL, onMessage = { message = it })
+                        HelpLink("Keyboard and Command History", PROJECTS_HELP_URL, onMessage = { message = it })
+                        HelpLink("Debugger Guide", DEBUGGER_HELP_URL, onMessage = { message = it })
+                        HelpLink("GitHub Repository", REPOSITORY_URL, onMessage = { message = it })
+                    }
+                }
+            }
         }
     }
 
@@ -1247,44 +1416,67 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
         ) {
             PgpStudioTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    Column(
-                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                    StudioScrollableColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = 16.dp,
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        CpuRegisterPanel(cpu, changedCpuFields)
-                        debuggerStopReason?.let { Text("Debugger: ${it.displayName()}") }
-                        Button(
-                            enabled = runner != null && cpu != null,
-                            onClick = {
-                                checkpointRangeError = null
-                                showSaveCheckpointDialog = true
-                            },
-                        ) { Text("Save Debug Checkpoint") }
-                        DisassemblyPanel(
-                            runner = runner,
-                            snapshot = cpu,
-                            keyboardInput = keyboardInput,
-                            onSaveRange = {
-                                disassemblyStartAddress = (cpu?.programCounter ?: 0).hex(4)
-                                disassemblyEndAddress = ((cpu?.programCounter ?: 0) + 0xff)
-                                    .coerceAtMost(0xffff).hex(4)
-                                disassemblyRangeError = null
-                                showSaveDisassemblyDialog = true
-                            },
-                        )
-                        InstructionTracePanel(runner, executedCycles)
-                        MemoryMapPanel(
-                            regions = MachineCatalog.require(runner?.machineId ?: selectedMachineId).memoryRegions,
-                            onSelect = { memoryViewStartAddress = it.startAddress },
-                        )
-                        MemoryViewPanel(
-                            runner = runner,
-                            keyboardInput = keyboardInput,
-                            startAddress = memoryViewStartAddress,
-                            onStartAddressChange = { memoryViewStartAddress = it },
-                        )
-                        MemoryWatchPanel(runner, keyboardInput)
+                        SelectionContainer {
+                            DebuggerSection {
+                                CpuRegisterPanel(cpu, changedCpuFields)
+                                debuggerStopReason?.let { Text("Debugger: ${it.displayName()}") }
+                                Button(
+                                    enabled = runner != null && cpu != null,
+                                    onClick = {
+                                        checkpointRangeError = null
+                                        showSaveCheckpointDialog = true
+                                    },
+                                ) { Text("Save Debug Checkpoint") }
+                            }
+                        }
+                        DebuggerSection {
+                            SelectionContainer {
+                                DisassemblyPanel(
+                                    runner = runner,
+                                    snapshot = cpu,
+                                    keyboardInput = keyboardInput,
+                                    onSaveRange = {
+                                        disassemblyStartAddress = (cpu?.programCounter ?: 0).hex(4)
+                                        disassemblyEndAddress = ((cpu?.programCounter ?: 0) + 0xff)
+                                            .coerceAtMost(0xffff).hex(4)
+                                        disassemblyRangeError = null
+                                        showSaveDisassemblyDialog = true
+                                    },
+                                )
+                            }
+                        }
+                        DebuggerSection {
+                            SelectionContainer {
+                                InstructionTracePanel(runner, executedCycles, keyboardInput)
+                            }
+                        }
+                        DebuggerSection {
+                            SelectionContainer {
+                                MemoryMapPanel(
+                                    regions = MachineCatalog.require(
+                                        runner?.machineId ?: selectedMachineId,
+                                    ).memoryRegions,
+                                    onSelect = { memoryViewStartAddress = it.startAddress },
+                                )
+                            }
+                        }
+                        DebuggerSection {
+                            SelectionContainer {
+                                MemoryViewPanel(
+                                    runner = runner,
+                                    keyboardInput = keyboardInput,
+                                    startAddress = memoryViewStartAddress,
+                                    onStartAddressChange = { memoryViewStartAddress = it },
+                                )
+                            }
+                        }
+                        DebuggerSection { SelectionContainer { MemoryWatchPanel(runner, keyboardInput) } }
                     }
                 }
             }
@@ -1299,10 +1491,12 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
         ) {
             PgpStudioTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    Column(
-                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
+                    SelectionContainer {
+                        StudioScrollableColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = 16.dp,
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
                         val workspace = projectWorkspace
                         if (workspace == null) {
                             Text("No project is open.")
@@ -1401,6 +1595,7 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
                                 AssemblyPreviewSection("Symbol Map", assemblyPreview.renderMap())
                             }
                         }
+                        }
                     }
                 }
             }
@@ -1467,34 +1662,71 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
                     }
                     Text("ROM: ${if (runner?.machineId in installedRomMachines) "registered" else loadedRomName ?: "not loaded"}")
                     projectWorkspace?.let { Text("Project: ${it.definition.name}") }
+                    Spacer(modifier = Modifier.weight(1f))
+                    Button(
+                        enabled = runner != null && runnerState != RunnerState.FAULTED,
+                        onClick = {
+                            if (runnerState == RunnerState.RUNNING) pauseEmulator() else runEmulator()
+                        },
+                    ) { Text(if (runnerState == RunnerState.RUNNING) "Pause" else "Run") }
+                    Button(enabled = runner != null, onClick = ::resetEmulator) { Text("Reset") }
+                    Button(
+                        enabled = runner != null && runnerState == RunnerState.PAUSED,
+                        onClick = ::stepEmulator,
+                    ) { Text("Step") }
+                    val activeDefinition = MachineCatalog.require(runner?.machineId ?: selectedMachineId)
+                    if (activeDefinition.family == MachineFamily.PC_1245 ||
+                        activeDefinition.family == MachineFamily.PC_1251
+                    ) {
+                        Button(
+                            enabled = runner != null && operatingMode != OperatingMode.RUN,
+                            onClick = { setMode(OperatingMode.RUN) },
+                        ) { Text("RUN") }
+                        Button(
+                            enabled = runner != null && operatingMode != OperatingMode.PROGRAM,
+                            onClick = { setMode(OperatingMode.PROGRAM) },
+                        ) { Text("PRO") }
+                    }
+                    if (activeDefinition.family == MachineFamily.PC_1251) {
+                        Button(
+                            enabled = runner != null && operatingMode != OperatingMode.RESERVE,
+                            onClick = { setMode(OperatingMode.RESERVE) },
+                        ) { Text("RSV") }
+                    }
                 }
 
                 Row(
                     modifier = Modifier.fillMaxWidth().weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.width(260.dp).fillMaxHeight(),
+                        modifier = Modifier.width(projectPaneWidth).fillMaxHeight(),
                     ) {
-                        Column(
-                            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
+                        StudioScrollableColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = 12.dp,
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Text("Project", style = MaterialTheme.typography.titleMedium)
-                            projectWorkspace?.let { workspace ->
-                                Text(workspace.definition.name, style = MaterialTheme.typography.titleSmall)
-                                Text(
-                                    "${workspace.definition.machineId.displayName()}  •  " +
-                                        projectRuntimeStatus.displayName,
-                                    style = MaterialTheme.typography.labelMedium,
-                                )
-                                if (changedProjectSources.isNotEmpty()) {
-                                    Text(
-                                        "Changed: ${changedProjectSources.joinToString()}",
-                                        style = MaterialTheme.typography.labelMedium,
-                                    )
+                            SelectionContainer {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("Project", style = MaterialTheme.typography.titleMedium)
+                                    projectWorkspace?.let { workspace ->
+                                        Text(workspace.definition.name, style = MaterialTheme.typography.titleSmall)
+                                        Text(
+                                            "${workspace.definition.machineId.displayName()}  •  " +
+                                                projectRuntimeStatus.displayName,
+                                            style = MaterialTheme.typography.labelMedium,
+                                        )
+                                        if (changedProjectSources.isNotEmpty()) {
+                                            Text(
+                                                "Changed: ${changedProjectSources.joinToString()}",
+                                                style = MaterialTheme.typography.labelMedium,
+                                            )
+                                        }
+                                    } ?: Text("No project is open.")
                                 }
+                            }
+                            projectWorkspace?.let {
                                 Button(
                                     enabled = runner != null && runnerState != RunnerState.FAULTED,
                                     onClick = ::buildProject,
@@ -1508,52 +1740,42 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
                                     onClick = { showAssemblyWorkspace = true },
                                     modifier = Modifier.fillMaxWidth(),
                                 ) { Text("Assembly Workspace", maxLines = 1, softWrap = false) }
-                                projectTree?.let { ProjectTreePanel(it) }
-                            } ?: Text("No project is open.")
+                                SelectionContainer {
+                                    projectTree?.let { tree -> ProjectTreePanel(tree) }
+                                        ?: Text("Project files are loading…")
+                                }
+                            }
                         }
                     }
 
-                    Column(
-                        modifier = Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
+                    val density = LocalDensity.current
+                    Box(
+                        modifier = Modifier
+                            .width(PROJECT_PANE_RESIZE_HANDLE_WIDTH)
+                            .fillMaxHeight()
+                            .pointerInput(density) {
+                                detectDragGestures { change, dragAmount ->
+                                    change.consume()
+                                    val delta = with(density) { dragAmount.x.toDp() }
+                                    projectPaneWidth = (projectPaneWidth + delta).coerceIn(
+                                        MIN_PROJECT_PANE_WIDTH,
+                                        MAX_PROJECT_PANE_WIDTH,
+                                    )
+                                }
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.width(1.dp).fillMaxHeight(),
+                        ) {}
+                    }
+
+                    StudioScrollableColumn(
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Button(
-                                enabled = runner != null && runnerState != RunnerState.FAULTED,
-                                onClick = {
-                                    if (runnerState == RunnerState.RUNNING) pauseEmulator() else runEmulator()
-                                },
-                            ) { Text(if (runnerState == RunnerState.RUNNING) "Pause" else "Run") }
-                            Button(enabled = runner != null, onClick = ::resetEmulator) { Text("Reset") }
-                            Button(
-                                enabled = runner != null && runnerState == RunnerState.PAUSED,
-                                onClick = ::stepEmulator,
-                            ) { Text("Step") }
-                            val activeDefinition = MachineCatalog.require(runner?.machineId ?: selectedMachineId)
-                            if (activeDefinition.family == MachineFamily.PC_1245 ||
-                                activeDefinition.family == MachineFamily.PC_1251
-                            ) {
-                                Button(
-                                    enabled = runner != null && operatingMode != OperatingMode.RUN,
-                                    onClick = { setMode(OperatingMode.RUN) },
-                                ) { Text("RUN") }
-                                Button(
-                                    enabled = runner != null && operatingMode != OperatingMode.PROGRAM,
-                                    onClick = { setMode(OperatingMode.PROGRAM) },
-                                ) { Text("PRO") }
-                            }
-                            if (activeDefinition.family == MachineFamily.PC_1251) {
-                                Button(
-                                    enabled = runner != null && operatingMode != OperatingMode.RESERVE,
-                                    onClick = { setMode(OperatingMode.RESERVE) },
-                                ) { Text("RSV") }
-                            }
-                        }
-
                         PocketLcdPanel(display)
                         PocketSoftwareKeyboard(
                             runner,
@@ -1566,10 +1788,10 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                        Text(message)
-                        Text(
-                            buildString {
+                    SelectionContainer {
+                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                            Text(message)
+                            Text(buildString {
                                 append("${runnerState.name}  •  $executedCycles cycles")
                                 if (requestedToneHz != 0) append("  •  $requestedToneHz Hz")
                                 projectWorkspace?.let {
@@ -1577,9 +1799,8 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
                                     if (changedProjectSources.isNotEmpty()) append("  •  Source changed")
                                 }
                                 debuggerStopReason?.let { append("  •  ${it.displayName()}") }
-                            },
-                            style = MaterialTheme.typography.labelMedium,
-                        )
+                            }, style = MaterialTheme.typography.labelMedium)
+                        }
                     }
                 }
 
@@ -1591,8 +1812,8 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
                 onDismissRequest = { showRomManager = false },
                 title = { Text("ROM Library") },
                 text = {
-                    Column(
-                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                    StudioScrollableColumn(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text("Registered ROMs are copied into the application data folder and remain available when the original files are moved or deleted.")
@@ -1958,25 +2179,32 @@ private fun FrameWindowScope.App(keyboardInput: DesktopKeyboardInput, ownerWindo
 
 @Composable
 private fun CpuRegisterPanel(snapshot: CpuSnapshot?, changedFields: Set<CpuField>) {
-    val firstLine = if (snapshot == null) {
-        "PC=----  CUR=----  OP=--  DP=----  P=--  Q=--  R=--  D=--"
+    val ram = snapshot?.copyInternalRam()
+    fun register(index: Int): String = ram?.getOrNull(index)?.toInt()?.and(0xff)?.hex(2) ?: "--"
+    val lines = if (snapshot == null) {
+        listOf(
+            "PC=----  CURRENT_PC=----  OP=--  DP=----  P=--  Q=--  R=--  Z=-  C=-",
+            "I=--  J=--  A=--  B=--  XL=--  XH=--  YL=--  YH=--",
+            "K=--  L=--  M=--  N=--  IA=--  IB=--  FO=--  OUTC=--",
+        )
     } else {
-        "PC=${snapshot.programCounter.hex(4)}  CUR=${snapshot.currentProgramCounter.hex(4)}  " +
-            "OP=${snapshot.opcode.hex(2)}  DP=${snapshot.dataPointer.hex(4)}  " +
-            "P=${snapshot.p.hex(2)}  Q=${snapshot.q.hex(2)}  R=${snapshot.r.hex(2)}  D=${snapshot.d.hex(2)}"
-    }
-    val secondLine = if (snapshot == null) {
-        "ALU=----  C=-  Z=-  IA=--  IB=--  FO=--  CTRL=--  TEST=--"
-    } else {
-        "ALU=${snapshot.alu.hex(4)}  C=${snapshot.carry.bit()}  Z=${snapshot.zero.bit()}  " +
-            "IA=${snapshot.ia.hex(2)}  IB=${snapshot.ib.hex(2)}  FO=${snapshot.fo.hex(2)}  " +
-            "CTRL=${snapshot.control.hex(2)}  TEST=${snapshot.testPort.hex(2)}"
+        listOf(
+            "PC=${snapshot.programCounter.hex(4)}  CURRENT_PC=${snapshot.currentProgramCounter.hex(4)}  " +
+                "OP=${snapshot.opcode.hex(2)}  DP=${snapshot.dataPointer.hex(4)}  " +
+                "P=${snapshot.p.hex(2)}  Q=${snapshot.q.hex(2)}  R=${snapshot.r.hex(2)}  " +
+                "Z=${snapshot.zero.bit()}  C=${snapshot.carry.bit()}",
+            "I=${register(0x00)}  J=${register(0x01)}  A=${register(0x02)}  B=${register(0x03)}  " +
+                "XL=${register(0x04)}  XH=${register(0x05)}  " +
+                "YL=${register(0x06)}  YH=${register(0x07)}",
+            "K=${register(0x08)}  L=${register(0x09)}  M=${register(0x0a)}  N=${register(0x0b)}  " +
+                "IA=${snapshot.ia.hex(2)}  IB=${snapshot.ib.hex(2)}  " +
+                "FO=${snapshot.fo.hex(2)}  OUTC=${snapshot.control.hex(2)}",
+        )
     }
 
     Column(horizontalAlignment = Alignment.Start) {
         Text("CPU", style = MaterialTheme.typography.labelLarge)
-        Text(firstLine, fontFamily = FontFamily.Monospace)
-        Text(secondLine, fontFamily = FontFamily.Monospace)
+        lines.forEach { Text(it, fontFamily = FontFamily.Monospace) }
         if (changedFields.isNotEmpty()) {
             Text(
                 "Changed: ${changedFields.joinToString { it.displayName }}",
@@ -2167,9 +2395,14 @@ private fun MemoryViewPanel(
 private fun InstructionTracePanel(
     runner: DesktopEmulatorRunner?,
     executionRevision: Long,
+    keyboardInput: DesktopKeyboardInput,
 ) {
     var enabled by remember(runner) { mutableStateOf(runner?.isInstructionTraceEnabled() == true) }
     var localRevision by remember(runner) { mutableStateOf(0) }
+    var capacityText by remember(runner) {
+        mutableStateOf((runner?.instructionTraceCapacity() ?: DesktopEmulatorRunner.DEFAULT_INSTRUCTION_TRACE_CAPACITY).toString())
+    }
+    var capacityError by remember(runner) { mutableStateOf(false) }
     val entries = remember(runner, executionRevision, localRevision) {
         runner?.instructionTrace().orEmpty().takeLast(INSTRUCTION_TRACE_VISIBLE_LINES).asReversed()
     }
@@ -2198,7 +2431,37 @@ private fun InstructionTracePanel(
                     localRevision++
                 },
             ) { Text("Clear") }
-            Text("${runner?.instructionTrace()?.size ?: 0}/256 instructions")
+            OutlinedTextField(
+                value = capacityText,
+                onValueChange = {
+                    capacityText = it.filter(Char::isDigit)
+                    capacityError = false
+                },
+                label = { Text("Capacity") },
+                isError = capacityError,
+                singleLine = true,
+                modifier = Modifier.width(120.dp).onFocusChanged { keyboardInput.setEnabled(!it.isFocused) },
+            )
+            Button(
+                enabled = runner != null,
+                onClick = {
+                    val capacity = capacityText.toIntOrNull()
+                    if (capacity == null || capacity !in
+                        DesktopEmulatorRunner.MIN_INSTRUCTION_TRACE_CAPACITY..
+                            DesktopEmulatorRunner.MAX_INSTRUCTION_TRACE_CAPACITY
+                    ) {
+                        capacityError = true
+                    } else {
+                        runner?.setInstructionTraceCapacity(capacity)
+                        localRevision++
+                    }
+                },
+            ) { Text("Apply") }
+            Text(
+                "${runner?.instructionTrace()?.size ?: 0}/" +
+                    "${runner?.instructionTraceCapacity() ?: DesktopEmulatorRunner.DEFAULT_INSTRUCTION_TRACE_CAPACITY} " +
+                    "instructions",
+            )
         }
         when {
             !enabled && entries.isEmpty() -> Text("Tracing is disabled.", fontFamily = FontFamily.Monospace)
@@ -2361,7 +2624,7 @@ private val MachineMemoryRegionKind.displayName: String
 
 private val CpuField.displayName: String
     get() = when (this) {
-        CpuField.CURRENT_PC -> "CUR"
+        CpuField.CURRENT_PC -> "CURRENT_PC"
         CpuField.OPCODE -> "OP"
         CpuField.CARRY -> "C"
         CpuField.ZERO -> "Z"
@@ -2767,6 +3030,81 @@ private fun selectFile(
 }
 
 @Composable
+private fun StudioScrollableColumn(
+    modifier: Modifier = Modifier,
+    contentPadding: androidx.compose.ui.unit.Dp = 0.dp,
+    horizontalAlignment: Alignment.Horizontal = Alignment.Start,
+    verticalArrangement: Arrangement.Vertical = Arrangement.Top,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val scrollState = rememberScrollState()
+    Box(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(end = SCROLLBAR_CONTENT_GUTTER)
+                .padding(contentPadding),
+            horizontalAlignment = horizontalAlignment,
+            verticalArrangement = verticalArrangement,
+            content = content,
+        )
+        VerticalScrollbar(
+            adapter = rememberScrollbarAdapter(scrollState),
+            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+        )
+    }
+}
+
+@Composable
+private fun DebuggerSection(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().widthIn(max = 960.dp),
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun SettingsSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().widthIn(max = 720.dp),
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            SelectionContainer { Column(content = content) }
+        }
+    }
+}
+
+@Composable
+private fun HelpLink(label: String, url: String, onMessage: (String) -> Unit) {
+    Button(onClick = { openDocumentationUrl(url)?.let(onMessage) }) { Text(label) }
+}
+
+private fun openDocumentationUrl(url: String): String? = runCatching {
+    check(Desktop.isDesktopSupported()) { "Opening web links is not supported on this system." }
+    val desktop = Desktop.getDesktop()
+    check(desktop.isSupported(Desktop.Action.BROWSE)) { "No web browser is available." }
+    desktop.browse(URI(url))
+}.exceptionOrNull()?.let { "Could not open documentation: ${it.message ?: it::class.simpleName}" }
+
+@Composable
 private fun OldWavToolPanel(
     filename: String,
     onFilenameChange: (String) -> Unit,
@@ -2777,12 +3115,17 @@ private fun OldWavToolPanel(
     onEncodeBinary: () -> Unit,
     onDecode: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+    StudioScrollableColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = 20.dp,
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("OLD WAV Encoder / Decoder", style = MaterialTheme.typography.titleLarge)
-        Text("PC-1245 / PC-1250 / PC-1251 / PC-1255 OLD transfer format")
+        SelectionContainer {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("OLD WAV Encoder / Decoder", style = MaterialTheme.typography.titleLarge)
+                Text("PC-1245 / PC-1250 / PC-1251 / PC-1255 OLD transfer format")
+            }
+        }
         OutlinedTextField(
             value = filename,
             onValueChange = onFilenameChange,
@@ -2799,7 +3142,7 @@ private fun OldWavToolPanel(
         Button(onClick = onEncodeBinary) { Text("Encode memory dump…") }
         Text("Decode", style = MaterialTheme.typography.titleMedium)
         Button(onClick = onDecode) { Text("Decode WAV…") }
-        Text(status)
+        SelectionContainer { Text(status) }
     }
 }
 
@@ -2873,7 +3216,15 @@ private fun ProjectTreePanel(tree: DesktopProjectTreeSnapshot) {
 @Composable
 private fun ProjectTreeGroup(name: String, paths: List<String>) {
     Text("$name (${paths.size})")
-    paths.forEach { path -> Text("  $path", fontFamily = FontFamily.Monospace) }
+    paths.forEach { path ->
+        Text(
+            "  $path",
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
+        )
+    }
 }
 
 @Composable
@@ -3035,13 +3386,22 @@ private const val CPU_REFRESH_FRAME_INTERVAL: Int = 6
 private const val DISASSEMBLY_LINE_COUNT: Int = 10
 private const val DISASSEMBLY_BYTE_COLUMN_WIDTH: Int = 11
 private const val DEFAULT_MEMORY_VIEW_ADDRESS: Int = 0xc000
-private const val MEMORY_VIEW_LINE_COUNT: Int = 8
+private const val MEMORY_VIEW_LINE_COUNT: Int = 16
 private const val MEMORY_VIEW_PAGE_SIZE: Int =
     DesktopMemoryViewModel.BYTES_PER_LINE * MEMORY_VIEW_LINE_COUNT
 private const val INSTRUCTION_TRACE_VISIBLE_LINES: Int = 32
 private const val LCD_DOT_INSET_RATIO: Float = 0.14f
 private const val LCD_PANEL_ASPECT_RATIO: Float = 95f / 11f
 private const val SOFTWARE_KEY_ANIMATION_MILLISECONDS: Int = 70
+private val DEFAULT_PROJECT_PANE_WIDTH = 260.dp
+private val MIN_PROJECT_PANE_WIDTH = 220.dp
+private val MAX_PROJECT_PANE_WIDTH = 520.dp
+private val PROJECT_PANE_RESIZE_HANDLE_WIDTH = 12.dp
+private val SCROLLBAR_CONTENT_GUTTER = 10.dp
+private const val REPOSITORY_URL: String = "https://github.com/digihori/pokecom-go-plus"
+private const val GETTING_STARTED_URL: String = "$REPOSITORY_URL/blob/main/docs/GETTING_STARTED.md"
+private const val PROJECTS_HELP_URL: String = "$REPOSITORY_URL/blob/main/docs/PROJECTS.md#command-history"
+private const val DEBUGGER_HELP_URL: String = "$REPOSITORY_URL/blob/main/docs/DEBUGGER.md"
 
 private fun Int.hex(width: Int): String = (this and if (width == 2) 0xff else 0xffff)
     .toString(16)

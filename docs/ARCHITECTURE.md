@@ -675,8 +675,9 @@ Studio層が担当するものは次の通り。
 
 現在のウィンドウ構成は次の責務分離を採用する。
 
-- メインウィンドウ: 左側のProjectツリー、機種選択、LCD、機種別キーボード、Run／Pause／Reset／Step、動作モード、状態通知
-- ネイティブメニューバー: File／Project／Program／Emulator／Debug操作
+- メインウィンドウ: 幅を変更できる左側のProjectツリー、上段の機種・実行操作、LCD、機種別キーボード、動作モード、状態通知
+- ネイティブメニューバー: Pokecom GO Studio／File／Project／Program／Tools／Emulator／Debug／Help
+- About／Settings／Help: 独立ウィンドウ。HelpからGitHub上の現行ドキュメントを開く
 - ROM Libraryダイアログ: 機種別ROMの登録、置換、削除、検証状態
 - Debuggerウィンドウ: CPU、Disassembly、Memory、Watch、Trace、Checkpoint
 - Assembly Workspace: Sources／生成物、Diagnostics、Memory／Disassembly Preview、Listing／Map

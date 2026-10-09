@@ -45,6 +45,20 @@ class DesktopAudioPlayerTest {
         assertTrue(failing.write(AudioPcmSnapshot(22_050, shortArrayOf(1))).isFailure)
     }
 
+    @Test
+    fun closesTheAudioLineAsSoonAsTheToneBecomesInactive() {
+        val factory = FakeSinkFactory()
+        val player = DesktopAudioPlayer(factory)
+
+        player.update(AudioPcmSnapshot(22_050, shortArrayOf(1, 2)), toneActive = true).getOrThrow()
+        player.update(AudioPcmSnapshot(22_050, shortArrayOf(3)), toneActive = false).getOrThrow()
+        player.update(AudioPcmSnapshot(22_050, shortArrayOf()), toneActive = false).getOrThrow()
+
+        assertEquals(1, factory.sinks.size)
+        assertTrue(factory.sinks.single().closed)
+        assertEquals(1, factory.sinks.single().writes.size)
+    }
+
     private class FakeSinkFactory : PcmSinkFactory {
         val sampleRates = mutableListOf<Int>()
         val sinks = mutableListOf<FakeSink>()

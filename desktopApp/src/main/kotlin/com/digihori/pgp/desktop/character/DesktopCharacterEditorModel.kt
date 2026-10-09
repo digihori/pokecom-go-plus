@@ -40,6 +40,18 @@ internal data class DesktopCharacterEditorModel(
     val assemblerOutput: String
         get() = DotPatternTextCodec.assemblerDb(encodedBytes())
 
+    val ampersandHexOutput: String
+        get() = encodedBytes().joinToString(",") { "&${it.unsignedHex()}" }
+
+    val decimalOutput: String
+        get() = encodedBytes().joinToString(",") { (it.toInt() and 0xff).toString() }
+
+    val dollarHexOutput: String
+        get() = encodedBytes().joinToString(",") { "$${it.unsignedHex()}" }
+
+    val prefixedHexOutput: String
+        get() = encodedBytes().joinToString(",") { "0x${it.unsignedHex()}" }
+
     private fun withPattern(value: DotPattern): DesktopCharacterEditorModel = copy(
         pattern = value,
         byteText = DotPatternTextCodec.hexBytes(DotPatternCodec.encode(value, format)),
@@ -48,6 +60,8 @@ internal data class DesktopCharacterEditorModel(
 
     private fun encodedBytes(): ByteArray = DotPatternCodec.encode(pattern, format)
 }
+
+private fun Byte.unsignedHex(): String = (toInt() and 0xff).toString(16).uppercase().padStart(2, '0')
 
 internal object CharacterGridGeometry {
     fun cellAt(x: Float, y: Float, width: Float, height: Float, columns: Int, rows: Int): Pair<Int, Int>? {

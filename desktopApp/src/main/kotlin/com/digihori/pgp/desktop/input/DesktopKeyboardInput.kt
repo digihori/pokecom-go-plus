@@ -91,15 +91,20 @@ internal class DesktopKeyboardInput {
                     .takeIf { it in Char.MIN_VALUE.code..Char.MAX_VALUE.code }
                     ?.toChar()
                 val sequence = character?.let { activeSink.keySequence(it) }
-                val directKey = DesktopKeyMapper.map(key)
-                if (directKey != null && (sequence == null || sequence == listOf(directKey))) {
-                    activeInputs[physicalKey] = ActiveInput.Direct(directKey)
-                    activeSink.pressKey(directKey)
-                    return true
-                }
                 if (sequence != null) {
                     activeInputs[physicalKey] = ActiveInput.QueuedCharacter
                     activeSink.enqueueUserKeySequence(sequence)
+                    return true
+                }
+                val directKey = DesktopKeyMapper.map(key)
+                if (directKey == PocketKey.ENTER) {
+                    activeInputs[physicalKey] = ActiveInput.QueuedCharacter
+                    activeSink.enqueueUserKeySequence(listOf(PocketKey.ENTER))
+                    return true
+                }
+                if (directKey != null) {
+                    activeInputs[physicalKey] = ActiveInput.Direct(directKey)
+                    activeSink.pressKey(directKey)
                     return true
                 }
                 false

@@ -24,7 +24,7 @@ DebuggerはCPUやMemory Busの可変内部状態をUIへ直接公開しない。
 - 読み取り専用Memory View
 - 値の変化を検出するMemory Change Watch
 - CPUのRead／Writeを検出するMemory Access Watch
-- 最大256命令のInstruction Trace
+- 既定256命令、UIで容量変更可能なInstruction Trace
 - CPU、選択メモリ、Traceを含むDebug Checkpoint JSON出力
 - PC-1360の命令実行位置に対応する物理ROM component、bank、offsetの記録
 
@@ -53,13 +53,9 @@ BreakpointはDisassemblyのアドレス行から追加／解除する。複数�
 
 ## 4. CPU状態
 
-CPUパネルは次の値を表示する。
-
-- PC、現在命令PC、opcode、DP
-- P、Q、R、D
-- ALU、Carry、Zero
-- IA、IB、FO、Control、Test port
-- 内部RAM
+CPUパネルは`PC`と`CURRENT_PC`、`OP`、`DP`、`P`、`Q`、`R`、`Z`、`C`、
+内部RAM先頭の`I`、`J`、`A`、`B`、`XL`、`XH`、`YL`、`YH`、`K`、`L`、`M`、`N`、
+および`IA`、`IB`、`FO`、`OUTC`を表示する。
 
 Step時は直前と直後の`CpuSnapshot`を比較し、変更された項目を表示する。これは値の表示差分であり、
 レジスタへのアクセス履歴ではない。
@@ -85,7 +81,7 @@ Disassemblyは指定された論理アドレスからSC61860命令を順にdecod
 Memory MapはMachine Definitionに登録されたROM、RAM、VRAM、mirror領域を表示する。領域を選択すると
 Memory Viewがその開始アドレスへ移動する。
 
-Memory Viewは1行16byteをHEXとASCIIで表示する。アドレスは16-bit空間内で折り返す。現状は読み取り専用で、
+Memory Viewは1行16byte、16行をHEXとASCIIで表示する。アドレスは16-bit空間内で折り返す。現状は読み取り専用で、
 メモリ編集UIは持たない。マシン語イメージのロード可否はDebuggerではなく各Emulator Sessionのメモリ規則に
 従う。
 
@@ -117,7 +113,7 @@ Access Watchを使用する。
 Instruction Traceは明示的に有効化した場合だけ記録する。有効時は高速なまとめ実行ではなく命令単位で
 Sessionを進めるため、通常実行より負荷が高い。
 
-- 最大256命令のring buffer
+- 既定256命令のring buffer。16から65536命令までUIで変更できる
 - 容量超過時は最古の命令を破棄
 - resetまたは明示的なClearで消去
 - sequence、論理アドレス、命令byte、Disassemblyを保持
@@ -161,7 +157,7 @@ FO経由のRAM bank処理およびPC-1360K固有の漢字ROM構成は、仕様�
 
 ## 11. 現在の制約
 
-- Debugger UIは単一の縦スクロール構成で、複数情報の同時比較が難しい
+- Debugger UIはセクション枠付きの単一縦スクロール構成で、複数情報の同時比較には限界がある
 - Memory Viewから直接値を編集できない
 - 条件付きBreakpointは未実装
 - Breakpoint、Watch、Trace設定は永続化しない

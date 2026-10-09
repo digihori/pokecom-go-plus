@@ -71,6 +71,7 @@ internal class DesktopEmulatorRunner(
     private var breakpointToSkipOnce: Int? = null
     private var temporaryRunToAddress: Int? = null
     private var instructionTraceEnabled: Boolean = false
+    private var instructionTraceCapacity: Int = DEFAULT_INSTRUCTION_TRACE_CAPACITY
     private val instructionTrace: ArrayDeque<DesktopInstructionTraceEntry> = ArrayDeque()
     private var nextTraceSequence: Long = 0
     private var memoryWatchRange: IntRange? = null
@@ -135,6 +136,14 @@ internal class DesktopEmulatorRunner(
     fun isInstructionTraceEnabled(): Boolean = instructionTraceEnabled
 
     fun instructionTrace(): List<DesktopInstructionTraceEntry> = instructionTrace.toList()
+
+    fun instructionTraceCapacity(): Int = instructionTraceCapacity
+
+    fun setInstructionTraceCapacity(capacity: Int) {
+        require(capacity in MIN_INSTRUCTION_TRACE_CAPACITY..MAX_INSTRUCTION_TRACE_CAPACITY)
+        instructionTraceCapacity = capacity
+        while (instructionTrace.size > capacity) instructionTrace.removeFirst()
+    }
 
     fun clearInstructionTrace() {
         instructionTrace.clear()
@@ -449,7 +458,7 @@ internal class DesktopEmulatorRunner(
     private fun stepSession(): StepResult {
         if (instructionTraceEnabled) {
             val entry = traceEntryProvider?.invoke(nextTraceSequence) ?: captureTraceEntry(nextTraceSequence)
-            if (instructionTrace.size == INSTRUCTION_TRACE_CAPACITY) instructionTrace.removeFirst()
+            if (instructionTrace.size == instructionTraceCapacity) instructionTrace.removeFirst()
             instructionTrace.addLast(entry)
             nextTraceSequence++
         }
@@ -535,7 +544,9 @@ internal class DesktopEmulatorRunner(
         }
 
         const val BASIC_LINE_SETTLE_CYCLES: Long = 57_600 // 200 ms after ENTER.
-        const val INSTRUCTION_TRACE_CAPACITY: Int = 256
+        const val DEFAULT_INSTRUCTION_TRACE_CAPACITY: Int = 256
+        const val MIN_INSTRUCTION_TRACE_CAPACITY: Int = 16
+        const val MAX_INSTRUCTION_TRACE_CAPACITY: Int = 65_536
         const val MAX_MEMORY_WATCH_BYTES: Int = 4_096
     }
 }

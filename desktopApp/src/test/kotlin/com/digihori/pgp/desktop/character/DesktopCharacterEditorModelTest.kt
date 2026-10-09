@@ -18,6 +18,10 @@ class DesktopCharacterEditorModelTest {
         assertEquals("0x01, 0x00, 0x00, 0x00, 0x40", model.byteText)
         assertEquals("DATA 1, 0, 0, 0, 64", model.basicOutput)
         assertEquals("DB 0x01, 0x00, 0x00, 0x00, 0x40", model.assemblerOutput)
+        assertEquals("&01,&00,&00,&00,&40", model.ampersandHexOutput)
+        assertEquals("1,0,0,0,64", model.decimalOutput)
+        assertEquals("$01,$00,$00,$00,$40", model.dollarHexOutput)
+        assertEquals("0x01,0x00,0x00,0x00,0x40", model.prefixedHexOutput)
     }
 
     @Test
