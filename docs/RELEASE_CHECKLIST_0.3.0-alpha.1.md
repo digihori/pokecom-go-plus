@@ -20,7 +20,7 @@
 - [ ] Windows Studio package is smoke-tested, including confirmation that audio stops cleanly after program exit
 - [ ] Linux Studio package receives a current launch and basic-operation smoke test
 - [ ] Android Player APK is installed and smoke-tested with ROM import, restart restoration, LCD, keys, and modes
-- [ ] GitHub Actions CI succeeds for the release-candidate commit, including the Android Player job
+- [x] GitHub Actions CI succeeds for the release-candidate commit, including the Android Player job
 - [ ] Manually dispatched release workflow produces every expected artifact without publishing a Release
 
 ## Expected release assets
@@ -40,7 +40,7 @@
 
 ## Publication
 
-- [ ] Versioned release-preparation commit is pushed to `main`
+- [x] Versioned release-preparation commit is pushed to `main`
 - [ ] Annotated `v0.3.0-alpha.1` tag is created from the verified commit
 - [ ] Tag is pushed and the release workflow succeeds on macOS, Windows, Linux, and Android
 - [ ] GitHub prerelease contains every expected Studio and Player asset
@@ -50,3 +50,6 @@
 The release workflow creates unsigned Desktop packages and a debug-signed Android APK. No ROM image is included
 in any package or test input. Do not create or push the release tag until the release-candidate checks above have
 been reviewed.
+
+Release candidate `59fb223` passed CI run 37892775437 on macOS, Windows, Linux, and the dedicated Android Player
+job on 2026-10-09.
