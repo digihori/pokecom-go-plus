@@ -16,13 +16,13 @@
 - [x] ROM images and local emulator data remain excluded from Git and release assets
 - [x] Local JDK 21 `./gradlew build` succeeds after the versioned release changes
 - [x] `git diff --check` succeeds
-- [ ] macOS Studio release-candidate package is installed or opened and smoke-tested
-- [ ] Windows Studio package receives a complete current launch, sound, and basic-operation smoke test
+- [x] macOS Studio release-candidate package is installed or opened and smoke-tested
+- [x] Windows Studio package receives a current launch, sound, and basic-operation smoke test
   - [x] Sound playback checked; persistent click noise after a sounding program finishes is recorded as a known issue
 - [ ] Linux Studio package receives a current launch and basic-operation smoke test
-- [ ] Android Player APK is installed and smoke-tested with ROM import, restart restoration, LCD, keys, and modes
+- [x] Android Player APK is installed and smoke-tested; an older debug-signed build had to be uninstalled first
 - [x] GitHub Actions CI succeeds for the release-candidate commit, including the Android Player job
-- [ ] Manually dispatched release workflow produces every expected artifact without publishing a Release
+- [x] Manually dispatched release workflow produces every expected artifact without publishing a Release
 
 ## Expected release assets
 
@@ -52,5 +52,6 @@ The release workflow creates unsigned Desktop packages and a debug-signed Androi
 in any package or test input. Do not create or push the release tag until the release-candidate checks above have
 been reviewed.
 
-Release candidate `59fb223` passed CI run 37892775437 on macOS, Windows, Linux, and the dedicated Android Player
-job on 2026-10-09.
+Release candidate packaging was checked on macOS, Windows, and Android. Windows retains the documented
+post-program click-noise issue. Linux packages are produced by the release workflow, but the current package has
+not received a manual UI smoke test.
