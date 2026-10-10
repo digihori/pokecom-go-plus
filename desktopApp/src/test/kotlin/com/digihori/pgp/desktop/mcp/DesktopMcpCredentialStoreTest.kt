@@ -48,11 +48,11 @@ class DesktopMcpCredentialStoreTest {
     fun resolvesPlatformSpecificLocations() {
         val home = "/Users/test"
         assertEquals(
-            "/Users/test/Library/Application Support/PokecomGOStudio/mcp-headers.json",
+            Path.of(home, "Library", "Application Support", "PokecomGOStudio", "mcp-headers.json"),
             PlatformDesktopMcpCredentialStore.resolveCredentialPath(
                 emptyMap(),
                 mapOf("user.home" to home, "os.name" to "Mac OS X"),
-            ).toString(),
+            ),
         )
         assertEquals(
             Path.of("C:\\Users\\test\\AppData\\Local", "PokecomGOStudio", "mcp-headers.json"),
@@ -62,11 +62,11 @@ class DesktopMcpCredentialStoreTest {
             ),
         )
         assertEquals(
-            "/run/user/1000/pokecom-go-studio/mcp-headers.json",
+            Path.of("/run/user/1000", "pokecom-go-studio", "mcp-headers.json"),
             PlatformDesktopMcpCredentialStore.resolveCredentialPath(
                 mapOf("XDG_RUNTIME_DIR" to "/run/user/1000"),
                 mapOf("user.home" to "/home/test", "os.name" to "Linux"),
-            ).toString(),
+            ),
         )
     }
 }
