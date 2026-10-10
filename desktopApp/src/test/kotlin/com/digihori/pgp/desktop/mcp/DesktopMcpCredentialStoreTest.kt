@@ -2,6 +2,9 @@ package com.digihori.pgp.desktop.mcp
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.attribute.AclEntryType
+import java.nio.file.attribute.AclFileAttributeView
+import java.nio.file.attribute.PosixFileAttributeView
 import java.nio.file.attribute.PosixFilePermissions
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -22,10 +25,17 @@ class DesktopMcpCredentialStoreTest {
         val authorization = Json.parseToJsonElement(Files.readString(location.path)).jsonObject
             .getValue("Authorization").jsonPrimitive.content
         assertEquals("Bearer first-token", authorization)
-        assertEquals(
-            PosixFilePermissions.fromString("rw-------"),
-            Files.getPosixFilePermissions(location.path),
-        )
+        val posix = Files.getFileAttributeView(location.path, PosixFileAttributeView::class.java)
+        if (posix != null) {
+            assertEquals(
+                PosixFilePermissions.fromString("rw-------"),
+                Files.getPosixFilePermissions(location.path),
+            )
+        } else {
+            val acl = requireNotNull(Files.getFileAttributeView(location.path, AclFileAttributeView::class.java))
+            assertTrue(acl.acl.isNotEmpty())
+            assertTrue(acl.acl.all { it.principal() == acl.owner && it.type() == AclEntryType.ALLOW })
+        }
         assertTrue(location.headerHelperCommand.contains(location.path.toString()))
 
         store.removeIfOwned("different-token")
