@@ -234,6 +234,11 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
   - [ ] Capability、Machine、ROM登録状態、Project、Diagnosticsを返すversion付きschemaを定義する
   - [ ] CPU、停止理由、bank、Disassembly、Memory Watch、Breakpoint、Trace、Symbol／Source MapをまとめたDebug Contextを定義する
   - [x] localhostだけでlistenし、起動ごとの短期トークンで接続する読み取り専用MCPサーバーを実装する
+  - [ ] Codex以外のMCPクライアントとの相互運用性を整備する
+    - [ ] Claude CodeからStreamable HTTP接続、認証、tool呼び出しをE2E確認する
+    - [ ] AI / MCP Server画面へClaude Code用設定のコピーと接続手順を追加する
+    - [ ] `http_headers_helper`を持たないクライアントでも、短期tokenを設定へ平文保存せず更新できる方式を検討する
+    - [ ] クライアント固有設定と、MCP共通のtool／schema／security境界を分離して文書化する
   - [ ] BASICプロジェクト作成、複数機種Build検証、Diagnostics解析を行うAI E2Eシナリオを追加する
   - [ ] `.dmp`／Memoryの静的解析、仮ラベル、制御フロー、Assembly Workspaceプレビューを行うAI E2Eシナリオを追加する
   - [ ] Breakpoint、Watch、Pause、Stepをツールごとの権限とStudio側承認付きで公開する

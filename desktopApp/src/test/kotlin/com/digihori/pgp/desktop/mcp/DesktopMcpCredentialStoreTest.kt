@@ -1,6 +1,7 @@
 package com.digihori.pgp.desktop.mcp
 
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermissions
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -44,11 +45,11 @@ class DesktopMcpCredentialStoreTest {
             ).toString(),
         )
         assertEquals(
-            "C:\\Users\\test\\AppData\\Local/PokecomGOStudio/mcp-headers.json",
+            Path.of("C:\\Users\\test\\AppData\\Local", "PokecomGOStudio", "mcp-headers.json"),
             PlatformDesktopMcpCredentialStore.resolveCredentialPath(
                 mapOf("LOCALAPPDATA" to "C:\\Users\\test\\AppData\\Local"),
                 mapOf("user.home" to "C:\\Users\\test", "os.name" to "Windows 11"),
-            ).toString(),
+            ),
         )
         assertEquals(
             "/run/user/1000/pokecom-go-studio/mcp-headers.json",
