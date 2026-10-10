@@ -297,16 +297,18 @@ internal class DesktopEmulatorRunner(
     fun resolveRomLocation(address: Int): PhysicalRomLocation? =
         session.resolveRomLocation(address and 0xffff)
 
-    override fun pressKey(key: PocketKey): InputResult = session.pressKey(key).also {
-        if (it is InputResult.Accepted) sessionRevision++
+    override fun pressKey(key: PocketKey): InputResult = session.pressKey(key).also { result ->
+        if (result is InputResult.Accepted) {
+            sessionRevision++
+            if (operatingMode == OperatingMode.RUN && key != PocketKey.DEF) {
+                commandHistory.recordUserKey(key)
+            }
+        }
     }
 
     override fun releaseKey(key: PocketKey): InputResult {
         val result = session.releaseKey(key)
         if (result is InputResult.Accepted) sessionRevision++
-        if (result is InputResult.Accepted && operatingMode == OperatingMode.RUN) {
-            commandHistory.recordUserKey(key)
-        }
         return result
     }
 

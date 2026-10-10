@@ -32,6 +32,20 @@ class DesktopBasicLoaderTest {
     }
 
     @Test
+    fun ignoresStudioSourceHeaderWhenCompilingBasic() {
+        val compiled = assertIs<DesktopBasicProgramCompileResult.Success>(
+            DesktopBasicLoader.compilePc1245Program(
+                "# Demonstration\n# Start with RUN\n10 PRINT \"HELLO\"".encodeToByteArray(),
+            ),
+        )
+        val decoded = assertIs<DesktopBasicProgramDecodeResult.Success>(
+            DesktopBasicLoader.detokenizePc1245Program(compiled.bytes),
+        )
+
+        assertEquals("10 PRINT \"HELLO\"\n", decoded.utf8Bytes.decodeToString())
+    }
+
+    @Test
     fun reportsDirectProgramCompileErrors() {
         assertIs<DesktopBasicProgramCompileError.InvalidUtf8>(
             assertIs<DesktopBasicProgramCompileResult.Failure>(

@@ -41,5 +41,6 @@ internal object DesktopKeyMapper {
         put(Key.Slash, PocketKey.DIVIDE); put(Key.NumPadDivide, PocketKey.DIVIDE)
         put(Key.Period, PocketKey.DOT); put(Key.NumPadDot, PocketKey.DOT)
         put(Key.Equals, PocketKey.EQUALS); put(Key.NumPadEquals, PocketKey.EQUALS)
+        put(Key.Comma, PocketKey.COMMA); put(Key.Semicolon, PocketKey.SEMICOLON)
     }
 }

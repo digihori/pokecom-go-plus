@@ -7,6 +7,7 @@ import com.digihori.pgp.core.debug.Sc61860AssemblySymbol
 import com.digihori.pgp.core.debug.Sc61860Disassembler
 import com.digihori.pgp.core.project.ProjectSourceType
 import com.digihori.pgp.core.source.machine.AddressedMemoryImage
+import com.digihori.pgp.desktop.source.DesktopSourceHeaderParser
 import java.io.File
 
 internal data class DesktopAssemblySourceResult(
@@ -38,12 +39,13 @@ internal object DesktopAssemblyWorkspaceCompiler {
                 diagnostics += DesktopAssemblyDiagnostic(source, null, it.message ?: it::class.simpleName.orEmpty(), null)
                 return@forEach
             }
-            when (val assembled = Sc61860Assembler.assemble(text)) {
+            val sourceText = DesktopSourceHeaderParser.parse(text).sourceText
+            when (val assembled = Sc61860Assembler.assemble(sourceText)) {
                 is Sc61860AssemblyResult.Failure -> diagnostics += DesktopAssemblyDiagnostic(
                     source,
                     assembled.line.takeIf { it > 0 },
                     assembled.message,
-                    assembled.line.takeIf { it > 0 }?.let { text.lineSequence().elementAtOrNull(it - 1) },
+                    assembled.line.takeIf { it > 0 }?.let { sourceText.lineSequence().elementAtOrNull(it - 1) },
                 )
                 is Sc61860AssemblyResult.Success -> results += DesktopAssemblySourceResult(
                     source,

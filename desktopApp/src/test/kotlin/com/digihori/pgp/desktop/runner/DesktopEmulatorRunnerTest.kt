@@ -457,6 +457,23 @@ class DesktopEmulatorRunnerTest {
         assertEquals(false, runner.recallPreviousCommand())
     }
 
+    @Test
+    fun recordsDirectInputInPressOrderAndExcludesDef() {
+        val runner = runner(FakeSession(), FakeClock())
+
+        runner.pressKey(PocketKey.SHIFT)
+        runner.pressKey(PocketKey.NUM_1)
+        runner.releaseKey(PocketKey.NUM_1)
+        runner.releaseKey(PocketKey.SHIFT)
+        runner.pressKey(PocketKey.DEF)
+        runner.releaseKey(PocketKey.DEF)
+        runner.pressKey(PocketKey.ENTER)
+        runner.releaseKey(PocketKey.ENTER)
+
+        assertEquals(1, runner.commandHistorySize())
+        assertEquals(true, runner.recallPreviousCommand())
+    }
+
 
     @Test
     fun runsQueuedKeySequenceAtCycleBoundaries() {

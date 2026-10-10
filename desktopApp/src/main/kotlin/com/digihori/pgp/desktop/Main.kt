@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.VerticalScrollbar
+import androidx.compose.foundation.HorizontalScrollbar
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -14,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
@@ -61,8 +65,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.MenuBar
 import androidx.compose.ui.window.application
@@ -112,6 +117,7 @@ import com.digihori.pgp.desktop.basic.DesktopOldBasicTransferAdapter
 import com.digihori.pgp.desktop.basic.DesktopOldBasicTransferResult
 import com.digihori.pgp.desktop.character.CharacterEditorPanel
 import com.digihori.pgp.desktop.input.DesktopKeyboardInput
+import com.digihori.pgp.desktop.input.HostKeyInputMode
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoadError
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoadResult
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoader
@@ -183,6 +189,9 @@ import com.digihori.pgp.desktop.rom.DesktopRomPackageConversionResult
 import com.digihori.pgp.desktop.rom.DesktopRomPackageConverter
 import com.digihori.pgp.desktop.runner.DesktopEmulatorRunner
 import com.digihori.pgp.desktop.runner.RunnerState
+import com.digihori.pgp.desktop.source.DesktopSourceHeaderParser
+import com.digihori.pgp.desktop.window.DesktopUiPreferences
+import com.digihori.pgp.desktop.window.StudioWindow
 import com.digihori.pgp.desktop.theme.LocalStudioComponentColors
 import com.digihori.pgp.desktop.theme.PgpStudioTheme
 import java.awt.FileDialog
@@ -190,6 +199,7 @@ import java.awt.Desktop
 import java.awt.Frame
 import java.awt.EventQueue
 import java.awt.Toolkit
+import java.awt.Cursor
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import java.awt.datatransfer.StringSelection
@@ -212,7 +222,8 @@ fun main() {
             keyboardInput.attach(null)
             exitApplication()
         }
-        Window(
+        StudioWindow(
+            id = "main",
             onCloseRequest = quitApplication,
             onPreviewKeyEvent = keyboardInput::handle,
             title = ProjectInfo.STUDIO_DISPLAY_NAME,
@@ -356,7 +367,15 @@ private fun FrameWindowScope.App(
     var showAboutWindow by remember { mutableStateOf(false) }
     var showSettingsWindow by remember { mutableStateOf(false) }
     var showHelpWindow by remember { mutableStateOf(false) }
-    var projectPaneWidth by remember { mutableStateOf(DEFAULT_PROJECT_PANE_WIDTH) }
+    var projectPaneWidth by remember {
+        mutableStateOf(
+            DesktopUiPreferences.projectPaneWidth(DEFAULT_PROJECT_PANE_WIDTH.value)
+                .dp.coerceIn(MIN_PROJECT_PANE_WIDTH, MAX_PROJECT_PANE_WIDTH),
+        )
+    }
+    var selectedProjectSourcePath by remember { mutableStateOf<String?>(null) }
+    var hostKeyInputMode by remember { mutableStateOf(DesktopUiPreferences.hostKeyInputMode()) }
+    SideEffect { keyboardInput.setInputMode(hostKeyInputMode) }
     val audioPlayer = remember { DesktopAudioPlayer() }
     val romHistory = remember { DesktopRomHistory() }
     val romLibrary = remember { DesktopRomLibrary() }
@@ -1342,7 +1361,8 @@ private fun FrameWindowScope.App(
     }
 
     if (showAboutWindow) {
-        Window(
+        StudioWindow(
+            id = "about",
             onCloseRequest = { showAboutWindow = false },
             title = "About ${ProjectInfo.STUDIO_DISPLAY_NAME}",
         ) {
@@ -1374,7 +1394,8 @@ private fun FrameWindowScope.App(
     }
 
     if (showSettingsWindow) {
-        Window(
+        StudioWindow(
+            id = "settings",
             onCloseRequest = { showSettingsWindow = false },
             title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — Settings",
         ) {
@@ -1395,7 +1416,8 @@ private fun FrameWindowScope.App(
                             )
                         }
                         SettingsSection("Keyboard input") {
-                            Text("Host characters use cycle-paced logical input.")
+                            Text("Choose Logical or Physical below the software keyboard in the main window.")
+                            Text("Left Control and F1 operate the pocket-computer DEF key.")
                             Text("Command history: Alt+↑ / Alt+↓", fontFamily = FontFamily.Monospace)
                         }
                         Text(
@@ -1409,7 +1431,8 @@ private fun FrameWindowScope.App(
     }
 
     if (showHelpWindow) {
-        Window(
+        StudioWindow(
+            id = "help",
             onCloseRequest = { showHelpWindow = false },
             title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — Help",
         ) {
@@ -1433,7 +1456,8 @@ private fun FrameWindowScope.App(
     }
 
     if (showCharacterEditor) {
-        Window(
+        StudioWindow(
+            id = "character-editor",
             onCloseRequest = { showCharacterEditor = false },
             title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — Character Editor",
         ) {
@@ -1446,7 +1470,8 @@ private fun FrameWindowScope.App(
     }
 
     if (showOldWavTool) {
-        Window(
+        StudioWindow(
+            id = "old-wav",
             onCloseRequest = { showOldWavTool = false },
             title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — OLD WAV Encoder / Decoder",
         ) {
@@ -1468,7 +1493,8 @@ private fun FrameWindowScope.App(
     }
 
     if (showDebuggerWindow) {
-        Window(
+        StudioWindow(
+            id = "debugger",
             onCloseRequest = { showDebuggerWindow = false },
             title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — Debugger",
         ) {
@@ -1562,7 +1588,8 @@ private fun FrameWindowScope.App(
     }
 
     if (showMcpServerWindow) {
-        Window(
+        StudioWindow(
+            id = "mcp-server",
             onCloseRequest = { showMcpServerWindow = false },
             title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — AI / MCP Server",
         ) {
@@ -1670,7 +1697,8 @@ private fun FrameWindowScope.App(
     }
 
     if (showAssemblyWorkspace) {
-        Window(
+        StudioWindow(
+            id = "assembly-workspace",
             onCloseRequest = { showAssemblyWorkspace = false },
             title = projectWorkspace?.let { "${ProjectInfo.STUDIO_DISPLAY_NAME} — ${it.definition.name} — Assembly" }
                 ?: "${ProjectInfo.STUDIO_DISPLAY_NAME} — Assembly Workspace",
@@ -1888,9 +1916,8 @@ private fun FrameWindowScope.App(
                         color = MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier.width(projectPaneWidth).fillMaxHeight(),
                     ) {
-                        StudioScrollableColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = 12.dp,
+                        Column(
+                            modifier = Modifier.fillMaxSize().padding(12.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             SelectionContainer {
@@ -1926,10 +1953,14 @@ private fun FrameWindowScope.App(
                                     onClick = { showAssemblyWorkspace = true },
                                     modifier = Modifier.fillMaxWidth(),
                                 ) { Text("Assembly Workspace", maxLines = 1, softWrap = false) }
-                                SelectionContainer {
-                                    projectTree?.let { tree -> ProjectTreePanel(tree) }
-                                        ?: Text("Project files are loading…")
-                                }
+                                projectTree?.let { tree ->
+                                    ProjectTreePanel(
+                                        tree = tree,
+                                        selectedPath = selectedProjectSourcePath,
+                                        onSelected = { selectedProjectSourcePath = it },
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                } ?: Text("Project files are loading…")
                             }
                         }
                     }
@@ -1939,15 +1970,23 @@ private fun FrameWindowScope.App(
                         modifier = Modifier
                             .width(PROJECT_PANE_RESIZE_HANDLE_WIDTH)
                             .fillMaxHeight()
+                            .pointerHoverIcon(PointerIcon(Cursor.getPredefinedCursor(Cursor.E_RESIZE_CURSOR)))
                             .pointerInput(density) {
-                                detectDragGestures { change, dragAmount ->
-                                    change.consume()
-                                    val delta = with(density) { dragAmount.x.toDp() }
-                                    projectPaneWidth = (projectPaneWidth + delta).coerceIn(
-                                        MIN_PROJECT_PANE_WIDTH,
-                                        MAX_PROJECT_PANE_WIDTH,
-                                    )
-                                }
+                                detectDragGestures(
+                                    onDragEnd = {
+                                        DesktopUiPreferences.saveProjectPaneWidth(projectPaneWidth.value)
+                                    },
+                                    onDragCancel = {
+                                        DesktopUiPreferences.saveProjectPaneWidth(projectPaneWidth.value)
+                                    },
+                                ) { change, dragAmount ->
+                                        change.consume()
+                                        val delta = with(density) { dragAmount.x.toDp() }
+                                        projectPaneWidth = (projectPaneWidth + delta).coerceIn(
+                                            MIN_PROJECT_PANE_WIDTH,
+                                            MAX_PROJECT_PANE_WIDTH,
+                                        )
+                                    }
                             },
                         contentAlignment = Alignment.Center,
                     ) {
@@ -1966,6 +2005,14 @@ private fun FrameWindowScope.App(
                         PocketSoftwareKeyboard(
                             runner,
                             MachineCatalog.require(runner?.machineId ?: selectedMachineId).keyboardLayout,
+                        )
+                        HostKeyInputModeSelector(
+                            mode = hostKeyInputMode,
+                            onModeSelected = { selected ->
+                                keyboardInput.setInputMode(selected)
+                                hostKeyInputMode = selected
+                                DesktopUiPreferences.saveHostKeyInputMode(selected)
+                            },
                         )
                     }
                 }
@@ -3141,6 +3188,43 @@ private fun PocketSoftwareKeyboard(runner: DesktopEmulatorRunner?, layout: Machi
 }
 
 @Composable
+private fun HostKeyInputModeSelector(
+    mode: HostKeyInputMode,
+    onModeSelected: (HostKeyInputMode) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().widthIn(max = 1_100.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("Host input", style = MaterialTheme.typography.labelMedium)
+        HostKeyInputModeButton("Logical", mode == HostKeyInputMode.LOGICAL) {
+            onModeSelected(HostKeyInputMode.LOGICAL)
+        }
+        HostKeyInputModeButton("Physical", mode == HostKeyInputMode.PHYSICAL) {
+            onModeSelected(HostKeyInputMode.PHYSICAL)
+        }
+    }
+}
+
+@Composable
+private fun HostKeyInputModeButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.background(
+            if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+            MaterialTheme.shapes.small,
+        ),
+    ) {
+        Text(label)
+    }
+}
+
+@Composable
 private fun PocketLcdPanel(snapshot: DisplaySnapshot?) {
     val componentColors = LocalStudioComponentColors.current
     val panelAspectRatio = if (snapshot == null) {
@@ -3581,24 +3665,147 @@ private fun List<CodecDiagnostic>.displayText(): String = joinToString("; ") { d
     "${diagnostic.stage.name.lowercase()}: ${diagnostic.message}"
 }
 
+private data class ProjectTreeDisplayFile(
+    val path: String,
+    val file: File,
+    val supportsDescription: Boolean,
+)
+
 @Composable
-private fun ProjectTreePanel(tree: DesktopProjectTreeSnapshot) {
+private fun ProjectTreePanel(
+    tree: DesktopProjectTreeSnapshot,
+    selectedPath: String?,
+    onSelected: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var sourceInformationHeight by remember {
+        mutableStateOf(
+            DesktopUiPreferences.sourceInformationHeight(DEFAULT_SOURCE_INFORMATION_HEIGHT.value)
+                .dp.coerceIn(MIN_SOURCE_INFORMATION_HEIGHT, MAX_SOURCE_INFORMATION_HEIGHT),
+        )
+    }
+    val tracked = tree.tracked.map {
+        ProjectTreeDisplayFile(
+            path = it.definition.path,
+            file = it.file,
+            supportsDescription = it.definition.type != ProjectSourceType.RAW_BINARY,
+        )
+    }
+    val untracked = tree.untracked.map {
+        ProjectTreeDisplayFile(
+            path = it.relativePath,
+            file = it.file,
+            supportsDescription = it.file.extension.lowercase() in setOf("bas", "asm", "dmp"),
+        )
+    }
+    val selected = (tracked + untracked).firstOrNull { it.path == selectedPath }
+    val description = remember(selected?.path, selected?.file?.lastModified()) {
+        selected?.takeIf { it.supportsDescription }
+            ?.let { runCatching { DesktopSourceHeaderParser.parse(it.file.readBytes())?.description }.getOrNull() }
+            .orEmpty()
+    }
     Column(
-        modifier = Modifier.fillMaxWidth().widthIn(max = 900.dp),
+        modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.Start,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text("Project files", style = MaterialTheme.typography.titleMedium)
-        ProjectTreeGroup("Tracked", tree.tracked.map { it.definition.path })
-        ProjectTreeGroup("Untracked", tree.untracked.map { it.relativePath })
+        val verticalState = rememberScrollState()
+        val horizontalState = rememberScrollState()
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .verticalScroll(verticalState)
+                    .horizontalScroll(horizontalState)
+                    .padding(end = 12.dp, bottom = 12.dp),
+            ) {
+                ProjectTreeGroup("Tracked", tracked, selectedPath, onSelected)
+                ProjectTreeGroup("Untracked", untracked, selectedPath, onSelected)
+            }
+            VerticalScrollbar(
+                adapter = rememberScrollbarAdapter(verticalState),
+                modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+            )
+            HorizontalScrollbar(
+                adapter = rememberScrollbarAdapter(horizontalState),
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
+            )
+        }
+        val density = LocalDensity.current
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(PROJECT_TREE_SPLITTER_HEIGHT)
+                .pointerHoverIcon(PointerIcon(Cursor.getPredefinedCursor(Cursor.N_RESIZE_CURSOR)))
+                .pointerInput(density) {
+                    detectDragGestures(
+                        onDragEnd = {
+                            DesktopUiPreferences.saveSourceInformationHeight(sourceInformationHeight.value)
+                        },
+                        onDragCancel = {
+                            DesktopUiPreferences.saveSourceInformationHeight(sourceInformationHeight.value)
+                        },
+                    ) { change, dragAmount ->
+                        change.consume()
+                        val delta = with(density) { dragAmount.y.toDp() }
+                        sourceInformationHeight = (sourceInformationHeight - delta).coerceIn(
+                            MIN_SOURCE_INFORMATION_HEIGHT,
+                            MAX_SOURCE_INFORMATION_HEIGHT,
+                        )
+                    }
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Surface(
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.fillMaxWidth().height(1.dp),
+            ) {}
+        }
+        Column(
+            modifier = Modifier.fillMaxWidth().height(sourceInformationHeight),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text("Source information", style = MaterialTheme.typography.titleSmall)
+            val descriptionScrollState = rememberScrollState()
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                Text(
+                    when {
+                        selected == null -> "Select a source file."
+                        !selected.supportsDescription -> "Source information is not available for this file type."
+                        description.isBlank() -> "No leading # description."
+                        else -> description
+                    },
+                    modifier = Modifier.fillMaxWidth().verticalScroll(descriptionScrollState).padding(end = 12.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                VerticalScrollbar(
+                    adapter = rememberScrollbarAdapter(descriptionScrollState),
+                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun ProjectTreeGroup(name: String, paths: List<String>) {
-    Text("$name (${paths.size})")
-    paths.forEach { path ->
+private fun ProjectTreeGroup(
+    name: String,
+    files: List<ProjectTreeDisplayFile>,
+    selectedPath: String?,
+    onSelected: (String) -> Unit,
+) {
+    Text("$name (${files.size})")
+    files.forEach { source ->
         Text(
-            "  $path",
+            "  ${source.path}",
+            modifier = Modifier
+                .background(
+                    if (source.path == selectedPath) MaterialTheme.colorScheme.secondaryContainer
+                    else Color.Transparent,
+                )
+                .clickable { onSelected(source.path) }
+                .padding(vertical = 2.dp, horizontal = 3.dp),
             fontFamily = FontFamily.Monospace,
             maxLines = 1,
             softWrap = false,
@@ -3777,6 +3984,10 @@ private val DEFAULT_PROJECT_PANE_WIDTH = 260.dp
 private val MIN_PROJECT_PANE_WIDTH = 220.dp
 private val MAX_PROJECT_PANE_WIDTH = 520.dp
 private val PROJECT_PANE_RESIZE_HANDLE_WIDTH = 12.dp
+private val DEFAULT_SOURCE_INFORMATION_HEIGHT = 160.dp
+private val MIN_SOURCE_INFORMATION_HEIGHT = 80.dp
+private val MAX_SOURCE_INFORMATION_HEIGHT = 420.dp
+private val PROJECT_TREE_SPLITTER_HEIGHT = 10.dp
 private val SCROLLBAR_CONTENT_GUTTER = 10.dp
 private const val REPOSITORY_URL: String = "https://github.com/digihori/pokecom-go-plus"
 private const val GETTING_STARTED_URL: String = "$REPOSITORY_URL/blob/main/docs/GETTING_STARTED.md"

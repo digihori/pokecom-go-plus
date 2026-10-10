@@ -33,6 +33,8 @@ internal class DesktopKeyboardInput {
     private var sink: DesktopKeyInputSink? = null
     private var enabled: Boolean = true
     private val activeInputs: MutableMap<Long, ActiveInput> = mutableMapOf()
+    var inputMode: HostKeyInputMode = HostKeyInputMode.LOGICAL
+        private set
 
     fun attach(sink: DesktopKeyInputSink?) {
         val previousSink = this.sink
@@ -49,6 +51,12 @@ internal class DesktopKeyboardInput {
     fun setEnabled(value: Boolean) {
         if (enabled && !value) clearActiveInputs()
         enabled = value
+    }
+
+    fun setInputMode(value: HostKeyInputMode) {
+        if (inputMode == value) return
+        clearActiveInputs()
+        inputMode = value
     }
 
     fun handle(event: KeyEvent): Boolean = handle(
@@ -82,11 +90,31 @@ internal class DesktopKeyboardInput {
                 else -> false
             }
         }
-        if (isCtrlPressed || isMetaPressed) return false
+        if (isMetaPressed) return false
         val physicalKey = key.keyCode
         return when (type) {
             KeyEventType.KeyDown -> {
                 if (physicalKey in activeInputs) return true
+                val fixedKey = when (key) {
+                    androidx.compose.ui.input.key.Key.CtrlLeft -> PocketKey.DEF
+                    androidx.compose.ui.input.key.Key.ShiftLeft,
+                    androidx.compose.ui.input.key.Key.ShiftRight -> if (inputMode == HostKeyInputMode.PHYSICAL) {
+                        PocketKey.SHIFT
+                    } else null
+                    else -> null
+                }
+                if (fixedKey != null) {
+                    activeInputs[physicalKey] = ActiveInput.Direct(fixedKey)
+                    activeSink.pressKey(fixedKey)
+                    return true
+                }
+                if (isCtrlPressed || isAltPressed) return false
+                if (inputMode == HostKeyInputMode.PHYSICAL) {
+                    val directKey = DesktopKeyMapper.map(key) ?: return false
+                    activeInputs[physicalKey] = ActiveInput.Direct(directKey)
+                    activeSink.pressKey(directKey)
+                    return true
+                }
                 val character = utf16CodePoint
                     .takeIf { it in Char.MIN_VALUE.code..Char.MAX_VALUE.code }
                     ?.toChar()

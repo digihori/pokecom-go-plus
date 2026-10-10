@@ -30,6 +30,8 @@ class DesktopKeyMapperTest {
         assertEquals(PocketKey.PLUS, DesktopKeyMapper.map(Key.Plus))
         assertEquals(PocketKey.MULTIPLY, DesktopKeyMapper.map(Key.Multiply))
         assertEquals(PocketKey.DIVIDE, DesktopKeyMapper.map(Key.Slash))
+        assertEquals(PocketKey.COMMA, DesktopKeyMapper.map(Key.Comma))
+        assertEquals(PocketKey.SEMICOLON, DesktopKeyMapper.map(Key.Semicolon))
     }
 
     @Test

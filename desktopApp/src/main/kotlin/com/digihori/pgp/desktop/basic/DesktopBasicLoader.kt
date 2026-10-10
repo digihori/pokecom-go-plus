@@ -23,6 +23,7 @@ import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.source.basic.BasicTextParseError
 import com.digihori.pgp.core.source.basic.BasicTextParseResult
 import com.digihori.pgp.core.source.basic.BasicTextParser
+import com.digihori.pgp.desktop.source.DesktopSourceHeaderParser
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 
@@ -36,7 +37,7 @@ internal object DesktopBasicLoader {
             return DesktopBasicLoadResult.Failure(DesktopBasicLoadError.InvalidUtf8)
         }
 
-        val document = when (val parsed = BasicTextParser.parse(text)) {
+        val document = when (val parsed = BasicTextParser.parse(DesktopSourceHeaderParser.parse(text).sourceText)) {
             is BasicTextParseResult.Failure -> return DesktopBasicLoadResult.Failure(
                 DesktopBasicLoadError.Parse(parsed.error),
             )
@@ -65,7 +66,7 @@ internal object DesktopBasicLoader {
         val text = decodeUtf8(bytes) ?: return DesktopBasicProgramCompileResult.Failure(
             DesktopBasicProgramCompileError.InvalidUtf8,
         )
-        val document = when (val parsed = BasicTextParser.parse(text)) {
+        val document = when (val parsed = BasicTextParser.parse(DesktopSourceHeaderParser.parse(text).sourceText)) {
             is BasicTextParseResult.Failure -> return DesktopBasicProgramCompileResult.Failure(
                 DesktopBasicProgramCompileError.Parse(parsed.error),
             )

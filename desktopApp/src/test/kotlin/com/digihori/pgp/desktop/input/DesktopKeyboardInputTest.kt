@@ -72,6 +72,55 @@ class DesktopKeyboardInputTest {
     }
 
     @Test
+    fun physicalModeForwardsHostShiftAndNumberAsHeldKeys() {
+        val sink = FakeSink()
+        val input = DesktopKeyboardInput().also {
+            it.attach(sink)
+            it.setInputMode(HostKeyInputMode.PHYSICAL)
+        }
+
+        assertTrue(input.handle(Key.ShiftLeft, 0, KeyEventType.KeyDown))
+        assertTrue(input.handle(Key.One, '!'.code, KeyEventType.KeyDown))
+        assertTrue(input.handle(Key.One, '!'.code, KeyEventType.KeyUp))
+        assertTrue(input.handle(Key.ShiftLeft, 0, KeyEventType.KeyUp))
+
+        assertEquals(
+            listOf("press:SHIFT", "press:NUM_1", "release:NUM_1", "release:SHIFT"),
+            sink.events,
+        )
+        assertEquals(emptyList(), sink.sequences)
+    }
+
+    @Test
+    fun leftControlActsAsDefInBothModes() {
+        HostKeyInputMode.entries.forEach { mode ->
+            val sink = FakeSink()
+            val input = DesktopKeyboardInput().also {
+                it.attach(sink)
+                it.setInputMode(mode)
+            }
+
+            assertTrue(input.handle(Key.CtrlLeft, 0, KeyEventType.KeyDown, isCtrlPressed = true))
+            assertTrue(input.handle(Key.CtrlLeft, 0, KeyEventType.KeyUp))
+            assertEquals(listOf("press:DEF", "release:DEF"), sink.events)
+        }
+    }
+
+    @Test
+    fun changingInputModeReleasesHeldPhysicalKeys() {
+        val sink = FakeSink()
+        val input = DesktopKeyboardInput().also {
+            it.attach(sink)
+            it.setInputMode(HostKeyInputMode.PHYSICAL)
+        }
+        input.handle(Key.ShiftLeft, 0, KeyEventType.KeyDown)
+
+        input.setInputMode(HostKeyInputMode.LOGICAL)
+
+        assertEquals(listOf("press:SHIFT", "release:SHIFT"), sink.events)
+    }
+
+    @Test
     fun holdsAndReleasesNonCharacterControlKeysDirectly() {
         val sink = FakeSink()
         val input = DesktopKeyboardInput().also { it.attach(sink) }

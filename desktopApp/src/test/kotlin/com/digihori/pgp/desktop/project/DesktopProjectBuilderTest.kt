@@ -84,6 +84,21 @@ class DesktopProjectBuilderTest {
     }
 
     @Test
+    fun ignoresStudioSourceHeaderAndPreservesAssemblyLineNumbers() {
+        val root = Files.createTempDirectory("pgp-project-assembly-header-test")
+        root.resolve("src").createDirectories()
+        root.resolve("src/main.asm").writeText("# Demo\n# CALL &C000\nORG 0xC000\nJRP 0xD000\n")
+        val workspace = openWorkspace(
+            root,
+            """{ "id": "main", "type": "assembly", "path": "src/main.asm" }""",
+        )
+
+        val failure = assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace))
+        val error = assertIs<DesktopProjectBuildError.Assembly>(failure.errors.single())
+        assertEquals(4, error.line)
+    }
+
+    @Test
     fun combinesMultiplePc1360AssemblySourcesIntoOneArtifact() {
         val root = Files.createTempDirectory("pgp-project-pc1360-multi-assembly-test")
         root.resolve("src").createDirectories()
