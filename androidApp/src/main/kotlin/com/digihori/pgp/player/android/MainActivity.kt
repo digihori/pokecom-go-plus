@@ -2,6 +2,22 @@ package com.digihori.pgp.player.android
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.view.KeyEvent
+import android.view.MotionEvent
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.digihori.pgp.controller.ui.ControllerSettings
+import com.digihori.pgp.core.api.MachineCatalog
+import com.digihori.pgp.core.api.InputResult
+import com.digihori.pgp.input.GamepadKeys
+import com.digihori.pgp.input.HostKeyState
 import android.view.Choreographer
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
@@ -37,7 +53,13 @@ class MainActivity : ComponentActivity() {
     private var displayFrame: PlayerDisplayFrame? by mutableStateOf(null)
     private var keyboard: PlayerKeyboard? by mutableStateOf(null)
     private var presentationMode: PresentationMode = PresentationMode.FULL_DEVICE
-    private val pressedKeys = mutableSetOf<PocketKey>()
+    private val hostKeys = HostKeyState(
+        press = { key -> playerSession?.pressKey(key) ?: InputResult.UnsupportedKey(key) },
+        release = { key -> playerSession?.releaseKey(key) ?: InputResult.UnsupportedKey(key) },
+    )
+    private lateinit var gamepad: AndroidGamepadController
+    private var showControllerSettings by mutableStateOf(false)
+    private var windowHasFocus = false
     private var startRequested = false
     private var framePosted = false
     private val choreographer: Choreographer by lazy { Choreographer.getInstance() }
@@ -67,33 +89,96 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         configureSystemBars()
+        gamepad = AndroidGamepadController(this,
+            press = { button, key -> hostKeys.press("gamepad:${button.name}", key) },
+            release = { button, _ -> hostKeys.release("gamepad:${button.name}") },
+        )
+        gamepad.start()
         setContent {
-            PlayerApp(
-                screenState = screenState,
-                displayFrame = displayFrame,
-                keyboard = keyboard,
-                onImportRom = { romPicker.launch(arrayOf("*/*")) },
-                onKeyPress = ::pressKey,
-                onKeyRelease = ::releaseKey,
-                onRun = ::runEmulator,
-                onPause = ::pauseEmulator,
-                onReset = ::resetEmulator,
-                onTogglePresentationMode = ::togglePresentationMode,
-                onOperatingModeChange = ::setOperatingMode,
-                romImportEnabled = screenState != PlayerScreenState.Loading,
-            )
+            BackHandler(enabled = showControllerSettings) { closeControllerSettings() }
+            Box(Modifier.fillMaxSize().onPreviewKeyEvent { gamepad.onKey(it.nativeKeyEvent) }) {
+                PlayerApp(
+                    screenState = screenState,
+                    displayFrame = displayFrame,
+                    keyboard = keyboard,
+                    onImportRom = { romPicker.launch(arrayOf("*/*")) },
+                    onKeyPress = ::pressKey,
+                    onKeyRelease = ::releaseKey,
+                    onRun = ::runEmulator,
+                    onPause = ::pauseEmulator,
+                    onReset = ::resetEmulator,
+                    onTogglePresentationMode = ::togglePresentationMode,
+                    onOperatingModeChange = ::setOperatingMode,
+                    romImportEnabled = screenState != PlayerScreenState.Loading,
+                    onControllerSettings = {
+                        showControllerSettings = true
+                        releaseAllKeys()
+                        updateGamepadContext()
+                    },
+                )
+                if (showControllerSettings) {
+                    MaterialTheme {
+                        Surface(Modifier.fillMaxSize()) {
+                            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                                .windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp)) {
+                                androidx.compose.material3.TextButton(onClick = ::closeControllerSettings) {
+                                    androidx.compose.material3.Text("戻る")
+                                }
+                                ControllerSettings(
+                                    settings = gamepad.settings,
+                                    devices = gamepad.devices,
+                                    selectedId = gamepad.selectedId,
+                                    pressed = gamepad.pressed,
+                                    allowedKeys = GamepadKeys.forMachine(playerSession?.machineId
+                                        ?: MachineCatalog.defaultDefinition.id),
+                                    availableButtons = gamepad.available,
+                                    status = gamepad.status,
+                                    onSelectDevice = gamepad::select,
+                                    onSettingsChange = gamepad::save,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
         loadInstalledRom()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) configureSystemBars()
+        windowHasFocus = hasFocus
+        if (hasFocus) configureSystemBars() else releaseAllKeys()
+        updateGamepadContext()
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean =
+        if (::gamepad.isInitialized && gamepad.onKey(event)) true else super.onKeyDown(keyCode, event)
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean =
+        if (::gamepad.isInitialized && gamepad.onKey(event)) true else super.onKeyUp(keyCode, event)
+
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean =
+        if (::gamepad.isInitialized && gamepad.onMotion(event)) true else super.onGenericMotionEvent(event)
+
+    private fun closeControllerSettings() {
+        showControllerSettings = false
+        gamepad.reset()
+        updateGamepadContext()
+    }
+
+    private fun updateGamepadContext() {
+        if (::gamepad.isInitialized) gamepad.configure(
+            playerSession?.machineId,
+            windowHasFocus && playerSession?.runner?.state == PlayerRunState.RUNNING,
+            showControllerSettings,
+        )
     }
 
     override fun onDestroy() {
         stopFrameLoop()
         releaseAllKeys()
+        if (::gamepad.isInitialized) gamepad.close()
         ioExecutor.shutdownNow()
         super.onDestroy()
     }
@@ -157,6 +242,7 @@ class MainActivity : ComponentActivity() {
         runOnUiThread {
             if (!isDestroyed) {
                 stopFrameLoop()
+                releaseAllKeys()
                 playerSession = session
                 keyboard = session.keyboard()
                 presentationMode = PresentationMode.FULL_DEVICE
@@ -172,17 +258,16 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun pressKey(key: PocketKey) {
-        if (pressedKeys.add(key)) playerSession?.pressKey(key)
+        hostKeys.press("screen:${key.name}", key)
     }
 
     private fun releaseKey(key: PocketKey) {
-        if (pressedKeys.remove(key)) playerSession?.releaseKey(key)
+        hostKeys.release("screen:${key.name}")
     }
 
     private fun releaseAllKeys() {
-        val session = playerSession
-        pressedKeys.forEach { session?.releaseKey(it) }
-        pressedKeys.clear()
+        if (::gamepad.isInitialized) gamepad.reset()
+        hostKeys.releaseAll()
     }
 
     private fun runEmulator() {
@@ -195,6 +280,7 @@ class MainActivity : ComponentActivity() {
     private fun pauseEmulator() {
         startRequested = false
         stopFrameLoop()
+        releaseAllKeys()
         playerSession?.let { session ->
             session.runner.pause()
             refreshSession(session)
@@ -251,6 +337,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun refreshSession(session: PlayerSession) {
+        updateGamepadContext()
         displayFrame = session.displayFrame()
         screenState = session.screenState(presentationMode)
     }

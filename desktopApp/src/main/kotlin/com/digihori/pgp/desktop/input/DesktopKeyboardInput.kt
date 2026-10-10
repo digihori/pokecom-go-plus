@@ -22,6 +22,8 @@ internal interface DesktopKeyInputSink {
     val machineId: MachineId
     fun pressKey(key: PocketKey): InputResult
     fun releaseKey(key: PocketKey): InputResult
+    fun pressHostKey(key: PocketKey, owner: String): InputResult = pressKey(key)
+    fun releaseHostKey(key: PocketKey, owner: String): InputResult = releaseKey(key)
     fun enqueueKeySequence(keys: Iterable<PocketKey>)
     fun enqueueUserKeySequence(keys: Iterable<PocketKey>) = enqueueKeySequence(keys)
     fun recallPreviousCommand(): Boolean = false
@@ -32,6 +34,7 @@ internal interface DesktopKeyInputSink {
 internal class DesktopKeyboardInput {
     private var sink: DesktopKeyInputSink? = null
     private var enabled: Boolean = true
+    val isEnabled: Boolean get() = enabled
     private val activeInputs: MutableMap<Long, ActiveInput> = mutableMapOf()
     var inputMode: HostKeyInputMode = HostKeyInputMode.LOGICAL
         private set
@@ -105,14 +108,14 @@ internal class DesktopKeyboardInput {
                 }
                 if (fixedKey != null) {
                     activeInputs[physicalKey] = ActiveInput.Direct(fixedKey)
-                    activeSink.pressKey(fixedKey)
+                    activeSink.pressHostKey(fixedKey, "keyboard:$physicalKey")
                     return true
                 }
                 if (isCtrlPressed || isAltPressed) return false
                 if (inputMode == HostKeyInputMode.PHYSICAL) {
                     val directKey = DesktopKeyMapper.map(key) ?: return false
                     activeInputs[physicalKey] = ActiveInput.Direct(directKey)
-                    activeSink.pressKey(directKey)
+                    activeSink.pressHostKey(directKey, "keyboard:$physicalKey")
                     return true
                 }
                 val character = utf16CodePoint
@@ -132,14 +135,14 @@ internal class DesktopKeyboardInput {
                 }
                 if (directKey != null) {
                     activeInputs[physicalKey] = ActiveInput.Direct(directKey)
-                    activeSink.pressKey(directKey)
+                    activeSink.pressHostKey(directKey, "keyboard:$physicalKey")
                     return true
                 }
                 false
             }
             KeyEventType.KeyUp -> {
                 when (val input = activeInputs.remove(physicalKey) ?: return false) {
-                    is ActiveInput.Direct -> activeSink.releaseKey(input.key)
+                    is ActiveInput.Direct -> activeSink.releaseHostKey(input.key, "keyboard:$physicalKey")
                     ActiveInput.QueuedCharacter -> Unit
                 }
                 true
@@ -164,8 +167,8 @@ internal class DesktopKeyboardInput {
 
     private fun clearActiveInputs(target: DesktopKeyInputSink?) {
         if (target != null) {
-            activeInputs.values.forEach { input ->
-                if (input is ActiveInput.Direct) target.releaseKey(input.key)
+            activeInputs.forEach { (physicalKey, input) ->
+                if (input is ActiveInput.Direct) target.releaseHostKey(input.key, "keyboard:$physicalKey")
             }
         }
         activeInputs.clear()

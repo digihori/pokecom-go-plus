@@ -42,6 +42,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -159,6 +160,10 @@ import com.digihori.pgp.desktop.project.renderDisassembly
 import com.digihori.pgp.desktop.project.renderListing
 import com.digihori.pgp.desktop.project.renderMap
 import com.digihori.pgp.desktop.project.renderMemorySummary
+import com.digihori.pgp.desktop.input.DesktopGamepadController
+import com.digihori.pgp.controller.ui.ControllerSettings
+import com.digihori.pgp.input.GamepadKeys
+import kotlinx.coroutines.NonCancellable
 import com.digihori.pgp.desktop.input.Pc1245KeyboardLayout
 import com.digihori.pgp.desktop.input.Pc1261KeyboardLayout
 import com.digihori.pgp.desktop.input.Pc1251KeyboardLayout
@@ -190,7 +195,6 @@ import com.digihori.pgp.desktop.rom.DesktopRomPackageConversionResult
 import com.digihori.pgp.desktop.rom.DesktopRomPackageConverter
 import com.digihori.pgp.desktop.runner.DesktopEmulatorRunner
 import com.digihori.pgp.desktop.runner.RunnerState
-import com.digihori.pgp.desktop.source.DesktopSourceHeaderParser
 import com.digihori.pgp.desktop.window.DesktopUiPreferences
 import com.digihori.pgp.desktop.window.StudioWindow
 import com.digihori.pgp.desktop.theme.LocalStudioComponentColors
@@ -345,6 +349,13 @@ private fun FrameWindowScope.App(
     var projectWorkspace by remember { mutableStateOf<DesktopProjectWorkspace?>(null) }
     var projectChangeTracker by remember { mutableStateOf<DesktopProjectChangeTracker?>(null) }
     var projectTree by remember { mutableStateOf<DesktopProjectTreeSnapshot?>(null) }
+    var loadedProgramLabel by remember { mutableStateOf<String?>(null) }
+    var loadedProjectManifest by remember { mutableStateOf<String?>(null) }
+    var externalEditorCommand by remember {
+        mutableStateOf(DesktopUiPreferences.externalEditorCommand() ?: System.getenv("PGP_EDITOR").orEmpty())
+    }
+    var editorCommandDraft by remember { mutableStateOf(externalEditorCommand) }
+    var editorSettingsError by remember { mutableStateOf<String?>(null) }
     var projectBasicBaseline by remember { mutableStateOf<ByteArray?>(null) }
     var projectBasicModified by remember { mutableStateOf(false) }
     var changedProjectSources by remember { mutableStateOf(emptySet<String>()) }
@@ -367,6 +378,47 @@ private fun FrameWindowScope.App(
     var machineMenuExpanded by remember { mutableStateOf(false) }
     var showAboutWindow by remember { mutableStateOf(false) }
     var showSettingsWindow by remember { mutableStateOf(false) }
+    val gamepad = remember { DesktopGamepadController() }
+    var mainWindowFocused by remember { mutableStateOf(ownerWindow.isFocused) }
+    DisposableEffect(ownerWindow, gamepad) {
+        val listener = object : WindowAdapter() {
+            override fun windowGainedFocus(event: WindowEvent?) { mainWindowFocused = true }
+            override fun windowLostFocus(event: WindowEvent?) {
+                mainWindowFocused = false
+                gamepad.setContext(runner, false)
+            }
+        }
+        ownerWindow.addWindowFocusListener(listener)
+        onDispose {
+            gamepad.setContext(null, false)
+            ownerWindow.removeWindowFocusListener(listener)
+        }
+    }
+    SideEffect {
+        gamepad.setContext(runner, mainWindowFocused && keyboardInput.isEnabled && !showSettingsWindow && !showCreateProjectDialog)
+    }
+    LaunchedEffect(gamepad) {
+        try {
+            while (isActive) {
+                gamepad.setContext(runner, mainWindowFocused && keyboardInput.isEnabled && !showSettingsWindow && !showCreateProjectDialog)
+                try {
+                    gamepad.poll()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: Exception) {
+                    gamepad.unavailable(failure)
+                    delay(2_000)
+                } catch (failure: LinkageError) {
+                    gamepad.unavailable(failure)
+                    break
+                }
+                delay(8)
+            }
+        } finally {
+            withContext(NonCancellable) { runCatching { gamepad.close() } }
+        }
+    }
+
     var showHelpWindow by remember { mutableStateOf(false) }
     var projectPaneWidth by remember {
         mutableStateOf(
@@ -564,6 +616,8 @@ private fun FrameWindowScope.App(
                 } else {
                     "ROM loaded. Press Run to start."
                 }
+                loadedProgramLabel = null
+                loadedProjectManifest = null
                 if (projectWorkspace != null) projectRuntimeStatus = ProjectRuntimeStatus.NOT_BUILT
                 projectBasicBaseline = null
                 projectBasicModified = false
@@ -682,6 +736,11 @@ private fun FrameWindowScope.App(
         when (val opened = DesktopProjectWorkspaceLoader.open(file)) {
             is DesktopProjectOpenResult.Failure -> showError(opened.errors.joinToString("\n") { it.message() })
             is DesktopProjectOpenResult.Success -> {
+                if (projectWorkspace?.manifestFile?.absolutePath != opened.workspace.manifestFile.absolutePath) {
+                    selectedProjectSourcePath = null
+                    projectBasicBaseline = null
+                    projectBasicModified = false
+                }
                 projectWorkspace = opened.workspace
                 projectChangeTracker = DesktopProjectChangeTracker(opened.workspace)
                 projectTree = DesktopProjectTreeScanner.scan(opened.workspace)
@@ -713,6 +772,31 @@ private fun FrameWindowScope.App(
                 }
             }
         }
+    }
+
+    fun closeProject() {
+        projectWorkspace = null
+        projectChangeTracker = null
+        projectTree = null
+        selectedProjectSourcePath = null
+        projectBasicBaseline = null
+        projectBasicModified = false
+        changedProjectSources = emptySet()
+        changedAssemblySources = emptySet()
+        assemblyPreview = emptyList()
+        assemblyDiagnostics = emptyList()
+        assemblyStatus = "Not assembled"
+        projectRuntimeStatus = ProjectRuntimeStatus.NOT_BUILT
+        showAssemblyWorkspace = false
+        message = "Project closed. The loaded program is retained."
+    }
+
+    fun markStandalone(file: File, additional: Boolean = false) {
+        loadedProgramLabel = "Standalone: ${file.name}（${if (additional) "追加ロード・" else ""}プロジェクト外）"
+        loadedProjectManifest = null
+        projectBasicBaseline = null
+        projectBasicModified = false
+        if (projectWorkspace != null) projectRuntimeStatus = ProjectRuntimeStatus.NOT_LOADED
     }
 
     fun updateProject() {
@@ -815,6 +899,8 @@ private fun FrameWindowScope.App(
                         showError(applied.error.message())
                     }
                     is DesktopProjectApplyResult.Success -> {
+                        loadedProgramLabel = "Project: ${workspace.definition.name}"
+                        loadedProjectManifest = workspace.manifestFile.absolutePath
                         projectRuntimeStatus = ProjectRuntimeStatus.UP_TO_DATE
                         changedProjectSources = emptySet()
                         projectChangeTracker = DesktopProjectChangeTracker(workspace)
@@ -863,14 +949,12 @@ private fun FrameWindowScope.App(
                     showError(loaded.error.message())
                 }
                 is BasicProgramLoadResult.Success -> {
-                    projectBasicBaseline = null
-                    projectBasicModified = false
+                    markStandalone(file)
                     runnerState = activeRunner.state
                     display = activeRunner.displaySnapshot()
                     cpu = activeRunner.cpuSnapshot()
                     message = "Loaded ${file.name} directly (${loaded.size} bytes at " +
                         "0x${loaded.startAddress.hex(4)}..0x${loaded.endAddress.hex(4)})."
-                    if (projectWorkspace != null) projectRuntimeStatus = ProjectRuntimeStatus.RUNTIME_MODIFIED
                 }
             }
         }
@@ -891,7 +975,7 @@ private fun FrameWindowScope.App(
                     is MemoryImageLoadResult.Success -> {
                         message = "Loaded ${file.name} (${loaded.byteCount} bytes in " +
                             "${loaded.segmentCount} segments)."
-                        if (projectWorkspace != null) projectRuntimeStatus = ProjectRuntimeStatus.RUNTIME_MODIFIED
+                        markStandalone(file, additional = true)
                     }
                 }
                 runnerState = activeRunner.state
@@ -950,8 +1034,8 @@ private fun FrameWindowScope.App(
                     "Merged ${file.name} through the ${activeRunner.machineId.displayName()} ROM " +
                         "(${loadResult.keys.size} key taps)."
                 }
-                if (runResult.status !is ExecutionStatus.Faulted && projectWorkspace != null) {
-                    projectRuntimeStatus = ProjectRuntimeStatus.RUNTIME_MODIFIED
+                if (runResult.status !is ExecutionStatus.Faulted) {
+                    markStandalone(file, additional = true)
                 }
             }
         }
@@ -995,6 +1079,9 @@ private fun FrameWindowScope.App(
     }
 
     fun resetEmulator() {
+        loadedProgramLabel = null
+        loadedProjectManifest = null
+        if (projectWorkspace != null) projectRuntimeStatus = ProjectRuntimeStatus.NOT_LOADED
         runner?.reset()
         audioPlayer.stop()
         runnerState = runner?.state ?: RunnerState.PAUSED
@@ -1152,7 +1239,8 @@ private fun FrameWindowScope.App(
                 changedAssemblySources = changedAssemblySources + changes
                     .filter { it.source.definition.type == ProjectSourceType.ASSEMBLY }
                     .map { it.source.definition.id }
-                projectRuntimeStatus = ProjectRuntimeStatus.SOURCE_CHANGED
+                if (loadedProjectManifest == projectWorkspace?.manifestFile?.absolutePath &&
+                    loadedProjectManifest != null) projectRuntimeStatus = ProjectRuntimeStatus.SOURCE_CHANGED
                 message = "External changes detected: " + changes.joinToString { change ->
                     "${change.source.definition.path} (${change.kind.name.lowercase()})"
                 }
@@ -1227,6 +1315,7 @@ private fun FrameWindowScope.App(
                 showCreateProjectDialog = true
             })
             Item("Open Project…", onClick = ::openProjectFromDisk)
+            Item("Close Project", enabled = projectWorkspace != null, onClick = ::closeProject)
             Item(
                 "Open Assembly Workspace",
                 onClick = { showAssemblyWorkspace = true },
@@ -1416,15 +1505,58 @@ private fun FrameWindowScope.App(
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
+                        SettingsSection("External editor") {
+                            Text("Source files and diagnostic locations use this editor.")
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = {
+                                    DesktopUiPreferences.saveExternalEditorCommand("")
+                                    externalEditorCommand = ""
+                                    editorCommandDraft = ""
+                                    editorSettingsError = null
+                                }) { Text("Use OS text editor") }
+                            }
+                            Text(if (externalEditorCommand.isBlank()) "Current: OS text editor"
+                                else "Current: $externalEditorCommand", style = MaterialTheme.typography.bodySmall)
+                            OutlinedTextField(
+                                value = editorCommandDraft,
+                                onValueChange = { editorCommandDraft = it; editorSettingsError = null },
+                                label = { Text("Editor command") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Text("Example: code --goto \"{file}:{line}\". Quote paths containing spaces. " +
+                                "The file path is appended if {file} is omitted.",
+                                style = MaterialTheme.typography.bodySmall)
+                            Button(onClick = {
+                                val command = editorCommandDraft.trim()
+                                val failure = if (command.isBlank()) null else
+                                    runCatching { DesktopExternalEditor.splitCommand(command) }.exceptionOrNull()
+                                if (failure != null) editorSettingsError = failure.message else {
+                                    DesktopUiPreferences.saveExternalEditorCommand(command)
+                                    externalEditorCommand = command
+                                    editorSettingsError = null
+                                }
+                            }) { Text("Apply editor setting") }
+                            editorSettingsError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        }
                         SettingsSection("Keyboard input") {
                             Text("Choose Logical or Physical below the software keyboard in the main window.")
                             Text("Left Control and F1 operate the pocket-computer DEF key.")
                             Text("Command history: Alt+↑ / Alt+↓", fontFamily = FontFamily.Monospace)
                         }
-                        Text(
-                            "This is the initial settings screen. Persistent options will be added as they are introduced.",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
+                        SettingsSection("Controller") {
+                            ControllerSettings(
+                                settings = gamepad.settings,
+                                devices = gamepad.devices,
+                                selectedId = gamepad.selectedId,
+                                pressed = gamepad.pressed,
+                                allowedKeys = GamepadKeys.forMachine(runner?.machineId ?: selectedMachineId),
+                                availableButtons = gamepad.available,
+                                status = gamepad.status,
+                                onSelectDevice = gamepad::select,
+                                onSettingsChange = gamepad::save,
+                            )
+                        }
                     }
                 }
             }
@@ -1876,7 +2008,7 @@ private fun FrameWindowScope.App(
                         }
                     }
                     Text("ROM: ${if (runner?.machineId in installedRomMachines) "registered" else loadedRomName ?: "not loaded"}")
-                    projectWorkspace?.let { Text("Project: ${it.definition.name}") }
+                    projectWorkspace?.let { Text("Open project: ${it.definition.name}") }
                     Spacer(modifier = Modifier.weight(1f))
                     Button(
                         enabled = runner != null && runnerState != RunnerState.FAULTED,
@@ -1959,6 +2091,7 @@ private fun FrameWindowScope.App(
                                         tree = tree,
                                         selectedPath = selectedProjectSourcePath,
                                         onSelected = { selectedProjectSourcePath = it },
+                                        onEdit = { openExternalSource(it) },
                                         modifier = Modifier.weight(1f),
                                     )
                                 } ?: Text("Project files are loading…")
@@ -2007,6 +2140,17 @@ private fun FrameWindowScope.App(
                             runner,
                             MachineCatalog.require(runner?.machineId ?: selectedMachineId).keyboardLayout,
                         )
+                        loadedProgramLabel?.let { label ->
+                            Text(
+                                label + if (loadedProjectManifest != null &&
+                                    loadedProjectManifest != projectWorkspace?.manifestFile?.absolutePath)
+                                    "（現在のプロジェクト外）" else "",
+                                modifier = Modifier.fillMaxWidth(),
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                         HostKeyInputModeSelector(
                             mode = hostKeyInputMode,
                             onModeSelected = { selected ->
@@ -3678,6 +3822,7 @@ private fun ProjectTreePanel(
     tree: DesktopProjectTreeSnapshot,
     selectedPath: String?,
     onSelected: (String) -> Unit,
+    onEdit: (File) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var sourceInformationHeight by remember {
@@ -3701,17 +3846,20 @@ private fun ProjectTreePanel(
         )
     }
     val selected = (tracked + untracked).firstOrNull { it.path == selectedPath }
-    val description = remember(selected?.path, selected?.file?.lastModified()) {
-        selected?.takeIf { it.supportsDescription }
-            ?.let { runCatching { DesktopSourceHeaderParser.parse(it.file.readBytes())?.description }.getOrNull() }
-            .orEmpty()
-    }
+    val description = tree.sourceDescriptions[selected?.path].orEmpty()
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text("Project files", style = MaterialTheme.typography.titleMedium)
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Project files", style = MaterialTheme.typography.titleMedium)
+            OutlinedButton(
+                onClick = { selected?.let { onEdit(it.file) } },
+                enabled = selected?.let { it.supportsDescription && it.file.isFile } == true,
+            ) { Text("Edit") }
+        }
         val verticalState = rememberScrollState()
         val horizontalState = rememberScrollState()
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
@@ -4013,8 +4161,8 @@ private fun MachineId.displayName(): String = MachineCatalog.find(this)?.display
 
 private enum class ProjectRuntimeStatus(val displayName: String) {
     NOT_BUILT("not built"),
+    NOT_LOADED("project not loaded"),
     UP_TO_DATE("up to date"),
     SOURCE_CHANGED("source changed"),
-    RUNTIME_MODIFIED("modified by quick load"),
     BUILD_FAILED("build failed"),
 }

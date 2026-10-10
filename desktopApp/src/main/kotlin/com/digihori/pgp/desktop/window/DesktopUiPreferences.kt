@@ -6,6 +6,13 @@ import java.util.prefs.Preferences
 internal object DesktopUiPreferences {
     private val preferences = Preferences.userRoot().node("com/digihori/pgp/desktop/ui")
 
+    // Absence preserves legacy PGP_EDITOR behavior; an empty value explicitly uses the OS editor.
+    fun externalEditorCommand(): String? = preferences.get("externalEditorCommand", null)
+
+    fun saveExternalEditorCommand(value: String) {
+        preferences.put("externalEditorCommand", value.trim())
+    }
+
     fun projectPaneWidth(defaultValue: Float): Float =
         preferences.getFloat("projectPaneWidthDp", defaultValue)
 

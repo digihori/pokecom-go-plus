@@ -1,5 +1,6 @@
 package com.digihori.pgp.desktop.runner
 
+import com.digihori.pgp.input.GamepadButton
 import com.digihori.pgp.core.api.AudioSnapshot
 import com.digihori.pgp.core.api.AudioPcmSnapshot
 import com.digihori.pgp.core.api.BasicProgramLoadResult
@@ -37,6 +38,54 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class DesktopEmulatorRunnerTest {
+    @Test
+    fun gamepadDoesNotPolluteHistoryOrPrematurelyReleaseKeyboard() {
+        val session = FakeSession()
+        val runner = runner(session, FakeClock())
+        runner.pressHostKey(PocketKey.NUM_4, "keyboard:4")
+        runner.pressGamepadKey(GamepadButton.LEFT, PocketKey.NUM_4)
+        runner.releaseGamepadKey(GamepadButton.LEFT, PocketKey.NUM_4)
+        assertEquals(listOf("press:NUM_4"), session.inputEvents)
+        runner.releaseHostKey(PocketKey.NUM_4, "keyboard:4")
+        runner.pressGamepadKey(GamepadButton.SOUTH, PocketKey.ENTER)
+        runner.releaseGamepadKey(GamepadButton.SOUTH, PocketKey.ENTER)
+        runner.pressKey(PocketKey.ENTER)
+        runner.releaseKey(PocketKey.ENTER)
+        assertEquals(0, runner.commandHistorySize())
+        assertEquals(listOf("press:NUM_4", "release:NUM_4", "press:ENTER", "release:ENTER",
+            "press:ENTER", "release:ENTER"), session.inputEvents)
+    }
+
+    @Test
+    fun queuedInputReleasePreservesGamepadHold() {
+        val session = FakeSession()
+        val clock = FakeClock()
+        val runner = DesktopEmulatorRunner(session, clock,
+            keyInputQueue = KeyInputQueue(holdCycles = 10, gapCycles = 5))
+        runner.pressGamepadKey(GamepadButton.SOUTH, PocketKey.NUM_4)
+        runner.enqueueKeySequence(listOf(PocketKey.NUM_4))
+        runner.run()
+        clock.advance(1_000_000)
+        runner.tick()
+        assertEquals(listOf("press:NUM_4"), session.inputEvents)
+        runner.releaseGamepadKey(GamepadButton.SOUTH, PocketKey.NUM_4)
+        assertEquals(listOf("press:NUM_4", "release:NUM_4"), session.inputEvents)
+    }
+
+    @Test
+    fun pauseAndResetClearHeldGamepadKeys() {
+        val session = FakeSession()
+        val runner = runner(session, FakeClock())
+        runner.pressGamepadKey(GamepadButton.SOUTH, PocketKey.ENTER)
+        runner.pause()
+        runner.releaseGamepadKey(GamepadButton.SOUTH, PocketKey.ENTER)
+        runner.pressGamepadKey(GamepadButton.LEFT, PocketKey.NUM_4)
+        runner.reset()
+        assertEquals(listOf("press:ENTER", "release:ENTER", "press:NUM_4", "release:NUM_4"),
+            session.inputEvents)
+        assertEquals(0, runner.commandHistorySize())
+    }
+
     @Test
     fun debugObservationRetainsMemoryAccessesWithoutConsumingWatchEventsTwice() {
         val access = MemoryAccess(MemoryAccessKind.WRITE, 0xc123, 0x5a)

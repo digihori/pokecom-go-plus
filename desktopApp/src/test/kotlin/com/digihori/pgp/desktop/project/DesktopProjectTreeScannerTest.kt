@@ -6,8 +6,40 @@ import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotEquals
 
 class DesktopProjectTreeScannerTest {
+    @Test
+    fun refreshesExistingSourceDescriptionEvenWithUnchangedTimestampAndSize() {
+        val root = Files.createTempDirectory("pgp-project-description-test")
+        try {
+            root.resolve("src").createDirectories()
+            val source = root.resolve("src/main.bas")
+            source.writeText("# Before\n10 END\n")
+            val manifest = root.resolve(DesktopProjectWorkspaceLoader.DEFAULT_MANIFEST_NAME)
+            manifest.writeText("""
+                {"format":"pgp-project","formatVersion":1,"name":"Description test",
+                 "machineId":"pc-1245","sources":[
+                    {"id":"main","type":"basic","path":"src/main.bas"}]}
+            """.trimIndent())
+            val workspace = assertIs<DesktopProjectOpenResult.Success>(
+                DesktopProjectWorkspaceLoader.open(manifest.toFile())).workspace
+            val before = DesktopProjectTreeScanner.scan(workspace)
+            val timestamp = Files.getLastModifiedTime(source)
+            source.writeText("# After!\n10 END\n")
+            Files.setLastModifiedTime(source, timestamp)
+            val after = DesktopProjectTreeScanner.scan(workspace)
+            assertEquals(before.tracked, after.tracked)
+            assertNotEquals(before, after)
+            assertEquals("Before", before.sourceDescriptions["src/main.bas"])
+            assertEquals("After!", after.sourceDescriptions["src/main.bas"])
+            source.writeText("10 END\n")
+            assertEquals("", DesktopProjectTreeScanner.scan(workspace).sourceDescriptions["src/main.bas"])
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
     @Test
     fun classifiesManifestAndSourceDirectoryFiles() {
         val root = Files.createTempDirectory("pgp-project-tree-test")

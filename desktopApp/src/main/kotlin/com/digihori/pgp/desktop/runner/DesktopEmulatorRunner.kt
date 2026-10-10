@@ -26,6 +26,8 @@ import com.digihori.pgp.core.runtime.KeyTransition
 import com.digihori.pgp.core.runtime.SpeedRatio
 import com.digihori.pgp.desktop.input.DesktopKeyInputSink
 import com.digihori.pgp.desktop.input.DesktopCommandHistory
+import com.digihori.pgp.input.HostKeyState
+import com.digihori.pgp.input.GamepadButton
 import com.digihori.pgp.core.source.machine.AddressedMemoryImage
 import com.digihori.pgp.desktop.debug.DebuggerStopReason
 import com.digihori.pgp.desktop.debug.DesktopInstructionTraceEntry
@@ -55,6 +57,9 @@ internal class DesktopEmulatorRunner(
     },
 ) : DesktopKeyInputSink {
     override val machineId get() = session.machineId
+    private val hostKeys = HostKeyState(session::pressKey, session::releaseKey)
+    var inputEpoch: Long = 0
+        private set
 
     private val planner: CycleBudgetPlanner = planner ?: CycleBudgetPlanner(
         cyclesPerSecond = MachineCatalog.require(session.machineId).cyclesPerSecond,
@@ -107,6 +112,8 @@ internal class DesktopEmulatorRunner(
         val previousState = state
         val previousReason = stopReason
         applyTransition(keyInputQueue.cancel())
+        hostKeys.releaseAll()
+        inputEpoch++
         planner.reset()
         previousTimeNanoseconds = null
         if (state != RunnerState.FAULTED) {
@@ -119,6 +126,8 @@ internal class DesktopEmulatorRunner(
 
     fun reset() {
         keyInputQueue.cancel()
+        hostKeys.releaseAll()
+        inputEpoch++
         session.reset()
         planner.reset()
         previousTimeNanoseconds = null
@@ -297,19 +306,37 @@ internal class DesktopEmulatorRunner(
     fun resolveRomLocation(address: Int): PhysicalRomLocation? =
         session.resolveRomLocation(address and 0xffff)
 
-    override fun pressKey(key: PocketKey): InputResult = session.pressKey(key).also { result ->
-        if (result is InputResult.Accepted) {
-            sessionRevision++
-            if (operatingMode == OperatingMode.RUN && key != PocketKey.DEF) {
-                commandHistory.recordUserKey(key)
+    override fun pressKey(key: PocketKey): InputResult = pressHostKey(key, "screen:${key.name}")
+
+    override fun pressHostKey(key: PocketKey, owner: String): InputResult {
+        val wasHeld = hostKeys.isHeld(key)
+        return hostKeys.press(owner, key).also { result ->
+            if (result is InputResult.Accepted) {
+                sessionRevision++
+                if (!wasHeld && operatingMode == OperatingMode.RUN && key != PocketKey.DEF) {
+                    commandHistory.recordUserKey(key)
+                }
             }
         }
     }
 
-    override fun releaseKey(key: PocketKey): InputResult {
-        val result = session.releaseKey(key)
+    override fun releaseKey(key: PocketKey): InputResult = releaseHostKey(key, "screen:${key.name}")
+
+    override fun releaseHostKey(key: PocketKey, owner: String): InputResult {
+        val result = hostKeys.release(owner)
         if (result is InputResult.Accepted) sessionRevision++
         return result
+    }
+
+    fun pressGamepadKey(button: GamepadButton, key: PocketKey) {
+        if (hostKeys.press("gamepad:${button.name}", key) is InputResult.Accepted) {
+            commandHistory.clearPendingInput()
+            sessionRevision++
+        }
+    }
+
+    fun releaseGamepadKey(button: GamepadButton, key: PocketKey) {
+        releaseHostKey(key, "gamepad:${button.name}")
     }
 
     override fun enqueueKeySequence(keys: Iterable<PocketKey>) {
@@ -382,7 +409,12 @@ internal class DesktopEmulatorRunner(
     fun setOperatingMode(mode: OperatingMode) {
         session.setOperatingMode(mode)
         if (operatingMode != mode) sessionRevision++
-        if (operatingMode != mode) commandHistory.clearPendingInput()
+        if (operatingMode != mode) {
+            applyTransition(keyInputQueue.cancel())
+            hostKeys.releaseAll()
+            inputEpoch++
+            commandHistory.clearPendingInput()
+        }
         operatingMode = mode
     }
 
@@ -621,8 +653,8 @@ internal class DesktopEmulatorRunner(
 
     private fun applyTransition(transition: KeyTransition?) {
         when (transition) {
-            is KeyTransition.Press -> session.pressKey(transition.key)
-            is KeyTransition.Release -> session.releaseKey(transition.key)
+            is KeyTransition.Press -> hostKeys.press("queue", transition.key)
+            is KeyTransition.Release -> hostKeys.release("queue")
             null -> Unit
         }
     }

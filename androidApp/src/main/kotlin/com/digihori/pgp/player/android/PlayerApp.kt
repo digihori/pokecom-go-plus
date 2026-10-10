@@ -93,6 +93,7 @@ internal fun PlayerApp(
     onTogglePresentationMode: () -> Unit,
     onOperatingModeChange: (OperatingMode) -> Unit,
     romImportEnabled: Boolean,
+    onControllerSettings: () -> Unit = {},
 ) {
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
@@ -121,7 +122,13 @@ internal fun PlayerApp(
                         onReset,
                         onTogglePresentationMode,
                         onOperatingModeChange,
+                        onControllerSettings = onControllerSettings,
                     )
+                }
+                if (screenState !is PlayerScreenState.Emulator) {
+                    TextButton(onClick = onControllerSettings, modifier = Modifier.align(Alignment.TopEnd)) {
+                        Text("コントローラー設定")
+                    }
                 }
             }
         }
@@ -211,6 +218,7 @@ private fun EmulatorScreen(
     onReset: () -> Unit,
     onTogglePresentationMode: () -> Unit,
     onOperatingModeChange: (OperatingMode) -> Unit,
+    onControllerSettings: () -> Unit = {},
 ) {
     val skin = PlayerSkinCatalog.forMachine(machineId)
     Box(modifier = Modifier.fillMaxSize()) {
@@ -240,6 +248,7 @@ private fun EmulatorScreen(
             onReset = onReset,
             onTogglePresentationMode = onTogglePresentationMode,
             onOperatingModeChange = onOperatingModeChange,
+            onControllerSettings = onControllerSettings,
             modifier = Modifier.align(Alignment.TopEnd),
         )
     }
@@ -258,6 +267,7 @@ private fun PlayerMenu(
     onTogglePresentationMode: () -> Unit,
     onOperatingModeChange: (OperatingMode) -> Unit,
     modifier: Modifier = Modifier,
+    onControllerSettings: () -> Unit = {},
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box(modifier = modifier) {
@@ -265,6 +275,10 @@ private fun PlayerMenu(
             Text(stringResource(R.string.player_menu_symbol))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text("コントローラー設定") },
+                onClick = { expanded = false; onControllerSettings() },
+            )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.run_emulator)) },
                 enabled = runState == PlayerRunState.PAUSED,

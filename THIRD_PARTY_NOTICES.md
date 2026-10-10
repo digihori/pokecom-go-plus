@@ -53,6 +53,19 @@ The authoritative license metadata packaged with each dependency takes precedenc
 
 Apache License 2.0: <https://www.apache.org/licenses/LICENSE-2.0>
 
+## Gamepad input
+
+- LWJGL 3.4.1, `lwjgl` and `lwjgl-sdl`: BSD 3-Clause. See `licenses/LWJGL.txt`
+  in binary distributions, or `docs/licenses/LWJGL.txt` in the source tree.
+- SDL3 bundled by LWJGL (macOS arm64 native revision
+  `775eac98ee373bc7abdf0eb773534f5a7b44f42d`): zlib license. See `licenses/SDL.txt`.
+- HIDAPI included by SDL: distributed under its BSD option. See `licenses/HIDAPI.txt`.
+- libffi used by LWJGL callbacks: MIT license. See `licenses/libffi.txt`.
+
+Upstream projects: [LWJGL](https://github.com/LWJGL/lwjgl3),
+[SDL](https://github.com/libsdl-org/SDL), [libffi](https://github.com/libffi/libffi).
+The gamepad integration uses published APIs; no emulator behavior was ported from these projects.
+
 ## Pokecom GO
 
 Pokecom GO is a reference implementation by the same copyright holder as Pokecom GO Plus.

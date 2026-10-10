@@ -1,10 +1,13 @@
 package com.digihori.pgp.desktop.project
 
 import java.io.File
+import com.digihori.pgp.core.project.ProjectSourceType
+import com.digihori.pgp.desktop.source.DesktopSourceHeaderParser
 
 internal data class DesktopProjectTreeSnapshot(
     val tracked: List<DesktopProjectSource>,
     val untracked: List<DesktopProjectTreeFile>,
+    val sourceDescriptions: Map<String, String> = emptyMap(),
 )
 
 internal data class DesktopProjectTreeFile(
@@ -38,8 +41,22 @@ internal object DesktopProjectTreeScanner {
         return DesktopProjectTreeSnapshot(
             tracked = tracked.sortedBy { it.definition.path },
             untracked = untracked.sortedBy { it.relativePath },
+            // File equality alone cannot notify Compose of changes to an existing file.
+            // Include immutable header text, also covering saves with unchanged timestamps.
+            sourceDescriptions = buildMap {
+                tracked.filter { it.definition.type != ProjectSourceType.RAW_BINARY }.forEach {
+                    put(it.definition.path, description(it.file))
+                }
+                untracked.filter { it.file.extension.lowercase() in setOf("bas", "asm", "dmp") }.forEach {
+                    put(it.relativePath, description(it.file))
+                }
+            },
         )
     }
+
+    private fun description(file: File): String = runCatching {
+        DesktopSourceHeaderParser.parse(file.readBytes())?.description.orEmpty()
+    }.getOrDefault("")
 
     private fun File.isAutomaticallyIgnored(): Boolean =
         name.startsWith('.') || name.endsWith('~') || name.endsWith(".tmp", ignoreCase = true)

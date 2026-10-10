@@ -52,7 +52,7 @@ jobs:
 
       - name: Test and package macOS
         if: runner.os == 'macOS'
-        run: ./gradlew :core:desktopTest :desktopApp:test :desktopApp:createDistributable :desktopApp:packageDmg --no-daemon
+        run: ./gradlew :core:desktopTest :hostInput:desktopTest :desktopApp:test :desktopApp:createDistributable :desktopApp:packageDmg --no-daemon
 
       - name: Collect macOS packages
         if: runner.os == 'macOS'
@@ -70,7 +70,7 @@ jobs:
 
       - name: Test and package Windows
         if: runner.os == 'Windows'
-        run: .\gradlew.bat :core:desktopTest :desktopApp:test :desktopApp:createDistributable :desktopApp:packageMsi --no-daemon
+        run: .\gradlew.bat :core:desktopTest :hostInput:desktopTest :desktopApp:test :desktopApp:createDistributable :desktopApp:packageMsi --no-daemon
 
       - name: Collect Windows packages
         if: runner.os == 'Windows'
@@ -89,7 +89,7 @@ jobs:
 
       - name: Test and package Linux
         if: runner.os == 'Linux'
-        run: ./gradlew :core:desktopTest :desktopApp:test :desktopApp:createDistributable :desktopApp:packageDeb --no-daemon
+        run: ./gradlew :core:desktopTest :hostInput:desktopTest :desktopApp:test :desktopApp:createDistributable :desktopApp:packageDeb --no-daemon
 
       - name: Collect Linux packages
         if: runner.os == 'Linux'
@@ -143,7 +143,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Test and build Player APK
-        run: ./gradlew :playerShared:testDebugUnitTest :androidApp:testDebugUnitTest :androidApp:assembleDebug --no-daemon
+        run: ./gradlew :hostInput:testDebugUnitTest :playerShared:testDebugUnitTest :androidApp:testDebugUnitTest :androidApp:assembleDebug --no-daemon
 
       - name: Collect Android Player package
         shell: bash

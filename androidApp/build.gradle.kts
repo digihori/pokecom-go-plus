@@ -9,6 +9,7 @@ plugins {
 val preparePlayerLegalResources by tasks.registering(Sync::class) {
     from(rootProject.layout.projectDirectory.file("LICENSE"))
     from(rootProject.layout.projectDirectory.file("THIRD_PARTY_NOTICES.md"))
+    from(rootProject.layout.projectDirectory.dir("docs/licenses")) { into("licenses") }
     into(layout.buildDirectory.dir("generated/player-legal-assets"))
 }
 
@@ -44,6 +45,7 @@ kotlin {
 
 dependencies {
     implementation(project(":playerShared"))
+    implementation(project(":controllerUi"))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.foundation)

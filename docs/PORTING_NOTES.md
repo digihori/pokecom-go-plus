@@ -1454,3 +1454,41 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
   Encoding shares the S1 container with PC-1350 but uses the smaller PC-1261 command table.
 - PC-1260 and PC-1262 remain separate follow-up work. They must not be modeled as capacity-only
   aliases until their ROM and address differences are verified.
+
+
+## Studio / Android Player gamepad input (2026-10-11)
+
+- This is new host functionality, not a port of an external emulator. Core remains free of device,
+  UI, filesystem and threading APIs. Existing PocketKey press/release behavior is reused.
+- Desktop uses the published LWJGL 3.4.1 SDL3 binding and its matching native artifact for the
+  current OS/CPU. macOS calls run asynchronously on the Cocoa main queue through libdispatch;
+  SDL does not own video or audio. The jpackage runtime includes `jdk.unsupported` for LWJGL.
+- Android uses public KeyEvent / InputDevice / MotionEvent APIs. Digital d-pad HAT reports are
+  normalized alongside key reports; analog sticks and triggers do not generate pocket keys.
+- `hostInput` owns the single setting, single-device selection and per-input key ownership.
+  `controllerUi` supplies the same diagram / key picker / save flow to both applications.
+- Each of the 10 controls maps to one PocketKey or unassigned. There are no profiles, macros,
+  analog conversions or simultaneous multi-controller routing. Preferences overwrite one setting.
+- Keyboard, on-screen keys and the automatic key queue share key ownership with the pad.
+  Gamepad presses clear pending command-history input without adding gameplay to saved history.
+- Primary API sources and implementation / validation scope are recorded in `docs/GAMEPAD_DESIGN.md`.
+  License texts are preserved in `docs/licenses` and copied into application distributions.
+
+## Studio external-editor settings and program provenance
+
+Original host-side UI additions: persisted editor commands reuse the existing direct
+ProcessBuilder launch path; no shell is invoked. Explicit OS-editor settings override
+PGP_EDITOR, while users without a saved setting retain the legacy environment fallback.
+Project close clears workspace monitoring and previews without resetting the emulator.
+Program provenance is updated only after a successful project or individual load; individual
+loads clear the project BASIC baseline. Display and preferences remain in desktopApp, with
+no core API or emulator-thread changes.
+
+On macOS, the `code` executable is resolved from PATH or the bundled VS Code launcher
+in system/user Applications directories, preserving all command arguments. This avoids
+requiring Finder-launched Studio users to install the terminal CLI or configure shell startup.
+
+Source information now belongs to the immutable project-tree snapshot, refreshed by the
+existing host-side polling scan. Header edits change snapshot equality even when the file list,
+size, and timestamp stay unchanged, so Compose refreshes the selected description without
+reselections or filesystem reads during rendering.

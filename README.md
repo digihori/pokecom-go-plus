@@ -77,6 +77,8 @@ iOSは後続対象です。Playerにはデバッガ、アセンブラ、逆ア�
 ```text
 pokecom-go-plus/
 ├── core/          Kotlin Multiplatformの共有Core
+├── hostInput/     ゲームパッド割当・入力源別の押下管理
+├── controllerUi/  Studio／Android共通のコントローラー設定画面
 ├── playerShared/  Android／iOS Playerで共有する実行・表示モデル
 ├── desktopApp/    Pokecom GO Studio（現在のCompose Desktop実装）
 ├── androidApp/    Pokecom GO Player（Android最小プロトタイプ）
