@@ -1436,3 +1436,21 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
   対象形式、機種別ロード先、上書き確認、Android／iOSのdocument picker／共有方法は実装前に整理する。
 - Open decision: 機種切替を3点メニューへ置く案を検討する。ROM Libraryからの選択、Session再生成、
   実行・表示モードの復元まで含めて画面遷移を設計してから実装する。
+
+## PC-1261 initial support (2026-10-10)
+
+- Reference provenance: Pokecom GO commit `b1ab80c0bd8a91266ebb07bee5bd6c1396e91d24`,
+  `Sc61860_1261.java`, `MainLoop1261.java`, `SubActivity1261.java`, and `KeyBoard1245.java`.
+- The historical `pc1261mem.bin` is accepted only as a 64 KiB import container. PGP retains
+  physical ROM bytes at `0000-1FFF` and `8000-FFFF`; bytes at `2000-7FFF` are discarded and
+  runtime RAM is initialized independently.
+- Writable memory is `2000-67FF`. Writes in `2000-3FFF` use the verified `address & 28FF`
+  decode and `2000-2FFF` writes are mirrored to `3000-3FFF`.
+- LCD columns use `2000-203B`, `2800-283B`, `2040-207B`, and `2840-287B`; symbol registers
+  use `203D` and `207C`. The host snapshot exposes 24 characters by 2 rows of 5x7 dots.
+- Keyboard scanning deliberately reuses the PC-1245 matrix while mode contacts use the
+  PC-1251 RUN/PRO/RSV behavior. The machine clock is 768 kHz, matching the reference.
+- BASIC storage starts at `4080`; start/end pointers are `66E1/66E2` and `66E3/66E4`.
+  Encoding shares the S1 container with PC-1350 but uses the smaller PC-1261 command table.
+- PC-1260 and PC-1262 remain separate follow-up work. They must not be modeled as capacity-only
+  aliases until their ROM and address differences are verified.

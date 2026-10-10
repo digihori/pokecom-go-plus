@@ -27,7 +27,7 @@ class EmulatorFactoryTest {
         assertEquals(
             listOf(
                 MachineId("pc-1245"), MachineId("pc-1250"), MachineId("pc-1251"),
-                MachineId("pc-1255"), MachineId("pc-1350"), MachineId("pc-1360"),
+                MachineId("pc-1255"), MachineId("pc-1261"), MachineId("pc-1350"), MachineId("pc-1360"),
             ),
             EmulatorFactory.supportedMachineIds(),
         )

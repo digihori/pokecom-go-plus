@@ -4,7 +4,15 @@ import com.digihori.pgp.core.source.basic.BasicTextDocument
 import com.digihori.pgp.core.source.basic.BasicTextElement
 
 public object Pc1350BasicTokenizer {
-    public fun tokenize(document: BasicTextDocument): Pc1350BasicTokenizeResult {
+    public fun tokenize(document: BasicTextDocument): Pc1350BasicTokenizeResult = tokenize(document, KEYWORDS)
+
+    public fun detokenize(bytes: ByteArray): Pc1350BasicDetokenizeResult =
+        detokenize(bytes, KEYWORDS.associate { (name, code) -> code to name })
+
+    internal fun tokenize(
+        document: BasicTextDocument,
+        keywords: List<Pair<String, Int>>,
+    ): Pc1350BasicTokenizeResult {
         val lines = mutableListOf<StringBuilder>(StringBuilder())
         document.tokens.forEach { token ->
             when (val element = token.element) {
@@ -26,7 +34,7 @@ public object Pc1350BasicTokenizer {
             var body = match.groupValues[2]
             if (body.startsWith(':')) body = body.drop(1)
             body = body.trimStart()
-            val encoded = encodeBody(body, sourceLine + 1)
+            val encoded = encodeBody(body, sourceLine + 1, keywords)
             if (encoded is BodyResult.Failure) return Pc1350BasicTokenizeResult.Failure(encoded.error)
             val bytes = (encoded as BodyResult.Success).bytes
             if (bytes.size + 1 > 0xff) return failure(sourceLine + 1, 1, "Encoded S1 line is too long")
@@ -40,7 +48,76 @@ public object Pc1350BasicTokenizer {
         return Pc1350BasicTokenizeResult.Success(output.map(Int::toByte).toByteArray())
     }
 
-    private fun encodeBody(body: String, sourceLine: Int): BodyResult {
+    internal fun detokenize(
+        bytes: ByteArray,
+        tokenNames: Map<Int, String>,
+    ): Pc1350BasicDetokenizeResult {
+        if (bytes.size < 2 || bytes.first().toInt() and 0xff != 0xff) {
+            return decodeFailure(0, "Missing S1 start marker")
+        }
+        val lines = mutableListOf<String>()
+        var offset = 1
+        while (offset < bytes.lastIndex) {
+            if (offset + 3 > bytes.lastIndex) return decodeFailure(offset, "Truncated S1 line header")
+            val lineNumber = ((bytes[offset].toInt() and 0xff) shl 8) or (bytes[offset + 1].toInt() and 0xff)
+            val length = bytes[offset + 2].toInt() and 0xff
+            if (length < 1 || offset + 3 + length > bytes.size) {
+                return decodeFailure(offset + 2, "Invalid S1 line length")
+            }
+            val end = offset + 3 + length
+            if (bytes[end - 1].toInt() and 0xff != 0x0d) {
+                return decodeFailure(end - 1, "Missing S1 line terminator")
+            }
+            val body = StringBuilder()
+            var position = offset + 3
+            var quoted = false
+            var remark = false
+            var afterKeyword = false
+            while (position < end - 1) {
+                val value = bytes[position].toInt() and 0xff
+                val keyword = if (!quoted && !remark) tokenNames[value] else null
+                when {
+                    keyword != null -> {
+                        if (body.isNotEmpty() && body.last().isLetterOrDigit()) body.append(' ')
+                        body.append(keyword)
+                        afterKeyword = true
+                        if (keyword == "REM") {
+                            if (position + 1 >= end - 1 || bytes[position + 1].toInt() and 0xff != 0x20) body.append(' ')
+                            remark = true
+                            afterKeyword = false
+                        }
+                    }
+                    value == 0x22 -> { body.append('"'); quoted = !quoted; afterKeyword = false }
+                    value in 0x20..0x7e -> {
+                        val character = value.toChar()
+                        if (afterKeyword && (character.isLetter() || character == '$')) body.append(' ')
+                        body.append(character)
+                        afterKeyword = false
+                    }
+                    value == 0xfe && position + 1 < end - 1 -> {
+                        val kana = bytes[position + 1].toInt() and 0xff
+                        if (kana in 0xa1..0xdf) {
+                            body.append((0xff61 + kana - 0xa1).toChar())
+                            position++
+                        } else {
+                            body.append(rawByte(value))
+                        }
+                        afterKeyword = false
+                    }
+                    else -> { body.append(rawByte(value)); afterKeyword = false }
+                }
+                position++
+            }
+            lines += "$lineNumber ${body.toString().trimEnd()}"
+            offset = end
+        }
+        if (offset != bytes.lastIndex || bytes.last().toInt() and 0xff != 0xff) {
+            return decodeFailure(offset, "Missing S1 end marker")
+        }
+        return Pc1350BasicDetokenizeResult.Success(lines.joinToString("\n"))
+    }
+
+    private fun encodeBody(body: String, sourceLine: Int, keywords: List<Pair<String, Int>>): BodyResult {
         val output = mutableListOf<Int>()
         var index = 0
         var inString = false
@@ -55,7 +132,7 @@ public object Pc1350BasicTokenizer {
             }
             if (!inString && !inRemark && char == ' ') { index++; continue }
             if (!inString && !inRemark) {
-                val keyword = KEYWORDS.firstOrNull { (word, _) ->
+                val keyword = keywords.firstOrNull { (word, _) ->
                     body.regionMatches(index, word, 0, word.length, ignoreCase = true) &&
                         keywordBoundary(body, index, word)
                 }
@@ -95,6 +172,11 @@ public object Pc1350BasicTokenizer {
     private fun failure(line: Int, column: Int, message: String) =
         Pc1350BasicTokenizeResult.Failure(Pc1350BasicTokenizeError(line, column, message))
 
+    private fun decodeFailure(offset: Int, message: String) =
+        Pc1350BasicDetokenizeResult.Failure(Pc1350BasicDetokenizeError(offset, message))
+
+    private fun rawByte(value: Int): String = "\\x" + value.toString(16).uppercase().padStart(2, '0')
+
     private sealed interface BodyResult {
         data class Success(val bytes: List<Int>) : BodyResult
         data class Failure(val error: Pc1350BasicTokenizeError) : BodyResult
@@ -124,3 +206,10 @@ public sealed interface Pc1350BasicTokenizeResult {
 }
 
 public data class Pc1350BasicTokenizeError(val line: Int, val column: Int, val message: String)
+
+public sealed interface Pc1350BasicDetokenizeResult {
+    public data class Success(public val source: String) : Pc1350BasicDetokenizeResult
+    public data class Failure(public val error: Pc1350BasicDetokenizeError) : Pc1350BasicDetokenizeResult
+}
+
+public data class Pc1350BasicDetokenizeError(val offset: Int, val message: String)

@@ -3,6 +3,7 @@ package com.digihori.pgp.desktop.basic
 import com.digihori.pgp.core.api.PocketKey
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomInputUnsupported
 import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261RomDefinition
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -29,6 +30,21 @@ class DesktopBasicLoaderTest {
         )
 
         assertEquals("10 PRINT \"HELLO\"\n", decoded.utf8Bytes.decodeToString())
+    }
+
+    @Test
+    fun compilesAndDecodesPc1261S1ProgramImages() {
+        val compiled = assertIs<DesktopBasicProgramCompileResult.Success>(
+            DesktopBasicLoader.compileProgram(
+                "10 PRINT A\n20 PRINT \"ｱｲ\"".encodeToByteArray(),
+                Pc1261RomDefinition.MACHINE_ID,
+            ),
+        )
+        val decoded = assertIs<DesktopBasicProgramDecodeResult.Success>(
+            DesktopBasicLoader.detokenizeProgram(compiled.bytes, Pc1261RomDefinition.MACHINE_ID),
+        )
+
+        assertEquals("10 PRINT A\n20 PRINT\"ｱｲ\"\n", decoded.utf8Bytes.decodeToString())
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.digihori.pgp.core.api
 
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
+import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360RomDefinition
 import com.digihori.pgp.core.rom.MachineId
@@ -9,6 +10,7 @@ import com.digihori.pgp.core.rom.MachineId
 public enum class MachineFamily {
     PC_1245,
     PC_1251,
+    PC_1261,
     PC_1350,
     PC_1360,
 }
@@ -44,6 +46,7 @@ public enum class MachineRomLayout {
 public enum class MachineKeyboardLayout {
     PC_1245,
     PC_1251,
+    PC_1261,
     PC_1350,
     PC_1360,
 }
@@ -194,6 +197,31 @@ public object MachineCatalog {
         ),
     )
 
+    private val pc1261 = MachineDefinition(
+        id = Pc1261RomDefinition.MACHINE_ID,
+        displayName = "PC-1261",
+        family = MachineFamily.PC_1261,
+        generation = MachineGeneration.S1,
+        memoryBanking = MachineMemoryBanking.None,
+        romLayout = MachineRomLayout.SC61860_INTERNAL_8K_EXTERNAL_32K,
+        keyboardLayout = MachineKeyboardLayout.PC_1261,
+        basicDialect = MachineBasicDialect.S1,
+        characterColumns = 24,
+        characterRows = 2,
+        supportedOperatingModes = setOf(OperatingMode.RUN, OperatingMode.PROGRAM, OperatingMode.RESERVE),
+        cyclesPerSecond = 768_000L,
+        automaticKeyHoldCycles = 46_080L,
+        automaticKeyGapCycles = 15_360L,
+        supportsConfigurableRam = false,
+        memoryRegions = listOf(
+            MachineMemoryRegion("internal-rom", "Internal ROM", 0x0000, 0x1fff, MachineMemoryRegionKind.ROM),
+            MachineMemoryRegion("display", "Display memory", 0x2000, 0x287f, MachineMemoryRegionKind.DISPLAY),
+            MachineMemoryRegion("display-mirror", "Display memory mirror", 0x3000, 0x387f, MachineMemoryRegionKind.MIRROR, "display"),
+            MachineMemoryRegion("ram", "RAM", 0x4000, 0x67ff, MachineMemoryRegionKind.RAM),
+            MachineMemoryRegion("external-rom", "External ROM", 0x8000, 0xffff, MachineMemoryRegionKind.ROM),
+        ),
+    )
+
     private val pc1360 = MachineDefinition(
         id = Pc1360RomDefinition.MACHINE_ID,
         displayName = "PC-1360",
@@ -219,7 +247,7 @@ public object MachineCatalog {
         ),
     )
 
-    public val definitions: List<MachineDefinition> = listOf(pc1245) + pc1251Family + listOf(pc1350, pc1360)
+    public val definitions: List<MachineDefinition> = listOf(pc1245) + pc1251Family + listOf(pc1261, pc1350, pc1360)
     public val defaultDefinition: MachineDefinition = pc1245
 
     private val byId: Map<MachineId, MachineDefinition> = definitions.associateBy(MachineDefinition::id)

@@ -39,6 +39,7 @@ public object PlayerKeyboardCatalog {
         when (MachineCatalog.require(machineId).keyboardLayout) {
             MachineKeyboardLayout.PC_1245 -> pc1245
             MachineKeyboardLayout.PC_1251,
+            MachineKeyboardLayout.PC_1261,
             MachineKeyboardLayout.PC_1350,
             MachineKeyboardLayout.PC_1360,
             -> null

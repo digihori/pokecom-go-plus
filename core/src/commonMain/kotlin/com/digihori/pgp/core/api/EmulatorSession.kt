@@ -151,6 +151,9 @@ public enum class DisplaySymbol {
     RESERVE,
     KANA,
     SMALL,
+    PRINT,
+    DEG,
+    ERROR,
 }
 
 public class DisplaySnapshot internal constructor(

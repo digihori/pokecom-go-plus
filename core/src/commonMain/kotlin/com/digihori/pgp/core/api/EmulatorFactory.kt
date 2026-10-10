@@ -11,6 +11,9 @@ import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251MemoryImageLoadResult
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251Display
+import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261Display
+import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261Machine
+import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350Display
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350Machine
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350RomDefinition
@@ -48,6 +51,7 @@ public object EmulatorFactory {
                             Pc1251Machine(romSet, model, configuration.pc1251FamilyMemoryMode),
                         )
                     }
+                    MachineFamily.PC_1261 -> Pc1261EmulatorSession(Pc1261Machine(romSet))
                     MachineFamily.PC_1350 -> Pc1350EmulatorSession(Pc1350Machine(romSet))
                     MachineFamily.PC_1360 -> Pc1360EmulatorSession(Pc1360Machine(romSet))
                 },
@@ -57,6 +61,95 @@ public object EmulatorFactory {
                 CreateSessionError.InvalidRomSet(error.message ?: "Invalid ROM set"),
             )
         }
+    }
+}
+
+private class Pc1261EmulatorSession(private val machine: Pc1261Machine) : EmulatorSession {
+    override val machineId: MachineId = Pc1261RomDefinition.MACHINE_ID
+    private var status: ExecutionStatus = ExecutionStatus.Ready
+    override fun reset() { machine.coldReset(); status = ExecutionStatus.Ready }
+    override fun step(): StepResult = machine.step().let {
+        status = it.stopReason.toExecutionStatus(); StepResult(it.cycles, status)
+    }
+    override fun runCycles(cycleBudget: Long): RunResult = machine.runCycles(cycleBudget).let {
+        status = it.stopReason.toExecutionStatus(); RunResult(it.executedCycles, it.executedInstructions, status)
+    }
+    override fun pressKey(key: PocketKey): InputResult =
+        if (machine.keyboardState.press(key)) InputResult.Accepted else InputResult.UnsupportedKey(key)
+    override fun releaseKey(key: PocketKey): InputResult =
+        if (machine.keyboardState.release(key)) InputResult.Accepted else InputResult.UnsupportedKey(key)
+    override fun setOperatingMode(mode: OperatingMode) = machine.keyboardState.setOperatingMode(mode)
+    override fun cpuSnapshot(): CpuSnapshot = machine.cpuState.let { state ->
+        CpuSnapshot(
+            state.programCounter, state.currentProgramCounter, state.opcode, state.dataPointer,
+            state.p, state.q, state.r, state.d, state.alu, state.carry, state.zero, state.xInput,
+            state.powerOn, state.ia, state.ib, state.fo, state.control, state.testPort,
+            ByteArray(state.internalRam.size) { state.internalRam[it].toByte() },
+        )
+    }
+    override fun memorySnapshot(startAddress: Int, length: Int): MemorySnapshot {
+        require(startAddress in 0..0xffff && length >= 0 && length <= 0x10000 - startAddress)
+        return MemorySnapshot(startAddress, ByteArray(length) { machine.readMemory(startAddress + it).toByte() })
+    }
+    override fun displaySnapshot(): DisplaySnapshot {
+        val display = machine.displayState
+        val columns = display.copyColumns()
+        val rowColumns = Pc1261Display.CHARACTER_COLUMNS * Pc1261Display.CHARACTER_WIDTH
+        val dots = ByteArray(rowColumns * Pc1261Display.DOT_ROWS)
+        for (displayRow in 0 until Pc1261Display.CHARACTER_ROWS) {
+            for (column in 0 until rowColumns) {
+                val bits = columns[displayRow * rowColumns + column].toInt() and 0xff
+                for (dotRow in 0 until Pc1261Display.CHARACTER_HEIGHT) {
+                    if (bits and (1 shl dotRow) != 0) {
+                        dots[(displayRow * Pc1261Display.CHARACTER_HEIGHT + dotRow) * rowColumns + column] = 1
+                    }
+                }
+            }
+        }
+        val state0 = display.symbolState0(); val state1 = display.symbolState1()
+        return DisplaySnapshot(
+            Pc1261Display.CHARACTER_COLUMNS, Pc1261Display.CHARACTER_WIDTH,
+            Pc1261Display.DOT_ROWS, Pc1261Display.CHARACTER_ROWS,
+            buildList {
+                if (state0 and 0x01 != 0) add(DisplaySymbol.BUSY)
+                if (state0 and 0x02 != 0) add(DisplaySymbol.PRINT)
+                if (state0 and 0x08 != 0) add(DisplaySymbol.KANA)
+                if (state0 and 0x10 != 0) add(DisplaySymbol.SMALL)
+                if (state0 and 0x20 != 0) add(DisplaySymbol.SHIFT)
+                if (state0 and 0x40 != 0) add(DisplaySymbol.DEF)
+                if (state1 and 0x01 != 0) add(DisplaySymbol.DEG)
+                if (state1 and 0x02 != 0) add(DisplaySymbol.RAD)
+                if (state1 and 0x20 != 0) add(DisplaySymbol.ERROR)
+                add(when (machine.keyboardState.operatingMode) {
+                    OperatingMode.RUN -> DisplaySymbol.RUN
+                    OperatingMode.PROGRAM -> DisplaySymbol.PRO
+                    OperatingMode.RESERVE -> DisplaySymbol.RESERVE
+                })
+            },
+            true, display.revision + machine.keyboardState.modeRevision, dots,
+        )
+    }
+    override fun audioSnapshot() = AudioSnapshot(machine.buzzerState.frequencyHz, machine.buzzerState.revision)
+    override fun drainAudioSamples() = AudioPcmSnapshot(Pc1245Buzzer.SAMPLE_RATE, machine.buzzerState.drainPcm())
+    override fun loadBasicProgram(program: ByteArray) = machine.loadBasicProgram(program).toLoadResult()
+    override fun basicProgramSnapshot() = machine.basicProgram().toSnapshotResult()
+    override fun loadMemoryImage(image: com.digihori.pgp.core.source.machine.AddressedMemoryImage): MemoryImageLoadResult {
+        val invalid = image.segments.firstNotNullOfOrNull { segment ->
+            (segment.startAddress..segment.endAddress).firstOrNull { it !in 0x2000..0x67ff }
+                ?.let { MemoryImageLoadError.ReadOnlyAddress(it, segment.sourceLine) }
+        }
+        if (invalid != null) return MemoryImageLoadResult.Failure(invalid)
+        image.segments.forEach { segment -> segment.copyBytes().forEachIndexed { offset, byte ->
+            machine.writeMemory(segment.startAddress + offset, byte.toInt() and 0xff)
+        } }
+        return MemoryImageLoadResult.Success(image.segments.size, image.byteCount)
+    }
+    override fun setMemoryAccessTracing(enabled: Boolean) = machine.setMemoryAccessTracing(enabled)
+    override fun drainMemoryAccesses() = machine.drainMemoryAccesses()
+    override fun resolveRomLocation(address: Int): PhysicalRomLocation? = when (address) {
+        in 0x0000..0x1fff -> PhysicalRomLocation(Pc1261RomDefinition.INTERNAL_ID, null, address)
+        in 0x8000..0xffff -> PhysicalRomLocation(Pc1261RomDefinition.EXTERNAL_ID, null, address - 0x8000)
+        else -> null
     }
 }
 

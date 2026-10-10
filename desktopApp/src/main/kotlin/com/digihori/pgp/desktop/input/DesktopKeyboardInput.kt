@@ -151,6 +151,7 @@ internal class DesktopKeyboardInput {
     private fun DesktopKeyInputSink.keySequence(character: Char): List<PocketKey>? =
         when (MachineCatalog.find(machineId)?.keyboardLayout) {
             MachineKeyboardLayout.PC_1251 -> Pc1251CharacterInput.keySequence(character)
+            MachineKeyboardLayout.PC_1261 -> Pc1251CharacterInput.keySequence(character)
             MachineKeyboardLayout.PC_1245, null -> Pc1245CharacterInput.keySequence(character)
             MachineKeyboardLayout.PC_1350 -> Pc1350CharacterInput.keySequence(character)
             MachineKeyboardLayout.PC_1360 -> Pc1360CharacterInput.keySequence(character)

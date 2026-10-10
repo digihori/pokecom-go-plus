@@ -160,6 +160,7 @@ import com.digihori.pgp.desktop.project.renderListing
 import com.digihori.pgp.desktop.project.renderMap
 import com.digihori.pgp.desktop.project.renderMemorySummary
 import com.digihori.pgp.desktop.input.Pc1245KeyboardLayout
+import com.digihori.pgp.desktop.input.Pc1261KeyboardLayout
 import com.digihori.pgp.desktop.input.Pc1251KeyboardLayout
 import com.digihori.pgp.desktop.input.Pc1350KeyboardLayout
 import com.digihori.pgp.desktop.input.Pc1360KeyboardLayout
@@ -1889,8 +1890,8 @@ private fun FrameWindowScope.App(
                         onClick = ::stepEmulator,
                     ) { Text("Step") }
                     val activeDefinition = MachineCatalog.require(runner?.machineId ?: selectedMachineId)
-                    if (activeDefinition.family == MachineFamily.PC_1245 ||
-                        activeDefinition.family == MachineFamily.PC_1251
+                    if (OperatingMode.RUN in activeDefinition.supportedOperatingModes &&
+                        OperatingMode.PROGRAM in activeDefinition.supportedOperatingModes
                     ) {
                         Button(
                             enabled = runner != null && operatingMode != OperatingMode.RUN,
@@ -1901,7 +1902,7 @@ private fun FrameWindowScope.App(
                             onClick = { setMode(OperatingMode.PROGRAM) },
                         ) { Text("PRO") }
                     }
-                    if (activeDefinition.family == MachineFamily.PC_1251) {
+                    if (OperatingMode.RESERVE in activeDefinition.supportedOperatingModes) {
                         Button(
                             enabled = runner != null && operatingMode != OperatingMode.RESERVE,
                             onClick = { setMode(OperatingMode.RESERVE) },
@@ -3153,6 +3154,7 @@ private fun PocketSoftwareKeyboard(runner: DesktopEmulatorRunner?, layout: Machi
     val (rows, columnCount) = when (layout) {
         MachineKeyboardLayout.PC_1245 -> Pc1245KeyboardLayout.rows to Pc1245KeyboardLayout.COLUMN_COUNT
         MachineKeyboardLayout.PC_1251 -> Pc1251KeyboardLayout.rows to Pc1251KeyboardLayout.COLUMN_COUNT
+        MachineKeyboardLayout.PC_1261 -> Pc1261KeyboardLayout.rows to Pc1261KeyboardLayout.COLUMN_COUNT
         MachineKeyboardLayout.PC_1350 -> Pc1350KeyboardLayout.rows to Pc1350KeyboardLayout.COLUMN_COUNT
         MachineKeyboardLayout.PC_1360 -> Pc1360KeyboardLayout.rows to Pc1360KeyboardLayout.COLUMN_COUNT
     }

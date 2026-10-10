@@ -22,4 +22,17 @@ class Pc1251KeyboardLayoutTest {
             assertNull(cap.basicLabel, "key=${cap.key}")
         }
     }
+
+    @Test
+    fun pc1261UsesItsOwnShiftLegends() {
+        val caps = Pc1261KeyboardLayout.rows.flatten().associateBy(PocketKeyCap::key)
+
+        assertEquals("HELP", caps.getValue(PocketKey.NUM_7).shiftedLabel)
+        assertEquals("カナ", caps.getValue(PocketKey.NUM_8).shiftedLabel)
+        assertEquals("(", caps.getValue(PocketKey.NUM_1).shiftedLabel)
+        assertEquals(")", caps.getValue(PocketKey.NUM_2).shiftedLabel)
+        assertNull(caps.getValue(PocketKey.DOWN).shiftedLabel)
+        assertNull(caps.getValue(PocketKey.UP).shiftedLabel)
+        Pc1261KeyboardLayout.rows.flatten().forEach { cap -> assertNull(cap.basicLabel, "key=${cap.key}") }
+    }
 }

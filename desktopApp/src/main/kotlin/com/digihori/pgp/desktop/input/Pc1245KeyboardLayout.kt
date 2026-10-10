@@ -102,6 +102,19 @@ internal object Pc1251KeyboardLayout {
     }
 }
 
+internal object Pc1261KeyboardLayout {
+    const val COLUMN_COUNT: Int = Pc1245KeyboardLayout.COLUMN_COUNT
+    val rows: List<List<PocketKeyCap>> = Pc1245KeyboardLayout.rows.map { row ->
+        row.map { cap ->
+            when (cap.key) {
+                PocketKey.NUM_7 -> cap.copy(shiftedLabel = "HELP", basicLabel = null)
+                PocketKey.NUM_8 -> cap.copy(shiftedLabel = "カナ", basicLabel = null)
+                else -> cap.copy(basicLabel = null)
+            }
+        }
+    }
+}
+
 internal object Pc1350KeyboardLayout {
     const val COLUMN_COUNT: Int = 16
 
