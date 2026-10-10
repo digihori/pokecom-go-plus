@@ -18,6 +18,7 @@ import com.digihori.pgp.core.api.StepResult
 import com.digihori.pgp.core.api.MachineCatalog
 import com.digihori.pgp.core.api.MemoryAccess
 import com.digihori.pgp.core.api.MemoryAccessKind
+import com.digihori.pgp.core.api.PhysicalRomLocation
 import com.digihori.pgp.core.runtime.CycleBudget
 import com.digihori.pgp.core.runtime.CycleBudgetPlanner
 import com.digihori.pgp.core.runtime.KeyInputQueue
@@ -29,6 +30,8 @@ import com.digihori.pgp.core.source.machine.AddressedMemoryImage
 import com.digihori.pgp.desktop.debug.DebuggerStopReason
 import com.digihori.pgp.desktop.debug.DesktopInstructionTraceEntry
 import com.digihori.pgp.desktop.debug.MemoryValueChange
+import com.digihori.pgp.desktop.debug.DesktopMemoryAccessHistoryEntry
+import com.digihori.pgp.desktop.debug.DesktopBankHistoryEntry
 import com.digihori.pgp.core.debug.Sc61860InstructionDecoder
 
 internal fun interface MonotonicClock {
@@ -77,6 +80,14 @@ internal class DesktopEmulatorRunner(
     private var memoryWatchRange: IntRange? = null
     private var memoryWatchBaseline: ByteArray? = null
     private var memoryAccessWatch: MemoryAccessWatch? = null
+    private var debugObservationEnabled: Boolean = false
+    private val memoryAccessHistory: ArrayDeque<DesktopMemoryAccessHistoryEntry> = ArrayDeque()
+    private val bankHistory: ArrayDeque<DesktopBankHistoryEntry> = ArrayDeque()
+    private var nextMemoryAccessSequence: Long = 0
+    private var nextBankSequence: Long = 0
+    private var lastStepMemoryAccesses: List<MemoryAccess> = emptyList()
+    var sessionRevision: Long = 0
+        private set
 
     fun run() {
         if (state != RunnerState.PAUSED) return
@@ -89,9 +100,12 @@ internal class DesktopEmulatorRunner(
         previousTimeNanoseconds = clock.nowNanoseconds()
         state = RunnerState.RUNNING
         stopReason = null
+        sessionRevision++
     }
 
     fun pause() {
+        val previousState = state
+        val previousReason = stopReason
         applyTransition(keyInputQueue.cancel())
         planner.reset()
         previousTimeNanoseconds = null
@@ -100,6 +114,7 @@ internal class DesktopEmulatorRunner(
             state = RunnerState.PAUSED
         }
         temporaryRunToAddress = null
+        if (state != previousState || stopReason != previousReason) sessionRevision++
     }
 
     fun reset() {
@@ -117,6 +132,12 @@ internal class DesktopEmulatorRunner(
         clearInstructionTrace()
         refreshMemoryWatchBaseline()
         session.drainMemoryAccesses()
+        session.drainBankSwitchEvents()
+        memoryAccessHistory.clear()
+        bankHistory.clear()
+        nextMemoryAccessSequence = 0
+        nextBankSequence = 0
+        sessionRevision++
     }
 
     fun toggleBreakpoint(address: Int): Boolean {
@@ -130,7 +151,9 @@ internal class DesktopEmulatorRunner(
     fun breakpoints(): Set<Int> = executionBreakpoints.toSortedSet()
 
     fun setInstructionTraceEnabled(enabled: Boolean) {
+        if (instructionTraceEnabled == enabled) return
         instructionTraceEnabled = enabled
+        sessionRevision++
     }
 
     fun isInstructionTraceEnabled(): Boolean = instructionTraceEnabled
@@ -139,15 +162,33 @@ internal class DesktopEmulatorRunner(
 
     fun instructionTraceCapacity(): Int = instructionTraceCapacity
 
+    fun setDebugObservationEnabled(enabled: Boolean) {
+        if (debugObservationEnabled == enabled) return
+        debugObservationEnabled = enabled
+        session.setMemoryAccessTracing(enabled || memoryAccessWatch != null)
+        session.drainMemoryAccesses()
+        lastStepMemoryAccesses = emptyList()
+        sessionRevision++
+    }
+
+    fun isDebugObservationEnabled(): Boolean = debugObservationEnabled
+
+    fun memoryAccessHistory(): List<DesktopMemoryAccessHistoryEntry> = memoryAccessHistory.toList()
+
+    fun bankHistory(): List<DesktopBankHistoryEntry> = bankHistory.toList()
+
     fun setInstructionTraceCapacity(capacity: Int) {
         require(capacity in MIN_INSTRUCTION_TRACE_CAPACITY..MAX_INSTRUCTION_TRACE_CAPACITY)
         instructionTraceCapacity = capacity
         while (instructionTrace.size > capacity) instructionTrace.removeFirst()
+        sessionRevision++
     }
 
     fun clearInstructionTrace() {
+        if (instructionTrace.isEmpty() && nextTraceSequence == 0L) return
         instructionTrace.clear()
         nextTraceSequence = 0
+        sessionRevision++
     }
 
     fun setMemoryWatch(startAddress: Int, endAddressInclusive: Int) {
@@ -175,8 +216,9 @@ internal class DesktopEmulatorRunner(
 
     fun clearMemoryAccessWatch() {
         memoryAccessWatch = null
-        session.setMemoryAccessTracing(false)
+        session.setMemoryAccessTracing(debugObservationEnabled)
         session.drainMemoryAccesses()
+        lastStepMemoryAccesses = emptyList()
     }
 
     fun memoryAccessWatchRange(): IntRange? = memoryAccessWatch?.range
@@ -226,6 +268,7 @@ internal class DesktopEmulatorRunner(
         val resumeAfterLoad = state == RunnerState.RUNNING
         pause()
         val result = session.loadBasicProgram(program)
+        sessionRevision++
         refreshMemoryWatchBaseline()
         if (resumeAfterLoad && state != RunnerState.FAULTED) run()
         return result
@@ -237,6 +280,7 @@ internal class DesktopEmulatorRunner(
         val resumeAfterLoad = state == RunnerState.RUNNING
         pause()
         val result = session.loadMemoryImage(image)
+        sessionRevision++
         refreshMemoryWatchBaseline()
         if (resumeAfterLoad && state != RunnerState.FAULTED) run()
         return result
@@ -248,10 +292,18 @@ internal class DesktopEmulatorRunner(
     fun memoryByte(address: Int): Int =
         session.memorySnapshot(address and 0xffff, 1).copyBytes().single().toInt() and 0xff
 
-    override fun pressKey(key: PocketKey): InputResult = session.pressKey(key)
+    fun selectedRomBank(): Int? = session.selectedRomBank()
+
+    fun resolveRomLocation(address: Int): PhysicalRomLocation? =
+        session.resolveRomLocation(address and 0xffff)
+
+    override fun pressKey(key: PocketKey): InputResult = session.pressKey(key).also {
+        if (it is InputResult.Accepted) sessionRevision++
+    }
 
     override fun releaseKey(key: PocketKey): InputResult {
         val result = session.releaseKey(key)
+        if (result is InputResult.Accepted) sessionRevision++
         if (result is InputResult.Accepted && operatingMode == OperatingMode.RUN) {
             commandHistory.recordUserKey(key)
         }
@@ -327,6 +379,7 @@ internal class DesktopEmulatorRunner(
 
     fun setOperatingMode(mode: OperatingMode) {
         session.setOperatingMode(mode)
+        if (operatingMode != mode) sessionRevision++
         if (operatingMode != mode) commandHistory.clearPendingInput()
         operatingMode = mode
     }
@@ -392,9 +445,13 @@ internal class DesktopEmulatorRunner(
     private fun runUntilBreakpoint(cycleBudget: Long): BreakpointRunResult {
         if (
             executionBreakpoints.isEmpty() && temporaryRunToAddress == null &&
-            !instructionTraceEnabled && memoryWatchRange == null && memoryAccessWatch == null
+            !instructionTraceEnabled && memoryWatchRange == null && memoryAccessWatch == null &&
+            !debugObservationEnabled
         ) {
-            return BreakpointRunResult(session.runCycles(cycleBudget))
+            val result = session.runCycles(cycleBudget)
+            collectBankEvents()
+            if (result.executedInstructions > 0) sessionRevision += result.executedInstructions
+            return BreakpointRunResult(result)
         }
         var cycles = 0L
         var instructions = 0L
@@ -442,7 +499,12 @@ internal class DesktopEmulatorRunner(
     }
 
     private fun runSessionCycles(cycleBudget: Long): RunResult {
-        if (!instructionTraceEnabled) return session.runCycles(cycleBudget)
+        if (!instructionTraceEnabled && !debugObservationEnabled) {
+            val result = session.runCycles(cycleBudget)
+            collectBankEvents()
+            if (result.executedInstructions > 0) sessionRevision += result.executedInstructions
+            return result
+        }
         var cycles = 0L
         var instructions = 0L
         var status: ExecutionStatus = ExecutionStatus.Ready
@@ -456,13 +518,35 @@ internal class DesktopEmulatorRunner(
     }
 
     private fun stepSession(): StepResult {
+        val instructionAddress = if (debugObservationEnabled || memoryAccessWatch != null) {
+            programCounterProvider() and 0xffff
+        } else {
+            0
+        }
         if (instructionTraceEnabled) {
             val entry = traceEntryProvider?.invoke(nextTraceSequence) ?: captureTraceEntry(nextTraceSequence)
             if (instructionTrace.size == instructionTraceCapacity) instructionTrace.removeFirst()
             instructionTrace.addLast(entry)
             nextTraceSequence++
         }
-        return session.step()
+        val result = session.step()
+        sessionRevision++
+        lastStepMemoryAccesses = if (debugObservationEnabled || memoryAccessWatch != null) {
+            session.drainMemoryAccesses()
+        } else {
+            emptyList()
+        }
+        if (debugObservationEnabled) {
+            lastStepMemoryAccesses.forEach { access ->
+                addBounded(
+                    memoryAccessHistory,
+                    DesktopMemoryAccessHistoryEntry(nextMemoryAccessSequence++, instructionAddress, access),
+                    MAX_DEBUG_HISTORY_ENTRIES,
+                )
+            }
+        }
+        collectBankEvents()
+        return result
     }
 
     private fun captureTraceEntry(sequence: Long): DesktopInstructionTraceEntry {
@@ -507,7 +591,7 @@ internal class DesktopEmulatorRunner(
 
     private fun detectMemoryAccesses(instructionAddress: Int): DebuggerStopReason.MemoryAccessed? {
         val watch = memoryAccessWatch ?: return null
-        val matching = session.drainMemoryAccesses().filter { access ->
+        val matching = lastStepMemoryAccesses.filter { access ->
             access.address in watch.range && when (access.kind) {
                 MemoryAccessKind.READ -> watch.reads
                 MemoryAccessKind.WRITE -> watch.writes
@@ -516,6 +600,21 @@ internal class DesktopEmulatorRunner(
         return matching.takeIf { it.isNotEmpty() }?.let {
             DebuggerStopReason.MemoryAccessed(instructionAddress, it)
         }
+    }
+
+    private fun collectBankEvents() {
+        session.drainBankSwitchEvents().forEach { event ->
+            addBounded(
+                bankHistory,
+                DesktopBankHistoryEntry(nextBankSequence++, event),
+                MAX_DEBUG_HISTORY_ENTRIES,
+            )
+        }
+    }
+
+    private fun <T> addBounded(history: ArrayDeque<T>, entry: T, capacity: Int) {
+        if (history.size == capacity) history.removeFirst()
+        history.addLast(entry)
     }
 
     private fun applyTransition(transition: KeyTransition?) {
@@ -548,6 +647,7 @@ internal class DesktopEmulatorRunner(
         const val MIN_INSTRUCTION_TRACE_CAPACITY: Int = 16
         const val MAX_INSTRUCTION_TRACE_CAPACITY: Int = 65_536
         const val MAX_MEMORY_WATCH_BYTES: Int = 4_096
+        const val MAX_DEBUG_HISTORY_ENTRIES: Int = 4_096
     }
 }
 

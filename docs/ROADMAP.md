@@ -153,6 +153,12 @@ Pokecom GO Playerの最小プロトタイプを初めて同梱する早期評価
   - [ ] Playerでも同じROMライブラリモデルを実装する
   - [ ] ROMデータをプロジェクト、ログ、バックアップ、同期対象へ意図せず含めない保存方針を定義する
 - [ ] Studio設定と最近使ったプログラムファイル
+- [ ] Studio UIをシステム言語設定に応じてローカライズする
+  - [ ] UI文言をリソースへ分離し、日本語と英語を切り替えられるようにする
+  - [ ] 初期言語はOSのシステム言語から選び、未対応言語では英語へフォールバックする
+  - [ ] AI / MCP Server、Debugger、Project、ROM管理を含む説明、操作、状態、エラー文言を対象にする
+  - [ ] MCP tool名、JSON field、schema ID、設定key、URL、file path等の外部仕様上の識別子は翻訳しない
+  - [ ] 将来、システム言語とは別にStudio設定から表示言語を上書きできる余地を残す
 - [x] StudioへFile／Project／Program／Emulator／Debugメニューバーを追加する
 - [x] メイン画面をLCD、機種別キーボード、Run／Pause／Reset／Step、動作モード中心に整理する
 - [x] 機種選択ボタン群をコンボボックスへ置き換える
@@ -223,10 +229,11 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
   - [x] SourcesのOpen操作を行末の右寄せからファイル名の直後へ移動する
   - [x] Open操作をテキストリンク風表示ではなく、ボタンと明確に分かる外観にする
 - [ ] Pokecom GO Studioを外部AIから操作できるAI／MCP連携を実装する
-  - [ ] [AI連携構想](AI_INTEGRATION.md)に従い、Studio UIとAIから共用するApplication Service境界を定義する
+  - [x] [AI連携構想](AI_INTEGRATION.md)に従い、Studio UIとAIから共用するApplication Service境界を定義する
+  - [x] Studio Debuggerから読み取り専用Debug Context JSONをプレビュー／保存する最小UIを実装する
   - [ ] Capability、Machine、ROM登録状態、Project、Diagnosticsを返すversion付きschemaを定義する
   - [ ] CPU、停止理由、bank、Disassembly、Memory Watch、Breakpoint、Trace、Symbol／Source MapをまとめたDebug Contextを定義する
-  - [ ] localhostだけでlistenし、起動ごとの短期トークンで接続する読み取り専用MCPサーバーを実装する
+  - [x] localhostだけでlistenし、起動ごとの短期トークンで接続する読み取り専用MCPサーバーを実装する
   - [ ] BASICプロジェクト作成、複数機種Build検証、Diagnostics解析を行うAI E2Eシナリオを追加する
   - [ ] `.dmp`／Memoryの静的解析、仮ラベル、制御フロー、Assembly Workspaceプレビューを行うAI E2Eシナリオを追加する
   - [ ] Breakpoint、Watch、Pause、Stepをツールごとの権限とStudio側承認付きで公開する

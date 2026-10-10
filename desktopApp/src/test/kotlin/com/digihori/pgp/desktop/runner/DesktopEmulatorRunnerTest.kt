@@ -38,6 +38,28 @@ import kotlin.test.assertTrue
 
 class DesktopEmulatorRunnerTest {
     @Test
+    fun debugObservationRetainsMemoryAccessesWithoutConsumingWatchEventsTwice() {
+        val access = MemoryAccess(MemoryAccessKind.WRITE, 0xc123, 0x5a)
+        val session = FakeSession(memoryAccessOnStep = access)
+        val runner = DesktopEmulatorRunner(
+            session = session,
+            clock = FakeClock(),
+            programCounterProvider = { 0x2345 },
+        )
+        runner.setDebugObservationEnabled(true)
+        runner.setMemoryAccessWatch(0xc000, 0xcfff, reads = false, writes = true)
+
+        runner.step()
+
+        val history = runner.memoryAccessHistory().single()
+        assertEquals(0x2345, history.instructionAddress)
+        assertEquals(access, history.access)
+        val reason = assertIs<DebuggerStopReason.MemoryAccessed>(runner.stopReason)
+        assertEquals(listOf(access), reason.accesses)
+        assertTrue(runner.sessionRevision > 0)
+    }
+
+    @Test
     fun exposesMachineSpecificMinimumSoftwareKeyHold() {
         assertEquals(60L, runner(FakeSession(), FakeClock()).minimumSoftwareKeyHoldMilliseconds())
         assertEquals(

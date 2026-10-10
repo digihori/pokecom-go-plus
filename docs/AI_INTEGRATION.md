@@ -1,7 +1,7 @@
 # Pokecom GO Studio AI Integration
 
-**ステータス:** 構想・設計段階  
-**更新日:** 2026-10-07
+**ステータス:** 読み取り専用Application Service／Debug Context／localhost MCP初版を実装済み
+**更新日:** 2026-10-10
 
 ## 1. 目的
 
@@ -133,3 +133,56 @@ APIキー、ROM、プロジェクト外ファイル、個人情報をDiagnostics
 - PGP Coreを特定AIベンダーのSDKへ依存させること
 - AIの推測を実機仕様や解析結果として確定すること
 - Playerへ開発・デバッグ用AI操作を搭載すること
+
+## 9. 読み取り専用Debug Context v1
+
+Studio Desktopには、UIと将来のMCP Adapterから共用する`DebugContextService`境界を置く。
+初期実装は停止中またはFault状態のSessionだけを対象とし、取得のために自動Pauseしない。
+
+`pgp-debug-context` schema version 1は、Session ID／revision、CPU、構造化された停止理由、現在の
+ROM component／bank／offset、明示指定されたMemory、Disassembly、Memory Access History、Bank History、
+Instruction Traceを保持する。Memoryは最大8範囲、合計4096byteとし、ROMおよびROM mirrorのbyte取得を
+拒否する。Disassembly、履歴、Traceにも件数上限を設ける。
+
+Memory Access観測は実行負荷を伴うため明示的に有効化し、Debug Contextの読み取り要求自体は観測設定や
+Session状態を変更しない。ROM由来情報は物理位置と範囲制限されたDisassemblyに限定する。
+
+Studio DebuggerとDebugメニューの`Export AI Debug Context`から、Memory範囲、Disassembly件数、各履歴件数を
+指定し、JSONをプレビューしてから保存できる。Debuggerを開いている間だけMemory Access観測を有効化する。
+Context取得時にSessionが実行中の場合は、自動Pauseせずユーザーへ停止を求める。
+
+## 10. localhost MCP初版
+
+Studioの`Debug` → `AI / MCP Server`から、`127.0.0.1`だけにbindするStreamable HTTPサーバーを
+起動できる。既定endpointは`http://127.0.0.1:8765/mcp`で、portは起動前に変更できる。
+Studio起動ごとに256-bitの短期Bearer tokenを生成し、認証されていない要求を拒否する。token、tool引数、
+Debug Context本体は通常ログへ出力せず、管理画面には直近要求のmethod、tool名、成否だけを表示する。
+
+初版が公開するtoolは次の二つだけである。
+
+- `pgp_get_capabilities`
+- `pgp_get_debug_context`
+
+いずれも`readOnlyHint = true`、`destructiveHint = false`、`openWorldHint = false`とする。HTTP handlerは
+Emulator Sessionへ直接触れず、StudioのApplication thread上で共通`DebugContextService`を呼び出す。
+要求bodyは64KiBまでとし、Context側のMemory、Disassembly、履歴上限も重ねて検証する。
+
+サーバー起動時、Studioは短期tokenをプロジェクト外のOS別アプリデータ領域へ保存する。保存先directoryと
+credential fileは現在のOSユーザーだけがアクセスできる権限に制限し、安全な権限を設定・検証できなければ
+サーバー起動を失敗させる。終了時には、自分が書いたtokenと一致する場合だけcredential fileを削除する。
+
+Codexから接続する場合は、管理画面の`Copy Codex config`で取得した次の形式の内容を`config.toml`へ一度追加する。
+`http_headers_helper`は各request時に現在の短期tokenを読み取るため、Studio再起動後も環境変数の再設定は不要である。
+
+```toml
+[mcp_servers.pokecom_go_studio]
+url = "http://127.0.0.1:8765/mcp"
+http_headers_helper = "/bin/cat '/Users/example/Library/Application Support/PokecomGOStudio/mcp-headers.json'"
+enabled_tools = ["pgp_get_capabilities", "pgp_get_debug_context"]
+default_tools_approval_mode = "auto"
+```
+
+短期tokenはStudioを再起動すると変わる。credential fileにはHTTP Authorization headerだけをJSONで保持し、
+通常ログ、Debug Context、プロジェクト内ファイルには含めない。保存先はmacOSでは
+`~/Library/Application Support/PokecomGOStudio/`、Windowsでは`%LOCALAPPDATA%\\PokecomGOStudio\\`、
+Linuxでは`$XDG_RUNTIME_DIR/pokecom-go-studio/`（未設定時は`~/.local/state/pokecom-go-studio/`）とする。

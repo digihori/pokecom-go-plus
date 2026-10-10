@@ -1,6 +1,7 @@
 package com.digihori.pgp.desktop.debug
 
 import com.digihori.pgp.core.api.CoreFault
+import com.digihori.pgp.core.api.BankSwitchEvent
 import com.digihori.pgp.core.api.MemoryAccess
 import com.digihori.pgp.core.api.CpuSnapshot
 
@@ -25,6 +26,17 @@ internal data class MemoryValueChange(
     val address: Int,
     val before: Int,
     val after: Int,
+)
+
+internal data class DesktopMemoryAccessHistoryEntry(
+    val sequence: Long,
+    val instructionAddress: Int,
+    val access: MemoryAccess,
+)
+
+internal data class DesktopBankHistoryEntry(
+    val sequence: Long,
+    val event: BankSwitchEvent,
 )
 
 internal enum class CpuField {

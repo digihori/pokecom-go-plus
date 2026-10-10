@@ -42,6 +42,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -117,6 +118,12 @@ import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoader
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpWriter
 import com.digihori.pgp.desktop.machine.DesktopContiguousMemoryImage
 import com.digihori.pgp.desktop.machine.DesktopContiguousMemoryImageResult
+import com.digihori.pgp.desktop.mcp.AwtMcpApplicationDispatcher
+import com.digihori.pgp.desktop.mcp.DesktopMcpRequestSummary
+import com.digihori.pgp.desktop.mcp.DesktopMcpServer
+import com.digihori.pgp.desktop.mcp.DesktopMcpServerInfo
+import com.digihori.pgp.desktop.mcp.DesktopMcpStartResult
+import com.digihori.pgp.desktop.mcp.PgpMcpToolAdapter
 import com.digihori.pgp.desktop.project.DesktopProjectChangeTracker
 import com.digihori.pgp.desktop.project.DesktopProjectApplyResult
 import com.digihori.pgp.desktop.project.DesktopProjectArtifactLoader
@@ -152,6 +159,12 @@ import com.digihori.pgp.desktop.input.Pc1350KeyboardLayout
 import com.digihori.pgp.desktop.input.Pc1360KeyboardLayout
 import com.digihori.pgp.desktop.input.PocketKeyCap
 import com.digihori.pgp.desktop.audio.DesktopAudioPlayer
+import com.digihori.pgp.desktop.application.debug.DebugContextError
+import com.digihori.pgp.desktop.application.debug.DebugContextJsonWriter
+import com.digihori.pgp.desktop.application.debug.DebugContextRequest
+import com.digihori.pgp.desktop.application.debug.DebugContextResult
+import com.digihori.pgp.desktop.application.debug.DebugMemoryRangeRequest
+import com.digihori.pgp.desktop.application.debug.DesktopDebugContextService
 import com.digihori.pgp.desktop.display.CharacterCellGeometry
 import com.digihori.pgp.desktop.debug.CpuField
 import com.digihori.pgp.desktop.debug.CpuSnapshotDifference
@@ -176,11 +189,14 @@ import java.awt.FileDialog
 import java.awt.Desktop
 import java.awt.Frame
 import java.awt.EventQueue
+import java.awt.Toolkit
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
+import java.awt.datatransfer.StringSelection
 import java.io.File
 import java.net.URI
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicReference
 import javax.swing.JFileChooser
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CancellationException
@@ -280,6 +296,39 @@ private fun FrameWindowScope.App(
     var checkpointStartAddress by remember { mutableStateOf("C000") }
     var checkpointEndAddress by remember { mutableStateOf("C0FF") }
     var checkpointRangeError by remember { mutableStateOf<String?>(null) }
+    var showDebugContextDialog by remember { mutableStateOf(false) }
+    var debugContextMemoryStart by remember { mutableStateOf("C000") }
+    var debugContextMemoryEnd by remember { mutableStateOf("C0FF") }
+    var debugContextDisassemblyCount by remember { mutableStateOf("32") }
+    var debugContextAccessHistoryLimit by remember { mutableStateOf("256") }
+    var debugContextBankHistoryLimit by remember { mutableStateOf("256") }
+    var debugContextTraceLimit by remember { mutableStateOf("256") }
+    var debugContextError by remember { mutableStateOf<String?>(null) }
+    var debugContextPreview by remember { mutableStateOf<ByteArray?>(null) }
+    val debugContextService = remember(runner) {
+        runner?.let { activeRunner ->
+            DesktopDebugContextService(activeRunner, executedCyclesProvider = { executedCycles })
+        }
+    }
+    var showMcpServerWindow by remember { mutableStateOf(false) }
+    var mcpPort by remember { mutableStateOf(DesktopMcpServer.DEFAULT_PORT.toString()) }
+    var mcpServerInfo by remember { mutableStateOf<DesktopMcpServerInfo?>(null) }
+    var mcpServerError by remember { mutableStateOf<String?>(null) }
+    var mcpLastRequest by remember { mutableStateOf<DesktopMcpRequestSummary?>(null) }
+    val debugContextServiceReference = remember { AtomicReference<com.digihori.pgp.desktop.application.debug.DebugContextService?>() }
+    SideEffect { debugContextServiceReference.set(debugContextService) }
+    val mcpServer = remember {
+        DesktopMcpServer(
+            adapter = PgpMcpToolAdapter(
+                serviceProvider = debugContextServiceReference::get,
+                applicationDispatcher = AwtMcpApplicationDispatcher,
+            ),
+            onRequest = { request -> EventQueue.invokeLater { mcpLastRequest = request } },
+        )
+    }
+    DisposableEffect(mcpServer) {
+        onDispose { mcpServer.stop() }
+    }
     var focusRestoreRequest by remember { mutableLongStateOf(0L) }
     var projectWorkspace by remember { mutableStateOf<DesktopProjectWorkspace?>(null) }
     var projectChangeTracker by remember { mutableStateOf<DesktopProjectChangeTracker?>(null) }
@@ -1258,6 +1307,20 @@ private fun FrameWindowScope.App(
                 checkpointRangeError = null
                 showSaveCheckpointDialog = true
             })
+            Item("Export AI Debug Context…", enabled = runner != null && cpu != null, onClick = {
+                val activeRunner = runner ?: return@Item
+                val ram = MachineCatalog.require(activeRunner.machineId).memoryRegions
+                    .firstOrNull { it.kind == MachineMemoryRegionKind.RAM }
+                ram?.let {
+                    debugContextMemoryStart = it.startAddress.hex(4)
+                    debugContextMemoryEnd = (it.startAddress + 0xff).coerceAtMost(it.endAddressInclusive).hex(4)
+                }
+                debugContextError = null
+                debugContextPreview = null
+                showDebugContextDialog = true
+            })
+            Separator()
+            Item("AI / MCP Server…", enabled = !showMcpServerWindow, onClick = { showMcpServerWindow = true })
         }
         Menu("Help") {
             Item("Help Contents…", enabled = !showHelpWindow, onClick = { showHelpWindow = true })
@@ -1409,6 +1472,10 @@ private fun FrameWindowScope.App(
             onCloseRequest = { showDebuggerWindow = false },
             title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — Debugger",
         ) {
+            DisposableEffect(runner) {
+                runner?.setDebugObservationEnabled(true)
+                onDispose { runner?.setDebugObservationEnabled(false) }
+            }
             PgpStudioTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     StudioScrollableColumn(
@@ -1428,6 +1495,22 @@ private fun FrameWindowScope.App(
                                         showSaveCheckpointDialog = true
                                     },
                                 ) { Text("Save Debug Checkpoint") }
+                                Button(
+                                    enabled = runner != null && cpu != null,
+                                    onClick = {
+                                        val activeRunner = runner ?: return@Button
+                                        val ram = MachineCatalog.require(activeRunner.machineId).memoryRegions
+                                            .firstOrNull { it.kind == MachineMemoryRegionKind.RAM }
+                                        ram?.let {
+                                            debugContextMemoryStart = it.startAddress.hex(4)
+                                            debugContextMemoryEnd = (it.startAddress + 0xff)
+                                                .coerceAtMost(it.endAddressInclusive).hex(4)
+                                        }
+                                        debugContextError = null
+                                        debugContextPreview = null
+                                        showDebugContextDialog = true
+                                    },
+                                ) { Text("Export AI Debug Context") }
                             }
                         }
                         DebuggerSection {
@@ -1472,6 +1555,114 @@ private fun FrameWindowScope.App(
                             }
                         }
                         DebuggerSection { SelectionContainer { MemoryWatchPanel(runner, keyboardInput) } }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showMcpServerWindow) {
+        Window(
+            onCloseRequest = { showMcpServerWindow = false },
+            title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — AI / MCP Server",
+        ) {
+            PgpStudioTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    StudioScrollableColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = 16.dp,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text("Read-only localhost MCP server", style = MaterialTheme.typography.headlineSmall)
+                        Text(
+                            "Exposes only pgp_get_capabilities and pgp_get_debug_context. " +
+                                "It never pauses, runs, writes memory, changes source, or reads arbitrary files.",
+                        )
+                        Text("How it works", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "1. Start server creates a new temporary bearer token.\n" +
+                                "2. Studio writes an Authorization header to an owner-only file outside the project.\n" +
+                                "3. Codex runs the configured http_headers_helper for each connection and reads the current header.\n" +
+                                "4. Studio accepts authenticated requests only from this computer through 127.0.0.1.\n" +
+                                "5. Stop server or quitting Studio invalidates the token and removes its credential file.",
+                        )
+                        Text("One-time Codex setup", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "After starting the server, choose Copy Codex config and add it to Codex config.toml. " +
+                                "You do not need to copy the token or update an environment variable after restarting Studio. " +
+                                "Copy the configuration again only if you change the port or move to another OS/user account.",
+                        )
+                        OutlinedTextField(
+                            value = mcpPort,
+                            onValueChange = { mcpPort = it; mcpServerError = null },
+                            enabled = mcpServerInfo == null,
+                            label = { Text("Local port") },
+                            singleLine = true,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (mcpServerInfo == null) {
+                                Button(onClick = {
+                                    val port = mcpPort.toIntOrNull()
+                                    if (port == null || port !in 1..65535) {
+                                        mcpServerError = "Port must be between 1 and 65535."
+                                    } else {
+                                        when (val result = mcpServer.start(port)) {
+                                            is DesktopMcpStartResult.Success -> {
+                                                mcpServerInfo = result.info
+                                                mcpServerError = null
+                                            }
+                                            is DesktopMcpStartResult.Failure -> mcpServerError = result.message
+                                        }
+                                    }
+                                }) { Text("Start server") }
+                            } else {
+                                Button(onClick = {
+                                    mcpServer.stop()
+                                    mcpServerInfo = null
+                                    mcpLastRequest = null
+                                }) { Text("Stop server") }
+                            }
+                        }
+                        mcpServerError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        mcpServerInfo?.let { info ->
+                            SelectionContainer {
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text("Listening on loopback only")
+                                    Text("URL: ${info.url}", fontFamily = FontFamily.Monospace)
+                                    Text("Bearer token: ${info.token}", fontFamily = FontFamily.Monospace)
+                                    Text("Credential file: ${info.credentialPath}", fontFamily = FontFamily.Monospace)
+                                }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                TextButton(onClick = {
+                                    copyToClipboard(info.url)
+                                    message = "Copied MCP URL."
+                                }) { Text("Copy URL") }
+                                TextButton(onClick = {
+                                    copyToClipboard(info.token)
+                                    message = "Copied the temporary MCP token."
+                                }) { Text("Copy token") }
+                                TextButton(onClick = {
+                                    copyToClipboard(codexMcpConfiguration(info))
+                                    message = "Copied Codex MCP configuration."
+                                }) { Text("Copy Codex config") }
+                            }
+                            Text(
+                                "The credential contains only the temporary Authorization header. It does not contain ROM, " +
+                                    "Debug Context, API keys, or project files. If the file cannot be protected for the " +
+                                    "current OS user, Studio refuses to start the server.",
+                            )
+                        }
+                        Text("Published tools", style = MaterialTheme.typography.titleMedium)
+                        Text("• pgp_get_capabilities\n• pgp_get_debug_context", fontFamily = FontFamily.Monospace)
+                        Text("Last request", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            mcpLastRequest?.let { request ->
+                                val target = request.toolName?.let { " / $it" }.orEmpty()
+                                "${request.capturedAt} — ${request.method}$target — " +
+                                    if (request.succeeded) "success" else "failed"
+                            } ?: "No authenticated requests yet.",
+                        )
                     }
                 }
             }
@@ -2159,6 +2350,170 @@ private fun FrameWindowScope.App(
             )
         }
 
+        if (showDebugContextDialog) {
+            AlertDialog(
+                onDismissRequest = { showDebugContextDialog = false },
+                title = { Text("Export AI Debug Context") },
+                text = {
+                    Column(
+                        modifier = Modifier.widthIn(min = 520.dp, max = 760.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text("Only the explicit non-ROM memory range below is included. The running session is never paused automatically.")
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = debugContextMemoryStart,
+                                onValueChange = { debugContextMemoryStart = it; debugContextPreview = null },
+                                label = { Text("Memory start") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                            OutlinedTextField(
+                                value = debugContextMemoryEnd,
+                                onValueChange = { debugContextMemoryEnd = it; debugContextPreview = null },
+                                label = { Text("Memory end") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        Text("Leave both memory fields empty to omit memory bytes.")
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = debugContextDisassemblyCount,
+                                onValueChange = { debugContextDisassemblyCount = it; debugContextPreview = null },
+                                label = { Text("Disassembly instructions") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                            OutlinedTextField(
+                                value = debugContextTraceLimit,
+                                onValueChange = { debugContextTraceLimit = it; debugContextPreview = null },
+                                label = { Text("Trace entries") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = debugContextAccessHistoryLimit,
+                                onValueChange = { debugContextAccessHistoryLimit = it; debugContextPreview = null },
+                                label = { Text("Memory access entries") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                            OutlinedTextField(
+                                value = debugContextBankHistoryLimit,
+                                onValueChange = { debugContextBankHistoryLimit = it; debugContextPreview = null },
+                                label = { Text("Bank history entries") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        debugContextError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        debugContextPreview?.let { preview ->
+                            val previewScrollState = rememberScrollState()
+                            Text("Preview (${preview.size} bytes)")
+                            Surface(
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                                modifier = Modifier.fillMaxWidth().height(300.dp),
+                            ) {
+                                Box(modifier = Modifier.fillMaxSize()) {
+                                    SelectionContainer {
+                                        Text(
+                                            text = preview.decodeToString(),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontFamily = FontFamily.Monospace,
+                                            modifier = Modifier.fillMaxSize().padding(12.dp)
+                                                .verticalScroll(previewScrollState),
+                                        )
+                                    }
+                                    VerticalScrollbar(
+                                        adapter = rememberScrollbarAdapter(previewScrollState),
+                                        modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    if (debugContextPreview == null) {
+                        TextButton(onClick = {
+                            val memoryStart = debugContextMemoryStart.trim()
+                            val memoryEnd = debugContextMemoryEnd.trim()
+                            val memoryRange = when {
+                                memoryStart.isEmpty() && memoryEnd.isEmpty() -> null
+                                memoryStart.isEmpty() || memoryEnd.isEmpty() -> {
+                                    debugContextError = "Enter both memory addresses or leave both empty."
+                                    return@TextButton
+                                }
+                                else -> {
+                                    val start = parseHexAddress(memoryStart)
+                                    val end = parseHexAddress(memoryEnd)
+                                    if (start == null || end == null || end < start) {
+                                        debugContextError = "Memory addresses must be an increasing range from 0000 to FFFF."
+                                        return@TextButton
+                                    }
+                                    DebugMemoryRangeRequest(start, end - start + 1)
+                                }
+                            }
+                            val disassemblyCount = debugContextDisassemblyCount.toIntOrNull()
+                            val accessLimit = debugContextAccessHistoryLimit.toIntOrNull()
+                            val bankLimit = debugContextBankHistoryLimit.toIntOrNull()
+                            val traceLimit = debugContextTraceLimit.toIntOrNull()
+                            if (disassemblyCount == null || accessLimit == null || bankLimit == null || traceLimit == null) {
+                                debugContextError = "Instruction and history limits must be decimal integers."
+                                return@TextButton
+                            }
+                            val activeCpu = cpu
+                            val service = debugContextService
+                            if (activeCpu == null || service == null) {
+                                debugContextError = "No active emulator session is available."
+                                return@TextButton
+                            }
+                            when (val result = service.capture(
+                                DebugContextRequest(
+                                    memoryRanges = listOfNotNull(memoryRange),
+                                    disassemblyStartAddress = activeCpu.programCounter,
+                                    disassemblyInstructionCount = disassemblyCount,
+                                    memoryAccessHistoryLimit = accessLimit,
+                                    bankHistoryLimit = bankLimit,
+                                    traceLimit = traceLimit,
+                                ),
+                            )) {
+                                is DebugContextResult.Success -> {
+                                    debugContextPreview = DebugContextJsonWriter.write(result.context)
+                                    debugContextError = null
+                                }
+                                is DebugContextResult.Failure -> {
+                                    debugContextError = result.error.displayMessage()
+                                    debugContextPreview = null
+                                }
+                            }
+                        }) { Text("Preview") }
+                    } else {
+                        TextButton(onClick = {
+                            val bytes = debugContextPreview ?: return@TextButton
+                            val destination = selectAndRestoreFocus {
+                                selectDebugContextDestination(ownerWindow)
+                            } ?: return@TextButton
+                            runCatching { destination.writeBytes(bytes) }
+                                .onSuccess {
+                                    showDebugContextDialog = false
+                                    message = "Saved AI Debug Context to ${destination.name}."
+                                }
+                                .onFailure {
+                                    debugContextError = "Could not save Debug Context: ${it.message ?: it::class.simpleName}"
+                                }
+                        }) { Text("Save JSON") }
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDebugContextDialog = false }) { Text("Close") }
+                },
+            )
+        }
+
         errorDialogMessage?.let { error ->
             AlertDialog(
                 onDismissRequest = { errorDialogMessage = null },
@@ -2652,6 +3007,13 @@ private fun DebuggerStopReason.displayName(): String = when (this) {
     is DebuggerStopReason.Fault -> "Fault: ${fault.message()}"
 }
 
+private fun DebugContextError.displayMessage(): String = when (this) {
+    DebugContextError.SessionRunning -> "Pause the emulator before capturing a Debug Context."
+    is DebugContextError.InvalidRequest -> message
+    is DebugContextError.RomBytesNotAllowed ->
+        "ROM bytes are not included automatically. Select a RAM or display-memory range instead."
+}
+
 @Composable
 private fun PocketKeyButton(
     cap: PocketKeyCap,
@@ -2969,6 +3331,29 @@ private fun selectCheckpointDestination(owner: Frame): File? = selectFile(
     suggestedFile = "checkpoint.pgpdebug.json",
     mode = FileDialog.SAVE,
 )
+
+private fun selectDebugContextDestination(owner: Frame): File? = selectFile(
+    owner = owner,
+    title = "Save Pokecom GO Studio AI Debug Context",
+    suggestedFile = "debug-context.pgpdebug.json",
+    mode = FileDialog.SAVE,
+)
+
+private fun copyToClipboard(text: String) {
+    Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(text), null)
+}
+
+private fun codexMcpConfiguration(info: DesktopMcpServerInfo): String = """
+    [mcp_servers.pokecom_go_studio]
+    url = "${info.url}"
+    http_headers_helper = "${tomlEscape(info.headerHelperCommand)}"
+    enabled_tools = ["pgp_get_capabilities", "pgp_get_debug_context"]
+    default_tools_approval_mode = "auto"
+""".trimIndent()
+
+private fun tomlEscape(value: String): String = value
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
 
 private fun selectBasicSaveFile(owner: Frame): File? = selectFile(
     owner = owner,

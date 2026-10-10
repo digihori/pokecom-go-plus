@@ -1,0 +1,61 @@
+package com.digihori.pgp.desktop.mcp
+
+import java.nio.file.Files
+import java.nio.file.attribute.PosixFilePermissions
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+class DesktopMcpCredentialStoreTest {
+    @Test
+    fun publishesOwnerOnlyHeaderJsonAndRemovesOnlyItsOwnToken() {
+        val home = Files.createTempDirectory("pgp-mcp-home")
+        val properties = mapOf("user.home" to home.toString(), "os.name" to "Mac OS X")
+        val store = PlatformDesktopMcpCredentialStore(emptyMap(), properties)
+
+        val location = store.publish("first-token")
+        val authorization = Json.parseToJsonElement(Files.readString(location.path)).jsonObject
+            .getValue("Authorization").jsonPrimitive.content
+        assertEquals("Bearer first-token", authorization)
+        assertEquals(
+            PosixFilePermissions.fromString("rw-------"),
+            Files.getPosixFilePermissions(location.path),
+        )
+        assertTrue(location.headerHelperCommand.contains(location.path.toString()))
+
+        store.removeIfOwned("different-token")
+        assertTrue(Files.exists(location.path))
+        store.removeIfOwned("first-token")
+        assertFalse(Files.exists(location.path))
+    }
+
+    @Test
+    fun resolvesPlatformSpecificLocations() {
+        val home = "/Users/test"
+        assertEquals(
+            "/Users/test/Library/Application Support/PokecomGOStudio/mcp-headers.json",
+            PlatformDesktopMcpCredentialStore.resolveCredentialPath(
+                emptyMap(),
+                mapOf("user.home" to home, "os.name" to "Mac OS X"),
+            ).toString(),
+        )
+        assertEquals(
+            "C:\\Users\\test\\AppData\\Local/PokecomGOStudio/mcp-headers.json",
+            PlatformDesktopMcpCredentialStore.resolveCredentialPath(
+                mapOf("LOCALAPPDATA" to "C:\\Users\\test\\AppData\\Local"),
+                mapOf("user.home" to "C:\\Users\\test", "os.name" to "Windows 11"),
+            ).toString(),
+        )
+        assertEquals(
+            "/run/user/1000/pokecom-go-studio/mcp-headers.json",
+            PlatformDesktopMcpCredentialStore.resolveCredentialPath(
+                mapOf("XDG_RUNTIME_DIR" to "/run/user/1000"),
+                mapOf("user.home" to "/home/test", "os.name" to "Linux"),
+            ).toString(),
+        )
+    }
+}

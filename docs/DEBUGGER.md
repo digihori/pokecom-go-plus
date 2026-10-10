@@ -1,7 +1,7 @@
 # Pokecom GO Studio Debugger
 
 **ステータス:** 基本デバッグ機能を実装済み・UIおよび解析支援機能は継続開発中
-**更新日:** 2026-10-07
+**更新日:** 2026-10-10
 
 ## 1. 目的
 
@@ -208,3 +208,10 @@ Breakpoint、直近Trace、Symbol／Source Mapを構造化して渡す。各Cont
 
 ROM由来データは必要な範囲のDisassemblyまたはbyte列に限定し、ROM全体をDebug Contextへ含めない。
 詳細な接続モデルと安全方針は[AI_INTEGRATION.md](AI_INTEGRATION.md)を参照する。
+
+初期のApplication Serviceと`pgp-debug-context` version 1 JSON serializerは実装済みである。Context取得は
+停止中またはFault状態に限定し、実行中の場合はSessionを自動停止せずエラーを返す。指定Memoryは合計
+4096byteまでとし、ROMおよびROM mirrorの生byteは含めない。Studio UIではMemory範囲、Disassembly件数、
+Memory Access／Bank／Trace件数を指定し、JSONをプレビューしてから保存できる。プレビュー欄は独立した
+縦スクロールとテキスト選択に対応する。同じApplication Serviceは、localhost限定・Bearer token認証付きの
+読み取り専用MCP toolからも利用する。
