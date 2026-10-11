@@ -235,7 +235,16 @@ private fun EmulatorScreen(
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
-            LcdDisplay(displayFrame, modifier = Modifier.fillMaxSize())
+            if (keyboard == null) {
+                LcdDisplay(displayFrame, modifier = Modifier.fillMaxSize())
+            } else {
+                Column(modifier = Modifier.fillMaxSize().padding(top = 48.dp, start = 8.dp, end = 8.dp)
+                    .verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LcdDisplay(displayFrame, modifier = Modifier.fillMaxWidth().height(100.dp))
+                    keyboard.functionPanel?.let { SoftwareKeyboard(it, onKeyPress, onKeyRelease) }
+                    SoftwareKeyboard(keyboard, onKeyPress, onKeyRelease)
+                }
+            }
         }
         PlayerMenu(
             runState = runState,
@@ -330,6 +339,7 @@ private fun PlayerMenu(
 
 private fun OperatingMode.shortLabel(): String = when (this) {
     OperatingMode.RUN -> "RUN"
+    OperatingMode.CALCULATOR -> "CAL"
     OperatingMode.PROGRAM -> "PRO"
     OperatingMode.RESERVE -> "RSV"
 }
@@ -581,7 +591,7 @@ private fun LcdDisplay(
             if (!compact && frame.symbols.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = frame.symbols.joinToString("  ") { it.lcdLabel() },
+                    text = com.digihori.pgp.player.lcdSymbolText(frame.symbols) { it.lcdLabel() },
                     color = Color(0xFFB7C8A7),
                     style = MaterialTheme.typography.labelMedium,
                 )
@@ -591,6 +601,9 @@ private fun LcdDisplay(
 }
 
 private fun DisplaySymbol.lcdLabel(): String = when (this) {
+    DisplaySymbol.MEMORY -> "M"
+    DisplaySymbol.PARENTHESES -> "( )"
+    DisplaySymbol.ERROR -> "E"
     DisplaySymbol.RESERVE -> "RSV"
     else -> name
 }

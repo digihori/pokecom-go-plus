@@ -5,6 +5,7 @@ import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
 import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401RomDefinition
 import com.digihori.pgp.core.rom.MachineId
 
 public enum class MachineFamily {
@@ -13,6 +14,7 @@ public enum class MachineFamily {
     PC_1261,
     PC_1350,
     PC_1360,
+    PC_1401,
 }
 
 public enum class MachineGeneration {
@@ -49,6 +51,7 @@ public enum class MachineKeyboardLayout {
     PC_1261,
     PC_1350,
     PC_1360,
+    PC_1401,
 }
 
 public enum class MachineBasicDialect {
@@ -129,9 +132,9 @@ public object MachineCatalog {
         characterColumns = 16,
         characterRows = 1,
         supportedOperatingModes = setOf(OperatingMode.RUN, OperatingMode.PROGRAM),
-        cyclesPerSecond = 288_000L,
-        automaticKeyHoldCycles = 17_280L,
-        automaticKeyGapCycles = 5_760L,
+        cyclesPerSecond = 192_000L,
+        automaticKeyHoldCycles = 11_520L,
+        automaticKeyGapCycles = 3_840L,
         supportsConfigurableRam = false,
         memoryRegions = oldMachineRegions(
             ramStart = 0xc000,
@@ -184,10 +187,10 @@ public object MachineCatalog {
         characterColumns = 25,
         characterRows = 4,
         supportedOperatingModes = setOf(OperatingMode.RUN, OperatingMode.PROGRAM),
-        // The reference implementation uses this value but marks it as unverified.
-        cyclesPerSecond = 768_000L,
-        automaticKeyHoldCycles = 46_080L,
-        automaticKeyGapCycles = 15_360L,
+        // 768 kHz oscillator / 3 clocks per instruction cycle.
+        cyclesPerSecond = 256_000L,
+        automaticKeyHoldCycles = 15_360L,
+        automaticKeyGapCycles = 5_120L,
         supportsConfigurableRam = false,
         memoryRegions = listOf(
             MachineMemoryRegion("internal-rom", "Internal ROM", 0x0000, 0x1fff, MachineMemoryRegionKind.ROM),
@@ -209,15 +212,40 @@ public object MachineCatalog {
         characterColumns = 24,
         characterRows = 2,
         supportedOperatingModes = setOf(OperatingMode.RUN, OperatingMode.PROGRAM, OperatingMode.RESERVE),
-        cyclesPerSecond = 768_000L,
-        automaticKeyHoldCycles = 46_080L,
-        automaticKeyGapCycles = 15_360L,
+        cyclesPerSecond = 256_000L,
+        automaticKeyHoldCycles = 15_360L,
+        automaticKeyGapCycles = 5_120L,
         supportsConfigurableRam = false,
         memoryRegions = listOf(
             MachineMemoryRegion("internal-rom", "Internal ROM", 0x0000, 0x1fff, MachineMemoryRegionKind.ROM),
             MachineMemoryRegion("display", "Display memory", 0x2000, 0x287f, MachineMemoryRegionKind.DISPLAY),
             MachineMemoryRegion("display-mirror", "Display memory mirror", 0x3000, 0x387f, MachineMemoryRegionKind.MIRROR, "display"),
             MachineMemoryRegion("ram", "RAM", 0x4000, 0x67ff, MachineMemoryRegionKind.RAM),
+            MachineMemoryRegion("external-rom", "External ROM", 0x8000, 0xffff, MachineMemoryRegionKind.ROM),
+        ),
+    )
+
+    private val pc1401 = MachineDefinition(
+        id = Pc1401RomDefinition.MACHINE_ID,
+        displayName = "PC-1401",
+        family = MachineFamily.PC_1401,
+        generation = MachineGeneration.S1,
+        memoryBanking = MachineMemoryBanking.None,
+        romLayout = MachineRomLayout.SC61860_INTERNAL_8K_EXTERNAL_32K,
+        keyboardLayout = MachineKeyboardLayout.PC_1401,
+        basicDialect = MachineBasicDialect.S1,
+        characterColumns = 16,
+        characterRows = 1,
+        supportedOperatingModes = setOf(OperatingMode.CALCULATOR, OperatingMode.RUN, OperatingMode.PROGRAM),
+        cyclesPerSecond = 192_000L,
+        automaticKeyHoldCycles = 40_000L,
+        automaticKeyGapCycles = 20_000L,
+        supportsConfigurableRam = false,
+        memoryRegions = listOf(
+            MachineMemoryRegion("internal-rom", "Internal ROM", 0x0000, 0x1fff, MachineMemoryRegionKind.ROM),
+            MachineMemoryRegion("display", "Display memory", 0x6000, 0x67ff, MachineMemoryRegionKind.DISPLAY),
+            MachineMemoryRegion("display-mirror", "Display memory mirror", 0x7000, 0x77ff, MachineMemoryRegionKind.MIRROR, "display"),
+            MachineMemoryRegion("ram", "RAM", 0x3800, 0x47ff, MachineMemoryRegionKind.RAM),
             MachineMemoryRegion("external-rom", "External ROM", 0x8000, 0xffff, MachineMemoryRegionKind.ROM),
         ),
     )
@@ -234,10 +262,10 @@ public object MachineCatalog {
         characterColumns = 25,
         characterRows = 4,
         supportedOperatingModes = setOf(OperatingMode.RUN, OperatingMode.PROGRAM),
-        // Retained from the reference implementation and still unverified, as for PC-1350.
-        cyclesPerSecond = 768_000L,
-        automaticKeyHoldCycles = 46_080L,
-        automaticKeyGapCycles = 15_360L,
+        // 768 kHz oscillator / 3 clocks per instruction cycle.
+        cyclesPerSecond = 256_000L,
+        automaticKeyHoldCycles = 15_360L,
+        automaticKeyGapCycles = 5_120L,
         supportsConfigurableRam = false,
         memoryRegions = listOf(
             MachineMemoryRegion("internal-rom", "Internal ROM", 0x0000, 0x1fff, MachineMemoryRegionKind.ROM),
@@ -247,7 +275,7 @@ public object MachineCatalog {
         ),
     )
 
-    public val definitions: List<MachineDefinition> = listOf(pc1245) + pc1251Family + listOf(pc1261, pc1350, pc1360)
+    public val definitions: List<MachineDefinition> = listOf(pc1245) + pc1251Family + listOf(pc1261, pc1350, pc1360, pc1401)
     public val defaultDefinition: MachineDefinition = pc1245
 
     private val byId: Map<MachineId, MachineDefinition> = definitions.associateBy(MachineDefinition::id)

@@ -2,9 +2,18 @@ package com.digihori.pgp.desktop.window
 
 import com.digihori.pgp.desktop.input.HostKeyInputMode
 import java.util.prefs.Preferences
+import com.digihori.pgp.desktop.runner.DesktopExecutionSpeed
 
 internal object DesktopUiPreferences {
     private val preferences = Preferences.userRoot().node("com/digihori/pgp/desktop/ui")
+
+    fun executionSpeed(): DesktopExecutionSpeed = runCatching {
+        DesktopExecutionSpeed.valueOf(preferences.get("executionSpeed", DesktopExecutionSpeed.LEVEL_3.name))
+    }.getOrDefault(DesktopExecutionSpeed.LEVEL_3)
+
+    fun saveExecutionSpeed(value: DesktopExecutionSpeed) {
+        preferences.put("executionSpeed", value.name)
+    }
 
     // Absence preserves legacy PGP_EDITOR behavior; an empty value explicitly uses the OS editor.
     fun externalEditorCommand(): String? = preferences.get("externalEditorCommand", null)

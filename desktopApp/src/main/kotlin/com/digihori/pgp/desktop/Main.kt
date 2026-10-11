@@ -1,5 +1,9 @@
 package com.digihori.pgp.desktop
 
+import com.digihori.pgp.core.api.PocketKey
+import com.digihori.pgp.player.Pc1401KeyboardLayout
+import com.digihori.pgp.player.PlayerKeyboard
+
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -40,6 +44,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedButton
@@ -147,6 +152,7 @@ import com.digihori.pgp.desktop.project.DesktopProjectWorkspace
 import com.digihori.pgp.desktop.project.DesktopProjectWorkspaceLoader
 import com.digihori.pgp.desktop.project.DesktopProjectTreeScanner
 import com.digihori.pgp.desktop.project.DesktopProjectTreeSnapshot
+import com.digihori.pgp.desktop.project.DesktopProjectEditor
 import com.digihori.pgp.desktop.project.DesktopProjectManifestUpdater
 import com.digihori.pgp.desktop.project.DesktopProjectUpdateResult
 import com.digihori.pgp.desktop.project.DesktopAssemblyDiagnostic
@@ -194,6 +200,7 @@ import com.digihori.pgp.desktop.rom.DesktopRomLibraryResult
 import com.digihori.pgp.desktop.rom.DesktopRomPackageConversionResult
 import com.digihori.pgp.desktop.rom.DesktopRomPackageConverter
 import com.digihori.pgp.desktop.runner.DesktopEmulatorRunner
+import com.digihori.pgp.desktop.runner.DesktopExecutionSpeed
 import com.digihori.pgp.desktop.runner.RunnerState
 import com.digihori.pgp.desktop.window.DesktopUiPreferences
 import com.digihori.pgp.desktop.window.StudioWindow
@@ -354,6 +361,8 @@ private fun FrameWindowScope.App(
     var externalEditorCommand by remember {
         mutableStateOf(DesktopUiPreferences.externalEditorCommand() ?: System.getenv("PGP_EDITOR").orEmpty())
     }
+    var executionSpeed by remember { mutableStateOf(DesktopUiPreferences.executionSpeed()) }
+    SideEffect { runner?.setExecutionSpeed(executionSpeed) }
     var editorCommandDraft by remember { mutableStateOf(externalEditorCommand) }
     var editorSettingsError by remember { mutableStateOf<String?>(null) }
     var projectBasicBaseline by remember { mutableStateOf<ByteArray?>(null) }
@@ -370,6 +379,9 @@ private fun FrameWindowScope.App(
     var assemblyPreview by remember { mutableStateOf(emptyList<DesktopAssemblySourceResult>()) }
     var assemblyDiagnostics by remember { mutableStateOf(emptyList<DesktopAssemblyDiagnostic>()) }
     var assemblyStatus by remember { mutableStateOf("Not assembled") }
+    var showRenameProjectDialog by remember { mutableStateOf(false) }
+    var renamedProjectName by remember { mutableStateOf("") }
+    var renameProjectError by remember { mutableStateOf<String?>(null) }
     var showCreateProjectDialog by remember { mutableStateOf(false) }
     var newProjectName by remember { mutableStateOf("New PGP Project") }
     var newProjectStarters by remember { mutableStateOf(setOf(DesktopProjectStarter.BASIC)) }
@@ -395,12 +407,12 @@ private fun FrameWindowScope.App(
         }
     }
     SideEffect {
-        gamepad.setContext(runner, mainWindowFocused && keyboardInput.isEnabled && !showSettingsWindow && !showCreateProjectDialog)
+        gamepad.setContext(runner, mainWindowFocused && keyboardInput.isEnabled && !showSettingsWindow && !showCreateProjectDialog && !showRenameProjectDialog)
     }
     LaunchedEffect(gamepad) {
         try {
             while (isActive) {
-                gamepad.setContext(runner, mainWindowFocused && keyboardInput.isEnabled && !showSettingsWindow && !showCreateProjectDialog)
+                gamepad.setContext(runner, mainWindowFocused && keyboardInput.isEnabled && !showSettingsWindow && !showCreateProjectDialog && !showRenameProjectDialog)
                 try {
                     gamepad.poll()
                 } catch (cancelled: CancellationException) {
@@ -595,7 +607,7 @@ private fun FrameWindowScope.App(
                 }
                 runner?.pause()
                 audioPlayer.stop()
-                val newRunner = DesktopEmulatorRunner(result.session)
+                val newRunner = DesktopEmulatorRunner(result.session).apply { setExecutionSpeed(executionSpeed) }
                 selectedMachineId = result.session.machineId
                 runner = newRunner
                 keyboardInput.attach(newRunner)
@@ -797,6 +809,24 @@ private fun FrameWindowScope.App(
         projectBasicBaseline = null
         projectBasicModified = false
         if (projectWorkspace != null) projectRuntimeStatus = ProjectRuntimeStatus.NOT_LOADED
+    }
+
+    fun addProjectSource() {
+        val workspace = projectWorkspace ?: return
+        val file = selectAndRestoreFocus {
+            selectFile(ownerWindow, "Add Source (.bas, .asm, .dmp)", "*.*")
+        } ?: return
+        DesktopProjectEditor.addSource(workspace, file).fold(
+            onSuccess = { updated ->
+                projectWorkspace = updated
+                projectChangeTracker = DesktopProjectChangeTracker(updated)
+                projectTree = DesktopProjectTreeScanner.scan(updated)
+                selectedProjectSourcePath = updated.sources.last().definition.path
+                projectRuntimeStatus = ProjectRuntimeStatus.NOT_BUILT
+                message = "Added ${updated.sources.last().definition.path} to project."
+            },
+            onFailure = { showError("Could not add source: ${it.message}") },
+        )
     }
 
     fun updateProject() {
@@ -1065,7 +1095,7 @@ private fun FrameWindowScope.App(
         runnerState = runner?.state ?: RunnerState.PAUSED
         changedCpuFields = emptySet()
         debuggerStopReason = runner?.stopReason
-        message = "Running at normal speed."
+        message = "Running: ${executionSpeed.label}."
     }
 
     fun pauseEmulator() {
@@ -1180,12 +1210,16 @@ private fun FrameWindowScope.App(
     LaunchedEffect(runner) {
         var cpuRefreshCounter = 0
         while (isActive) {
-            delay(FRAME_DELAY_MILLISECONDS)
+            // Compose's dispatcher can immediately resume yield() within the same event turn.
+            // A real suspension lets AWT input and rendering run between unlimited CPU batches.
+            delay(if (runner?.unlimited == true && runner?.state == RunnerState.RUNNING) 1L
+                else FRAME_DELAY_MILLISECONDS)
             val activeRunner = runner ?: continue
             val tick = activeRunner.tick()
             executedCycles += tick.runResult?.executedCycles ?: 0L
             runnerState = activeRunner.state
             debuggerStopReason = activeRunner.stopReason
+            operatingMode = activeRunner.currentOperatingMode()
             val latestDisplay = activeRunner.displaySnapshot()
             if (display?.revision != latestDisplay.revision || display?.enabled != latestDisplay.enabled) {
                 display = latestDisplay
@@ -1202,7 +1236,10 @@ private fun FrameWindowScope.App(
             }
             val audio = activeRunner.audioSnapshot()
             requestedToneHz = audio.frequencyHz
-            if (activeRunner.state == RunnerState.RUNNING) {
+            if (activeRunner.unlimited) {
+                audioPlayer.stop()
+                activeRunner.drainAudioSamples()
+            } else if (activeRunner.state == RunnerState.RUNNING) {
                 audioPlayer.write(activeRunner.drainAudioSamples()).onFailure {
                     message = "Audio output unavailable: ${it.message ?: it::class.simpleName}"
                 }
@@ -1248,8 +1285,8 @@ private fun FrameWindowScope.App(
         }
     }
 
-    LaunchedEffect(showCreateProjectDialog) {
-        keyboardInput.setEnabled(!showCreateProjectDialog)
+    LaunchedEffect(showCreateProjectDialog, showRenameProjectDialog) {
+        keyboardInput.setEnabled(!showCreateProjectDialog && !showRenameProjectDialog)
     }
 
     LaunchedEffect(focusRestoreRequest) {
@@ -1315,6 +1352,12 @@ private fun FrameWindowScope.App(
                 showCreateProjectDialog = true
             })
             Item("Open Project…", onClick = ::openProjectFromDisk)
+            Item("Rename Project…", enabled = projectWorkspace != null, onClick = {
+                renamedProjectName = projectWorkspace?.definition?.name.orEmpty()
+                renameProjectError = null
+                showRenameProjectDialog = true
+            })
+            Item("Add Source…", enabled = projectWorkspace != null, onClick = ::addProjectSource)
             Item("Close Project", enabled = projectWorkspace != null, onClick = ::closeProject)
             Item(
                 "Open Assembly Workspace",
@@ -1504,6 +1547,24 @@ private fun FrameWindowScope.App(
                                 "Additional theme presets can be added without changing individual screens.",
                                 style = MaterialTheme.typography.bodySmall,
                             )
+                        }
+                        SettingsSection("Emulation speed") {
+                            Text("Adjust the machine clock baseline. Level 3 is standard.")
+                            DesktopExecutionSpeed.entries.forEach { option ->
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(
+                                        selected = executionSpeed == option,
+                                        onClick = {
+                                            executionSpeed = option
+                                            runner?.setExecutionSpeed(option)
+                                            DesktopUiPreferences.saveExecutionSpeed(option)
+                                        },
+                                    )
+                                    Text(option.label)
+                                }
+                            }
+                            Text("Step percentages are provisional. Unlimited mode mutes audio and keeps a 1 ms UI pause.",
+                                style = MaterialTheme.typography.bodySmall)
                         }
                         SettingsSection("External editor") {
                             Text("Source files and diagnostic locations use this editor.")
@@ -2022,7 +2083,10 @@ private fun FrameWindowScope.App(
                         onClick = ::stepEmulator,
                     ) { Text("Step") }
                     val activeDefinition = MachineCatalog.require(runner?.machineId ?: selectedMachineId)
-                    if (OperatingMode.RUN in activeDefinition.supportedOperatingModes &&
+                    val showModeButtons = activeDefinition.id.value in setOf(
+                        "pc-1245", "pc-1250", "pc-1251", "pc-1255", "pc-1261",
+                    )
+                    if (showModeButtons && OperatingMode.RUN in activeDefinition.supportedOperatingModes &&
                         OperatingMode.PROGRAM in activeDefinition.supportedOperatingModes
                     ) {
                         Button(
@@ -2034,7 +2098,7 @@ private fun FrameWindowScope.App(
                             onClick = { setMode(OperatingMode.PROGRAM) },
                         ) { Text("PRO") }
                     }
-                    if (OperatingMode.RESERVE in activeDefinition.supportedOperatingModes) {
+                    if (showModeButtons && OperatingMode.RESERVE in activeDefinition.supportedOperatingModes) {
                         Button(
                             enabled = runner != null && operatingMode != OperatingMode.RESERVE,
                             onClick = { setMode(OperatingMode.RESERVE) },
@@ -2265,6 +2329,47 @@ private fun FrameWindowScope.App(
                 },
                 dismissButton = {
                     TextButton(onClick = { pendingRomRemoval = null }) { Text("Cancel") }
+                },
+            )
+        }
+
+        if (showRenameProjectDialog) {
+            AlertDialog(
+                onDismissRequest = { showRenameProjectDialog = false },
+                title = { Text("Rename Project") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = renamedProjectName,
+                            onValueChange = { renamedProjectName = it; renameProjectError = null },
+                            label = { Text("Project name") },
+                            singleLine = true,
+                        )
+                        Text("Folder: ${DesktopProjectWorkspaceCreator.folderName(renamedProjectName)}")
+                        renameProjectError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val workspace = projectWorkspace ?: return@TextButton
+                        DesktopProjectEditor.rename(workspace, renamedProjectName).fold(
+                            onSuccess = { updated ->
+                                projectWorkspace = updated
+                                projectChangeTracker = DesktopProjectChangeTracker(updated)
+                                projectTree = DesktopProjectTreeScanner.scan(updated)
+                                if (loadedProjectManifest == workspace.manifestFile.absolutePath) {
+                                    loadedProgramLabel = "Project: ${updated.definition.name}"
+                                    loadedProjectManifest = updated.manifestFile.absolutePath
+                                }
+                                showRenameProjectDialog = false
+                                message = "Renamed project to ${updated.definition.name}."
+                            },
+                            onFailure = { renameProjectError = it.message },
+                        )
+                    }) { Text("Rename") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showRenameProjectDialog = false }) { Text("Cancel") }
                 },
             )
         }
@@ -3214,17 +3319,27 @@ private fun PocketKeyButton(
 ) {
     var isPressed by remember(runner, cap.key) { mutableStateOf(false) }
     val componentColors = LocalStudioComponentColors.current
+    val accentColor = when (cap.key) {
+        PocketKey.MODE, PocketKey.CAL, PocketKey.BASIC -> Color(0xffd7ecd3)
+        PocketKey.SHIFT -> Color(0xffffefb3)
+        PocketKey.CLEAR -> Color(0xfff3d0ce)
+        else -> null
+    }
     val keyColor by animateColorAsState(
         targetValue = when {
             runner == null -> componentColors.softwareKeyDisabled
             isPressed -> componentColors.softwareKeyPressed
-            else -> componentColors.softwareKey
+            else -> accentColor ?: componentColors.softwareKey
         },
         animationSpec = tween(durationMillis = SOFTWARE_KEY_ANIMATION_MILLISECONDS),
         label = "software key color",
     )
     val contentColor by animateColorAsState(
-        targetValue = if (isPressed) componentColors.onSoftwareKeyPressed else componentColors.onSoftwareKey,
+        targetValue = when {
+            isPressed -> componentColors.onSoftwareKeyPressed
+            accentColor != null && runner != null -> Color(0xff202020)
+            else -> componentColors.onSoftwareKey
+        },
         animationSpec = tween(durationMillis = SOFTWARE_KEY_ANIMATION_MILLISECONDS),
         label = "software key content color",
     )
@@ -3295,13 +3410,38 @@ private fun PocketKeyButton(
 
 @Composable
 private fun PocketSoftwareKeyboard(runner: DesktopEmulatorRunner?, layout: MachineKeyboardLayout) {
+    if (layout == MachineKeyboardLayout.PC_1401) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            PocketKeyboardPanel(runner, Pc1401KeyboardLayout.functionPanel.copy(
+                columnCount = Pc1401KeyboardLayout.keyboard.columnCount,
+                rows = Pc1401KeyboardLayout.functionPanel.rows.map { row ->
+                    row.map { it.copy(column = it.column + 9) }
+                },
+            ))
+            PocketKeyboardPanel(runner, Pc1401KeyboardLayout.keyboard)
+        }
+        return
+    }
     val (rows, columnCount) = when (layout) {
         MachineKeyboardLayout.PC_1245 -> Pc1245KeyboardLayout.rows to Pc1245KeyboardLayout.COLUMN_COUNT
         MachineKeyboardLayout.PC_1251 -> Pc1251KeyboardLayout.rows to Pc1251KeyboardLayout.COLUMN_COUNT
         MachineKeyboardLayout.PC_1261 -> Pc1261KeyboardLayout.rows to Pc1261KeyboardLayout.COLUMN_COUNT
         MachineKeyboardLayout.PC_1350 -> Pc1350KeyboardLayout.rows to Pc1350KeyboardLayout.COLUMN_COUNT
         MachineKeyboardLayout.PC_1360 -> Pc1360KeyboardLayout.rows to Pc1360KeyboardLayout.COLUMN_COUNT
+        MachineKeyboardLayout.PC_1401 -> error("PC-1401 panels are rendered separately")
     }
+    PocketKeyboardRows(runner, rows, columnCount)
+}
+
+@Composable
+private fun PocketKeyboardPanel(runner: DesktopEmulatorRunner?, panel: PlayerKeyboard) {
+    PocketKeyboardRows(runner, panel.rows.map { row -> row.map {
+        com.digihori.pgp.desktop.input.PocketKeyCap(it.key, it.primaryLabel, it.shiftedLabel, it.basicLabel, it.column, it.columnSpan)
+    } }, panel.columnCount)
+}
+
+@Composable
+private fun PocketKeyboardRows(runner: DesktopEmulatorRunner?, rows: List<List<com.digihori.pgp.desktop.input.PocketKeyCap>>, columnCount: Int) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -3332,7 +3472,6 @@ private fun PocketSoftwareKeyboard(runner: DesktopEmulatorRunner?, layout: Machi
         }
     }
 }
-
 @Composable
 private fun HostKeyInputModeSelector(
     mode: HostKeyInputMode,
@@ -3450,7 +3589,11 @@ private fun PocketLcdPanel(snapshot: DisplaySnapshot?) {
             }
         }
         Text(
-            text = snapshot?.symbols?.joinToString(separator = "  ") { it.name }.orEmpty(),
+            text = snapshot?.let { com.digihori.pgp.player.lcdSymbolText(it.symbols) { when (it) {
+                com.digihori.pgp.core.api.DisplaySymbol.MEMORY -> "M"
+                com.digihori.pgp.core.api.DisplaySymbol.PARENTHESES -> "( )"
+                else -> it.name
+            } } }.orEmpty(),
             style = MaterialTheme.typography.labelMedium,
         )
     }

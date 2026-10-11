@@ -3,7 +3,9 @@ package com.digihori.pgp.core.emulator.machine.pc1245
 import kotlin.math.max
 import kotlin.math.min
 
-internal class Pc1245Buzzer {
+internal class Pc1245Buzzer(private val clockHz: Double = 192_000.0) {
+    init { require(clockHz.isFinite() && clockHz > 0) }
+    private val cyclesPerSample = clockHz / SAMPLE_RATE
     var frequencyHz: Int = 0
         private set
     var revision: Long = 0
@@ -36,7 +38,7 @@ internal class Pc1245Buzzer {
     }
 
     fun drainPcm(): ShortArray {
-        val sampleCount = ((elapsedCycles - renderedCycles) / CYCLES_PER_SAMPLE).toInt()
+        val sampleCount = ((elapsedCycles - renderedCycles) / cyclesPerSample).toInt()
         if (sampleCount <= 0) return ShortArray(0)
         val output = ShortArray(sampleCount)
         var eventIndex = 0
@@ -45,8 +47,8 @@ internal class Pc1245Buzzer {
         var filtered = filteredOutput
 
         repeat(sampleCount) { sampleIndex ->
-            val start = renderedCycles + sampleIndex * CYCLES_PER_SAMPLE
-            val end = start + CYCLES_PER_SAMPLE
+            val start = renderedCycles + sampleIndex * cyclesPerSample
+            val end = start + cyclesPerSample
             var cursor = start
             var weighted = 0.0
             while (eventIndex < events.size && events[eventIndex].cycle < end) {
@@ -60,13 +62,13 @@ internal class Pc1245Buzzer {
                 eventIndex++
             }
             if (end > cursor) weighted += meanOutput(activeMode, cursor, end) * (end - cursor)
-            val input = weighted / CYCLES_PER_SAMPLE
+            val input = weighted / cyclesPerSample
             filtered = HIGH_PASS_FACTOR * (filtered + input - inputBefore)
             inputBefore = input
             output[sampleIndex] = (max(-1.0, min(1.0, filtered)) * AMPLITUDE).toInt().toShort()
         }
 
-        renderedCycles += sampleCount * CYCLES_PER_SAMPLE
+        renderedCycles += sampleCount * cyclesPerSample
         renderedMode = activeMode
         previousInput = inputBefore
         filteredOutput = filtered
@@ -89,8 +91,8 @@ internal class Pc1245Buzzer {
     private fun meanOutput(activeMode: Int, start: Double, end: Double): Double {
         if (activeMode == MODE_HIGH_1 || activeMode == MODE_HIGH_5) return 1.0
         val halfPeriod = when (activeMode) {
-            MODE_2_KHZ -> CLOCK_HZ / 2_000.0 / 2.0
-            MODE_4_KHZ -> CLOCK_HZ / 4_000.0 / 2.0
+            MODE_2_KHZ -> clockHz / 2_000.0 / 2.0
+            MODE_4_KHZ -> clockHz / 4_000.0 / 2.0
             else -> return -1.0
         }
         var sum = 0.0
@@ -106,8 +108,6 @@ internal class Pc1245Buzzer {
 
     companion object {
         const val SAMPLE_RATE: Int = 22_050
-        private const val CLOCK_HZ: Double = 192_000.0
-        private const val CYCLES_PER_SAMPLE: Double = CLOCK_HZ / SAMPLE_RATE
         private const val AMPLITUDE: Double = 9_000.0
         private const val HIGH_PASS_FACTOR: Double = 0.985
         private const val OSCILLATOR_SUBSAMPLES: Int = 4

@@ -153,6 +153,7 @@ internal class DesktopKeyboardInput {
 
     private fun DesktopKeyInputSink.keySequence(character: Char): List<PocketKey>? =
         when (MachineCatalog.find(machineId)?.keyboardLayout) {
+            MachineKeyboardLayout.PC_1401 -> com.digihori.pgp.core.emulator.machine.pc1401.Pc1401CharacterInput.keySequence(character)
             MachineKeyboardLayout.PC_1251 -> Pc1251CharacterInput.keySequence(character)
             MachineKeyboardLayout.PC_1261 -> Pc1251CharacterInput.keySequence(character)
             MachineKeyboardLayout.PC_1245, null -> Pc1245CharacterInput.keySequence(character)

@@ -15,6 +15,7 @@ kotlin {
 
 dependencies {
     implementation(project(":core"))
+    implementation(project(":playerShared"))
     implementation(project(":hostInput"))
     implementation(project(":controllerUi"))
     implementation(platform("org.lwjgl:lwjgl-bom:3.4.1"))

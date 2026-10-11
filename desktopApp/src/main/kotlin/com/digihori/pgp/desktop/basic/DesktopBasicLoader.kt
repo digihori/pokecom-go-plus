@@ -1,5 +1,8 @@
 package com.digihori.pgp.desktop.basic
 
+import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401BasicTokenizer
+import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401RomBasicInput
+import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401RomDefinition
 import com.digihori.pgp.core.api.PocketKey
 import com.digihori.pgp.core.api.MachineCatalog
 import com.digihori.pgp.core.api.MachineKeyboardLayout
@@ -47,6 +50,7 @@ internal object DesktopBasicLoader {
             is BasicTextParseResult.Success -> parsed.document
         }
         val compiled = when (MachineCatalog.find(machineId)?.keyboardLayout) {
+            MachineKeyboardLayout.PC_1401 -> Pc1401RomBasicInput.compile(document)
             MachineKeyboardLayout.PC_1251 -> Pc1251RomBasicInput.compile(document)
             MachineKeyboardLayout.PC_1261 -> Pc1251RomBasicInput.compile(document)
             MachineKeyboardLayout.PC_1245, null -> Pc1245RomBasicInput.compile(document)
@@ -78,7 +82,9 @@ internal object DesktopBasicLoader {
         }
         return when (MachineCatalog.find(machineId)?.basicDialect) {
             com.digihori.pgp.core.api.MachineBasicDialect.S1 -> {
-            val tokenizerResult = if (machineId == Pc1261RomDefinition.MACHINE_ID) {
+            val tokenizerResult = if (machineId == Pc1401RomDefinition.MACHINE_ID) {
+                Pc1401BasicTokenizer.tokenize(document)
+            } else if (machineId == Pc1261RomDefinition.MACHINE_ID) {
                 Pc1261BasicTokenizer.tokenize(document)
             } else {
                 Pc1350BasicTokenizer.tokenize(document)
@@ -113,7 +119,12 @@ internal object DesktopBasicLoader {
         }
 
     fun detokenizeProgram(bytes: ByteArray, machineId: MachineId): DesktopBasicProgramDecodeResult =
-        if (machineId == Pc1261RomDefinition.MACHINE_ID) {
+        if (machineId == Pc1401RomDefinition.MACHINE_ID) {
+            when (val decoded = Pc1401BasicTokenizer.detokenize(bytes)) {
+                is Pc1350BasicDetokenizeResult.Success -> DesktopBasicProgramDecodeResult.Success((decoded.source + "\n").encodeToByteArray())
+                is Pc1350BasicDetokenizeResult.Failure -> DesktopBasicProgramDecodeResult.GenericFailure(decoded.error.offset, decoded.error.message)
+            }
+        } else if (machineId == Pc1261RomDefinition.MACHINE_ID) {
             when (val decoded = Pc1261BasicTokenizer.detokenize(bytes)) {
                 is Pc1350BasicDetokenizeResult.Success -> DesktopBasicProgramDecodeResult.Success((decoded.source + "\n").encodeToByteArray())
                 is Pc1350BasicDetokenizeResult.Failure -> DesktopBasicProgramDecodeResult.GenericFailure(decoded.error.offset, decoded.error.message)

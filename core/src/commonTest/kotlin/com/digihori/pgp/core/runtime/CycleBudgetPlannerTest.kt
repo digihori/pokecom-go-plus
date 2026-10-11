@@ -9,8 +9,8 @@ class CycleBudgetPlannerTest {
     fun convertsElapsedTimeAtThePc1245Rate() {
         val planner = pc1245Planner(maximumCatchUpNanoseconds = 1_000_000_000)
 
-        assertEquals(288_000, planner.plan(1_000_000_000).cycles)
-        assertEquals(4_800, planner.plan(16_666_667).cycles)
+        assertEquals(192_000, planner.plan(1_000_000_000).cycles)
+        assertEquals(3_200, planner.plan(16_666_667).cycles)
     }
 
     @Test
@@ -31,7 +31,7 @@ class CycleBudgetPlannerTest {
 
         val budget = planner.plan(2_000_000_000)
 
-        assertEquals(28_800, budget.cycles)
+        assertEquals(19_200, budget.cycles)
         assertEquals(100_000_000, budget.acceptedElapsedNanoseconds)
         assertEquals(1_900_000_000, budget.droppedElapsedNanoseconds)
     }
@@ -40,8 +40,8 @@ class CycleBudgetPlannerTest {
     fun appliesRationalSpeedMultipliers() {
         val planner = pc1245Planner(maximumCatchUpNanoseconds = 1_000_000_000)
 
-        assertEquals(576_000, planner.plan(1_000_000_000, SpeedRatio.DOUBLE).cycles)
-        assertEquals(144_000, planner.plan(1_000_000_000, SpeedRatio.HALF).cycles)
+        assertEquals(384_000, planner.plan(1_000_000_000, SpeedRatio.DOUBLE).cycles)
+        assertEquals(96_000, planner.plan(1_000_000_000, SpeedRatio.HALF).cycles)
     }
 
     @Test

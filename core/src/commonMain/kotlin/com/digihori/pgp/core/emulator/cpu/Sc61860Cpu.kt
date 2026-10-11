@@ -4,7 +4,13 @@ internal class Sc61860Cpu(
     private val bus: Sc61860Bus,
     private val io: Sc61860Io = DisconnectedSc61860Io,
     internal val state: Sc61860State = Sc61860State(),
+    cyclesPerSecond: Int = 192_000,
 ) {
+    private val divider2MsCycles = cyclesPerSecond / 500
+    private val divider500MsCycles = cyclesPerSecond / 2
+
+    init { require(cyclesPerSecond > 0 && cyclesPerSecond % 500 == 0) }
+
     fun reset() {
         state.reset()
     }
@@ -177,12 +183,12 @@ internal class Sc61860Cpu(
 
     private fun advanceDividers(cycles: Int) {
         val divider2Total = state.ticks + cycles
-        if (divider2Total >= DIVIDER_2_MS_CYCLES) state.divider2 = true
-        state.ticks = divider2Total % DIVIDER_2_MS_CYCLES
+        if (divider2Total >= divider2MsCycles) state.divider2 = true
+        state.ticks = divider2Total % divider2MsCycles
 
         val divider500Total = state.ticks2 + cycles
-        if (divider500Total >= DIVIDER_500_MS_CYCLES) state.divider500 = true
-        state.ticks2 = divider500Total % DIVIDER_500_MS_CYCLES
+        if (divider500Total >= divider500MsCycles) state.divider500 = true
+        state.ticks2 = divider500Total % divider500MsCycles
     }
 
     private fun loadImmediate(register: Int): Sc61860StepResult {
@@ -967,8 +973,6 @@ internal class Sc61860Cpu(
     private fun decrement7(value: Int): Int = (value - 1) and INTERNAL_ADDRESS_MASK
 
     private companion object {
-        const val DIVIDER_2_MS_CYCLES: Int = 576
-        const val DIVIDER_500_MS_CYCLES: Int = 144_000
         const val ADDRESS_MASK: Int = 0xffff
         const val BYTE_MASK: Int = 0xff
         const val INTERNAL_ADDRESS_MASK: Int = 0x7f

@@ -133,13 +133,16 @@ class GamepadInput(
     }
 }
 
-/** Physical key choices matching the five keyboard layouts currently exposed by the apps. */
+/** Physical key choices matching the keyboard layouts exposed by the apps. */
 object GamepadKeys {
     fun forMachine(machineId: MachineId): Set<PocketKey> {
         val common = PocketKey.entries.takeWhile { it != PocketKey.MODE }.toSet()
         return when (MachineCatalog.require(machineId).keyboardLayout) {
             MachineKeyboardLayout.PC_1245, MachineKeyboardLayout.PC_1251,
             MachineKeyboardLayout.PC_1261 -> common
+            MachineKeyboardLayout.PC_1401 -> common + PocketKey.entries.filter {
+                it.ordinal in PocketKey.CAL.ordinal..PocketKey.MEMORY_ADD.ordinal
+            } + setOf(PocketKey.LEFT_PAREN, PocketKey.RIGHT_PAREN, PocketKey.COMMA)
             MachineKeyboardLayout.PC_1350 -> common + setOf(
                 PocketKey.MODE, PocketKey.KANA, PocketKey.INSERT, PocketKey.DELETE,
                 PocketKey.LEFT_PAREN, PocketKey.RIGHT_PAREN, PocketKey.COLON,

@@ -44,6 +44,40 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 以下には仕様抽出と、PGP向けに再設計・実装した機能の由来を記録する。
 
+### PC-1401実装前調査と設計案
+
+- Date: 2026-10-11
+- PGP baseline: `main` / `eeb247e`、開始時clean。今回コード移植・機種登録は未実施
+- PGP files: `docs/machines/PC-1401.md`、本記録
+- Reference repositories: Pokecom GO `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`、
+  PCWAV `14e1ef53596f0d8791b6d14965061f63846d11a7`（両方読み取り専用）
+- Reference files: Pokecom GOの1401/1402 CPU subclass、Keyboard、MainLoop、SubActivity、
+  共通CPU / BASIC処理。PCWAVのS1 BASIC / transfer codec。
+  別参照はMAMEの`pocketc.cpp` / `pc1401.cpp` / `pc1401_m.cpp`と
+  [SHARP PC 1401/02回路図scan](https://pockemul.com/Documents/lm61860.pdf) PDF 119ページ目。
+  MAME対象driverの最終commitは`774a180df2b6ef9c53e48337792256817c50f768`。
+- Provenance/license: 同一作者の参照から機種仕様を抽出。MAMEはGPL-2.0+であり
+  コードコピーは行わず、独立照合資料として使う。メーカー回路図の転載・ROM登録は行わない
+- Findings: SC61860A08、内部8 KiB / 外部32 KiB ROM、4 KiB RAM、16×1 LCD、
+  IA/IB matrix、CAL / RUN / PRO、S1行構造と専用関数語彙。
+  物理RAM候補は`3800..47ff`、LCD apertureとmirrorは参照間で差があり検証が必要
+- Decision: CPUとROM layout / S1行処理 / host境界を共用し、memory decode、LCD、
+  keyboard / mode、BASIC語彙 / program memoryは1401専用とする。
+  Pokecom GOの広いRAM窓やROM内CLOAD / CSAVE / BEEP hookは移植しない。
+  PC-1402は別ROM hookとMAMEの共通ROM定義が不一致のため、容量違いだけと断定しない
+- Design boundaries: CoreにOS / UI / file / wall-clock / device APIやthread所有を追加しない。
+  ROMとROM由来検証結果はignored local-dataに限定する。機種固有値を既存機種へ逆流させない
+- UI decision (2026-10-11): ユーザーとPC-1401初版の縦配置
+  （LCD → 関数キー6列×3行 → 主キー）を合意。現在の幅基準のサイズ追従を維持する。
+  主キーと関数キーのgridを分離し、配置情報はCore外のpresentation層に置く。
+  LCD右側配置は初版対象外。Playerの多キー・大型LCD機種向け拡張領域
+  （通常はLCD＋主キー、トリガーで関数領域を表示し入力後に収納する案）は後続検討とする。
+  トリガーと収納条件は未確定であり、今回実装しない
+- Verification: ROM componentとflat内の対応領域の一致、ignore設定をローカル確認。
+  PC-1401起動は未実施。実装段階のsynthetic test、実ROM / 実機、Studio / Player検証計画、
+  出典の限界と未確定事項は[PC-1401調査文書](machines/PC-1401.md)に記載
+  指定JDK 21で全体buildと`:core:desktopTest`成功（既存testは主にUP-TO-DATE）、diff check成功
+
 ### マシン語ファイル形式の統一方針
 
 - Date: 2026-10-08
@@ -1492,3 +1526,133 @@ Source information now belongs to the immutable project-tree snapshot, refreshed
 existing host-side polling scan. Header edits change snapshot equality even when the file list,
 size, and timestamp stay unchanged, so Compose refreshes the selected description without
 reselections or filesystem reads during rendering.
+
+
+## PC-1401初版実装 (2026-10-11)
+
+- 上記調査のPokecom GO `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`の機種仕様を、
+  PGPのSession境界へ移植した。外部プロジェクトの変更、MAMEコードのコピーは行っていない。
+- CPUは既存SC61860を共用。8K+32K ROM、4K RAM (`3800..47ff`)、LCD decode / mirror、
+  16桁LCDと専用symbol、IA/IB matrix、BREAK入力を専用実装した。
+  複数select時はPokecom GOと同じIA優先・最低bit方式を保持する。
+- Clockは288,000 cycles/sを暫定採用し、既存CPU timerとブザーのサンプル時間に同じ値を使う。
+  実機のBEEP音程・WAIT時間との校正は未実施。既存機種のブザー既定clockは変更しない。
+- CAL/RUN/PROは物理スイッチとして合成せず、CAL/BASICキー列をサイクルで投入し、
+  ROMがLCDへ書いたmode bitを現在モードとして公開する。Hostの自動文字入力はmode遷移完了を待つ。
+  自動文字入力の60ms保持/20ms間隔では実ROMで文字が欠落したため、
+  保持60,000 cycles / 間隔30,000 cyclesへ延長した（約208ms / 104ms）。
+- S1行構造を共用し、科学関数語彙とPI/SQRT特殊文字、専用キー入力列、
+  `46e1/46e3`のprogram pointerを追加した。容量超過や不正形式は書込み前に拒否する。
+  最大容量付近での変数・配列領域との競合、およびNEW/MEM全挙動は後続確認が必要。
+- 機種Catalog / Factory、ROM登録・変換・locator、StudioのBASIC入出力とホスト入力、
+  Playerの機種キー、ゲームパッドの選択可能キーへ統合した。
+  関数キー6列×3行と主キーはplayerSharedの共通表示定義に分け、StudioはLCD下へ縦配置する。
+  Androidの画像skinなし表示はLCD・関数・主キーを縦スクロールで配置し、主キーには横スクロールを残す。
+  Playerの関数drawerは今回実装しない。
+- 検証: 自作データによるROM ownership / map / alias / LCD / 全キー / BASIC / 容量拒否 /
+  addressed load / ROM identityと、Studio/Playerの統合テストを追加。
+  ignoredのローカル実ROMで起動、CAL→RUN→PRO→RUN→CAL、FAC・DIM・BEEP・POKEを含むBASIC実行、
+  ROMキー入力と直接コンパイル結果の一致を確認した。ROMや採取データは追加していない。
+  指定JDK 21で `build :core:desktopTest` 成功。Android lintのKotlin metadata警告は残る。
+  実機比較、Android実機の操作性、PC-1402、CLOAD/CSAVEのテープ処理は未検証／対象外。
+
+- Studio実画面: ローカルROMをROM Libraryへ登録し、PC-1401選択・CAL起動・全キーの縦配置を確認。
+  通常サイズとウィンドウ拡大時にLCD・関数・主キーが幅へ追従することを確認した。
+
+
+### LCD角度単位の連結表示修正 (2026-10-11)
+
+ユーザーの実機仕様指摘に基づき、DE / G / RADをbit順ではなく物理順で連結し、
+DegreeはDEG、GradianはGRAD、RadianはRADと表示する。
+StudioとAndroid Playerで共通のpresentation formatterを使用する。
+PC-1245、PC-1250/1251/1255、PC-1401の分割segmentを対象とし、Coreの生bitは保持する。
+PC-1261は参照MainLoop1261.javaで独立したDEGとRADの表示を確認したため、その区切りを保持する。
+PC-1350/1360は現在のsnapshotに角度segmentを公開していない。
+
+
+### PC-1401キー配置調整 (2026-10-11)
+
+ユーザー提示画像に合わせ、Studioの関数キーを主キーと同じ15列gridの右6列に配置し、
+主キーは数字・演算・memoryキーを1行ずつ上げて4行へ整理した。
+HEX入力captionはEXP=A、POWER=B、ROOT=C、SQUARE=D、LN=E、LOG=Fを追記。
+Playerの関数panelは従来の6列を維持し、空白9列をモバイル画面へ持ち込まない。
+
+
+### StudioのProject編集操作 (2026-10-11)
+
+新規Host機能としてProjectメニューにRename Project / Add Sourceを追加した。
+表示名だけをManifestへ保存し、ディレクトリやsource pathは維持する。
+ソース追加は選択したbas / asm / dmpだけをsrcへコピーして登録し、元ファイルを保持する。
+同名path / source IDには連番を付け、Manifest書込み失敗時は今回のコピーを取り消す。
+CoreへのファイルAPI追加はない。テストで永続化・元ファイル保持・衝突回避を検証し、
+実画面の名前変更・ファイル選択・ツリー反映もテスト用Projectで確認した。
+JDK 21の全体build / Core回帰成功。ツリー内ファイル名変更は今回対象外。
+
+
+### Project名とフォルダ名の連動 (2026-10-11)
+
+ユーザー指示によりRename Projectは表示名とフォルダ名を連動させる仕様へ変更した。
+新規作成と同じfolderName規則を使用し、同一親内でフォルダ全体を移動する。
+ソースの絶対パス、tree、監視、ロード元Manifestを移動後の位置へ更新する。
+既存の別フォルダには上書きせず、Manifest保存失敗時には元位置への復元を試みる。
+
+## 2026-10-11: SC61860 baseline clock audit
+
+- Supersedes the earlier PC-1245 `576 kHz / 2 = 288,000 cycles/s` decision and
+  PC-1350/1360/1261 oscillator-as-cycle-rate values. Android reference `cpuClockWait=2`
+  is a host pacing heuristic, not evidence of hardware clocks per instruction cycle.
+- Baseline: PC-1245/1250/1251/1255/1401 use 576,000 oscillator clocks/s divided by 3
+  (192,000 instruction cycles/s); PC-1261/1350/1360 use 768,000 / 3
+  (256,000 instruction cycles/s).
+- Cross-check: PockEmul constructors explicitly use these oscillator/3 rates:
+  https://github.com/matsumo/PockEmul/blob/master/src/machine/sharp/pc1250.cpp
+  (PC-1245 derives from PC-1250),
+  https://github.com/matsumo/PockEmul/blob/master/src/machine/sharp/pc1260.cpp
+  (includes PC-1261),
+  https://github.com/matsumo/PockEmul/blob/master/src/machine/sharp/pc1350.cpp
+  (`Cpc13XX`, also inherited by PC-1360), and
+  https://github.com/matsumo/PockEmul/blob/master/src/machine/sharp/pc1401.cpp.
+  Read-only audit on 2026-10-11; no source copied or build dependency introduced.
+- Primary corroboration: SHARP PC-1360 operation manual, printed p.124, BEEP:
+  `T=(90+4n)*3.9 microseconds`, consistent with the 256 kcycle/s time unit.
+  https://pockemul.com/wp-content/uploads/2021/03/PC1360_OM_DE.pdf
+  PC-1250 service manual: https://pockemul.com/download/pc1250_service_manual.pdf
+- CPU instruction cycle counts are unchanged. Host budgets, audio cycle-to-time conversion,
+  and nominal 2 ms/500 ms CPU timer thresholds now use the same machine cycle rate.
+  Timer latch/read/reset semantics remain unchanged; exact silicon divider behavior
+  (including 500 vs 512 ms differences in other emulators) requires a separate hardware audit.
+  Automatic typing and PC-1401 mode settling preserve their prior wall-time durations.
+- Tests cover catalog rates, elapsed-time budgets, and nominal timers at both cycle rates.
+  Real ROM boot/input smoke tests provide functional checks, not physical timing calibration.
+- Future Settings adjustment multiplies this baseline, default 1.0. A host too slow to
+  sustain the baseline cannot be corrected by a multiplier; no host benchmark is needed
+  to define hardware time. Unlimited execution will bypass host pacing, not CPU cycle accounting.
+- Validation: JDK 21 `build :core:desktopTest` passed (573 tasks), including
+  Studio/Player timing budget tests and local-ROM smoke checks where ROMs were supplied.
+  `:desktopApp:run` launched successfully. No Settings UI change in this step.
+
+## 2026-10-11: Studio execution speed settings
+
+- Settings / Emulation speed stores one Studio-wide selection, restored at startup and
+  applied to newly loaded machines. Level 3 uses the audited machine baseline unchanged.
+  Provisional levels 1–5 are 80/90/100/110/120%; ratios are centralized in
+  `DesktopExecutionSpeed` for later calibration. Reset preserves the host preference.
+- Unlimited bypasses elapsed-time pacing with bounded 4,096-cycle batches, yielding to
+  the UI between batches. Pause, debugger and input transitions keep existing handling.
+  Audio is muted/drained in unlimited mode so the device output cannot throttle execution.
+  CPU timers continue to follow emulated cycles; commonMain gains no host APIs or threads.
+- Validation: JDK 21 `build :core:desktopTest` passed. Runner tests check unlimited
+  progress without elapsed host time, pause/reset, and return to baseline pacing.
+
+## 2026-10-11: Unlimited mode UI starvation fix
+
+- User reproduction: selecting Unlimited hung Studio; persistence then repeated the hang
+  when ROM autorun started at launch. Saved `executionSpeed=UNLIMITED` was confirmed and
+  restored to LEVEL_3 using Java Preferences, leaving other settings intact.
+- Supersedes the earlier `yield()` scheduling decision: Compose/AWT dispatch can resume
+  the coroutine without returning to native event handling. Each bounded unlimited batch
+  now has a real 1 ms suspension so input/rendering can run. Unlimited still bypasses
+  machine-clock pacing, but this UI scheduling interval intentionally caps throughput.
+- Verification: JDK 21 full build/Core tests and createDistributable passed (579 tasks).
+  Packaged Studio UI check with PC-1401: select Unlimited, quit/relaunch with the saved
+  selection, then Pause and open Settings successfully. Restored Level 3 afterward.

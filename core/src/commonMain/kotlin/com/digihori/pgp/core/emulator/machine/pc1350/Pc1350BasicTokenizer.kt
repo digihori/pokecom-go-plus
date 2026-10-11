@@ -1,6 +1,7 @@
 package com.digihori.pgp.core.emulator.machine.pc1350
 
 import com.digihori.pgp.core.source.basic.BasicTextDocument
+import com.digihori.pgp.core.source.basic.BasicSpecialSymbol
 import com.digihori.pgp.core.source.basic.BasicTextElement
 
 public object Pc1350BasicTokenizer {
@@ -12,6 +13,8 @@ public object Pc1350BasicTokenizer {
     internal fun tokenize(
         document: BasicTextDocument,
         keywords: List<Pair<String, Int>>,
+        allowKana: Boolean = true,
+        specialCodes: Map<BasicSpecialSymbol, Int> = emptyMap(),
     ): Pc1350BasicTokenizeResult {
         val lines = mutableListOf<StringBuilder>(StringBuilder())
         document.tokens.forEach { token ->
@@ -19,7 +22,11 @@ public object Pc1350BasicTokenizer {
                 BasicTextElement.LineBreak -> lines += StringBuilder()
                 is BasicTextElement.Character -> lines.last().append(element.value)
                 is BasicTextElement.RawByte -> return failure(token.line, token.column, "Raw bytes are not supported by the S1 tokenizer")
-                is BasicTextElement.Special -> return failure(token.line, token.column, "Special symbol ${element.symbol} is not supported yet")
+                is BasicTextElement.Special -> {
+                    val code = specialCodes[element.symbol]
+                        ?: return failure(token.line, token.column, "Special symbol ${element.symbol} is not supported yet")
+                    lines.last().append((0xe000 + code).toChar())
+                }
             }
         }
         val output = mutableListOf(0xff)
@@ -34,7 +41,7 @@ public object Pc1350BasicTokenizer {
             var body = match.groupValues[2]
             if (body.startsWith(':')) body = body.drop(1)
             body = body.trimStart()
-            val encoded = encodeBody(body, sourceLine + 1, keywords)
+            val encoded = encodeBody(body, sourceLine + 1, keywords, allowKana, specialCodes.values.toSet())
             if (encoded is BodyResult.Failure) return Pc1350BasicTokenizeResult.Failure(encoded.error)
             val bytes = (encoded as BodyResult.Success).bytes
             if (bytes.size + 1 > 0xff) return failure(sourceLine + 1, 1, "Encoded S1 line is too long")
@@ -51,6 +58,8 @@ public object Pc1350BasicTokenizer {
     internal fun detokenize(
         bytes: ByteArray,
         tokenNames: Map<Int, String>,
+        allowKana: Boolean = true,
+        specialNames: Map<Int, String> = emptyMap(),
     ): Pc1350BasicDetokenizeResult {
         if (bytes.size < 2 || bytes.first().toInt() and 0xff != 0xff) {
             return decodeFailure(0, "Missing S1 start marker")
@@ -94,7 +103,8 @@ public object Pc1350BasicTokenizer {
                         body.append(character)
                         afterKeyword = false
                     }
-                    value == 0xfe && position + 1 < end - 1 -> {
+                    value in specialNames -> { body.append(specialNames.getValue(value)); afterKeyword = false }
+                    allowKana && value == 0xfe && position + 1 < end - 1 -> {
                         val kana = bytes[position + 1].toInt() and 0xff
                         if (kana in 0xa1..0xdf) {
                             body.append((0xff61 + kana - 0xa1).toChar())
@@ -117,7 +127,7 @@ public object Pc1350BasicTokenizer {
         return Pc1350BasicDetokenizeResult.Success(lines.joinToString("\n"))
     }
 
-    private fun encodeBody(body: String, sourceLine: Int, keywords: List<Pair<String, Int>>): BodyResult {
+    private fun encodeBody(body: String, sourceLine: Int, keywords: List<Pair<String, Int>>, allowKana: Boolean, specialCodes: Set<Int>): BodyResult {
         val output = mutableListOf<Int>()
         var index = 0
         var inString = false
@@ -125,7 +135,7 @@ public object Pc1350BasicTokenizer {
         while (index < body.length) {
             val char = body[index]
             if (char == '"') {
-                output += requireNotNull(encodeCharacter(char))
+                output += requireNotNull(encodeCharacter(char, allowKana, specialCodes))
                 inString = !inString
                 index++
                 continue
@@ -143,7 +153,7 @@ public object Pc1350BasicTokenizer {
                     continue
                 }
             }
-            val encodedCharacter = encodeCharacter(char)
+            val encodedCharacter = encodeCharacter(char, allowKana, specialCodes)
             if (encodedCharacter == null) return BodyResult.Failure(
                 Pc1350BasicTokenizeError(sourceLine, index + 1, "Character '$char' is not supported yet"),
             )
@@ -154,9 +164,10 @@ public object Pc1350BasicTokenizer {
     }
 
     /** PCWAV S1 codec: ASCII is direct; Unicode half-width kana is FE + A1..DF. */
-    private fun encodeCharacter(character: Char): List<Int>? = when {
+    private fun encodeCharacter(character: Char, allowKana: Boolean, specialCodes: Set<Int>): List<Int>? = when {
+        character.code - 0xe000 in specialCodes -> listOf(character.code - 0xe000)
         character.code in 0x20..0x7e -> listOf(character.code)
-        character.code in 0xff61..0xff9f -> listOf(0xfe, 0xa1 + character.code - 0xff61)
+        allowKana && character.code in 0xff61..0xff9f -> listOf(0xfe, 0xa1 + character.code - 0xff61)
         else -> null
     }
 

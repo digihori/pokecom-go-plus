@@ -13,6 +13,8 @@ public interface EmulatorSession {
 
     public fun pressKey(key: PocketKey): InputResult
     public fun releaseKey(key: PocketKey): InputResult
+    public fun isOperatingModeTransitionPending(): Boolean = false
+    public fun currentOperatingMode(): OperatingMode? = null
     public fun setOperatingMode(mode: OperatingMode)
 
     public fun cpuSnapshot(): CpuSnapshot
@@ -83,10 +85,13 @@ public enum class PocketKey {
     PLUS, MINUS, MULTIPLY, DIVIDE, DOT, EQUALS,
     LEFT, RIGHT, UP, DOWN, CLEAR,
     MODE, KANA, SMALL, INSERT, DELETE,
+    CAL, BASIC, SIGN, HYP, SIN, COS, TAN, FORMAT, HEX, DEGREES, LN, LOG,
+    RECIPROCAL, STAT, EXPONENT, POWER, ROOT, SQUARE, MEMORY_STORE, MEMORY_RECALL, MEMORY_ADD,
     LEFT_PAREN, RIGHT_PAREN, COLON, SEMICOLON, COMMA,
 }
 
 public enum class OperatingMode {
+    CALCULATOR,
     RUN,
     PROGRAM,
     RESERVE,
@@ -154,6 +159,7 @@ public enum class DisplaySymbol {
     PRINT,
     DEG,
     ERROR,
+    CAL, HYP, STAT, MEMORY, PARENTHESES,
 }
 
 public class DisplaySnapshot internal constructor(

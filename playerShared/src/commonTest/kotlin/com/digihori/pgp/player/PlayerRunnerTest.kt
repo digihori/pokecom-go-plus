@@ -19,8 +19,8 @@ class PlayerRunnerTest {
         runner.run(1_000_000_000L)
         val tick = runner.tick(1_010_000_000L)
 
-        assertEquals(2_880L, tick.budget.cycles)
-        assertEquals(2_880L, tick.runResult?.executedCycles)
+        assertEquals(1_920L, tick.budget.cycles)
+        assertEquals(1_920L, tick.runResult?.executedCycles)
         assertEquals(PlayerRunState.RUNNING, runner.state)
     }
 
@@ -34,7 +34,7 @@ class PlayerRunnerTest {
         runner.run(10_000_000_000L)
         val resumed = runner.tick(10_010_000_000L)
 
-        assertEquals(2_880L, resumed.budget.cycles)
+        assertEquals(1_920L, resumed.budget.cycles)
     }
 
     @Test

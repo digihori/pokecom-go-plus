@@ -65,7 +65,7 @@ internal object DesktopProjectManifestUpdater {
         return id
     }
 
-    private fun writeManifest(workspace: DesktopProjectWorkspace, text: String) {
+    internal fun writeManifest(workspace: DesktopProjectWorkspace, text: String) {
         val destination = workspace.manifestFile.toPath()
         val temporary = Files.createTempFile(destination.parent, ".pgp-project-", ".tmp")
         try {

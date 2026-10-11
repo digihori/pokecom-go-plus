@@ -20,6 +20,8 @@ import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360Display
 import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360Machine
 import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401Machine
+import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401RomDefinition
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.rom.RomSet
 
@@ -51,6 +53,7 @@ public object EmulatorFactory {
                             Pc1251Machine(romSet, model, configuration.pc1251FamilyMemoryMode),
                         )
                     }
+                    MachineFamily.PC_1401 -> Pc1401EmulatorSession(Pc1401Machine(romSet))
                     MachineFamily.PC_1261 -> Pc1261EmulatorSession(Pc1261Machine(romSet))
                     MachineFamily.PC_1350 -> Pc1350EmulatorSession(Pc1350Machine(romSet))
                     MachineFamily.PC_1360 -> Pc1360EmulatorSession(Pc1360Machine(romSet))
@@ -124,6 +127,7 @@ private class Pc1261EmulatorSession(private val machine: Pc1261Machine) : Emulat
                     OperatingMode.RUN -> DisplaySymbol.RUN
                     OperatingMode.PROGRAM -> DisplaySymbol.PRO
                     OperatingMode.RESERVE -> DisplaySymbol.RESERVE
+                    OperatingMode.CALCULATOR -> DisplaySymbol.CAL
                 })
             },
             true, display.revision + machine.keyboardState.modeRevision, dots,
@@ -149,6 +153,60 @@ private class Pc1261EmulatorSession(private val machine: Pc1261Machine) : Emulat
     override fun resolveRomLocation(address: Int): PhysicalRomLocation? = when (address) {
         in 0x0000..0x1fff -> PhysicalRomLocation(Pc1261RomDefinition.INTERNAL_ID, null, address)
         in 0x8000..0xffff -> PhysicalRomLocation(Pc1261RomDefinition.EXTERNAL_ID, null, address - 0x8000)
+        else -> null
+    }
+}
+
+private class Pc1401EmulatorSession(private val machine: Pc1401Machine) : EmulatorSession {
+    override val machineId: MachineId = Pc1401RomDefinition.MACHINE_ID
+    private var status: ExecutionStatus = ExecutionStatus.Ready
+    override fun reset() { machine.coldReset(); status = ExecutionStatus.Ready }
+    override fun step(): StepResult = machine.step().let {
+        status = it.stopReason.toExecutionStatus(); StepResult(it.cycles, status)
+    }
+    override fun runCycles(cycleBudget: Long): RunResult = machine.runCycles(cycleBudget).let {
+        status = it.stopReason.toExecutionStatus(); RunResult(it.executedCycles, it.executedInstructions, status)
+    }
+    override fun pressKey(key: PocketKey): InputResult =
+        if (machine.pressKey(key)) InputResult.Accepted else InputResult.UnsupportedKey(key)
+    override fun releaseKey(key: PocketKey): InputResult =
+        if (machine.keyboardState.release(key)) InputResult.Accepted else InputResult.UnsupportedKey(key)
+    override fun isOperatingModeTransitionPending(): Boolean = machine.isOperatingModeTransitionPending()
+    override fun currentOperatingMode(): OperatingMode? = machine.currentOperatingMode()
+    override fun setOperatingMode(mode: OperatingMode) = machine.requestOperatingMode(mode)
+    override fun cpuSnapshot(): CpuSnapshot = machine.cpuState.let { state ->
+        CpuSnapshot(
+            state.programCounter, state.currentProgramCounter, state.opcode, state.dataPointer,
+            state.p, state.q, state.r, state.d, state.alu, state.carry, state.zero, state.xInput,
+            state.powerOn, state.ia, state.ib, state.fo, state.control, state.testPort,
+            ByteArray(state.internalRam.size) { state.internalRam[it].toByte() },
+        )
+    }
+    override fun memorySnapshot(startAddress: Int, length: Int): MemorySnapshot {
+        require(startAddress in 0..0xffff && length >= 0 && length <= 0x10000 - startAddress)
+        return MemorySnapshot(startAddress, ByteArray(length) { machine.readMemory(startAddress + it).toByte() })
+    }
+    override fun displaySnapshot(): DisplaySnapshot = machine.displayState.snapshot()
+    override fun audioSnapshot() = AudioSnapshot(machine.buzzerState.frequencyHz, machine.buzzerState.revision)
+    override fun drainAudioSamples() = AudioPcmSnapshot(Pc1245Buzzer.SAMPLE_RATE, machine.buzzerState.drainPcm())
+    override fun loadBasicProgram(program: ByteArray) = machine.loadBasicProgram(program).toLoadResult()
+    override fun basicProgramSnapshot() = machine.basicProgram().toSnapshotResult()
+    override fun loadMemoryImage(image: com.digihori.pgp.core.source.machine.AddressedMemoryImage): MemoryImageLoadResult {
+        val invalid = image.segments.firstNotNullOfOrNull { segment ->
+            (segment.startAddress..segment.endAddress).firstOrNull { !machine.isWritableAddress(it) }
+                ?.let { MemoryImageLoadError.ReadOnlyAddress(it, segment.sourceLine) }
+        }
+        if (invalid != null) return MemoryImageLoadResult.Failure(invalid)
+        image.segments.forEach { segment -> segment.copyBytes().forEachIndexed { offset, byte ->
+            machine.writeMemory(segment.startAddress + offset, byte.toInt() and 0xff)
+        } }
+        return MemoryImageLoadResult.Success(image.segments.size, image.byteCount)
+    }
+    override fun setMemoryAccessTracing(enabled: Boolean) = machine.setMemoryAccessTracing(enabled)
+    override fun drainMemoryAccesses() = machine.drainMemoryAccesses()
+    override fun resolveRomLocation(address: Int): PhysicalRomLocation? = when (address) {
+        in 0x0000..0x1fff -> PhysicalRomLocation(Pc1401RomDefinition.INTERNAL_ID, null, address)
+        in 0x8000..0xffff -> PhysicalRomLocation(Pc1401RomDefinition.EXTERNAL_ID, null, address - 0x8000)
         else -> null
     }
 }
@@ -379,6 +437,7 @@ private class Pc1251EmulatorSession(
                     OperatingMode.RUN -> DisplaySymbol.RUN
                     OperatingMode.PROGRAM -> DisplaySymbol.PRO
                     OperatingMode.RESERVE -> DisplaySymbol.RESERVE
+                    OperatingMode.CALCULATOR -> DisplaySymbol.CAL
                 },
             )
         }

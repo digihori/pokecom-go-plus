@@ -6,6 +6,8 @@ import com.digihori.pgp.core.emulator.machine.pc1245.RomImportError
 import com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251ComponentRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261ComponentRomImporter
+import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401FlatRomImporter
+import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401ComponentRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261FlatRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350ComponentRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360LegacyRomImporter
@@ -23,6 +25,7 @@ internal object DesktopRomPackageConverter {
             MachineFamily.PC_1245 -> Pc1245FlatRomImporter.importImage(image)
             MachineFamily.PC_1251 -> com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FlatRomImporter
                 .importImage(image, machineId)
+            MachineFamily.PC_1401 -> Pc1401FlatRomImporter.importImage(image)
             MachineFamily.PC_1261 -> Pc1261FlatRomImporter.importImage(image)
             MachineFamily.PC_1350 -> com.digihori.pgp.core.emulator.machine.pc1350.Pc1350FlatRomImporter
                 .importImage(image)
@@ -48,6 +51,12 @@ internal object DesktopRomPackageConverter {
     ): DesktopRomPackageConversionResult = when (MachineCatalog.find(machineId)?.family) {
         MachineFamily.PC_1245 -> createPc1245Package(internal, external)
         MachineFamily.PC_1251 -> createPc1251Package(internal, external, machineId)
+        MachineFamily.PC_1401 -> when (val imported = Pc1401ComponentRomImporter.importImages(internal, external)) {
+            is RomImportResult.Failure -> DesktopRomPackageConversionResult.Failure(imported.error)
+            is RomImportResult.Success -> DesktopRomPackageConversionResult.Success(
+                DesktopRomPackage.write(imported.romSet, title = "PC-1401 ROM"),
+            )
+        }
         MachineFamily.PC_1261 -> createPc1261Package(internal, external)
         MachineFamily.PC_1350 -> createPc1350Package(internal, external)
         MachineFamily.PC_1360 -> createPc1360Package(internal, external)

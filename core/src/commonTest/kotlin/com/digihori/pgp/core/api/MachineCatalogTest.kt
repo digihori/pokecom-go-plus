@@ -9,10 +9,18 @@ import kotlin.test.assertTrue
 
 class MachineCatalogTest {
     @Test
+    fun oscillatorRatesAreConvertedToInstructionCycles() {
+        val slow = setOf("pc-1245", "pc-1250", "pc-1251", "pc-1255", "pc-1401")
+        MachineCatalog.definitions.forEach {
+            assertEquals(if (it.id.value in slow) 192_000L else 256_000L, it.cyclesPerSecond)
+        }
+    }
+
+    @Test
     fun exposesStableDefinitionsInUiOrder() {
         assertEquals(MachineId("pc-1245"), MachineCatalog.defaultDefinition.id)
         assertEquals(
-            listOf("pc-1245", "pc-1250", "pc-1251", "pc-1255", "pc-1261", "pc-1350", "pc-1360"),
+            listOf("pc-1245", "pc-1250", "pc-1251", "pc-1255", "pc-1261", "pc-1350", "pc-1360", "pc-1401"),
             MachineCatalog.definitions.map { it.id.value },
         )
         assertEquals(

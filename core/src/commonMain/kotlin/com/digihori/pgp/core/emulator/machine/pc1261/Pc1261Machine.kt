@@ -14,10 +14,10 @@ import com.digihori.pgp.core.rom.RomSet
 internal class Pc1261Machine(romSet: RomSet) {
     private val display = Pc1261Display()
     private val keyboard = Pc1251Keyboard()
-    private val buzzer = Pc1245Buzzer()
+    private val buzzer = Pc1245Buzzer(clockHz = 256_000.0)
     private val bus = Pc1261MemoryBus(romSet, display)
     private val cpuBus = Sc61860BusAccessRecorder(bus)
-    private val cpu = Sc61860Cpu(cpuBus, Pc1261Io(keyboard, buzzer))
+    private val cpu = Sc61860Cpu(cpuBus, Pc1261Io(keyboard, buzzer), cyclesPerSecond = 256_000)
 
     init { coldReset() }
     fun coldReset() { bus.resetRam(); keyboard.reset(); buzzer.reset(); cpu.reset() }

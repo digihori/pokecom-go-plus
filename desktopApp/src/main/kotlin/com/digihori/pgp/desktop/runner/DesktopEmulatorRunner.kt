@@ -73,8 +73,22 @@ internal class DesktopEmulatorRunner(
     var speed: SpeedRatio = SpeedRatio.NORMAL
         private set
 
+    var unlimited: Boolean = false
+        private set
+
+    fun setExecutionSpeed(value: DesktopExecutionSpeed) {
+        val changed = unlimited != (value == DesktopExecutionSpeed.UNLIMITED)
+        unlimited = value == DesktopExecutionSpeed.UNLIMITED
+        setSpeed(value.ratio)
+        if (changed) {
+            planner.reset()
+            if (state == RunnerState.RUNNING) previousTimeNanoseconds = clock.nowNanoseconds()
+        }
+    }
+
     private var previousTimeNanoseconds: Long? = null
-    private var operatingMode: OperatingMode = OperatingMode.RUN
+    private var requestedOperatingMode: OperatingMode = OperatingMode.RUN
+    private val operatingMode: OperatingMode get() = session.currentOperatingMode() ?: requestedOperatingMode
     private val executionBreakpoints: MutableSet<Int> = mutableSetOf()
     private var breakpointToSkipOnce: Int? = null
     private var temporaryRunToAddress: Int? = null
@@ -131,8 +145,7 @@ internal class DesktopEmulatorRunner(
         session.reset()
         planner.reset()
         previousTimeNanoseconds = null
-        speed = SpeedRatio.NORMAL
-        operatingMode = OperatingMode.RUN
+        requestedOperatingMode = OperatingMode.RUN
         commandHistory.clearPendingInput()
         state = RunnerState.PAUSED
         stopReason = DebuggerStopReason.Reset
@@ -367,9 +380,10 @@ internal class DesktopEmulatorRunner(
         var executedCycles = 0L
         var executedInstructions = 0L
         var status: ExecutionStatus = ExecutionStatus.Ready
-        applyTransition(keyInputQueue.start())
-        while (!keyInputQueue.isIdle && status !is ExecutionStatus.Faulted) {
-            val requestedCycles = keyInputQueue.limitCycles(Long.MAX_VALUE)
+        if (!session.isOperatingModeTransitionPending()) applyTransition(keyInputQueue.start())
+        while ((!keyInputQueue.isIdle || session.isOperatingModeTransitionPending()) && status !is ExecutionStatus.Faulted) {
+            if (!session.isOperatingModeTransitionPending()) applyTransition(keyInputQueue.start())
+            val requestedCycles = if (session.isOperatingModeTransitionPending()) 4_096L else keyInputQueue.limitCycles(Long.MAX_VALUE)
             val partialResult = runSessionCycles(requestedCycles)
             check(partialResult.executedCycles > 0) { "Session made no progress" }
             executedCycles += partialResult.executedCycles
@@ -406,6 +420,8 @@ internal class DesktopEmulatorRunner(
         return RunResult(executedCycles, executedInstructions, status)
     }
 
+    fun currentOperatingMode(): OperatingMode = operatingMode
+
     fun setOperatingMode(mode: OperatingMode) {
         session.setOperatingMode(mode)
         if (operatingMode != mode) sessionRevision++
@@ -415,7 +431,7 @@ internal class DesktopEmulatorRunner(
             inputEpoch++
             commandHistory.clearPendingInput()
         }
-        operatingMode = mode
+        requestedOperatingMode = mode
     }
 
     internal fun commandHistorySize(): Int = commandHistory.size
@@ -435,16 +451,17 @@ internal class DesktopEmulatorRunner(
         require(now >= previous) { "Monotonic clock moved backwards" }
         previousTimeNanoseconds = now
 
-        val budget = planner.plan(now - previous, speed)
+        val budget = if (unlimited) CycleBudget(4_096L, 0L, 0L) else planner.plan(now - previous, speed)
         if (budget.cycles == 0L) return RunnerTick(budget, null)
 
-        applyTransition(keyInputQueue.start())
+        if (!session.isOperatingModeTransitionPending()) applyTransition(keyInputQueue.start())
         var cyclesRemaining = budget.cycles
         var executedCycles = 0L
         var executedInstructions = 0L
         var status: ExecutionStatus = ExecutionStatus.Ready
         while (cyclesRemaining > 0 && status !is ExecutionStatus.Faulted) {
-            val requestedCycles = keyInputQueue.limitCycles(cyclesRemaining)
+            if (!session.isOperatingModeTransitionPending()) applyTransition(keyInputQueue.start())
+            val requestedCycles = if (session.isOperatingModeTransitionPending()) minOf(4_096L, cyclesRemaining) else keyInputQueue.limitCycles(cyclesRemaining)
             val partial = runUntilBreakpoint(requestedCycles)
             val partialResult = partial.result
             executedCycles += partialResult.executedCycles

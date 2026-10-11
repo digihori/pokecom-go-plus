@@ -1520,10 +1520,10 @@ class Sc61860CpuTest {
     @Test
     fun instructionCyclesDriveTwoMillisecondAndFiveHundredMillisecondDividers() {
         val twoMilliseconds = Sc61860Cpu(TestBus(0x33)).apply {
-            state.ticks = 573
+            state.ticks = 381
         }
         val fiveHundredMilliseconds = Sc61860Cpu(TestBus(0x33)).apply {
-            state.ticks2 = 143_997
+            state.ticks2 = 95_997
         }
 
         twoMilliseconds.step()
@@ -1536,18 +1536,31 @@ class Sc61860CpuTest {
     }
 
     @Test
+    fun fasterOscillatorKeepsNominalTimerPeriods() {
+        val cpu = Sc61860Cpu(TestBus(0x33), cyclesPerSecond = 256_000).apply {
+            state.ticks = 509
+            state.ticks2 = 127_997
+        }
+        cpu.step()
+        assertEquals(0, cpu.state.ticks)
+        assertEquals(0, cpu.state.ticks2)
+        assertEquals(true, cpu.state.divider2)
+        assertEquals(true, cpu.state.divider500)
+    }
+
+    @Test
     fun dividerLatchesRemainSetAcrossAdditionalPeriodsUntilTestConsumesThem() {
         val cpu = Sc61860Cpu(TestBus(0x33, 0x33, 0x6b, 0x03)).apply {
-            state.ticks = 575
-            state.ticks2 = 143_999
+            state.ticks = 383
+            state.ticks2 = 95_999
         }
 
         cpu.step()
         assertEquals(true, cpu.state.divider2)
         assertEquals(true, cpu.state.divider500)
 
-        cpu.state.ticks = 575
-        cpu.state.ticks2 = 143_999
+        cpu.state.ticks = 383
+        cpu.state.ticks2 = 95_999
         cpu.step()
         assertEquals(true, cpu.state.divider2)
         assertEquals(true, cpu.state.divider500)

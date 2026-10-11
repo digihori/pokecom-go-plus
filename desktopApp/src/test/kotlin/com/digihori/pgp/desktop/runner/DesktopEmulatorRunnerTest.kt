@@ -173,8 +173,8 @@ class DesktopEmulatorRunnerTest {
         clock.advance(50_000_000)
         val tick = runner.tick()
 
-        assertEquals(14_400, tick.budget.cycles)
-        assertEquals(listOf(14_400L), session.budgets)
+        assertEquals(9_600, tick.budget.cycles)
+        assertEquals(listOf(9_600L), session.budgets)
         assertEquals(RunnerState.RUNNING, runner.state)
     }
 
@@ -193,7 +193,7 @@ class DesktopEmulatorRunnerTest {
         clock.advance(10_000_000)
         runner.tick()
 
-        assertEquals(listOf(2_880L), session.budgets)
+        assertEquals(listOf(1_920L), session.budgets)
     }
 
     @Test
@@ -208,11 +208,11 @@ class DesktopEmulatorRunnerTest {
         clock.advance(10_000_000)
         runner.tick()
 
-        assertEquals(listOf(5_760L), session.budgets)
+        assertEquals(listOf(3_840L), session.budgets)
     }
 
     @Test
-    fun resetResetsTheSessionSpeedAndRunnerState() {
+    fun resetPreservesSpeedAndResetsSessionAndRunnerState() {
         val session = FakeSession()
         val clock = FakeClock()
         val runner = runner(session, clock)
@@ -222,9 +222,29 @@ class DesktopEmulatorRunnerTest {
         runner.reset()
 
         assertEquals(1, session.resetCount)
-        assertEquals(SpeedRatio.NORMAL, runner.speed)
+        assertEquals(SpeedRatio.DOUBLE, runner.speed)
         assertEquals(RunnerState.PAUSED, runner.state)
         assertEquals(DebuggerStopReason.Reset, runner.stopReason)
+    }
+
+    @Test
+    fun unlimitedRunsWithoutElapsedTimeAndRespectsPauseAndReset() {
+        val session = FakeSession()
+        val clock = FakeClock()
+        val runner = runner(session, clock)
+        runner.setExecutionSpeed(DesktopExecutionSpeed.UNLIMITED)
+        runner.run()
+        assertEquals(4_096L, runner.tick().budget.cycles)
+        assertEquals(4_096L, runner.tick().budget.cycles)
+        runner.pause()
+        assertNull(runner.tick().runResult)
+        runner.reset()
+        assertTrue(runner.unlimited)
+        runner.setExecutionSpeed(DesktopExecutionSpeed.LEVEL_3)
+        runner.run()
+        assertNull(runner.tick().runResult)
+        clock.advance(10_000_000)
+        assertEquals(1_920L, runner.tick().budget.cycles)
     }
 
     @Test
@@ -239,7 +259,7 @@ class DesktopEmulatorRunnerTest {
         clock.advance(10_000_000)
         runner.tick()
 
-        assertEquals(listOf(5_760L), session.budgets)
+        assertEquals(listOf(3_840L), session.budgets)
     }
 
     @Test
@@ -358,7 +378,7 @@ class DesktopEmulatorRunnerTest {
         clock.advance(1_000_000)
         runner.tick()
         assertTrue(runner.instructionTrace().isEmpty())
-        assertEquals(listOf(288L), session.budgets)
+        assertEquals(listOf(192L), session.budgets)
 
         runner.setInstructionTraceEnabled(true)
         clock.advance(10_000_000)
@@ -366,9 +386,9 @@ class DesktopEmulatorRunnerTest {
 
         val trace = runner.instructionTrace()
         assertEquals(256, trace.size)
-        assertEquals(464L, trace.first().sequence)
-        assertEquals(719L, trace.last().sequence)
-        assertEquals(720, session.stepCount)
+        assertEquals(224L, trace.first().sequence)
+        assertEquals(479L, trace.last().sequence)
+        assertEquals(480, session.stepCount)
 
         runner.clearInstructionTrace()
         assertTrue(runner.instructionTrace().isEmpty())
@@ -392,8 +412,8 @@ class DesktopEmulatorRunnerTest {
 
         assertEquals(16, runner.instructionTraceCapacity())
         assertEquals(16, runner.instructionTrace().size)
-        assertEquals(56L, runner.instructionTrace().first().sequence)
-        assertEquals(71L, runner.instructionTrace().last().sequence)
+        assertEquals(32L, runner.instructionTrace().first().sequence)
+        assertEquals(47L, runner.instructionTrace().last().sequence)
     }
 
     @Test
@@ -543,8 +563,8 @@ class DesktopEmulatorRunnerTest {
         clock.advance(50_000_000)
         val tick = runner.tick()
 
-        assertEquals(14_400, tick.runResult?.executedCycles)
-        assertEquals(listOf(10L, 5L, 10L, 14_375L), session.budgets)
+        assertEquals(9_600, tick.runResult?.executedCycles)
+        assertEquals(listOf(10L, 5L, 10L, 9_575L), session.budgets)
         assertEquals(
             listOf("press:SHIFT", "release:SHIFT", "press:Q", "release:Q"),
             session.inputEvents,

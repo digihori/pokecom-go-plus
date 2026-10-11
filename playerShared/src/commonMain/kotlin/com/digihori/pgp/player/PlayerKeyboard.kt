@@ -17,6 +17,7 @@ public data class PlayerKeyCap(
 public data class PlayerKeyboard(
     public val columnCount: Int,
     public val rows: List<List<PlayerKeyCap>>,
+    public val functionPanel: PlayerKeyboard? = null,
 ) {
     init {
         require(columnCount > 0)
@@ -37,6 +38,7 @@ public data class PlayerKeyboard(
 public object PlayerKeyboardCatalog {
     public fun forMachine(machineId: MachineId): PlayerKeyboard? =
         when (MachineCatalog.require(machineId).keyboardLayout) {
+            MachineKeyboardLayout.PC_1401 -> Pc1401KeyboardLayout.keyboard
             MachineKeyboardLayout.PC_1245 -> pc1245
             MachineKeyboardLayout.PC_1251,
             MachineKeyboardLayout.PC_1261,

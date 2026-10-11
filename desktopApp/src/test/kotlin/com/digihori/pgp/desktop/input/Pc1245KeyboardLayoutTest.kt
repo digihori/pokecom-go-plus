@@ -10,12 +10,7 @@ class Pc1245KeyboardLayoutTest {
     fun containsEveryPc1245LogicalKeyExactlyOnce() {
         val keys = Pc1245KeyboardLayout.rows.flatten().map(PocketKeyCap::key)
 
-        val pc1350Only = setOf(
-            PocketKey.MODE, PocketKey.KANA, PocketKey.SMALL, PocketKey.INSERT, PocketKey.DELETE,
-            PocketKey.LEFT_PAREN, PocketKey.RIGHT_PAREN, PocketKey.COLON,
-            PocketKey.SEMICOLON, PocketKey.COMMA,
-        )
-        assertEquals(PocketKey.entries.toSet() - pc1350Only, keys.toSet())
+        assertEquals(PocketKey.entries.takeWhile { it != PocketKey.MODE }.toSet(), keys.toSet())
         assertEquals(keys.size, keys.distinct().size)
     }
 
