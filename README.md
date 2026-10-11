@@ -180,11 +180,15 @@ ROM起動後にUTF-8の`.bas`ファイルを指定して読み込める。通常
 
 ### ROMセットの作成
 
-`File` → `Create ROM Set…`を選び、対象機種と、吸い出した内部ROM・外部ROMを指定する。
-現在対応しているPC-1245／1251ファミリーでは8KiBの内部ROMと16KiBの外部ROMを使用する。
-保存先を選ぶと、サイズとSHA-256を記録した`.pgrom` v1パッケージを生成する。
-生成したファイルはROM Libraryの`Register…`から登録できる。元のROMと生成物はリポジトリへ追加せず、
-`local-data/`などGit管理外の場所に保存する。
+`File` → `Create ROM Set…`で専用ウィンドウを開き、対象機種、内部ROM、外部ROM、
+保存先のフォルダとファイル名をそれぞれ指定して`Create`を押す。
+内部ROMは全対応機種で8 KiB。外部ROMはPC-1245／1250／1251／1255が16 KiB、
+PC-1261／1350／1401が32 KiB、PC-1360が128 KiB（bank 0〜7の順に連結したファイル）。
+必要な項目とROMサイズを確認後、manifestとSHA-256を記録した`.pgrom` v1パッケージを生成する。
+
+作成後の`Register in ROM Library`で登録・起動できる。登録は後から`Manage ROMs…`でも行える。
+元のROMと生成物はリポジトリへ追加せず、`local-data/`などGit管理外の場所に保存する。
+詳しい操作は[導入ガイドのROMセット作成手順](docs/GETTING_STARTED.md#43-romダンプからpgromを作る)を参照。
 
 既存のPokecom GO用32/64KiBイメージは、ROM Libraryから互換入力として直接登録できる。
 

@@ -180,8 +180,15 @@ PC-1245では次の2ファイルを入力する。
 | 内部ROM | 8KiB | `internal` |
 | 外部ROM | 16KiB | `external` |
 
-バンク機では、内部ROMに加えて16KiBの各bankファイルをbank番号順のslotへ割り当てる。
-正規`RomSet`ではbank 0から順に連結した1つの`external` componentへ変換する。
+PC-1250／1251／1255も同じ8 KiB＋16 KiB構成を使用する。
+PC-1261／1350／1401は8 KiBの内部ROMと32 KiBの外部ROMを使用する。
+
+CoreのバンクROM importerは16 KiBの各bankを番号順に受け取り、正規`RomSet`の
+1つの`external` componentへ連結する。現在のStudio作成UIでは、PC-1360の外部ROM欄に
+bank 0〜7を順に連結した128 KiBファイルを指定する。個別bank選択UIは未実装。
+
+Studioでは`File` → `Create ROM Set…`の専用ウィンドウで機種・各ROM・保存先を指定し、
+`Create`を押して作成する。詳細は[導入ガイド](GETTING_STARTED.md#43-romダンプからpgromを作る)を参照。
 
 ### 7.2 Pokecom GO互換Importer
 
