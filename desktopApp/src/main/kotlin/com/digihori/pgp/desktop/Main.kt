@@ -198,6 +198,7 @@ import com.digihori.pgp.desktop.rom.DesktopRomHistory
 import com.digihori.pgp.desktop.rom.DesktopRomLibrary
 import com.digihori.pgp.desktop.rom.DesktopRomLibraryResult
 import com.digihori.pgp.desktop.rom.DesktopRomPackageConversionResult
+import com.digihori.pgp.desktop.rom.DesktopRomSetWindow
 import com.digihori.pgp.desktop.rom.DesktopRomPackageConverter
 import com.digihori.pgp.desktop.runner.DesktopEmulatorRunner
 import com.digihori.pgp.desktop.runner.DesktopExecutionSpeed
@@ -303,7 +304,7 @@ private fun FrameWindowScope.App(
     var memoryViewStartAddress by remember { mutableStateOf(DEFAULT_MEMORY_VIEW_ADDRESS) }
     var operatingMode by remember { mutableStateOf(OperatingMode.RUN) }
     var requestedToneHz by remember { mutableStateOf(0) }
-    var showCreateRomSetGuide by remember { mutableStateOf(false) }
+    var showCreateRomSetWindow by remember { mutableStateOf(false) }
     var showRomManager by remember { mutableStateOf(false) }
     var pendingRomRemoval by remember { mutableStateOf<MachineId?>(null) }
     var errorDialogMessage by remember { mutableStateOf<String?>(null) }
@@ -407,12 +408,12 @@ private fun FrameWindowScope.App(
         }
     }
     SideEffect {
-        gamepad.setContext(runner, mainWindowFocused && keyboardInput.isEnabled && !showSettingsWindow && !showCreateProjectDialog && !showRenameProjectDialog)
+        gamepad.setContext(runner, mainWindowFocused && keyboardInput.isEnabled && !showSettingsWindow && !showCreateRomSetWindow && !showCreateProjectDialog && !showRenameProjectDialog)
     }
     LaunchedEffect(gamepad) {
         try {
             while (isActive) {
-                gamepad.setContext(runner, mainWindowFocused && keyboardInput.isEnabled && !showSettingsWindow && !showCreateProjectDialog && !showRenameProjectDialog)
+                gamepad.setContext(runner, mainWindowFocused && keyboardInput.isEnabled && !showSettingsWindow && !showCreateRomSetWindow && !showCreateProjectDialog && !showRenameProjectDialog)
                 try {
                     gamepad.poll()
                 } catch (cancelled: CancellationException) {
@@ -712,36 +713,6 @@ private fun FrameWindowScope.App(
             runnerState = RunnerState.PAUSED
         }
         message = "Removed the stored ${machineId.displayName()} ROM."
-    }
-
-    fun createRomSet() {
-        val internalFile = selectAndRestoreFocus { selectInternalRomFile(ownerWindow, selectedMachineId) } ?: return
-        val externalFile = selectAndRestoreFocus { selectExternalRomFile(ownerWindow, selectedMachineId) } ?: return
-        val conversion = runCatching {
-            DesktopRomPackageConverter.createPackage(
-                selectedMachineId,
-                internalFile.readBytes(),
-                externalFile.readBytes(),
-            )
-        }.getOrElse {
-            showError("Could not read ROM files: ${it.message ?: it::class.simpleName}")
-            return
-        }
-        when (conversion) {
-            is DesktopRomPackageConversionResult.Failure -> {
-                showError(DesktopRomLoadError.InvalidRom(conversion.error).message())
-            }
-            is DesktopRomPackageConversionResult.Success -> {
-                val destination = selectAndRestoreFocus { selectPackageDestination(ownerWindow) } ?: return
-                runCatching { destination.writeBytes(conversion.packageBytes) }
-                    .onSuccess {
-                        message = "Created ${destination.name}. Select it with Open ROM to verify the package."
-                    }
-                    .onFailure {
-                        showError("Could not write package: ${it.message ?: it::class.simpleName}")
-                    }
-            }
-        }
     }
 
     fun openProject(file: File, resetBasicTracking: Boolean = true) {
@@ -1344,7 +1315,7 @@ private fun FrameWindowScope.App(
         Menu("File") {
             Item("Register ROM…", onClick = { showRomManager = true })
             Item("Manage ROMs…", onClick = { showRomManager = true })
-            Item("Create ROM Set…", onClick = { showCreateRomSetGuide = true })
+            Item("Create ROM Set…", enabled = !showCreateRomSetWindow, onClick = { showCreateRomSetWindow = true })
         }
         Menu("Project") {
             Item("New Project…", onClick = {
@@ -1524,6 +1495,14 @@ private fun FrameWindowScope.App(
                 }
             }
         }
+    }
+
+    if (showCreateRomSetWindow) {
+        DesktopRomSetWindow(
+            initialMachineId = selectedMachineId,
+            onClose = { showCreateRomSetWindow = false },
+            onRegister = { file, machine -> importRom(file, machine) },
+        )
     }
 
     if (showSettingsWindow) {
@@ -2428,37 +2407,6 @@ private fun FrameWindowScope.App(
                 },
                 dismissButton = {
                     TextButton(onClick = { showCreateProjectDialog = false }) { Text("Cancel") }
-                },
-            )
-        }
-
-        if (showCreateRomSetGuide) {
-            AlertDialog(
-                onDismissRequest = { showCreateRomSetGuide = false },
-                title = { Text("Create ${selectedMachineId.displayName()} ROM Set") },
-                text = {
-                    Text(
-                        "Machine: ${selectedMachineId.displayName()}\n\n" +
-                            "You will choose three items in this order:\n\n" +
-                            "1. Internal ROM dump — exactly 8 KiB (8192 bytes)\n" +
-                            if (MachineCatalog.require(selectedMachineId).family == MachineFamily.PC_1360) {
-                                "2. Bank ROM dump — exactly 128 KiB (8 × 16 KiB)\n"
-                            } else {
-                                "2. External ROM dump — use the size required by this machine\n"
-                            } +
-                            "3. Destination for the new .pgrom file\n\n" +
-                            "File names do not matter. PGP validates each size and creates the manifest " +
-                            "and SHA-256 values automatically.",
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        showCreateRomSetGuide = false
-                        createRomSet()
-                    }) { Text("Continue") }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showCreateRomSetGuide = false }) { Text("Cancel") }
                 },
             )
         }
@@ -3602,29 +3550,6 @@ private fun PocketLcdPanel(snapshot: DisplaySnapshot?) {
 private fun selectRomFile(owner: Frame, machineId: MachineId): File? {
     return selectFile(owner, "Open ${machineId.displayName()} ROM", "${machineId.value}.pgrom")
 }
-
-private fun selectInternalRomFile(owner: Frame, machineId: MachineId): File? = selectFile(
-    owner,
-    "Select ${machineId.displayName()} internal ROM (8 KiB)",
-    "internal.bin",
-)
-
-private fun selectExternalRomFile(owner: Frame, machineId: MachineId): File? = selectFile(
-    owner,
-    if (MachineCatalog.require(machineId).family == MachineFamily.PC_1360) {
-        "Select ${machineId.displayName()} bank ROM (128 KiB)"
-    } else {
-        "Select ${machineId.displayName()} external ROM"
-    },
-    if (MachineCatalog.require(machineId).family == MachineFamily.PC_1360) "pc1360bank.bin" else "external.bin",
-)
-
-private fun selectPackageDestination(owner: Frame): File? = selectFile(
-    owner = owner,
-    title = "Save PGP ROM Package",
-    suggestedFile = "pc-1245.pgrom",
-    mode = FileDialog.SAVE,
-)
 
 private fun selectBasicFile(owner: Frame, title: String): File? = selectFile(owner, title, "*.bas")
 

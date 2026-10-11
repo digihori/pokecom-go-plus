@@ -51,7 +51,7 @@ public object PlayerKeyboardCatalog {
         columnCount = 14,
         rows = listOf(
             listOf(
-                cap(PocketKey.DEF, "DEF", 3), cap(PocketKey.SHIFT, "SHIFT", 4),
+                cap(PocketKey.DEF, "DEF", 0), cap(PocketKey.SHIFT, "SHIFT", 1),
                 cap(PocketKey.DOWN, "↓", 5), cap(PocketKey.UP, "↑", 6),
                 cap(PocketKey.LEFT, "←", 7, shifted = "DEL"),
                 cap(PocketKey.RIGHT, "→", 8, shifted = "INS"),

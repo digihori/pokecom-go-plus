@@ -16,8 +16,8 @@ internal object Pc1245KeyboardLayout {
 
     val rows: List<List<PocketKeyCap>> = listOf(
         listOf(
-            cap(PocketKey.DEF, "DEF", column = 3),
-            cap(PocketKey.SHIFT, "SHIFT", column = 4),
+            cap(PocketKey.DEF, "DEF", column = 0),
+            cap(PocketKey.SHIFT, "SHIFT", column = 1),
             cap(PocketKey.DOWN, "↓", column = 5),
             cap(PocketKey.UP, "↑", column = 6),
             cap(PocketKey.LEFT, "←", shifted = "DEL", column = 7),
