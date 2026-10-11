@@ -51,6 +51,7 @@ public object EmulatorFactory {
                         Pc1251EmulatorSession(
                             machineId,
                             Pc1251Machine(romSet, model, configuration.pc1251FamilyMemoryMode),
+                            MachineMemoryLayout(machineId, configuration.pc1251FamilyMemoryMode),
                         )
                     }
                     MachineFamily.PC_1401 -> Pc1401EmulatorSession(Pc1401Machine(romSet))
@@ -138,11 +139,7 @@ private class Pc1261EmulatorSession(private val machine: Pc1261Machine) : Emulat
     override fun loadBasicProgram(program: ByteArray) = machine.loadBasicProgram(program).toLoadResult()
     override fun basicProgramSnapshot() = machine.basicProgram().toSnapshotResult()
     override fun loadMemoryImage(image: com.digihori.pgp.core.source.machine.AddressedMemoryImage): MemoryImageLoadResult {
-        val invalid = image.segments.firstNotNullOfOrNull { segment ->
-            (segment.startAddress..segment.endAddress).firstOrNull { it !in 0x2000..0x67ff }
-                ?.let { MemoryImageLoadError.ReadOnlyAddress(it, segment.sourceLine) }
-        }
-        if (invalid != null) return MemoryImageLoadResult.Failure(invalid)
+        MemoryPlacementValidator.validate(image, memoryLayout)?.let { return MemoryImageLoadResult.Failure(it.error) }
         image.segments.forEach { segment -> segment.copyBytes().forEachIndexed { offset, byte ->
             machine.writeMemory(segment.startAddress + offset, byte.toInt() and 0xff)
         } }
@@ -192,11 +189,7 @@ private class Pc1401EmulatorSession(private val machine: Pc1401Machine) : Emulat
     override fun loadBasicProgram(program: ByteArray) = machine.loadBasicProgram(program).toLoadResult()
     override fun basicProgramSnapshot() = machine.basicProgram().toSnapshotResult()
     override fun loadMemoryImage(image: com.digihori.pgp.core.source.machine.AddressedMemoryImage): MemoryImageLoadResult {
-        val invalid = image.segments.firstNotNullOfOrNull { segment ->
-            (segment.startAddress..segment.endAddress).firstOrNull { !machine.isWritableAddress(it) }
-                ?.let { MemoryImageLoadError.ReadOnlyAddress(it, segment.sourceLine) }
-        }
-        if (invalid != null) return MemoryImageLoadResult.Failure(invalid)
+        MemoryPlacementValidator.validate(image, memoryLayout)?.let { return MemoryImageLoadResult.Failure(it.error) }
         image.segments.forEach { segment -> segment.copyBytes().forEachIndexed { offset, byte ->
             machine.writeMemory(segment.startAddress + offset, byte.toInt() and 0xff)
         } }
@@ -266,11 +259,7 @@ private class Pc1360EmulatorSession(
     override fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult = machine.loadBasicProgram(program).toLoadResult()
     override fun basicProgramSnapshot(): BasicProgramSnapshotResult = machine.basicProgram().toSnapshotResult()
     override fun loadMemoryImage(image: com.digihori.pgp.core.source.machine.AddressedMemoryImage): MemoryImageLoadResult {
-        val invalid = image.segments.firstNotNullOfOrNull { segment ->
-            (segment.startAddress..segment.endAddress).firstOrNull { it !in 0x2000..0x3fff && it !in 0x8000..0xffff }
-                ?.let { MemoryImageLoadError.ReadOnlyAddress(it, segment.sourceLine) }
-        }
-        if (invalid != null) return MemoryImageLoadResult.Failure(invalid)
+        MemoryPlacementValidator.validate(image, memoryLayout)?.let { return MemoryImageLoadResult.Failure(it.error) }
         image.segments.forEach { segment -> segment.copyBytes().forEachIndexed { offset, byte ->
             machine.writeMemory(segment.startAddress + offset, byte.toInt() and 0xff)
         } }
@@ -356,11 +345,7 @@ private class Pc1350EmulatorSession(
     override fun basicProgramSnapshot(): BasicProgramSnapshotResult =
         machine.basicProgram().toSnapshotResult()
     override fun loadMemoryImage(image: com.digihori.pgp.core.source.machine.AddressedMemoryImage): MemoryImageLoadResult {
-        val invalid = image.segments.firstNotNullOfOrNull { segment ->
-            (segment.startAddress..segment.endAddress).firstOrNull { it !in 0x2000..0x7fff }
-                ?.let { MemoryImageLoadError.ReadOnlyAddress(it, segment.sourceLine) }
-        }
-        if (invalid != null) return MemoryImageLoadResult.Failure(invalid)
+        MemoryPlacementValidator.validate(image, memoryLayout)?.let { return MemoryImageLoadResult.Failure(it.error) }
         image.segments.forEach { segment ->
             segment.copyBytes().forEachIndexed { offset, byte ->
                 machine.writeMemory(segment.startAddress + offset, byte.toInt() and 0xff)
@@ -379,6 +364,7 @@ public data class EmulatorConfiguration(
 private class Pc1251EmulatorSession(
     override val machineId: MachineId,
     private val machine: Pc1251Machine,
+    override val memoryLayout: MachineMemoryLayout,
 ) : EmulatorSession {
     private var status: ExecutionStatus = ExecutionStatus.Ready
 
@@ -464,13 +450,15 @@ private class Pc1251EmulatorSession(
         machine.loadBasicProgram(program).toLoadResult()
     override fun basicProgramSnapshot(): BasicProgramSnapshotResult =
         machine.basicProgram().toSnapshotResult()
-    override fun loadMemoryImage(image: com.digihori.pgp.core.source.machine.AddressedMemoryImage): MemoryImageLoadResult =
-        when (val result = machine.loadMemoryImage(image)) {
+    override fun loadMemoryImage(image: com.digihori.pgp.core.source.machine.AddressedMemoryImage): MemoryImageLoadResult {
+        MemoryPlacementValidator.validate(image, memoryLayout)?.let { return MemoryImageLoadResult.Failure(it.error) }
+        return when (val result = machine.loadMemoryImage(image)) {
             is Pc1251MemoryImageLoadResult.Success ->
                 MemoryImageLoadResult.Success(result.segmentCount, result.byteCount)
             is Pc1251MemoryImageLoadResult.ReadOnlyAddress ->
                 MemoryImageLoadResult.Failure(MemoryImageLoadError.ReadOnlyAddress(result.address, result.sourceLine))
         }
+    }
     override fun setMemoryAccessTracing(enabled: Boolean) = machine.setMemoryAccessTracing(enabled)
     override fun drainMemoryAccesses(): List<MemoryAccess> = machine.drainMemoryAccesses()
 }
@@ -639,13 +627,15 @@ private class Pc1245EmulatorSession(
             )
         }
 
-    override fun loadMemoryImage(image: com.digihori.pgp.core.source.machine.AddressedMemoryImage): MemoryImageLoadResult =
-        when (val result = machine.loadMemoryImage(image)) {
+    override fun loadMemoryImage(image: com.digihori.pgp.core.source.machine.AddressedMemoryImage): MemoryImageLoadResult {
+        MemoryPlacementValidator.validate(image, memoryLayout)?.let { return MemoryImageLoadResult.Failure(it.error) }
+        return when (val result = machine.loadMemoryImage(image)) {
             is com.digihori.pgp.core.emulator.machine.pc1245.Pc1245MemoryImageLoadResult.Success ->
                 MemoryImageLoadResult.Success(result.segmentCount, result.byteCount)
             is com.digihori.pgp.core.emulator.machine.pc1245.Pc1245MemoryImageLoadResult.ReadOnlyAddress ->
                 MemoryImageLoadResult.Failure(MemoryImageLoadError.ReadOnlyAddress(result.address, result.sourceLine))
         }
+    }
     override fun setMemoryAccessTracing(enabled: Boolean) = machine.setMemoryAccessTracing(enabled)
     override fun drainMemoryAccesses(): List<MemoryAccess> = machine.drainMemoryAccesses()
 }

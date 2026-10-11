@@ -63,6 +63,18 @@ Windowsでは次を使用する。
 プロジェクトを開くとメイン画面左側へファイルツリーとBuild操作を表示する。CPU、Memory、
 Disassembly、Traceは`Debug` → `Open Debugger`で開く独立Debuggerウィンドウへ表示する。
 
+### 2.2 アセンブリソースを確認・ビルドする
+
+プロジェクトへ`.asm`を追加し、`Project` → `Open Assembly Workspace`を開く。
+Assembleはスクロール付きの結果欄を更新する。BuildはDMP・Listing・Mapを`build/`へ保存し、
+Build & Loadは保存後にエミュレータへロードする。単一の`src/pacman.asm`なら出力は
+`build/pacman.dmp`、`build/pacman.lst`、`build/pacman.map`となる。
+ボタン下のEmulator表示でロード状態を確認する。ロード後のプログラム実行はポケコン側で開始する。
+Show memory layoutで配置可能な領域を確認できる。
+
+対応する式・疑似命令、機種別配置と検証範囲は[SC61860アセンブラガイド](SC61860_ASSEMBLY.md)を参照。
+単発変換のQuick AssembleはDMP保存のみで、結果プレビューの改善は今後の課題。
+
 ## 3. 機種を選ぶ
 
 画面右上の機種プルダウンには全対応機種が表示される。ROM登録済みの機種だけを選択でき、選択すると

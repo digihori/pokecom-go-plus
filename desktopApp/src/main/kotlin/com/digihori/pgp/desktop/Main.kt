@@ -157,6 +157,8 @@ import com.digihori.pgp.desktop.project.DesktopProjectManifestUpdater
 import com.digihori.pgp.desktop.project.DesktopProjectUpdateResult
 import com.digihori.pgp.desktop.project.DesktopAssemblyDiagnostic
 import com.digihori.pgp.desktop.project.DesktopAssemblySourceResult
+import com.digihori.pgp.desktop.project.renderMemoryLayout
+import com.digihori.pgp.core.api.MachineMemoryLayout
 import com.digihori.pgp.desktop.project.DesktopAssemblyWorkspaceCompiler
 import com.digihori.pgp.desktop.project.DesktopAssemblyWorkspaceResult
 import com.digihori.pgp.desktop.project.DesktopExternalEditor
@@ -817,9 +819,13 @@ private fun FrameWindowScope.App(
         }
     }
 
+    fun projectMemoryLayout(workspace: DesktopProjectWorkspace): MachineMemoryLayout =
+        runner?.takeIf { it.machineId == workspace.definition.machineId }?.memoryLayout
+            ?: MachineMemoryLayout(workspace.definition.machineId)
+
     fun assembleWorkspace() {
         val workspace = projectWorkspace ?: return
-        when (val result = DesktopAssemblyWorkspaceCompiler.compile(workspace)) {
+        when (val result = DesktopAssemblyWorkspaceCompiler.compile(workspace, projectMemoryLayout(workspace))) {
             is DesktopAssemblyWorkspaceResult.Failure -> {
                 assemblyDiagnostics = result.diagnostics
                 assemblyStatus = "Assembly failed — last successful preview retained"
@@ -830,7 +836,7 @@ private fun FrameWindowScope.App(
                 assemblyDiagnostics = emptyList()
                 changedAssemblySources = emptySet()
                 val bytes = result.sources.sumOf { it.image.byteCount }
-                assemblyStatus = "Assembled — $bytes bytes from ${result.sources.size} source(s)"
+                assemblyStatus = "Assembled preview — $bytes bytes from ${result.sources.size} source(s). Use Build to save outputs."
                 message = assemblyStatus
             }
         }
@@ -847,10 +853,11 @@ private fun FrameWindowScope.App(
 
     fun buildProjectOutputs(): DesktopProjectBuildResult.Success? {
         val workspace = projectWorkspace ?: return null
-        return when (val built = DesktopProjectBuilder.build(workspace)) {
+        return when (val built = DesktopProjectBuilder.build(workspace, projectMemoryLayout(workspace))) {
             is DesktopProjectBuildResult.Failure -> {
                 projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
-                when (val assembly = DesktopAssemblyWorkspaceCompiler.compile(workspace)) {
+                assemblyStatus = "Build failed — outputs were not loaded; last successful preview retained"
+                when (val assembly = DesktopAssemblyWorkspaceCompiler.compile(workspace, projectMemoryLayout(workspace))) {
                     is DesktopAssemblyWorkspaceResult.Failure -> {
                         assemblyDiagnostics = assembly.diagnostics
                         assemblyStatus = "Build failed — last successful preview retained"
@@ -865,13 +872,15 @@ private fun FrameWindowScope.App(
                 val output = runCatching { DesktopProjectBuildOutputWriter.write(workspace, built.artifact) }
                     .getOrElse {
                         projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
+                        assemblyStatus = "Output save failed — not loaded into the emulator"
                         showError("Could not write build output: ${it.message ?: it::class.simpleName}")
                         return null
                     }
                 assemblyPreview = built.artifact.assemblySources
                 assemblyDiagnostics = emptyList()
                 changedAssemblySources = emptySet()
-                assemblyStatus = "Built${output?.let { " — ${it.path}" }.orEmpty()}"
+                assemblyStatus = "Built — files saved; this build has not been loaded${output?.let { " — ${it.path}" }.orEmpty()}"
+                projectRuntimeStatus = ProjectRuntimeStatus.BUILT_NOT_LOADED
                 message = assemblyStatus
                 built
             }
@@ -883,6 +892,7 @@ private fun FrameWindowScope.App(
         val activeRunner = runner ?: return
         if (activeRunner.machineId != workspace.definition.machineId) {
             projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
+            assemblyStatus = "Build & Load failed — emulator machine does not match the project"
             showError(
                 "Project targets ${workspace.definition.machineId.displayName()}, but the loaded " +
                     "ROM is ${activeRunner.machineId.displayName()}.",
@@ -893,10 +903,12 @@ private fun FrameWindowScope.App(
                 when (val applied = DesktopProjectArtifactLoader.load(activeRunner, built.artifact)) {
                     is DesktopProjectApplyResult.BasicFailure -> {
                         projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
+                        assemblyStatus = "Files saved — emulator load failed: ${applied.error.message()}"
                         showError(applied.error.message())
                     }
                     is DesktopProjectApplyResult.MemoryFailure -> {
                         projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
+                        assemblyStatus = "Files saved — emulator load failed: ${applied.error.message()}"
                         showError(applied.error.message())
                     }
                     is DesktopProjectApplyResult.Success -> {
@@ -908,7 +920,8 @@ private fun FrameWindowScope.App(
                         val summary = "${applied.basicByteCount} BASIC bytes, " +
                             "${applied.memoryByteCount} machine-code bytes in " +
                             "${applied.memorySegmentCount} segments"
-                        message = "Built ${workspace.definition.name}: $summary. " +
+                        assemblyStatus = "Built & loaded into ${activeRunner.machineId.displayName()} — $summary"
+                        message = "$assemblyStatus. " +
                             "Start it from the pocket-computer keyboard."
                         runnerState = activeRunner.state
                         display = activeRunner.displaySnapshot()
@@ -1897,6 +1910,15 @@ private fun FrameWindowScope.App(
                         } else {
                             Text("Assembly Workspace", style = MaterialTheme.typography.titleLarge)
                             Text(assemblyStatus)
+                            val memoryLayout = projectMemoryLayout(workspace)
+                            val memoryLayoutText = remember(memoryLayout.machineId, memoryLayout.pc1251MemoryMode) {
+                                memoryLayout.renderMemoryLayout()
+                            }
+                            var showMemoryLayout by remember { mutableStateOf(false) }
+                            TextButton(onClick = { showMemoryLayout = !showMemoryLayout }) {
+                                Text(if (showMemoryLayout) "Hide memory layout" else "Show memory layout")
+                            }
+                            if (showMemoryLayout) AssemblyPreviewSection("Memory layout", memoryLayoutText)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 val hasAssemblySources = workspace.sources.any {
                                     it.definition.type == ProjectSourceType.ASSEMBLY
@@ -1912,6 +1934,25 @@ private fun FrameWindowScope.App(
                                     onClick = ::buildProject,
                                 ) { Text("Build & Load") }
                             }
+                            Text("Assemble updates the preview. Build saves these files; Build & Load also loads the result.")
+                            val projectIsLoaded = loadedProjectManifest == workspace.manifestFile.absolutePath
+                            val emulatorLoadStatus = when {
+                                !projectIsLoaded -> "Emulator: project not loaded"
+                                projectRuntimeStatus == ProjectRuntimeStatus.UP_TO_DATE ->
+                                    "Emulator: loaded in ${runner?.machineId?.displayName().orEmpty()}"
+                                projectRuntimeStatus == ProjectRuntimeStatus.SOURCE_CHANGED ->
+                                    "Emulator: previous version loaded — source changed; use Build & Load to update"
+                                projectRuntimeStatus == ProjectRuntimeStatus.BUILT_NOT_LOADED ->
+                                    "Emulator: previous version loaded — latest build not loaded; use Build & Load to update"
+                                else -> "Emulator: previous successful load retained — latest result not confirmed loaded"
+                            }
+                            Text(
+                                emulatorLoadStatus,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = if (projectIsLoaded && projectRuntimeStatus == ProjectRuntimeStatus.UP_TO_DATE)
+                                    Color(0xff28783c) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            if (projectIsLoaded) Text("Loading places the program in memory. Start it from the pocket-computer keyboard.")
                             Text("Sources", style = MaterialTheme.typography.titleMedium)
                             val assemblySources = workspace.sources.filter {
                                 it.definition.type == ProjectSourceType.ASSEMBLY
@@ -1949,8 +1990,10 @@ private fun FrameWindowScope.App(
                             if (untrackedAssemblyFiles.isNotEmpty()) {
                                 Button(onClick = ::updateProject) { Text("Add to Project") }
                             }
-                            Text("Outputs", style = MaterialTheme.typography.titleMedium)
-                            Text("  build/program.dmp\n  build/program.lst\n  build/program.map", fontFamily = FontFamily.Monospace)
+                            Text("Build outputs", style = MaterialTheme.typography.titleMedium)
+                            Text(DesktopProjectBuildOutputWriter.outputFiles(workspace).joinToString("\n") {
+                                "  build/${it.name} — ${if (it.isFile) "exists" else "not generated"}"
+                            }, fontFamily = FontFamily.Monospace)
                             Text("Diagnostics", style = MaterialTheme.typography.titleMedium)
                             if (assemblyDiagnostics.isEmpty()) Text("No diagnostics.")
                             assemblyDiagnostics.forEach { diagnostic ->
@@ -1972,15 +2015,25 @@ private fun FrameWindowScope.App(
                                     }) { Text("Open at line") }
                                 }
                             }
-                            assemblyPreview.forEach { result ->
-                                Text(result.source.definition.path, style = MaterialTheme.typography.titleMedium)
-                                AssemblyPreviewSection("Memory", result.renderMemorySummary())
-                                AssemblyPreviewSection("Disassembly", result.renderDisassembly())
-                                AssemblyPreviewSection("Listing", result.renderListing())
+                            val assemblyOutput = remember(assemblyPreview, memoryLayout) {
+                                buildString {
+                                    assemblyPreview.forEach { result ->
+                                        appendLine(result.source.definition.path)
+                                        appendLine("\nMemory")
+                                        appendLine(result.renderMemorySummary(memoryLayout))
+                                        appendLine("\nDisassembly")
+                                        appendLine(result.renderDisassembly().trimEnd())
+                                        appendLine("\nListing")
+                                        appendLine(result.renderListing().trimEnd())
+                                        appendLine()
+                                    }
+                                    if (assemblyPreview.isNotEmpty()) {
+                                        appendLine("Symbol Map")
+                                        append(assemblyPreview.renderMap())
+                                    }
+                                }
                             }
-                            if (assemblyPreview.isNotEmpty()) {
-                                AssemblyPreviewSection("Symbol Map", assemblyPreview.renderMap())
-                            }
+                            AssemblyOutputField(assemblyOutput)
                         }
                         }
                     }
@@ -4033,6 +4086,43 @@ private fun ProjectTreeGroup(
 }
 
 @Composable
+private fun AssemblyOutputField(content: String) {
+    Text("Assembly result", style = MaterialTheme.typography.titleMedium)
+    val verticalState = rememberScrollState()
+    val horizontalState = rememberScrollState()
+    LaunchedEffect(content) {
+        verticalState.scrollTo(0)
+        horizontalState.scrollTo(0)
+    }
+    Surface(
+        modifier = Modifier.fillMaxWidth().height(360.dp),
+        shape = MaterialTheme.shapes.small,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Box(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+            Box(modifier = Modifier.fillMaxSize().padding(end = 12.dp, bottom = 12.dp)) {
+                Text(
+                    content.ifBlank { "No assembly result yet. Select Assemble to preview the result." },
+                    modifier = Modifier.verticalScroll(verticalState).horizontalScroll(horizontalState),
+                    fontFamily = FontFamily.Monospace,
+                    style = MaterialTheme.typography.bodySmall,
+                    softWrap = false,
+                )
+            }
+            VerticalScrollbar(
+                adapter = rememberScrollbarAdapter(verticalState),
+                modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight().padding(bottom = 12.dp),
+            )
+            HorizontalScrollbar(
+                adapter = rememberScrollbarAdapter(horizontalState),
+                modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(end = 12.dp),
+            )
+        }
+    }
+}
+
+@Composable
 private fun AssemblyPreviewSection(title: String, content: String) {
     Text(title, style = MaterialTheme.typography.titleSmall)
     Text(
@@ -4145,13 +4235,19 @@ private fun DesktopProjectBuildError.message(machineName: String): String = when
         "Source '$sourceId' does not fit in memory at 0x${startAddress.hex(4)} ($size bytes)."
     is DesktopProjectBuildError.MemoryOverlap ->
         "Source '$sourceId' overlaps '$previousSourceId' at 0x${address.hex(4)}."
+    is DesktopProjectBuildError.Placement -> "Source '$sourceId': ${error.message()}"
+    is DesktopProjectBuildError.BasicPlacement -> error.message()
     is DesktopProjectBuildError.Assembly ->
         "Assembly source '$sourceId', line $line: $message"
 }
 
 private fun MemoryImageLoadError.message(): String = when (this) {
     is MemoryImageLoadError.ReadOnlyAddress ->
-        "Memory dump line $sourceLine writes read-only address 0x${address.hex(4)}."
+        "Source line $sourceLine writes read-only or unmapped address 0x${address.hex(4)}."
+    is MemoryImageLoadError.MirrorOverlap ->
+        "Source line $sourceLine: 0x${address.hex(4)} and 0x${previousAddress.hex(4)} write the same physical address 0x${physicalAddress.hex(4)}."
+    is MemoryImageLoadError.BasicOverlap ->
+        "Source line $sourceLine: 0x${address.hex(4)} overlaps BASIC text, pointer updates or old-text clearing."
 }
 
 private fun DesktopRomLoadError.message(): String = when (this) {
@@ -4229,6 +4325,7 @@ private fun MachineId.displayName(): String = MachineCatalog.find(this)?.display
 
 private enum class ProjectRuntimeStatus(val displayName: String) {
     NOT_BUILT("not built"),
+    BUILT_NOT_LOADED("built; latest build not loaded"),
     NOT_LOADED("project not loaded"),
     UP_TO_DATE("up to date"),
     SOURCE_CHANGED("source changed"),

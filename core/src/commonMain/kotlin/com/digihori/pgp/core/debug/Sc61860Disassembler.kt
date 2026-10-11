@@ -16,9 +16,10 @@ public object Sc61860Disassembler {
         val lines = mutableListOf<Sc61860DisassemblyLine>()
         var address = startAddress
         while (address <= endAddressInclusive) {
-            val decoded = Sc61860InstructionDecoder.decode(address, readByte)
+            val opcode = readByte(address) and 0xff
+            val length = Sc61860InstructionSet.find(opcode)?.length ?: 1
             val remaining = endAddressInclusive - address + 1
-            if (decoded.length > remaining) {
+            if (length > remaining) {
                 repeat(remaining) { offset ->
                     val dataAddress = address + offset
                     val instruction = dataByte(dataAddress, readByte(dataAddress))
@@ -29,6 +30,7 @@ public object Sc61860Disassembler {
                 }
                 break
             }
+            val decoded = Sc61860InstructionDecoder.decode(address) { if (it == address) opcode else readByte(it) }
             lines += Sc61860DisassemblyLine(
                 instruction = decoded,
                 sourceText = Sc61860InstructionFormatter.format(decoded),
@@ -49,7 +51,18 @@ public object Sc61860Disassembler {
         disassemble(startAddress, endAddressInclusive, readByte).forEach { line ->
             val instruction = line.instruction
             val bytes = instruction.bytes.joinToString(" ") { it.hex(2) }
-            append(line.sourceText.padEnd(SOURCE_COLUMN_WIDTH))
+            val definition = instruction.definition
+            val canonical = definition?.let { candidate ->
+                Sc61860InstructionSet.allDefined().firstOrNull { it.encodable && it.mnemonic == candidate.mnemonic }
+            }
+            // Debugger text keeps the decoded mnemonic. Export uses DB whenever the
+            // mnemonic cannot reproduce this exact opcode (including alternate NOPs).
+            val source = if (definition != null && (canonical == null ||
+                    (canonical.opcode != definition.opcode && definition.operandEncoding != Sc61860OperandEncoding.EMBEDDED_6 &&
+                        definition.operandEncoding != Sc61860OperandEncoding.PAGE_ADDRESS))) {
+                "DB " + instruction.bytes.joinToString(", ") { "0x${it.hex(2)}" }
+            } else line.sourceText
+            append(source.padEnd(SOURCE_COLUMN_WIDTH))
             append(" ; ")
             append(instruction.address.hex(4))
             append(": ")

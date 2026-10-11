@@ -1,6 +1,12 @@
 package com.digihori.pgp.desktop.project
 
 import com.digihori.pgp.core.project.ProjectSourceType
+import com.digihori.pgp.core.api.MachineMemoryLayout
+import com.digihori.pgp.core.api.MemoryImageLoadError
+import com.digihori.pgp.core.api.MemoryPlacementValidator
+import com.digihori.pgp.core.api.ProgramImageLoader
+import com.digihori.pgp.core.api.ProgramImagePlanResult
+import com.digihori.pgp.core.api.BasicProgramMemoryError
 import com.digihori.pgp.core.source.machine.AddressedMemoryImage
 import com.digihori.pgp.core.source.machine.AddressedMemoryImageCreateResult
 import com.digihori.pgp.core.source.machine.AddressedMemoryImageFactory
@@ -44,11 +50,14 @@ internal sealed interface DesktopProjectBuildError {
         val address: Int,
     ) : DesktopProjectBuildError
     data class Assembly(val sourceId: String, val line: Int, val message: String) : DesktopProjectBuildError
+    data class Placement(val sourceId: String, val error: MemoryImageLoadError) : DesktopProjectBuildError
+    data class BasicPlacement(val error: BasicProgramMemoryError) : DesktopProjectBuildError
 }
 
 /** Compiles every source before an artifact is allowed to modify an emulator session. */
 internal object DesktopProjectBuilder {
-    fun build(workspace: DesktopProjectWorkspace): DesktopProjectBuildResult {
+    fun build(workspace: DesktopProjectWorkspace, layout: MachineMemoryLayout = MachineMemoryLayout(workspace.definition.machineId)): DesktopProjectBuildResult {
+        require(layout.machineId == workspace.definition.machineId)
         val errors = mutableListOf<DesktopProjectBuildError>()
         val basicSources = workspace.sources.filter { it.definition.type == ProjectSourceType.BASIC }
         if (basicSources.size > 1) {
@@ -58,7 +67,7 @@ internal object DesktopProjectBuilder {
         var basicProgram: ByteArray? = null
         val memorySegments = mutableListOf<AddressedMemorySegmentData>()
         val memorySegmentOwners = mutableListOf<String>()
-        val assemblySources = when (val assembly = DesktopAssemblyWorkspaceCompiler.compile(workspace)) {
+        val assemblySources = when (val assembly = DesktopAssemblyWorkspaceCompiler.compile(workspace, layout)) {
             is DesktopAssemblyWorkspaceResult.Success -> assembly.sources
             is DesktopAssemblyWorkspaceResult.Failure -> {
                 assembly.diagnostics.forEach { diagnostic ->
@@ -144,6 +153,31 @@ internal object DesktopProjectBuilder {
             }
         }
 
+        memoryImage?.let { image ->
+            fun owner(address: Int): String = memorySegmentOwners[memorySegments.indexOfFirst { address >= it.startAddress && address < it.startAddress + it.size }]
+            val invalid = MemoryPlacementValidator.validate(image, layout)
+            if (invalid != null) {
+                val address = invalid.error.address
+                errors += DesktopProjectBuildError.Placement(owner(address), invalid.error)
+            } else when (val planned = ProgramImageLoader.planForBuild(layout, basicProgram, image)) {
+                is ProgramImagePlanResult.BasicFailure -> errors += DesktopProjectBuildError.BasicPlacement(planned.error)
+                is ProgramImagePlanResult.MemoryFailure -> {
+                    val address = planned.error.address
+                    // A BASIC-only address can be rejected for a hardware RAM mode.
+                    val sourceId = if (memorySegments.any { address >= it.startAddress && address < it.startAddress + it.size }) owner(address)
+                        else basicSources.singleOrNull()?.definition?.id ?: "BASIC"
+                    errors += DesktopProjectBuildError.Placement(sourceId, planned.error)
+                }
+                is ProgramImagePlanResult.Success -> Unit
+            }
+        }
+        if (memoryImage == null && basicProgram != null) {
+            when (val planned = ProgramImageLoader.planForBuild(layout, basicProgram, null)) {
+                is ProgramImagePlanResult.BasicFailure -> errors += DesktopProjectBuildError.BasicPlacement(planned.error)
+                is ProgramImagePlanResult.MemoryFailure -> errors += DesktopProjectBuildError.Placement(basicSources.single().definition.id, planned.error)
+                is ProgramImagePlanResult.Success -> Unit
+            }
+        }
         if (errors.isNotEmpty()) return DesktopProjectBuildResult.Failure(errors)
         return DesktopProjectBuildResult.Success(DesktopProjectArtifact(basicProgram, memoryImage, assemblySources))
     }

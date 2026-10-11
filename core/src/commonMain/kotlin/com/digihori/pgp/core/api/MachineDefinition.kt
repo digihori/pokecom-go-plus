@@ -134,7 +134,8 @@ public object MachineCatalog {
         supportedOperatingModes = setOf(OperatingMode.RUN, OperatingMode.PROGRAM),
         cyclesPerSecond = 192_000L,
         automaticKeyHoldCycles = 11_520L,
-        automaticKeyGapCycles = 3_840L,
+        // Allow ROM key-release/debounce handling before the next generated tap (100 ms).
+        automaticKeyGapCycles = 19_200L,
         supportsConfigurableRam = false,
         memoryRegions = oldMachineRegions(
             ramStart = 0xc000,
@@ -190,7 +191,7 @@ public object MachineCatalog {
         // 768 kHz oscillator / 3 clocks per instruction cycle.
         cyclesPerSecond = 256_000L,
         automaticKeyHoldCycles = 15_360L,
-        automaticKeyGapCycles = 5_120L,
+        automaticKeyGapCycles = 25_600L,
         supportsConfigurableRam = false,
         memoryRegions = listOf(
             MachineMemoryRegion("internal-rom", "Internal ROM", 0x0000, 0x1fff, MachineMemoryRegionKind.ROM),
@@ -214,7 +215,7 @@ public object MachineCatalog {
         supportedOperatingModes = setOf(OperatingMode.RUN, OperatingMode.PROGRAM, OperatingMode.RESERVE),
         cyclesPerSecond = 256_000L,
         automaticKeyHoldCycles = 15_360L,
-        automaticKeyGapCycles = 5_120L,
+        automaticKeyGapCycles = 25_600L,
         supportsConfigurableRam = false,
         memoryRegions = listOf(
             MachineMemoryRegion("internal-rom", "Internal ROM", 0x0000, 0x1fff, MachineMemoryRegionKind.ROM),
@@ -265,7 +266,7 @@ public object MachineCatalog {
         // 768 kHz oscillator / 3 clocks per instruction cycle.
         cyclesPerSecond = 256_000L,
         automaticKeyHoldCycles = 15_360L,
-        automaticKeyGapCycles = 5_120L,
+        automaticKeyGapCycles = 25_600L,
         supportsConfigurableRam = false,
         memoryRegions = listOf(
             MachineMemoryRegion("internal-rom", "Internal ROM", 0x0000, 0x1fff, MachineMemoryRegionKind.ROM),

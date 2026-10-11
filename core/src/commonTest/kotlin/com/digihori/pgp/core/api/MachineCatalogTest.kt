@@ -9,6 +9,13 @@ import kotlin.test.assertTrue
 
 class MachineCatalogTest {
     @Test
+    fun generatedKeyTapsAllowAtLeast100MillisecondsForRomReleaseHandling() {
+        MachineCatalog.definitions.forEach {
+            assertTrue(it.automaticKeyGapCycles * 10 >= it.cyclesPerSecond, it.id.value)
+        }
+    }
+
+    @Test
     fun oscillatorRatesAreConvertedToInstructionCycles() {
         val slow = setOf("pc-1245", "pc-1250", "pc-1251", "pc-1255", "pc-1401")
         MachineCatalog.definitions.forEach {

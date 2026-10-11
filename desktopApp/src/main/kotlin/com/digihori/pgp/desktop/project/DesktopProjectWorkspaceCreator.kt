@@ -44,7 +44,7 @@ internal object DesktopProjectWorkspaceCreator {
             )
         }
         require(starters.isNotEmpty()) { "At least one starter source is required" }
-        val sourceFiles = starters.files(projectDirectory)
+        val sourceFiles = starters.files(projectDirectory, machineId)
 
         val definition = ProjectDefinition(
             name = destination.projectName,
@@ -96,7 +96,10 @@ internal object DesktopProjectWorkspaceCreator {
         }
     }
 
-    private fun Set<DesktopProjectStarter>.files(root: File): List<SourceFile> = buildList {
+    private fun Set<DesktopProjectStarter>.files(root: File, machineId: MachineId): List<SourceFile> = buildList {
+        val start = com.digihori.pgp.core.api.MachineMemoryLayout(machineId).assemblyStartAddress
+        val dumpStart = start + if (DesktopProjectStarter.ASSEMBLY in this@files) 0x40 else 0
+        fun Int.hex(): String = toString(16).uppercase().padStart(4, '0')
         if (DesktopProjectStarter.BASIC in this@files) {
             add(
                 SourceFile(
@@ -111,7 +114,7 @@ internal object DesktopProjectWorkspaceCreator {
                 SourceFile(
                     ProjectSource("machine", ProjectSourceType.MEMORY_DUMP, "src/machine.dmp"),
                     File(root, "src/machine.dmp"),
-                    "; Replace this starter byte with your machine-code data.\nC000: 00\n",
+                    "; Replace this starter byte with your machine-code data.\n${dumpStart.hex()}: 00\n",
                 ),
             )
         }
@@ -121,7 +124,7 @@ internal object DesktopProjectWorkspaceCreator {
                     ProjectSource("assembly", ProjectSourceType.ASSEMBLY, "src/main.asm"),
                     File(root, "src/main.asm"),
                     "; Sample SC61860 program. Edit or remove this example.\n\n" +
-                        "ORG 0xC000\n\n" +
+                        "ORG 0x${start.hex()}\n\n" +
                         "START: LII 0x12\n" +
                         "       LIDP TABLE\n" +
                         "       JRP DONE\n" +

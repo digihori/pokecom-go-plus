@@ -119,5 +119,22 @@ class DesktopProjectWorkspaceCreatorTest {
         assertTrue(assembly.contains("JRP DONE"))
         assertTrue(assembly.contains("TABLE: DB 0x01, &02, 3"))
         assertTrue(assembly.contains("DONE:  RTN"))
+        assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(workspace))
+    }
+
+    @Test
+    fun everyMachineHasNonOverlappingBuildableStartersAndRamAssemblyPlacement() {
+        for (machine in com.digihori.pgp.core.api.MachineCatalog.definitions) {
+            val root = Files.createTempDirectory("pgp-all-machine-starters")
+            val created = assertIs<DesktopProjectCreateResult.Success>(DesktopProjectWorkspaceCreator.create(
+                root.toFile(), machine.id.value, machine.id, DesktopProjectStarter.entries.toSet(),
+            ))
+            val workspace = assertIs<DesktopProjectOpenResult.Success>(DesktopProjectWorkspaceLoader.open(created.manifestFile)).workspace
+            val built = assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(workspace), machine.id.value)
+            val layout = com.digihori.pgp.core.api.MachineMemoryLayout(machine.id)
+            assertEquals(com.digihori.pgp.core.api.MachineMemoryKind.RAM, layout.locate(layout.assemblyStartAddress).kind)
+            assertTrue(built.artifact.assemblySources.single().listing.first().address == layout.assemblyStartAddress)
+            assertTrue(checkNotNull(built.artifact.memoryImage).segments.size == 2)
+        }
     }
 }

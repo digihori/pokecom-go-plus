@@ -6,6 +6,7 @@ import com.digihori.pgp.core.source.machine.AddressedMemoryImage
 
 public interface EmulatorSession {
     public val machineId: MachineId
+    public val memoryLayout: MachineMemoryLayout get() = MachineMemoryLayout(machineId)
 
     public fun reset()
     public fun step(): StepResult
@@ -25,6 +26,10 @@ public interface EmulatorSession {
     public fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult
     public fun basicProgramSnapshot(): BasicProgramSnapshotResult
     public fun loadMemoryImage(image: AddressedMemoryImage): MemoryImageLoadResult
+
+    /** Plans both inputs without mutation, then applies them through one validated memory load. */
+    public fun loadProgramImage(program: ByteArray?, image: AddressedMemoryImage?): ProgramImageLoadResult =
+        ProgramImageLoader.load(this, program, image)
 
     public fun setMemoryAccessTracing(enabled: Boolean) {}
     public fun drainMemoryAccesses(): List<MemoryAccess> = emptyList()
@@ -252,5 +257,14 @@ public sealed interface MemoryImageLoadResult {
 }
 
 public sealed interface MemoryImageLoadError {
-    public data class ReadOnlyAddress(public val address: Int, public val sourceLine: Int) : MemoryImageLoadError
+    public val address: Int
+    public val sourceLine: Int
+    public data class ReadOnlyAddress(override val address: Int, override val sourceLine: Int) : MemoryImageLoadError
+    public data class MirrorOverlap(
+        override val address: Int,
+        public val previousAddress: Int,
+        public val physicalAddress: Int,
+        override val sourceLine: Int,
+    ) : MemoryImageLoadError
+    public data class BasicOverlap(override val address: Int, override val sourceLine: Int) : MemoryImageLoadError
 }

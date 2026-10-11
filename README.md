@@ -51,6 +51,10 @@ RUN／PRO／RSV操作に集中する。右上の機種プルダウンでは、RO
 - `Emulator`: 実行制御とRAM profile
 - `Debug`: DebuggerとCheckpoint
 
+Assembly WorkspaceのAssembleは結果確認、Buildはファイル生成、Build & Loadは生成後の
+エミュレータへのロードを行います。式・EQU・データ定義、機種別配置、出力名と制約は
+[SC61860アセンブラガイド](docs/SC61860_ASSEMBLY.md)を参照してください。
+
 プロジェクトツリーはメイン画面左側、CPU、Disassembly、Memory、TraceはDebuggerウィンドウへ
 分離している。機種別ソフトウェアキーボードは実機のキー配列、SHIFT表記、予約語表記を反映する。
 

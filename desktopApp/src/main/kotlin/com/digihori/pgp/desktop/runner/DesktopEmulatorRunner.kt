@@ -57,6 +57,7 @@ internal class DesktopEmulatorRunner(
     },
 ) : DesktopKeyInputSink {
     override val machineId get() = session.machineId
+    val memoryLayout get() = session.memoryLayout
     private val hostKeys = HostKeyState(session::pressKey, session::releaseKey)
     var inputEpoch: Long = 0
         private set
@@ -292,6 +293,18 @@ internal class DesktopEmulatorRunner(
         val result = session.loadBasicProgram(program)
         sessionRevision++
         refreshMemoryWatchBaseline()
+        if (resumeAfterLoad && state != RunnerState.FAULTED) run()
+        return result
+    }
+
+    fun loadProgramImage(program: ByteArray?, image: AddressedMemoryImage?): com.digihori.pgp.core.api.ProgramImageLoadResult {
+        val resumeAfterLoad = state == RunnerState.RUNNING
+        pause()
+        val result = session.loadProgramImage(program, image)
+        if (result is com.digihori.pgp.core.api.ProgramImageLoadResult.Success) {
+            sessionRevision++
+            refreshMemoryWatchBaseline()
+        }
         if (resumeAfterLoad && state != RunnerState.FAULTED) run()
         return result
     }

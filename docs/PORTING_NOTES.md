@@ -1,5 +1,49 @@
 # Porting Notes
 
+## 2026-10-11: Assembler basic syntax stage 3
+
+- Implemented a PGP-native expression AST/parser and immutable EQU symbols. No external code copied.
+- Preserved numeric spellings and label behavior. Chose `.` for statement location to avoid conflicting
+  with hexadecimal `$`. EQU captures the definition location, and resolved constants are memoized.
+- Layout directives require resolved values; forward numeric constants work, but unresolved forward
+  labels cannot drive ORG/DS/ALIGN. Cycles, excessive complexity and signed-32-bit overflow are diagnosed.
+- DW emits high byte first, matching SC61860 address operands. DS/ALIGN emit real fill bytes (default zero),
+  so existing placement, alias and BASIC overlap validation applies without a separate reservation model.
+- DB strings and character literals explicitly encode byte-valued characters, without host or machine
+  character conversion. Quoted comments/separators and common byte escapes are supported.
+- Both semicolon and hash start comments outside quotes, including body and inline comments;
+  Studio retains its separate consecutive leading-hash documentation header behavior.
+- Added synthetic expression/data/layout and Studio listing/map/placement tests. Macro, include/link,
+  mutable SET, bank output and debugger source integration remain outside this stage.
+
+## 2026-10-11: Assembler correctness and placement stages 1–2
+
+- Source: PGP CPU/bus/BASIC writers and the audit below. No external implementation copied.
+- Corrected TEST immediate metadata. Assembly export preserves alternate NOP and undocumented
+  opcode bytes using DB; debugger mnemonics remain unchanged. Bounded export checks length before
+  reading operands. Relative encoding uses 16-bit wrap, and malformed DB/label boundaries are rejected.
+- MachineMemoryLayout describes existing PGP write destinations, including mirrors and the
+  PC-1251 family RAM mode. It does not revise PC-1245's compatibility bus or claim physical RAM accuracy.
+- Studio preview/build and Session memory loading share placement validation. Template origins
+  depend on the model, and combined starters use distinct locations.
+- ProgramImageLoader reuses existing BASIC writers with a recording sink, validates planned text,
+  pointer writes and old-text clearing against machine code, then loads one validated memory image.
+  Build assumes initial pointers; Load replans against actual paused Session memory.
+- Tests use synthetic zero-filled ROM components and independently specified instruction expectations;
+  no ROM-derived validation data is added. Undocumented opcode semantics and bank output remain deferred.
+
+## 2026-10-11: SC61860 assembler audit (no behavior port)
+
+- Audited main / 2890cd5 assembler, decoder, CPU, Studio build/load paths and tests.
+- Supplementary reference: https://github.com/utz82/SC61860-Instruction-Set
+  (accessed 2026-10-11; already used by earlier CPU port notes).
+- Confirmed TEST immediate metadata omission, lossy NOP/UNDOC assembly export,
+  and segment-end decoder overread with temporary synthetic Core tests.
+- No external implementation was copied. Undocumented opcode naming/behavior
+  differences remain subject to a separate decision; do not infer hardware accuracy
+  from shared assembler/decoder metadata alone.
+- Findings and proposed implementation order: `ASSEMBLER_AUDIT.md`.
+
 この文書は、既存プロジェクトからPGPへ移植・再実装した技術の由来と判断を記録する。
 
 ## 参照リポジトリ
@@ -1643,6 +1687,51 @@ JDK 21の全体build / Core回帰成功。ツリー内ファイル名変更は�
   CPU timers continue to follow emulated cycles; commonMain gains no host APIs or threads.
 - Validation: JDK 21 `build :core:desktopTest` passed. Runner tests check unlimited
   progress without elapsed host time, pause/reset, and return to baseline pacing.
+
+## 2026-10-11: Assembly Workspace emulator load feedback
+
+- PGP-native UI correction: report successful Build & Load with machine and byte
+  counts, distinguish save/build failure from load failure, and display emulator
+  project-load state directly under the action buttons. Build-only completion is
+  marked as not loaded even when a previous version remains in the emulator.
+  Explain that loading memory does not start the program.
+- Uses the existing project/session identity and source-change tracking. No external
+  code or ROM-derived data used. Interactive UI verification remains pending.
+- JDK 21 full build, Core tests and createDistributable passed.
+
+## 2026-10-11: Scrollable Assembly Workspace result field
+
+- PGP-native presentation change requested by the user: consolidate Memory,
+  Disassembly, Listing and Symbol Map into one bordered, read-only result field.
+  Bound its height and provide vertical/horizontal scrollbars without wrapping
+  assembly lines. Retain text selection/copy and reset scrolling on result updates.
+- JDK 21 build, Core tests, createDistributable and diff checks passed.
+  Interactive UI verification remains pending. No external code or ROM data used.
+
+## 2026-10-11: Assembly Workspace output names and save guidance
+
+- PGP-native UI/workflow correction prompted by the user's Workspace screenshot:
+  output names were hardcoded to program.* and Assemble only updated the preview.
+- Share output-path calculation between display and writer. A single assembly source
+  uses its filename stem; multiple assembly sources retain the combined program.* name.
+  Explain preview versus Build saving in the UI and Assemble completion status, and show
+  whether each output file exists. Existing outputs are not removed when sources change.
+- Regression checks cover filename agreement, preview without filesystem output,
+  actual three-file generation and combined-source naming. JDK 21 build, Core tests,
+  createDistributable and diff checks passed. No external code or firmware data used.
+
+## 2026-10-11: Logical keyboard release spacing
+
+- User reported that Logical Shift+1 left SHIFT active without entering a character;
+  Physical input worked. Reproduced in Studio PC-1350 RUN mode. A later manually
+  entered Q completed the expected character, isolating generated-tap spacing.
+- PGP-native adjustment: increase the 20 ms automatic release gaps for PC-1245,
+  PC-1261, PC-1350 and PC-1360 to 100 ms at each machine's instruction-cycle rate.
+  Keep hold durations and the already longer PC-1251-family/PC-1401 gaps unchanged.
+  No external implementation or ROM data copied.
+- JDK 21 build, Core tests and createDistributable passed. Packaged Studio PC-1350
+  Logical Shift+1 and consecutive shifted-symbol/letter input succeeded after restart;
+  PC-1245 Logical Shift+1 also succeeded.
 
 ## 2026-10-11: Unlimited mode UI starvation fix
 

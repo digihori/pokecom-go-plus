@@ -59,6 +59,7 @@ public object Sc61860InstructionSet {
         setOperand(0x11..0x13, Sc61860OperandEncoding.IMMEDIATE_8)
         setOperand(0x4e..0x4e, Sc61860OperandEncoding.IMMEDIATE_8)
         setOperand(0x60..0x67, Sc61860OperandEncoding.IMMEDIATE_8)
+        setOperand(0x6b..0x6b, Sc61860OperandEncoding.IMMEDIATE_8)
         setOperand(0x70..0x71, Sc61860OperandEncoding.IMMEDIATE_8)
         setOperand(0x74..0x75, Sc61860OperandEncoding.IMMEDIATE_8)
         setOperand(0xd4..0xd6, Sc61860OperandEncoding.IMMEDIATE_8)
