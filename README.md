@@ -182,6 +182,17 @@ ROM起動後にUTF-8の`.bas`ファイルを指定して読み込める。通常
 文字コード、予約語、特殊文字の割り当てには機種差がある。対応する表記と現在の制約は
 `docs/BASIC_TEXT_FORMAT.md`を参照する。
 
+### WAV変換と解析（Studio専用）
+
+`Tools` → `WAV Tool`でOLD BASIC（02/12）とBinary（62）を変換できる。
+Encodeは既存の`.bas`/単一連続領域の`.dmp`、またはProjectツリーの選択項目から`Create WAV…`で指定する。
+`Convert`後に結果を確認し、`Save WAV…`で保存する。録音WAVは`Open WAV…`→`Analyze / reanalyze`で解析し、
+検証済みのBASIC/`.dmp`、raw byte列、解析reportを個別に保存できる。
+payload検証に失敗しても取得できたPCM/rawを確認でき、波形の目盛・zoom・水平移動・差分threshold表示を備える。
+
+S1/S2は未実装のためpcwavを使用する。Playerには搭載せず、ROMのCSAVE/CLOADやDecodeからの
+エミュレータ直接ロードとも連動しない。操作・対応範囲は[WAV操作方針](docs/WAV_OPERATIONS.md)参照。
+
 ### ROMセットの作成
 
 `File` → `Create ROM Set…`で専用ウィンドウを開き、対象機種、内部ROM、外部ROM、
@@ -319,6 +330,9 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 - [Golden Test Data形式](docs/GOLDEN_TEST_DATA.md)
 - [外部エディタ連携とプロジェクト形式](docs/PROJECTS.md)
 - [SC61860 Assembler／Disassembler](docs/SC61860_ASSEMBLY.md)
+- [WAV操作方針と実装範囲](docs/WAV_OPERATIONS.md)
+- [OLD WAV形式](docs/WAV_OLD_FORMAT.md)
+- [S1／S2 WAV仕様と作者確認](docs/WAV_S1_S2_FORMAT.md)
 - [ロードマップ](docs/ROADMAP.md)
 - [Technical Preview公開チェックリスト](docs/PUBLIC_RELEASE_CHECKLIST.md)
 - [Technical Preview 0.3 Release Notes](docs/RELEASE_NOTES_0.3.0-alpha.1.md)

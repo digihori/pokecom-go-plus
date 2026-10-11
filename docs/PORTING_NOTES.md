@@ -137,6 +137,74 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 ### OLD系WAV転送仕様
 
+- Final checkpoint 2026-10-12: Studioの統合OLD WAV Tool、二つのEncode入力経路、結果確認/保存分離、
+  Raw簡素表示、波形axes/navigation/difference overlay、OLD/S1/S2 selectorとpcwav利用案内をまとめる。
+  S1/S2実装はPlayer作業を優先して後回し。READMEと操作文書を現在の形式選択・表示色に合わせた。
+  最終コードの指定JDK 21 `build :core:desktopTest :desktopApp:createDistributable`成功、
+  Studio 195件（失敗0、skip1）、Core 408件（失敗0）。既にup-to-dateの検証結果も含む。
+  ユーザーによるOLD実機往復と二入力経路確認は下記参照。直近の細かなUI変更の全GUI再確認と
+  物理トラックパッドの手動確認は未実施。ROM/実機録音fixtureは追加しない。
+
+- User hardware verification 2026-10-12: ユーザー報告により、BASIC sourceのEncode→実機ロード→
+  実機セーブの録音WAV作成→PGP Decodeの往復が問題なく動作した。
+  Encode入力は既存ファイル指定とProjectツリー指定の両経路を確認。
+  対象機種、source長、録音機材/設定、入力WAV仕様の詳細は未記録であり、全OLD機種・録音条件の保証には拡張しない。
+  今回fixtureの取得・commitは行っていない。合成試験/参照一致とは別の実機確認として記録する。
+
+- Format selector 2026-10-12: ユーザー指示により機種4個のボタンをOLD/S1/S2形式選択へ変更。
+  ProjectのbasicDialectを初期値にする。未対応S1/S2は明示し実行を無効化、OLDへの暗黙fallbackはしない。
+  OLD共通token処理は内部の代表機種で呼び出す。機種別S1/S2語彙の選択は実装段階の後続設計。
+
+- Raw display 2026-10-12: ユーザー指定によりRaw欄のbyteごとのLOW/HIGH同期sample一覧と説明を削除。
+  offset付きhex数値表示は維持。同期情報の内部保持・波形marker・raw/PCM位置対応は変更しない。
+
+- Difference overlay 2026-10-12: 差分表示でPCMを置換すると、4 kHz leaderが8 kHz入力の2-sample tapで
+  差分0となり波形が消えたように見える。PCM（青、±32768）を常時表示し、差分（橙、±65536）と
+  差分thresholdを重ねる方式へ修正。振幅guideは紫に分け、差分0区間の説明を表示。
+  RawのLOW/HIGHは下位/上位nibble、sampleは0始まりの正規化PCM位置であることをUIに補足。
+
+- UI defaults/layout 2026-10-12: 入力変更時は通常BASIC 02をdefaultとし、前入力のtype 12選択を持ち越さない。
+  password文字列の指定機能は未提供とUIで明示。Zoom/左右移動/Fitを波形・水平scrollbarの下へ移動。
+
+- Waveform axes/navigation 2026-10-12: `WavWaveform.kt`へ描画を分離し、生成結果のsample holdと
+  WAV読込結果のsample接続を切替可能にした。0線、振幅/time目盛、min/max/DC、0交差marker、
+  表示用振幅guide、Decoder差分threshold、水平scrollbar、横scroll/Shift+wheel panを追加。
+  `OldSignalDecoder.inspect`が実際のDecoderと共通の差分計算・tap・thresholdを公開する。
+  PCM・threshold・Decode方針は変更しない。新しい外部参照コード移植なし。
+  viewport境界・zoom中心・時間目盛と、差分の初期状態/振幅範囲/不変コピーをtestで確認。
+  指定JDK 21の全体build/Core test/createDistributable成功。Studio 195件（失敗0、skip1）、
+  Core 408件（失敗0）。GUIで生成矩形波、合成16 kHzサイン波の0交差/振幅guide/目盛、
+  水平scrollbar dragによる範囲移動を確認。実機録音fixtureと物理トラックパッドでの手動確認は未実施。
+  横scrollは親の縦scrollより先に処理し、微小な移動量を蓄積する。`git diff --check`成功。
+
+- Waveform display 2026-10-12: 拡大時のsample間の線形補間をsample値の保持＋境界の垂直edgeへ変更。
+  合成矩形PCMをノコギリ状に見せないためのStudio描画修正。PCMデータ・codecは変更しない。
+
+- Implementation 2026-10-12: `desktopApp/.../wav/DesktopWavOperation.kt`と`WavToolPanel.kt`へ
+  Studio専用の操作・結果保持・保存・Analyzer最小版を分離し、`Main.kt`のTools/Projectツリーから接続。
+  既存PGPのOLD codecのみを再利用し、新しい外部コード移植なし。参照commitは下記のまま。
+  Coreの失敗result型は変更せず、Desktop orchestrationでPCM/rawを保存し、未検証結果にProgram保存を付けない。
+  Player、ROM hook、Sessionロード経路は追加しない。処理のbackground実行/取消はDesktopが所有する。
+  合成source、破損checksum、無信号、文字変換失敗、非OLD機種、Binary address/gapをDesktop testで検証。
+  GUIでは既存BASIC→WAV変換/保存取消/保存、生成WAVのDecode、Projectツリー指定、raw↔波形移動、
+  未保存Tool終了確認を操作確認。実機録音・S1/S2・詳細overlayは未対応。
+  指定JDK 21の`build :core:desktopTest :desktopApp:createDistributable`成功。
+  Studio 191件（失敗0、skip1）、Core 406件（失敗0、Coreはup-to-date）。`git diff --check`成功。
+
+- Operation decision 2026-10-12: ユーザー指示によりEncode/Decode/Raw Decode/Analyzerを
+  統合WAV Toolへまとめる。EncodeはProjectツリーからの指定と既存ファイル指定の両経路を用意する。
+  エミュレータROMのCSAVE/CLOADとは連動しない。
+  WAV Decodeからエミュレータへの直接ロードも対象外とし、結果確認・ファイル保存までで完結する。
+  エミュレータへのロードは保存したファイルを既存の別操作で指定する。
+  WAV機能とその起動導線はStudio専用とし、Playerには搭載しない。
+  詳細は[WAV操作方針](WAV_OPERATIONS.md)。今回は操作方針の文書更新のみで移植・実装変更なし。
+
+- Review 2026-10-11: `main / cf849bc`のWAVコードと既存構想を再照合し、
+  [WAV機能の現状と段階案](WAV_REVIEW_2026-10-11.md)へ記録した。
+  pcwav HEADは下記参照commitと一致。今回は移植・codec変更なし。
+  中間結果保持は現統合APIでは成功時のみであり、Raw Decodeでは失敗以前の結果保持が必要。
+  S1/S2参照動作を実機確定仕様と扱わず、OLD UI/Raw Decodeからの段階案は方針確認待ちとする。
+
 - Date: 2026-10-08
 - PGP files: `docs/WAV_OLD_FORMAT.md`、`docs/ARCHITECTURE.md`、`docs/ROADMAP.md`、Desktop `Main.kt`、
   Core `wav/WavCodecModel.kt`、`wav/OldTransferChecksum.kt`、`wav/OldPayloadEncoder.kt`、
@@ -174,6 +242,13 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 
 ### S1／S2 WAV参照動作
 
+- Author clarification 2026-10-12: pcwav作者であるユーザーから、S2 type `27`=BASIC、
+  `37`=password付きBASIC、pcwav末尾checksum方式の動作実績と採用判断、S2 BinaryはS1と同じとの指定を受領。
+  これをPGP実装仕様として採用し、S2 BinaryはS1 Binary `67`の共用対象とする。
+  下記2026-10-09の資料待ち/未対応判断を更新した。参照commitの専用S2 Binary実装がない事実と、
+  作者提供仕様は区別する。外部コード移植・PGP codec実装は今回はなし。
+  更新先: `WAV_S1_S2_FORMAT.md`、`ROADMAP.md`、`ARCHITECTURE.md`、調査report追記。
+
 - Date: 2026-10-09
 - PGP files: `docs/WAV_S1_S2_FORMAT.md`、`docs/WAV_OLD_FORMAT.md`、`docs/ARCHITECTURE.md`、
   `docs/ROADMAP.md`
@@ -185,9 +260,9 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - Observed behavior: S1／S2共通の4.096秒leaderと16-unit byte framing、S1 Binary `67`の開始address＋宣言長、
   S1 BASIC `07`、S2 BASIC `27`／`37`、120-byte chunk、nibble swap、BASIC物理trailer `FF`、S1半角カナ、
   S2 `FE` token／`1F` line reference／CP932 text
-- Limitations: S2 Binary実装は存在しない。S2 tail checksumは参照コード自身が暫定と記載し、S1／S2 Decodeには
+- Limitations (2026-10-09調査時点。上記作者確認でPGP方針更新済み): S2 Binary実装は存在しない。S2 tail checksumは参照コード自身が暫定と記載し、S1／S2 Decodeには
   checksum byteを読み飛ばして実比較しない経路がある。実機fixtureなしにこれらを確定仕様としない
-- PGP decision: S1 Binaryは`.dmp`／Intel HEXの単一連続領域だけを受理する。S2 Binaryは一次資料または実機fixtureを
+- PGP decision (2026-10-09時点。現在は上記作者確認を優先): S1 Binaryは`.dmp`／Intel HEXの単一連続領域だけを受理する。S2 Binaryは一次資料または実機fixtureを
   得るまで実装しない。PGP Decoderは各層のchecksumと位置を構造化diagnosticとして検証する
 
 ### SC61860機種世代

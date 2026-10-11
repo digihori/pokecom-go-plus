@@ -315,9 +315,16 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
     - [x] OLD転送bodyの`... F0`をEmulator BASICの`FF ... FF`へ戻すadapterを追加し、Decode後のsource保存を成立させる
     - [x] Binaryの開始address欄と`.bin`直接入出力を廃止し、単一連続領域の`.dmp`入出力へ置き換える
     - [ ] Intel HEXをaddress付き交換形式として追加する
+  - [x] Studio専用の統合WAV Toolへ切り替え、ProjectツリーのBASIC／`.dmp`指定と既存ファイル指定を共通操作へ接続する
+  - [x] OLD変換結果を確認してから保存し、保存取消／失敗後も再保存できるようにする
+  - [x] 診断のseverity／stage／位置／checksum期待値・実測値を表示する
+  - [x] OLD Raw Decodeのhex表示・raw保存、metadata／同期位置表示、payload失敗時のPCM／raw保持を実装する
+  - [x] Analyzer最小版としてmono波形、min/max envelope、sample表示、zoom／pan／cursor／範囲指定、raw行との移動、nibble sync位置を表示する
+  - 運用方針: Player非搭載、ROM CSAVE/CLOAD非連動、Decodeからのエミュレータ直接ロード対象外。
+    操作と残る拡張は[WAV_OPERATIONS.md](WAV_OPERATIONS.md)参照。以下のRaw Decode／Analyzerの全形式・全overlay対応は未完了。
   - [ ] WAVを転送形式として解釈せずraw byte列へ復号するRaw Decode解析ツールを追加する
-    - [ ] raw byte列のhex表示とファイル保存に対応する
-    - [ ] sample rate、channel、bit depth、検出byte数、同期位置などの解析情報を表示する
+    - [x] raw byte列のhex表示とファイル保存に対応する（現在OLD信号のみ）
+    - [x] sample rate、channel、bit depth、検出byte数、同期位置などの解析情報を表示する
     - [ ] OLD／S1／S2 payloadとして解釈できないWAVでも信号Decode結果を確認できるようにする
   - [ ] Raw Decode結果をOLD／S1／S2の候補形式で比較解析するWAV Analyzerを追加する
     - [ ] 上段にPCM波形を表示し、sample／時間軸のzoom、pan、cursor、範囲選択に対応する
@@ -333,13 +340,14 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
     - [ ] sample rate、channel、bit depth、duration、peak、DC offset、検出edge／byte数をsummary表示する
     - [ ] raw／変換後byte列、文字変換結果、解析diagnosticを個別にexportできるようにする
   - [ ] S1 WAV Codecを実装する
+    - 2026-10-12方針: Playerの作業を優先し、S1/S2対応は後回し。WAV Tool冒頭でpcwavの利用を案内する。
     - [ ] S1共通信号と4.096秒leader、16-unit byte framingを実装する
     - [ ] S1 Binary `67`を単一連続領域の`.dmp`／Intel HEX入出力として実装する
     - [ ] S1 BASIC `07`、120-byte chunk、半角カナ、物理trailer `FF`を実装する
   - [ ] S2 BASIC WAV Codecを実装する
-    - [ ] type `27`／`37`、`FE token`、`1F line reference`、CP932 textを実装する
-    - [ ] 実機fixtureで暫定tail checksumを確定してから互換対応を完了する
-  - [ ] S2 Binaryは一次資料または実機fixtureで仕様を確定するまで未対応とする
+    - [ ] type `27`（BASIC）／`37`（password付きBASIC）、`FE token`、`1F line reference`、CP932 textを実装する
+    - [ ] 作者が動作実績を確認したpcwav tail checksum方式を採用し、参照一致とPGP実機往復を検証する
+  - [ ] S2 Binaryは作者確認に基づきS1 Binary `67`と同じcodecを共用して対応する
   - [ ] 実機録音fixtureでDecode許容範囲を確定する
 
 ## Phase 6: 機種追加

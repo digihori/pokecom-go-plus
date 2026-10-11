@@ -3,7 +3,8 @@
 ## 1. 文書の位置付け
 
 この文書は、将来PGPへS1／S2 WAV Codecを実装するため、同一作者の`pcwav`を読み取り専用で調査した結果を
-記録する。記載内容は参照commit時点の実装動作であり、実機互換性が未確認の項目を確定仕様として扱わない。
+記録する。参照commitで観測した動作と、2026-10-12に作者から提供された仕様・動作実績を区別して記録する。
+作者確認によりS2 typeの意味、末尾checksumの採用、S2 BinaryのS1共用をPGP実装方針として確定した。
 
 - Reference repository: `pcwav`
 - Reference commit: `14e1ef53596f0d8791b6d14965061f63846d11a7`
@@ -28,12 +29,13 @@
 |---|---:|---:|---|
 | S1 Binary | あり | あり | 開始addressと長さを持つ単一連続body |
 | S1 BASIC | あり | あり | type `07` |
-| S2 BASIC | あり | あり | type `27`または`37` |
-| S2 Binary | なし | なし | `pcwav`だけでは仕様を確定できない |
+| S2 BASIC | あり | あり | `27`: BASIC、`37`: password付きBASIC（作者確認） |
+| S2 Binary | なし | なし | 参照commitに専用実装なし。作者確認によりPGPではS1 Binaryを共用 |
 
-S2 BinaryをPGPへ追加する場合は、別の一次資料または実機WAV fixtureが必要である。それまでは未対応とし、
-S1からの類推だけでtype、header、checksumを実装しない。入力memory imageについては安全側の共通制約として
-単一連続領域だけを候補にする。
+この表は参照pcwavの実装状況を示し、PGPで実装済みという意味ではない。
+2026-10-12の作者指定により、PGPのS2 Binaryは§5のS1 Binaryと同じ方式（type `67`、
+header/metadata、checksum、body、終端、共通信号）を共用する。これはS1からの独自類推ではない。
+単一連続領域制約も共通とする。作者提供情報を採用し、fixture未取得を実装開始の阻害条件にはしない。
 
 ## 3. S1／S2共通信号
 
@@ -146,21 +148,26 @@ tail checksumは最後のchunkのswap前logical bytesと`FF`を対象にhigh nib
 
 S2 BASICはS1 BASICと同じheader／120-byte chunk／末尾構造およびS1物理信号を再利用する。相違点は次の通り。
 
-- typeは`27`または`37`。参照実装だけでは両者の意味を確定しない
+- type `27`: 通常BASIC、type `37`: password付きBASIC（2026-10-12作者確認）。通常BASICをdefaultとする
 - keywordは`FE tokenByte`の2-byte表現
 - `GOTO`、`GOSUB`、`THEN`等の数値行参照は`1F lineHi lineLo`
 - `ON ... GOTO/GOSUB`はcomma区切りの行番号列を同形式へ変換する
 - ASCII、半角カナ、2-byte Shift-JISを含むCP932 textを扱う
 - line構造とline number範囲はS1 BASICと同じ
 
-参照EncoderのS2 tail checksumには「現状はS1と同じ暫定」と明記されている。従って、PGPでは実機fixtureを
-得るまでS2 tail checksumを確定仕様にせず、暫定実装であることをdiagnosticまたは機能表示上で明示する。
-参照S2 Decoderもchunk／tail checksumを検証せず読み飛ばすため、Decode成功だけを互換性の根拠にしない。
+参照EncoderにはS2 tail checksumを「現状はS1と同じ暫定」とするcommentがあるが、
+2026-10-12に作者からpcwavの動作実績と同方式の採用方針が提供された。
+PGPは§6のpcwav BASIC tail checksum方式を正式な実装方針として採用し、commentだけを理由に実装を保留しない。
+参照S2 Decoderはchunk/tail checksumを比較せず読み飛ばす経路があるため、PGPではEncoder方式で検証し、
+不一致をdiagnosticとして返す。参照一致試験と、今後のPGP実機往復確認は別に記録する。
 
-## 8. PGP実装前に必要なfixture
+password付きtypeの意味の確定は、password文字列の入力/保存方法の設計まで決定するものではない。
+現行OLDと同様、type選択とpassword文字列指定は区別し、S2実装時にpcwavのbody表現を確認する。
+
+## 8. 検証に追加するfixture
 
 - S1 Binary: body長`1`、`119`、`120`、`121` bytes、開始address境界、実機保存WAV
 - S1 BASIC: bodyが119／120／121 bytesとなるsource、半角カナ、末尾checksum、物理trailer `FF`
 - S2 BASIC: type `27`／`37`、行参照、`ON ... GOTO/GOSUB`、半角カナ／漢字、末尾checksum、物理trailer
 - 各形式: PGP Encoderと実機、`pcwav`のraw byte列およびPCM比較
-- S2 Binary: type、metadata、checksum、signal framingを確認できる一次資料または実機WAV
+- S2 Binary: S1共用codecの境界・checksum試験に加え、S2機種での実機往復WAV

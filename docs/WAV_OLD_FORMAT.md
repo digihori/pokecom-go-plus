@@ -61,7 +61,7 @@ BASIC text / Addressed machine-code image
 | 種別 | raw type | PGP初期対応 |
 |---|---:|---|
 | BASIC | `02` | Encode / Decode |
-| password付きBASIC | `12` | Decode。Encode APIは値を表現できるようにするが、初期UIでは生成しない |
+| password付きBASIC | `12` | Encode / Decode。UIはtype 12を選択可能だがpassword文字列の設定・抽出はしない |
 | Binary | `62` | Encode / Decode |
 
 type byteは単独で配置し、ニブルスワップもchecksum付加も行わない。
@@ -327,7 +327,8 @@ Studioではメイン画面の「ツール」からWAV Encoder / Decoderを開�
 初期案とする。AssemblerやCharacter Editorと同じToolsカテゴリに置くが、実装moduleを共有することは
 意味しない。
 
-初期Studio UIは`Tools > OLD WAV Encoder / Decoder`から独立windowを開く。OLD BASIC sourceはPC-1245系の
+初期Studio UIは`Tools > OLD WAV Encoder / Decoder`から独立windowを開く（2026-10-12から統合`WAV Tool`へ更新。
+現在の操作・対応範囲は[WAV_OPERATIONS.md](WAV_OPERATIONS.md)参照）。OLD BASIC sourceはPC-1245系の
 tokenizerでlogical byte列へ変換し、通常BASIC (`02`) またはpassword付きBASIC (`12`) としてWAVへ保存する。
 Binary EncodeはPGP Memory Dump (`.dmp`)からアドレス付きmemory imageを読み、単一の連続領域を
 Binary (`62`) として保存する。OLD Binaryは開始addressと連続bodyを1組しか保持できないため、複数領域またはgapを
@@ -421,8 +422,9 @@ PGPではエラー位置、期待値、実測値、処理段階を構造化し�
 - 実機録音で許容すべきsample rate、振幅、DC offset、速度変動、先頭／末尾noise
 - 複数streamを1つのWAVへ含める場合の探索と分離
 - filenameが空、7文字超、非英数字を含む場合のUI表示とwarning
-- Binary metadataのreserved `00 00 00 60`を固定値として拒否するか、warning付きで保持するか
-- BASIC終端後またはBinary宣言長後に存在するraw byteの扱い
+
+実装済みの扱い: Binary reserved metadataはwarning付きで保持し、BASIC終端後/Binary宣言長後のrawは
+余剰data warningと消費byte数で報告する。これらは今後の未決事項とは分ける。
 
 この調査が必要になった場合だけ、実機fixtureまたは追加資料を参照する。Pokecom GOおよび
 PC-1251 Emulatorを先回りして参照しない。

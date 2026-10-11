@@ -26,7 +26,6 @@ public object OldSignalDecoder {
         var data = 0
         var lowDifferenceCount = 0
         val tap = maxOf(1, (sampleRate.toDouble() / DIFFERENCE_FREQUENCY_HZ + 0.5).toInt())
-        val delayed = IntArray(tap + 1)
         val raw = mutableListOf<Byte>()
         val mappings = mutableListOf<CodecDataMapping>()
         val syncPoints = mutableListOf<SignalSyncPoint>()
@@ -36,9 +35,7 @@ public object OldSignalDecoder {
         val signalStart = inputSamples.indexOfFirstSignificantSample()
 
         for (sampleOffset in signalStart until inputSamples.size) {
-            val sample = inputSamples[sampleOffset]
-            delayed[0] = sample.toInt()
-            val difference = delayed[0] - delayed[tap]
+            val difference = differenceAt(inputSamples, sampleOffset, signalStart, tap)
 
             if (difference > DIFFERENCE_THRESHOLD || difference < -DIFFERENCE_THRESHOLD) {
                 level = 0
@@ -104,7 +101,6 @@ public object OldSignalDecoder {
                 }
             }
 
-            for (index in tap downTo 1) delayed[index] = delayed[index - 1]
         }
 
         if (raw.isEmpty()) {
@@ -144,6 +140,20 @@ public object OldSignalDecoder {
             diagnostics = diagnostics,
         )
     }
+
+    /** Observes the exact difference/threshold input used by this decoder, without payload interpretation. */
+    public fun inspect(sampleRate: Int, samples: PcmSampleSequence): OldSignalInspection {
+        require(sampleRate > 0)
+        val input = samples.copySamples()
+        val start = input.indexOfFirstSignificantSample()
+        val tap = maxOf(1, (sampleRate.toDouble() / DIFFERENCE_FREQUENCY_HZ + 0.5).toInt())
+        val differences = IntArray(input.size)
+        for (index in start until input.size) differences[index] = differenceAt(input, index, start, tap)
+        return OldSignalInspection(start, tap, DIFFERENCE_THRESHOLD, differences)
+    }
+
+    private fun differenceAt(samples: ShortArray, index: Int, start: Int, tap: Int): Int =
+        samples[index].toInt() - if (index - tap >= start) samples[index - tap].toInt() else 0
 
     private fun failure(
         code: CodecDiagnosticCode,
@@ -202,4 +212,15 @@ public class OldSignalDecoding internal constructor(
 ) {
     public val rawByteMappings: List<CodecDataMapping> = rawByteMappings.toList()
     public val syncPoints: List<SignalSyncPoint> = syncPoints.toList()
+}
+
+/** Signed differences can exceed the signed 16-bit PCM amplitude range. */
+public class OldSignalInspection internal constructor(
+    public val signalStart: Int,
+    public val tapSamples: Int,
+    public val threshold: Int,
+    differences: IntArray,
+) {
+    private val values: IntArray = differences.copyOf()
+    public fun copyDifferences(): IntArray = values.copyOf()
 }
