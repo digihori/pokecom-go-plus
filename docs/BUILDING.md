@@ -233,3 +233,16 @@ Desktopだけを試す場合は`:core:desktopTest`、`:desktopApp:test`、`:desk
 
 通常のビルドと自動テストはROMなしで実行できる。実ROMを使う任意の統合テストとStudio上の
 エミュレーター実行だけがROMを必要とする。
+
+## 9. iOS Player host（構造確認）
+
+iPhone専用・最低iOS 16のSwiftUI/UIKit hostを `iosApp` に追加した。
+macOS Apple Silicon + Xcode + JDK 21で `iosApp/PokecomGOPlayer.xcodeproj` を開き、
+共有scheme `PokecomGOPlayer` とiPhone Simulatorを選択する。Developer登録・Team設定は不要。
+Xcode build phaseからPlayer共有frameworkをビルドする。Gradleの全体buildだけではiOS appの
+Swiftコンパイル/UIテストは実行しないため、Xcodeで別に検証する。
+コマンド・操作・所有境界は [iosApp README](../iosApp/README.md) を参照。
+通常起動はROM未登録画面。Files pickerからPC-1245 `.pgrom` /32・64 KiB legacy ROMを登録できる。
+保存ROMは起動時に復元してCPUを自動実行。スキン/LCD/52キー/Controller Displayを接続済み。
+合成表示はDEBUGの `--structural-probe` テスト引数でのみ使用する。
+機種/ROM・情報メニューは暫定、階層メニューの完成とbas/dmp入出力・ゲームパッドは後続。

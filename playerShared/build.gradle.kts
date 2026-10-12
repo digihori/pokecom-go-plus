@@ -18,8 +18,15 @@ kotlin {
         }
     }
 
-    iosArm64()
-    iosSimulatorArm64()
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
+        target.binaries.framework {
+            baseName = "PgpPlayer"
+            isStatic = true
+            export(project(":core"))
+            export(project(":hostInput"))
+            binaryOption("bundleId", "com.digihori.pgp.player.shared")
+        }
+    }
 
     sourceSets {
         commonMain.dependencies {

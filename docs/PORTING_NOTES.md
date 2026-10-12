@@ -1,5 +1,127 @@
 # Porting Notes
 
+## 2026-10-12: iOS PC-1245 ROM vertical slice — items 7–8
+
+- User prioritized seeing real ROM boot over completing the menu hierarchy. Added provisional
+  machine/ROM and information menu, version and policy/Studio placeholders; other menu work remains.
+- Swift Foundation document picker/storage, CryptoKit SHA-256 and system zlib own platform I/O.
+  Bounded ZIP store/deflate reader also supports streaming data descriptors and verifies CRC,
+  local/central headers, entry overlap, duplicate/unsafe paths, symlinks, encryption and expansion limits.
+  No archive extraction or third-party source copy. Current Android archive behavior and Core
+  RomPackageValidator/Pc1245FlatRomImporter/PlayerSessionFactory are the repository provenance.
+- Apple Facade validates package metadata/hash/component sizes through existing shared Core and
+  prepares a Session. Swift serial worker owns file/archive/storage operations; MainActor owns Native
+  Session access. Core/commonMain still has no platform APIs or threads. Only PC-1245 is selectable.
+- Canonical package plus source metadata are one atomic record under Application Support/rom-library,
+  excluded from backup before writing. New Session is published only after save succeeds. Replacement
+  failure/cancellation preserves old ROM/Session; confirmed deletion removes the registration.
+  Import/replacement/restore success automatically starts CPU on the next active frame. It does not
+  type BASIC RUN. Ordinary background return, failed/cancelled picker remain paused; RAM is not restored.
+- Normal launch now uses saved real ROM or the missing-ROM screen. Original checkerboard probe is
+  DEBUG-only with --structural-probe; UI tests explicitly opt in. Picker starts in app Documents.
+- Verification: Swift host 9 tests (import/restore/replace/cancel/delete, hash/CRC/machine/path failures,
+  atomic write failure preservation and deflate descriptor), UI 2, shared Native 23. JDK 21 full build
+  and core:desktopTest passed: Core 408, Studio 195 (1 skipped), shared desktop Player 20, Android 9.
+  iPhone 12/iOS 26.5 Files picker imported the existing local PC-1245 ROM and auto-ran CPU;
+  manual touch calculation 7+3 displayed 10. After host tests terminated the app, normal launch
+  restored saved ROM and auto-ran CPU; the same calculation passed again. Final host 9 tests and
+  unsigned generic arm64 iPhone build passed. No ROM or ROM-derived tracked fixture added.
+- iOS 16 runtime, physical devices, signing and distribution remain unverified. bas/dmp and the
+  Android BASIC-success auto-resume fix remain item 9. No commit/push/release performed.
+
+## 2026-10-12: PC-1245 iOS skin, touch and display — items 5–6
+
+- Reused current PGP Android-authored `skin_pc1245.png` byte-for-byte (1206×616), shared
+  PlayerSkinCatalog/SkinLayoutEngine/PlayerDisplayFrame and HostKeyState. No external source copied.
+  UIKit owns image loading, rendering, native touch/cancellation, glyph measurement and accessibility.
+- Skin image, LCD panel/dots/symbols/mode, key highlights and accessibility rectangles share one
+  placement and inverse coordinate transform. SwiftUI respects safe area at the root, including the
+  temporary operation toolbar. Native layout receives that viewport and does not subtract insets twice.
+  Both landscape directions retain the session/display choice and release inputs; geometry and safe
+  inset changes also release inputs. Portrait remains excluded by the existing iPhone host configuration.
+- LCD uses (70,104,760,70), panel (55,60,787,158), centered 80% dots/20% gaps, fitted fixed-size
+  glyphs independent of Dynamic Type, left BUSY/P/DEF, adjacent centered DEGRAD and right-aligned SHIFT.
+  RUN/PRO machine mode is displayed independently of RUNNING/PAUSED/FAULTED CPU state.
+- All 52 keys receive independent touch owner tokens. Moving outside the original rectangle,
+  cancellation, backgrounding, reset/mode/display changes release inputs. Multiple fingers holding
+  the same key use shared ownership, so one release cannot release the other. Press highlight/fade and
+  native accessibility activation are supported. VoiceOver activation holds its own token briefly
+  to allow a running CPU frame to scan it; it never owns Core scheduling.
+- Controller Display uses the shared crop, suppresses screen touch/accessibility keys and clears
+  existing input before toggling. It is manual; no gamepad detection or automatic display change added.
+  The direct operation toolbar is temporary until item 7's hierarchy; large-text actions use named
+  icons to keep controls identifiable without truncating words.
+- Simulator synthetic program now generates a checkerboard across all 80 LCD columns and lights
+  status segments through LIDP/LIA/STD, followed by a NOP/jump loop. This is original verification code,
+  not firmware or ROM-derived data. Real ROM/keyboard-scan/BASIC behavior remains for ROM management.
+- Verification: shared Native Player 23 tests (including all-key ownership and generated display),
+  Swift host 6 tests (including drag/cancel/same-key ownership/crop), UI 2 tests on SE3 and iPhone 12.
+  Normal and Controller views, repeated manual toggles, both landscape directions, portrait restriction,
+  Run/Pause/Reset and background return passed. iPhone 12 maximum Dynamic Type was tested and restored
+  to its original large setting. Full screenshots were visually inspected; no ROM bytes were used.
+- JDK 21 `build :core:desktopTest` passed (578 tasks, 26 executed). Core 408, Studio 195 (1 skipped),
+  shared desktop Player 20, shared Native 23, Android 9; no failures. Unsigned generic arm64 iPhone
+  build passed. These do not constitute iOS 16 runtime/physical-device/real-ROM verification.
+- Platform references: Apple [multiple touch](https://developer.apple.com/documentation/uikit/uiview/ismultipletouchenabled),
+  [touch cancellation](https://developer.apple.com/documentation/uikit/handling-touches-in-your-view),
+  [safe area changes](https://developer.apple.com/documentation/uikit/uiview/safeareainsetsdidchange()),
+  and prior host/framework sources in IOS_PLAYER_PLAN.md. No commit/push/release performed.
+
+## 2026-10-12: iOS host and shared bridge — implementation items 1–4
+
+- User approved SwiftUI/UIKit, iPhone only, minimum iOS 16, Simulator-only acceptance for
+  architecture validation. iPad, Developer enrollment, signing Team and physical devices are later.
+- Added `iosApp/PokecomGOPlayer.xcodeproj` with a shared scheme, empty Team, development Bundle ID
+  `com.digihori.pgp.player.ios`, both landscape orientations and no multiple scenes. App build and
+  test are explicit Xcode operations; Gradle `build` does not compile the Swift host.
+- `playerShared` exports one static PgpPlayer framework for arm64 device/Simulator and an iosMain
+  ApplePlayerFacade. Swift uses facade methods and immutable display snapshots. Core remains
+  unchanged; no platform/thread/time dependency added to commonMain. UIKit touch ownership reuses
+  HostKeyState. A tiny original NOP/jump probe is generated for structure verification, not firmware.
+- Swift MainActor owns all session calls, CADisplayLink supplies monotonic frame time. Inactive/
+  background invalidates display link, pauses and releases input; ordinary active return stays paused.
+  Reset restores RUN mode and schedules CPU start at the first active frame. Unconsumed automatic
+  starts survive backgrounding; explicit Pause cancels them. Display-link references avoid a retain cycle.
+- Temporary Simulator screen exposes Run/Pause/Reset/PRO and a BREAK hold bridge with a copied LCD.
+  Real-device startup is ROM-missing. Skin/52 keys, full presentation/menu, ROM storage, program I/O,
+  BASIC auto-resume alignment and gamepad remain subsequent items; they were not implemented here.
+- JDK 21 integration script rejects other JVM versions. arm64-only KMP configuration excludes
+  Intel Simulator architecture explicitly in Xcode rather than adding an unrequested target.
+- Verification: Native Player Simulator 22 tests (20 existing + 2 facade tests), Swift host 4 tests,
+  UI smoke 1 test on iPhone 17 Pro, SE3 and iPhone 12 Simulators (runtime 26.5). Final SE3 and iPhone 12
+  tests passed; host checks cover input release, ordinary resume, deferred Reset start, cancellation
+  and no background catch-up. UI verifies real CADisplayLink run, pause, Reset, both landscape
+  directions, portrait restriction and Home/activate return paused. Early rapid-rotation UI checks
+  raced UIKit animations; UI tests now wait for rotation settling before the next gesture.
+  UI attachments use XCUIScreen full-display capture to avoid app-crop artifacts when device
+  orientation differs from the supported app interface; direct simctl display capture was also inspected.
+- Full JDK 21 `build :core:desktopTest` passed (578 tasks, 34 executed). Reports: Core 408,
+  Studio 195 (1 skipped), shared desktop Player 20, shared Native Player 22, Android 9; no failures.
+  Unsigned generic iPhone arm64 Xcode build also passed. This is build verification, not device
+  installation/operation. iOS 16 runtime and real ROM operation were not verified.
+- Sources: current PGP implementation and Apple CADisplayLink/scenePhase/UIDevice orientation
+  documentation, JetBrains Apple-framework/direct-integration documentation (linked in the plan).
+  No external code copied, ROM/ROM-derived data added, commit/push/release performed.
+
+## 2026-10-12: PC-1245 iOS Player investigation and proposed design
+
+- Investigation only; approval of the implementation approach is pending. See
+  [IOS_PLAYER_PLAN.md](IOS_PLAYER_PLAN.md) for environment, ownership boundaries, operations,
+  implementation order and separate Simulator/device acceptance conditions.
+- Sources: current PGP PlayerSession/Runner/program I/O/skin/input models, Android host,
+  ROM library/package/importer and tests; Phase 7 and Player/architecture/format/release documents.
+  Apple and JetBrains platform references are linked in the plan. No external code copied.
+- Existing Apple targets build shared klibs/tests; there is no iOS host/Xcode project or exported
+  framework. Proposed SwiftUI/UIKit host reuses KMP logic and keeps device/storage/time APIs in host.
+- Xcode 26.6, SDK/runtime 26.5 and arm64 iPhone/iPad Simulators are available. No connected device
+  or valid signing identity was found; Team, Bundle ID and minimum OS remain to be decided.
+- Ordinary background return remains paused. Only unconsumed successful-operation automatic-start
+  requests survive backgrounding. Proposed follow-up aligns BASIC and DMP success CPU resume through
+  shared policy and both hosts; this does not type BASIC RUN. Failed/cancelled operations stay paused.
+- Specified JDK 21 `build :core:desktopTest` succeeded (573 tasks; 16 executed, 557 up-to-date).
+  Shared Apple compile/Simulator tests were up-to-date; no iOS app or physical-device validation done.
+- ROM/ROM-derived fixtures were not added. No commit, push or release performed.
+
 ## 2026-10-11: Assembler basic syntax stage 3
 
 - Implemented a PGP-native expression AST/parser and immutable EQU symbols. No external code copied.

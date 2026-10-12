@@ -424,6 +424,11 @@ WAV、Project、Debugger、音声出力、セーブステート、外付けキ�
   - [x] 実行画面をスクロールしないスキン固定表示とし、実行・表示・動作モード操作をオーバーフローメニューへ集約する
   - [x] ステータスバーを隠し、ジェスチャーナビでは全面表示、旧3ボタンナビでは操作領域を避けてスキンを最大化する
 - [ ] iOS Playerアプリ
+  - [x] iPhone専用・最低iOS 16のSwiftUI/UIKit host、Apple framework/Facade、Simulator合成プログラムによる接続確認
+  - [x] CADisplayLinkによる共有Runner駆動、Run/Pause/Reset、非active停止・入力解放・通常復帰PAUSED
+  - [x] PC-1245スキン/LCDシンボル/RUN・PRO表示/52タッチキー、通常・Controller Display、両横向きsafe area（Simulator確認）
+  - [x] PC-1245 ROM登録・atomic保存・起動時復元・置換・削除・成功後CPU自動実行（Simulator実ROM/計算入力確認）
+  - [ ] 階層メニュー（機種/ROM・情報は暫定導線あり）・bas/dmp入出力・ゲームパッド（実機/署名はDeveloper登録後）
 - [x] Studioとのbas/dmpファイル受け渡し（PC-1245 Android）
   - [x] 共有変換・停止中Session検証／適用・保存データ生成とAndroidのpicker／共有を接続
 - [x] `.pgrom`選択と前回ROMの自動復元
