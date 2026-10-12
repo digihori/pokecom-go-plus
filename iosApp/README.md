@@ -19,7 +19,7 @@ JAVA_HOME未指定ならmacOSの `/usr/libexec/java_home -v 21` でJDK 21を選�
 Android Studio同梱Java 25を使わない。User Script SandboxingはこのGradle統合に必要なため無効。
 
 ```sh
-env JAVA_HOME=/Users/yoshimine/Library/Java/JavaVirtualMachines/jbr-21.0.11/Contents/Home \
+env JAVA_HOME="$(/usr/libexec/java_home -v 21)" \
   xcodebuild -project iosApp/PokecomGOPlayer.xcodeproj -scheme PokecomGOPlayer \
   -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
   -derivedDataPath iosApp/build/DerivedData CODE_SIGNING_ALLOWED=NO build
@@ -30,7 +30,7 @@ env JAVA_HOME=/Users/yoshimine/Library/Java/JavaVirtualMachines/jbr-21.0.11/Cont
 共有側は次のコマンドで検証できる。
 
 ```sh
-env JAVA_HOME=/Users/yoshimine/Library/Java/JavaVirtualMachines/jbr-21.0.11/Contents/Home \
+env JAVA_HOME="$(/usr/libexec/java_home -v 21)" \
   ./gradlew --gradle-user-home .gradle-local :playerShared:iosSimulatorArm64Test
 ```
 

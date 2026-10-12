@@ -19,6 +19,9 @@
   boundary.
 - Add or update tests when porting behavior from a reference repository.
 - Do not add ROM images or other copyrighted firmware to the repository.
+- Shared documentation and examples must not contain personal usernames,
+  user-specific absolute paths, or private environment identifiers. Use
+  environment-derived paths, repository-relative paths, or generic placeholders.
 
 # Build and verification
 
