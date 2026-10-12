@@ -19,7 +19,8 @@ class DesktopExternalAssemblerTest {
 
     private fun settings(mode: String, seconds: Int = 5) = DesktopAssemblerSettings(
         true, File(System.getProperty("java.home"), "bin/java").absolutePath,
-        "-cp \"$fixtureClasspath\" ${AssemblerProcessFixture::class.java.name} $mode {source}", seconds,
+        "-Dstdout.encoding=windows-1252 -Dstderr.encoding=windows-1252 " +
+            "-cp \"$fixtureClasspath\" ${AssemblerProcessFixture::class.java.name} $mode {source}", seconds,
     )
 
     @Test fun capturesBothStreamsAndPreservesNonzeroExitCode() = runBlocking {
@@ -74,8 +75,11 @@ class DesktopExternalAssemblerTest {
 
 object AssemblerProcessFixture {
     @JvmStatic fun main(args: Array<String>) {
-        println("stdout ${args[1]} ${File(".").canonicalPath}")
-        System.err.println("stderr")
+        // The runner's test protocol is UTF-8, independent of the host console code page.
+        System.out.write("stdout ${args[1]} ${File(".").canonicalPath}\n".toByteArray(Charsets.UTF_8))
+        System.out.flush()
+        System.err.write("stderr\n".toByteArray(Charsets.UTF_8))
+        System.err.flush()
         if (args[0] == "sleep") {
             File(args[1] + ".started").writeText(ProcessHandle.current().pid().toString())
             Thread.sleep(20_000)
