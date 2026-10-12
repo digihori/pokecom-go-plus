@@ -77,7 +77,7 @@ claimed as newly tested by this release. Earlier previews received manual checks
   not yet implemented. Character Editor remains a single-character tool.
 - On Windows, click noise can persist after a program using sound finishes; the previously documented
   audio shutdown limitation remains.
-- Desktop distributions are unsigned with distribution identities and macOS is not notarized; OS warnings
+- Desktop packages are not signed with platform distribution identities and macOS is not notarized; OS warnings
   may appear. Linux ARM64 and native Windows ARM64 packages are not supplied.
 - Save-state compatibility and public APIs are not guaranteed between previews.
 

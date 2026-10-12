@@ -15,8 +15,8 @@
 - [x] Local JDK 21 full build and Core tests pass after version changes
 - [x] Local macOS distributable builds and launch smoke passes
 - [x] Versioned Android APK installs on the existing emulator; ROM operation accepted in the PC-1245 milestone
-- [ ] Candidate GitHub Actions CI passes on macOS/Windows/Linux/Android
-- [ ] Manual release-workflow dispatch builds all packages without publication
+- [x] Candidate GitHub Actions CI passes on macOS/Windows/Linux/Android
+- [x] Manual release-workflow dispatch builds all packages without publication
 - [x] ROMs, credentials and local emulator files remain excluded from source/package inputs
 - [x] `git diff --check` passes
 
@@ -37,7 +37,7 @@ previous checklists. This preview reports current automated tests/packaging sepa
 
 ## Publication
 
-- [ ] Release-preparation commit pushed to main
+- [x] Release-preparation commit pushed to main
 - [ ] Verified candidate annotated tag created/pushed
 - [ ] Tag workflow succeeds on all platforms and publishes prerelease
 - [ ] Release title/notes/version and complete asset set verified
@@ -47,3 +47,14 @@ previous checklists. This preview reports current automated tests/packaging sepa
 The authorized release task includes prerelease publication after candidate checks. Source ROMs and
 ROM-derived fixtures are never published. Retain the existing debug signing strategy; do not introduce
 new production signing credentials or publish an app-store build.
+
+## Verification record (2026-10-12)
+
+Candidate `9ad74e8` passes [CI #62](https://github.com/digihori/pokecom-go-plus/actions/runs/38203020330).
+Local JDK 21 full build/Core checks and macOS createDistributable succeeded. The generated macOS app
+restored the registered PC-1245 ROM and passed Run/Pause checks. The versioned Android APK installed
+without deleting its app-private ROM registration. The PC-1245 milestone has user operation acceptance.
+Package-resource audit found license/notices and no ROM/keystore payloads in the macOS/Android products.
+Manual packaging verification: [Build Technical Preview #9](https://github.com/digihori/pokecom-go-plus/actions/runs/38203075953).
+
+Manual run #9 completed successfully on all four platforms and produced all four expected workflow artifacts. Publication was skipped as intended for a branch dispatch. The following verification commit changes documentation only; release code/version/workflow remain the tested candidate.
