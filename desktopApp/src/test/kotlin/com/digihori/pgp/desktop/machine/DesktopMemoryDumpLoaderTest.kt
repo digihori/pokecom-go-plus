@@ -7,6 +7,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 class DesktopMemoryDumpLoaderTest {
+    @Test fun acceptsOnlyTrailingDosEofMarker() {
+        assertIs<DesktopMemoryDumpLoadResult.Success>(DesktopMemoryDumpLoader.parse("4000 : 12 34 : 46\r\n\u001a\r\n".encodeToByteArray()))
+        assertIs<DesktopMemoryDumpLoadResult.Failure>(DesktopMemoryDumpLoader.parse("4000:12\n\u001a\n4001:34".encodeToByteArray()))
+    }
     @Test
     fun decodesAndParsesUtf8Dump() {
         val result = assertIs<DesktopMemoryDumpLoadResult.Success>(

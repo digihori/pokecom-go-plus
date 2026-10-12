@@ -238,6 +238,22 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
 - [x] 現在PCから先を表示する読み取り専用Disassemblyビュー
 - [x] 指定範囲をアセンブラ向けテキストへ保存するDisassembler
 - [x] ラベル、ORG、DBに対応したSC61860 AssemblerとプロジェクトBuild連携
+- [ ] 設定で内蔵／外部SC61860 Assemblerを選択できるようにする（2026-10-12ユーザー要望）
+  - [x] macOS版SC61 Rev 0.04aの正常／異常終了、生成物、相対INCBIN、空白・日本語パスを調査する（[調査記録](SC61_INTEGRATION.md)）。WindowsとINCLUDEは未確認。
+  - 既存Assemblerごとのニーモニック、条件Assembly、INCBIN等の方言を、そのツールで処理できるようにする。
+  - 2026-10-12方針: 開発者が普段使うAssemblerを選べる外部連携を、内蔵Assemblerの追加の方言対応より先に進める。Assembler選択はStudio全体の共通設定とし、プロジェクトごとの切替は設けない。
+  - [x] Studio共通の設定保存と外部起動の接続テスト、ログ表示、タイムアウト・キャンセルを実装する（第2段階。Build連携は後続）
+  - [x] SC61の成功ログと隔離した新規DMPを取り込み、末尾DOS EOFを許容して機種別配置検査と範囲表示を行う（第3段階。Build／LoadとBASIC衝突検査への接続は後続）
+  - [x] Studio共通の内蔵／外部Assembler選択、実行ファイル、引数テンプレートを定義し、作業ディレクトリはソース／プロジェクト位置から解決できるようにする
+  - [x] Workspace、Build／Build & Load、Quick Assembleで共通のAssembler選択処理を使用する
+  - [x] 外部コマンドの終了コード・標準出力・標準エラーを取り込み、失敗・タイムアウト・キャンセルを扱う
+  - [x] SC61のaddress付きDMPを初期対応として取り込む。Buildは全範囲を保存し、同一アドレス重複を検査する。機種別配置・物理ミラー・BASIC衝突はLoad時に検査する（Raw Binaryは後続ツール対応時に検討）
+  - [x] 今回の実行で生成された成果物だけを取り込み、失敗時に前回の出力を誤ってLoadしないようにする
+  - [x] SC61のLST原文表示・保存、Symbol Map、行番号付き診断を取り込む。INCLUDEのファイル名はLSTに出ないため、行番号と内容で一意に特定できる場合のみ行移動する。未提供時もBuild／Loadは利用可能。
+  - [x] macOSで設定、Workspace／Build & Load、Quick Assemble、エラー保持・診断行移動、内蔵切替を実画面確認し、[利用手順](EXTERNAL_ASSEMBLER.md)を整備する
+  - [x] Windows版SC61 Rev 0.04aをWine 11.0の一時環境で確認する（Windows上のStudio確認とは別）
+  - [ ] Windows実機でStudio連携、日本語パス／文字コード、エディタ連携、キャンセルを確認する（[チェックリスト](EXTERNAL_ASSEMBLER.md)）
+  - 内蔵Assemblerは維持する。初期対応はSC61のDMP出力。Windows動作確認と他ツールのadapterは後続。
 - [ ] SC61860 Assemblerの言語仕様を拡張する（最終構文と互換方針は別途策定）
   - [x] 即値、アドレス、`ORG`、`DB`等でラベルと数値を組み合わせた式を評価する（例：`LII 0x12+0x01`）
   - [x] 演算子、優先順位、括弧、範囲検査、オーバーフローの仕様を定義する

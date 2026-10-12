@@ -213,6 +213,7 @@ import java.net.URI
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
 import javax.swing.JFileChooser
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -706,9 +707,11 @@ private fun FrameWindowScope.App(
         runner?.takeIf { it.machineId == workspace.definition.machineId }?.memoryLayout
             ?: MachineMemoryLayout(workspace.definition.machineId)
 
-    fun assembleWorkspace() {
+    suspend fun assembleWorkspaceWork() {
         val workspace = projectWorkspace ?: return
-        when (val result = DesktopAssemblyWorkspaceCompiler.compile(workspace, projectMemoryLayout(workspace))) {
+        val result = DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, projectMemoryLayout(workspace), DesktopUiPreferences.assemblerSettings())
+        check(projectWorkspace === workspace) { "Project changed during assembly; result discarded" }
+        when (result) {
             is DesktopAssemblyWorkspaceResult.Failure -> {
                 assemblyDiagnostics = result.diagnostics
                 assemblyStatus = "Assembly failed — last successful preview retained"
@@ -734,13 +737,17 @@ private fun FrameWindowScope.App(
         }
     }
 
-    fun buildProjectOutputs(): DesktopProjectBuildResult.Success? {
+    suspend fun buildProjectOutputsWork(): DesktopProjectBuildResult.Success? {
         val workspace = projectWorkspace ?: return null
-        return when (val built = DesktopProjectBuilder.build(workspace, projectMemoryLayout(workspace))) {
+        val layout = projectMemoryLayout(workspace)
+        val assembly = DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, layout, DesktopUiPreferences.assemblerSettings())
+        val built = withContext(Dispatchers.IO) { DesktopProjectBuilder.build(workspace, layout, compiledAssembly = assembly) }
+        check(projectWorkspace === workspace) { "Project changed during build; result discarded" }
+        return when (built) {
             is DesktopProjectBuildResult.Failure -> {
                 projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
                 assemblyStatus = "Build failed — outputs were not loaded; last successful preview retained"
-                when (val assembly = DesktopAssemblyWorkspaceCompiler.compile(workspace, projectMemoryLayout(workspace))) {
+                when (assembly) {
                     is DesktopAssemblyWorkspaceResult.Failure -> {
                         assemblyDiagnostics = assembly.diagnostics
                         assemblyStatus = "Build failed — last successful preview retained"
@@ -752,13 +759,15 @@ private fun FrameWindowScope.App(
                 null
             }
             is DesktopProjectBuildResult.Success -> {
-                val output = runCatching { DesktopProjectBuildOutputWriter.write(workspace, built.artifact) }
+                val output = runCatching { withContext(Dispatchers.IO) { DesktopProjectBuildOutputWriter.write(workspace, built.artifact) } }
                     .getOrElse {
+                        if (it is CancellationException) throw it
                         projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
                         assemblyStatus = "Output save failed — not loaded into the emulator"
                         showError("Could not write build output: ${it.message ?: it::class.simpleName}")
                         return null
                     }
+                check(projectWorkspace === workspace) { "Project changed while saving; build was not loaded" }
                 assemblyPreview = built.artifact.assemblySources
                 assemblyDiagnostics = emptyList()
                 changedAssemblySources = emptySet()
@@ -770,7 +779,7 @@ private fun FrameWindowScope.App(
         }
     }
 
-    fun buildProject() {
+    suspend fun buildProjectWork() {
         val workspace = projectWorkspace ?: return
         val activeRunner = runner ?: return
         if (activeRunner.machineId != workspace.definition.machineId) {
@@ -782,7 +791,8 @@ private fun FrameWindowScope.App(
             )
             return
         }
-        buildProjectOutputs()?.let { built ->
+        buildProjectOutputsWork()?.let { built ->
+                check(runner === activeRunner && projectWorkspace === workspace) { "Emulator or project changed; build was not loaded" }
                 when (val applied = DesktopProjectArtifactLoader.load(activeRunner, built.artifact)) {
                     is DesktopProjectApplyResult.BasicFailure -> {
                         projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
@@ -821,6 +831,28 @@ private fun FrameWindowScope.App(
                 }
         }
     }
+
+    val assemblyScope = androidx.compose.runtime.rememberCoroutineScope()
+    var assemblyBusy by remember { mutableStateOf(false) }
+    var assemblyJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    fun startAssembly(action: suspend () -> Unit) {
+        if (assemblyBusy) return
+        assemblyBusy = true
+        assemblyStatus = "Assembly / build in progress…"
+        message = assemblyStatus
+        assemblyJob = assemblyScope.launch {
+            try { action() }
+            catch (cancelled: CancellationException) {
+                assemblyStatus = "Assembly cancelled — not loaded"
+                message = assemblyStatus
+                throw cancelled
+            } catch (error: Exception) { showError(error.message ?: "Assembly failed") }
+            finally { assemblyBusy = false }
+        }
+    }
+    fun assembleWorkspace() = startAssembly { assembleWorkspaceWork() }
+    fun buildProjectOutputs() = startAssembly { buildProjectOutputsWork() }
+    fun buildProject() = startAssembly { buildProjectWork() }
 
     fun openProjectFromDisk() {
         selectAndRestoreFocus(restoreMainWindowFocus = false) { selectProjectDirectory(ownerWindow) }
@@ -938,9 +970,21 @@ private fun FrameWindowScope.App(
         }
     }
 
-    fun quickAssemble() {
-        val sourceFile = selectAndRestoreFocus { selectAssemblyFile(ownerWindow) } ?: return
-        val assembled = runCatching { Sc61860Assembler.assemble(sourceFile.readText()) }.getOrElse {
+    suspend fun quickAssembleWork(sourceFile: File) {
+        val settings = DesktopUiPreferences.assemblerSettings()
+        if (settings.external) {
+            val layout = runner?.memoryLayout ?: MachineMemoryLayout(selectedMachineId)
+            when (val result = com.digihori.pgp.desktop.project.DesktopSc61Assembler.assemble(settings, sourceFile, layout)) {
+                is com.digihori.pgp.desktop.project.DesktopSc61AssemblyResult.Failure -> showError(result.message + "\n" + result.log)
+                is com.digihori.pgp.desktop.project.DesktopSc61AssemblyResult.Success -> {
+                    val destination = selectAndRestoreFocus { selectAssembledDumpDestination(ownerWindow) } ?: return
+                    withContext(Dispatchers.IO) { destination.writeBytes(DesktopMemoryDumpWriter.write(result.image)) }
+                    message = "Assembled ${result.image.byteCount} bytes into ${destination.name}.\n${result.log}"
+                }
+            }
+            return
+        }
+        val assembled = runCatching { withContext(Dispatchers.IO) { Sc61860Assembler.assemble(sourceFile.readText()) } }.getOrElse {
             showError("Could not read assembly source: ${it.message ?: it::class.simpleName}")
             return
         }
@@ -955,6 +999,12 @@ private fun FrameWindowScope.App(
                     .onFailure { showError("Could not save assembled output: ${it.message ?: it::class.simpleName}") }
             }
         }
+    }
+
+    fun quickAssemble() {
+        if (assemblyBusy) return
+        val source = selectAndRestoreFocus { selectAssemblyFile(ownerWindow) } ?: return
+        startAssembly { quickAssembleWork(source) }
     }
 
     fun runEmulator() {
@@ -1475,6 +1525,11 @@ private fun FrameWindowScope.App(
                             }) { Text("Apply editor setting") }
                             editorSettingsError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                         }
+                        SettingsSection("Assembler") {
+                            com.digihori.pgp.desktop.project.DesktopAssemblerSettingsPanel(
+                                projectWorkspace?.let(::projectMemoryLayout) ?: MachineMemoryLayout(selectedMachineId),
+                            )
+                        }
                         SettingsSection("Keyboard input") {
                             Text("Choose Logical or Physical below the software keyboard in the main window.")
                             Text("Left Control and F1 operate the pocket-computer DEF key.")
@@ -1787,6 +1842,9 @@ private fun FrameWindowScope.App(
                         } else {
                             Text("Assembly Workspace", style = MaterialTheme.typography.titleLarge)
                             Text(assemblyStatus)
+                            assemblyPreview.filter { it.consoleLog.isNotBlank() }.forEach {
+                                AssemblyPreviewSection("Assembler log — ${it.source.definition.path}", it.consoleLog)
+                            }
                             val memoryLayout = projectMemoryLayout(workspace)
                             val memoryLayoutText = remember(memoryLayout.machineId, memoryLayout.pc1251MemoryMode) {
                                 memoryLayout.renderMemoryLayout()
@@ -1800,17 +1858,18 @@ private fun FrameWindowScope.App(
                                 val hasAssemblySources = workspace.sources.any {
                                     it.definition.type == ProjectSourceType.ASSEMBLY
                                 }
-                                Button(enabled = hasAssemblySources, onClick = ::assembleWorkspace) {
+                                Button(enabled = hasAssemblySources && !assemblyBusy, onClick = ::assembleWorkspace) {
                                     Text("Assemble")
                                 }
-                                Button(enabled = hasAssemblySources, onClick = { buildProjectOutputs() }) {
+                                Button(enabled = hasAssemblySources && !assemblyBusy, onClick = { buildProjectOutputs() }) {
                                     Text("Build")
                                 }
                                 Button(
-                                    enabled = hasAssemblySources && runner != null && runnerState != RunnerState.FAULTED,
+                                    enabled = hasAssemblySources && !assemblyBusy && runner != null && runnerState != RunnerState.FAULTED,
                                     onClick = ::buildProject,
                                 ) { Text("Build & Load") }
                             }
+                            if (assemblyBusy) OutlinedButton(onClick = { assemblyJob?.cancel() }) { Text("Cancel assembly") }
                             Text("Assemble updates the preview. Build saves these files; Build & Load also loads the result.")
                             val projectIsLoaded = loadedProjectManifest == workspace.manifestFile.absolutePath
                             val emulatorLoadStatus = when {
@@ -1881,15 +1940,15 @@ private fun FrameWindowScope.App(
                                 ) {
                                     Text(
                                         buildString {
-                                            append(diagnostic.source.definition.path).append(':')
+                                            append(if (diagnostic.file == diagnostic.source.file) diagnostic.source.definition.path else diagnostic.file.path).append(':')
                                                 .append(diagnostic.line ?: "?").append(": ").append(diagnostic.message)
                                             diagnostic.sourceText?.let { append("\n  ").append(it) }
                                         },
                                         fontFamily = FontFamily.Monospace,
                                     )
                                     TextButton(onClick = {
-                                        openExternalSource(diagnostic.source.file, diagnostic.line)
-                                    }) { Text("Open at line") }
+                                        openExternalSource(diagnostic.file, diagnostic.line)
+                                    }) { Text(if (diagnostic.line == null) "Open source" else "Open at line") }
                                 }
                             }
                             val assemblyOutput = remember(assemblyPreview, memoryLayout) {

@@ -56,7 +56,9 @@ internal sealed interface DesktopProjectBuildError {
 
 /** Compiles every source before an artifact is allowed to modify an emulator session. */
 internal object DesktopProjectBuilder {
-    fun build(workspace: DesktopProjectWorkspace, layout: MachineMemoryLayout = MachineMemoryLayout(workspace.definition.machineId)): DesktopProjectBuildResult {
+    fun build(workspace: DesktopProjectWorkspace, layout: MachineMemoryLayout = MachineMemoryLayout(workspace.definition.machineId),
+        validateForLoad: Boolean = false,
+        compiledAssembly: DesktopAssemblyWorkspaceResult = DesktopAssemblyWorkspaceCompiler.compile(workspace, layout, validatePlacement = validateForLoad)): DesktopProjectBuildResult {
         require(layout.machineId == workspace.definition.machineId)
         val errors = mutableListOf<DesktopProjectBuildError>()
         val basicSources = workspace.sources.filter { it.definition.type == ProjectSourceType.BASIC }
@@ -67,7 +69,7 @@ internal object DesktopProjectBuilder {
         var basicProgram: ByteArray? = null
         val memorySegments = mutableListOf<AddressedMemorySegmentData>()
         val memorySegmentOwners = mutableListOf<String>()
-        val assemblySources = when (val assembly = DesktopAssemblyWorkspaceCompiler.compile(workspace, layout)) {
+        val assemblySources = when (val assembly = compiledAssembly) {
             is DesktopAssemblyWorkspaceResult.Success -> assembly.sources
             is DesktopAssemblyWorkspaceResult.Failure -> {
                 assembly.diagnostics.forEach { diagnostic ->
@@ -153,7 +155,7 @@ internal object DesktopProjectBuilder {
             }
         }
 
-        memoryImage?.let { image ->
+        if (validateForLoad) memoryImage?.let { image ->
             fun owner(address: Int): String = memorySegmentOwners[memorySegments.indexOfFirst { address >= it.startAddress && address < it.startAddress + it.size }]
             val invalid = MemoryPlacementValidator.validate(image, layout)
             if (invalid != null) {
@@ -171,7 +173,7 @@ internal object DesktopProjectBuilder {
                 is ProgramImagePlanResult.Success -> Unit
             }
         }
-        if (memoryImage == null && basicProgram != null) {
+        if (validateForLoad && memoryImage == null && basicProgram != null) {
             when (val planned = ProgramImageLoader.planForBuild(layout, basicProgram, null)) {
                 is ProgramImagePlanResult.BasicFailure -> errors += DesktopProjectBuildError.BasicPlacement(planned.error)
                 is ProgramImagePlanResult.MemoryFailure -> errors += DesktopProjectBuildError.Placement(basicSources.single().definition.id, planned.error)

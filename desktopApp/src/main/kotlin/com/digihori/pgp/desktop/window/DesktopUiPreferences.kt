@@ -22,6 +22,20 @@ internal object DesktopUiPreferences {
         preferences.put("externalEditorCommand", value.trim())
     }
 
+    fun assemblerSettings() = com.digihori.pgp.desktop.project.DesktopAssemblerSettings(
+        external = preferences.getBoolean("assemblerExternal", false),
+        executable = preferences.get("assemblerExecutable", ""),
+        arguments = preferences.get("assemblerArguments", "{source}"),
+        timeoutSeconds = preferences.getInt("assemblerTimeout", 60).coerceIn(1, 3600),
+    )
+
+    fun saveAssemblerSettings(value: com.digihori.pgp.desktop.project.DesktopAssemblerSettings) {
+        preferences.putBoolean("assemblerExternal", value.external)
+        preferences.put("assemblerExecutable", value.executable.trim())
+        preferences.put("assemblerArguments", value.arguments)
+        preferences.putInt("assemblerTimeout", value.timeoutSeconds)
+    }
+
     fun projectPaneWidth(defaultValue: Float): Float =
         preferences.getFloat("projectPaneWidthDp", defaultValue)
 

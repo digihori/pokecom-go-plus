@@ -18,6 +18,9 @@ internal data class DesktopAssemblySourceResult(
     val image: AddressedMemoryImage,
     val symbols: List<Sc61860AssemblySymbol>,
     val listing: List<Sc61860AssemblyListingLine>,
+    val consoleLog: String = "",
+    val externalListing: String? = null,
+    val symbolLocations: Map<String, DesktopSc61SourceLocation> = emptyMap(),
 )
 
 internal data class DesktopAssemblyDiagnostic(
@@ -25,6 +28,7 @@ internal data class DesktopAssemblyDiagnostic(
     val line: Int?,
     val message: String,
     val sourceText: String?,
+    val file: File = source.file,
 )
 
 internal sealed interface DesktopAssemblyWorkspaceResult {
@@ -34,7 +38,47 @@ internal sealed interface DesktopAssemblyWorkspaceResult {
 
 /** One assembly pipeline shared by the workspace preview and project Build & Load. */
 internal object DesktopAssemblyWorkspaceCompiler {
-    fun compile(workspace: DesktopProjectWorkspace, layout: MachineMemoryLayout = MachineMemoryLayout(workspace.definition.machineId)): DesktopAssemblyWorkspaceResult {
+    suspend fun compileConfigured(workspace: DesktopProjectWorkspace, layout: MachineMemoryLayout, settings: DesktopAssemblerSettings): DesktopAssemblyWorkspaceResult {
+        if (!settings.external) return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { compile(workspace, layout, validatePlacement = false) }
+        val assembled = mutableMapOf<String, Sc61860AssemblyResult>()
+        val logs = mutableMapOf<String, String>()
+        val externalListings = mutableMapOf<String, DesktopSc61Listing>()
+        val externalDiagnostics = mutableMapOf<String, DesktopSc61SourceLocation>()
+        for (source in workspace.sources.filter { it.definition.type == ProjectSourceType.ASSEMBLY }) {
+            when (val result = DesktopSc61Assembler.assemble(settings, source.file, layout)) {
+                is DesktopSc61AssemblyResult.Failure -> {
+                    result.location?.let { externalDiagnostics[source.definition.id] = it }
+                    assembled[source.definition.id] = Sc61860AssemblyResult.Failure(0, result.message + "\n" + result.log)
+                }
+                is DesktopSc61AssemblyResult.Success -> {
+                    logs[source.definition.id] = result.log
+                    result.sourceListing?.let { externalListings[source.definition.id] = it }
+                    // Byte ownership is available even before an external source map is parsed.
+                    assembled[source.definition.id] = Sc61860AssemblyResult.Success(result.image, result.sourceListing?.symbols.orEmpty(), result.sourceListing?.listing ?: result.image.segments.map {
+                        Sc61860AssemblyListingLine(0, it.startAddress, it.copyBytes().map { byte -> byte.toInt() and 255 }, "; External DMP; source mapping unavailable")
+                    })
+                }
+            }
+        }
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            when (val result = compile(workspace, layout, assembled, validatePlacement = false)) {
+                is DesktopAssemblyWorkspaceResult.Failure -> result.copy(diagnostics = result.diagnostics.map {
+                    val location = externalDiagnostics[it.source.definition.id] ?: externalListings[it.source.definition.id]?.rows
+                        ?.filter { row -> row.location != null && row.location.line == it.line && row.location.text == it.sourceText }
+                        ?.mapNotNull { row -> row.location }?.distinct()?.singleOrNull()
+                    if (location == null) it else it.copy(line = location.line, file = location.file, sourceText = location.text)
+                })
+                is DesktopAssemblyWorkspaceResult.Success -> result.copy(sources = result.sources.map {
+                    val listing = externalListings[it.source.definition.id]
+                    it.copy(consoleLog = logs[it.source.definition.id].orEmpty(), externalListing = listing?.raw,
+                        symbolLocations = listing?.symbolLocations.orEmpty())
+                })
+            }
+        }
+    }
+
+    fun compile(workspace: DesktopProjectWorkspace, layout: MachineMemoryLayout = MachineMemoryLayout(workspace.definition.machineId),
+        preassembled: Map<String, Sc61860AssemblyResult>? = null, validatePlacement: Boolean = true): DesktopAssemblyWorkspaceResult {
         require(layout.machineId == workspace.definition.machineId)
         val results = mutableListOf<DesktopAssemblySourceResult>()
         val diagnostics = mutableListOf<DesktopAssemblyDiagnostic>()
@@ -45,7 +89,7 @@ internal object DesktopAssemblyWorkspaceCompiler {
                 return@forEach
             }
             val sourceText = DesktopSourceHeaderParser.parse(text).sourceText
-            when (val assembled = Sc61860Assembler.assemble(sourceText)) {
+            when (val assembled = preassembled?.getValue(source.definition.id) ?: Sc61860Assembler.assemble(sourceText)) {
                 is Sc61860AssemblyResult.Failure -> diagnostics += DesktopAssemblyDiagnostic(
                     source,
                     assembled.line.takeIf { it > 0 },
@@ -53,26 +97,25 @@ internal object DesktopAssemblyWorkspaceCompiler {
                     assembled.line.takeIf { it > 0 }?.let { sourceText.lineSequence().elementAtOrNull(it - 1) },
                 )
                 is Sc61860AssemblyResult.Success -> {
-                    val issue = MemoryPlacementValidator.validate(assembled.image, layout)
+                    val issue = if (validatePlacement) MemoryPlacementValidator.validate(assembled.image, layout) else null
                     if (issue != null) {
                         val address = issue.error.address
                         val line = assembled.listing.firstOrNull { address >= it.address && address < it.address + it.bytes.size }
                         diagnostics += DesktopAssemblyDiagnostic(source, line?.line, issue.error.placementMessage(layout), line?.sourceText)
                     } else {
-                        val conflict = assembled.listing.firstNotNullOfOrNull { line ->
-                            line.bytes.indices.firstNotNullOfOrNull { offset ->
-                                val address = line.address + offset
-                                owners[layout.locate(address).physicalAddress]?.let { previous ->
-                                    DesktopAssemblyDiagnostic(source, line.line,
-                                        "0x${address.hex(4)} overlaps ${previous.first.definition.path} at 0x${previous.second.hex(4)} (same physical memory).", line.sourceText)
+                        val conflict = assembled.image.segments.firstNotNullOfOrNull { segment ->
+                            (segment.startAddress..segment.endAddress).firstNotNullOfOrNull { address ->
+                                owners[if (validatePlacement) layout.locate(address).physicalAddress else address]?.let { previous ->
+                                    val line = assembled.listing.firstOrNull { address >= it.address && address < it.address + it.bytes.size }
+                                    DesktopAssemblyDiagnostic(source, line?.line?.takeIf { it > 0 },
+                                        "0x${address.hex(4)} overlaps ${previous.first.definition.path} at 0x${previous.second.hex(4)} (same ${if (validatePlacement) "physical memory" else "address"}).", line?.sourceText)
                                 }
                             }
                         }
                         if (conflict != null) diagnostics += conflict
                         else {
-                            assembled.listing.forEach { line -> line.bytes.indices.forEach { offset ->
-                                val address = line.address + offset
-                                owners[layout.locate(address).physicalAddress] = source to address
+                            assembled.image.segments.forEach { segment -> (segment.startAddress..segment.endAddress).forEach { address ->
+                                owners[if (validatePlacement) layout.locate(address).physicalAddress else address] = source to address
                             } }
                             results += DesktopAssemblySourceResult(
                                 source, assembled.image, assembled.symbols, assembled.listing,
@@ -88,7 +131,12 @@ internal object DesktopAssemblyWorkspaceCompiler {
 }
 
 internal fun DesktopAssemblySourceResult.renderListing(): String = buildString {
+    externalListing?.let { append(it); return@buildString }
     append("; ").append(source.definition.path).append('\n')
+    if (consoleLog.isNotEmpty()) {
+        append("; External assembler source listing is not imported yet.\n")
+        return@buildString
+    }
     listing.forEach { entry ->
         append(entry.address.hex(4)).append("  ")
         append(entry.bytes.joinToString(" ") { it.hex(2) }.padEnd(13))
@@ -98,22 +146,34 @@ internal fun DesktopAssemblySourceResult.renderListing(): String = buildString {
 }
 
 internal fun List<DesktopAssemblySourceResult>.renderMap(): String = buildString {
-    this@renderMap.flatMap { result -> result.symbols.map { Triple(it.address, result.source.definition.path, it) } }
+    this@renderMap.flatMap { result -> result.symbols.map {
+        Triple(it.address, result.symbolLocations[it.name]?.file?.path ?: result.source.definition.path, it)
+    } }
         .sortedWith(compareBy({ it.first }, { it.third.name }))
         .forEach { (address, path, symbol) ->
             if (symbol.kind == com.digihori.pgp.core.debug.Sc61860AssemblySymbolKind.CONSTANT) {
                 append(symbol.name).append(" EQU ").append(symbol.value)
             } else append(address.hex(4)).append("  ").append(symbol.name)
-            append("  ").append(path).append(':').append(symbol.line).append('\n')
+            append("  ").append(path).append(':').append(if (symbol.line > 0) symbol.line.toString() else "?").append('\n')
         }
 }
 
-internal fun DesktopAssemblySourceResult.renderDisassembly(): String = image.segments.joinToString("\n") { segment ->
-    val bytes = segment.copyBytes()
-    Sc61860Disassembler.renderAssembly(segment.startAddress, segment.endAddress) { address ->
-        bytes[address - segment.startAddress].toInt() and 0xff
-    }.trimEnd()
-}.plus("\n")
+internal fun DesktopAssemblySourceResult.renderDisassembly(): String {
+    // DMP rows are separate segments; adjacent rows still form one instruction stream.
+    val groups = mutableListOf<MutableList<com.digihori.pgp.core.source.machine.AddressedMemorySegment>>()
+    image.segments.sortedBy { it.startAddress }.forEach { segment ->
+        val previous = groups.lastOrNull()
+        if (previous != null && previous.last().endAddress + 1 == segment.startAddress) previous += segment
+        else groups += mutableListOf(segment)
+    }
+    return groups.joinToString("\n") { group ->
+        val start = group.first().startAddress
+        val bytes = group.flatMap { it.copyBytes().toList() }
+        Sc61860Disassembler.renderAssembly(start, group.last().endAddress) { address ->
+            bytes[address - start].toInt() and 0xff
+        }.trimEnd()
+    }.plus("\n")
+}
 
 internal fun DesktopAssemblySourceResult.renderMemorySummary(layout: MachineMemoryLayout): String = image.segments.joinToString("\n") { segment ->
     val kinds = (segment.startAddress..segment.endAddress).map { layout.locate(it).kind }.distinct()

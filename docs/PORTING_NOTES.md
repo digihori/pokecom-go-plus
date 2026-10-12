@@ -2099,3 +2099,39 @@ JDK 21の全体build / Core回帰成功。ツリー内ファイル名変更は�
 - Release URL: https://github.com/digihori/pokecom-go-plus/releases/tag/v0.4.0-alpha.1
   Verification links and exact scope are in RELEASE_CHECKLIST_0.4.0-alpha.1.md. No ROM/keys
   published. Windows/Linux current UI smoke is not claimed; prior device checks are separate.
+
+## External SC61 runner foundation (2026-10-12)
+
+- User-provided SC61 Rev 0.04a Readme/C source and macOS executable informed the integration contract; provenance and measured behavior are in SC61_INTEGRATION.md. No external source was copied into Core and no SC61 build dependency was added.
+- Desktop owns global settings, shell-free process execution, console capture, timeout and cancellation. This stage exposes a connection test; build selection and output import follow separately.
+- Exit codes are preserved without assuming zero means successful assembly, because measured SC61 success returned 2 and one error returned 0.
+
+## SC61 DMP import (2026-10-12)
+
+- SC61 adapter stages the main source in a fresh temporary directory while preserving its original parent as cwd. Original DMP/LST files are untouched; fresh artifacts are checked using SC61 success text rather than zero exit status or timestamps.
+- Desktop dump loading accepts one trailing DOS EOF marker. Core memory placement validation is reused without copying SC61 source. Build/load integration and live BASIC collision checks remain the next stage.
+- Actual user-provided macOS SC61/FENSCER produced a 13,568-byte image; PC-1261 placement correctly rejected address 0x6800 as unmapped. Details/provenance: SC61_INTEGRATION.md.
+
+## SC61 build/load integration (2026-10-12)
+
+- Desktop Workspace, Build / Build & Load and Quick Assemble now read the global assembler settings. SC61 output is converted into the existing project artifact rather than adding an alternate memory write path.
+- Build reuses one compilation result for diagnostics, checks all inputs, then saves; loading reuses the existing atomic program loader and current BASIC placement checks. External source/symbol mapping remains unavailable until LST adapter work.
+- Added integration tests for external build/load, preserving old build output after an error, overlapping sources and restoring the internal assembler. JDK 21 full build passed. Windows/GUI smoke remains unverified.
+
+## SC61 listing and diagnostics (2026-10-12)
+
+- Parsed the user-provided SC61 Rev 0.04a LST format and checked tab/INCLUDE behavior using the user's macOS executable on disposable inputs. Reference C PrintList/ErrPut was inspected read-only; no source was copied. Provenance/results: SC61_INTEGRATION.md.
+- Desktop retains raw LST, imports symbols with declaration kinds, and resolves diagnostics to original sources only when content and line uniquely identify a file. SC61 omits INCLUDE file names, so ambiguous navigation remains unavailable.
+- Changed workspace byte ownership checks to use the authoritative DMP image, preventing missing LST bytes (INCBIN/NOLIST) from hiding overlaps. Added regression tests; Core remains independent of external tool formats and IO.
+
+## SC61 validation and usage guide (2026-10-12)
+
+- Verified the actual macOS UI: global settings, connection test, Workspace/Build/Load, Quick Assemble, error preservation, VS Code line navigation and internal/external switching, using temporary test-only sources and the existing registered ROM without adding firmware to the repository.
+- Verified the Windows SC61 PE32 binary under Wine 11.0 with an isolated prefix. Address/byte output matches native macOS for the 19-byte dialect/include sample; native Windows Studio and Japanese paths remain unverified.
+- Fixed Disassembly presentation across adjacent DMP row segments after GUI smoke exposed a split CASE1. Added a boundary/gap regression test; full JDK 21 build and macOS distributable creation passed.
+- User guide: EXTERNAL_ASSEMBLER.md; detailed evidence and remaining checks: SC61_INTEGRATION.md.
+
+## Separate artifact build from load validation (2026-10-12)
+
+- User requested that out-of-RAM output (including PC-1261 address 0x6800+) be accepted at least for Build, with Load treated separately. Configured assembly and project Build now retain the full 16-bit image and logical overlap validation while deferring hardware/physical aliases/BASIC placement to the existing atomic loader.
+- SC61/FENSCER copied into a temporary PC-1261 project built all 13,568 bytes and 955 symbols successfully. Added a regression confirming unmapped output can be saved but its load fails before any partial memory write. Full JDK 21 build/tests and macOS distributable passed.

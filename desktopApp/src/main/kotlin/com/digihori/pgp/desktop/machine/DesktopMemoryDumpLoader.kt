@@ -17,7 +17,10 @@ internal object DesktopMemoryDumpLoader {
                 .toString()
         }.getOrNull() ?: return DesktopMemoryDumpLoadResult.Failure(DesktopMemoryDumpLoadError.InvalidUtf8)
 
-        return when (val parsed = PgpMemoryDumpParser.parse(source)) {
+        // SC61 appends the historical DOS end-of-file marker. Only tolerate it at EOF.
+        val trimmed = source.trimEnd()
+        val normalized = if (trimmed.endsWith('\u001a')) trimmed.dropLast(1) else source
+        return when (val parsed = PgpMemoryDumpParser.parse(normalized)) {
             is PgpMemoryDumpParseResult.Success -> DesktopMemoryDumpLoadResult.Success(parsed.image)
             is PgpMemoryDumpParseResult.Failure ->
                 DesktopMemoryDumpLoadResult.Failure(DesktopMemoryDumpLoadError.Parse(parsed.error))

@@ -9,8 +9,127 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import com.digihori.pgp.core.api.*
+import com.digihori.pgp.core.rom.*
+import com.digihori.pgp.desktop.runner.DesktopEmulatorRunner
+import com.digihori.pgp.desktop.runner.MonotonicClock
 
 class DesktopProjectBuilderTest {
+    @Test fun buildsUnmappedPc1261OutputButRejectsLoadWithoutPartialWrites() = kotlinx.coroutines.runBlocking {
+        val root = Files.createTempDirectory("pgp-build-unmapped-")
+        try {
+            root.resolve("src").createDirectories()
+            root.resolve("src/main.asm").writeText("ORG $4000\nDB $37\nORG $6800\nDB \$FF\n")
+            val workspace = openWorkspace(root, """{ "id": "main", "type": "assembly", "path": "src/main.asm" }""", "pc-1261")
+            val layout = com.digihori.pgp.core.api.MachineMemoryLayout(workspace.definition.machineId)
+            val compiled = DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, layout, DesktopAssemblerSettings())
+            val built = assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(workspace, layout, compiledAssembly = compiled))
+            val dump = DesktopProjectBuildOutputWriter.write(workspace, built.artifact)!!
+            assertTrue(dump.readText().contains("6800 FF"))
+            val id = workspace.definition.machineId
+            val session = assertIs<CreateSessionResult.Success>(EmulatorFactory.create(id, RomSet(id, listOf(
+                RomComponent(RomComponentId("internal"), RomRole.INTERNAL, ByteArray(0x2000)),
+                RomComponent(RomComponentId("external"), RomRole.EXTERNAL, ByteArray(0x8000)),
+            )))).session
+            val before = session.memorySnapshot(0x4000, 1).copyBytes()
+            val runner = DesktopEmulatorRunner(session, MonotonicClock { 0L })
+            val failure = assertIs<DesktopProjectApplyResult.MemoryFailure>(DesktopProjectArtifactLoader.load(runner, built.artifact))
+            assertEquals(0x6800, failure.error.address)
+            assertContentEquals(before, session.memorySnapshot(0x4000, 1).copyBytes())
+        } finally { root.toFile().deleteRecursively() }
+    }
+    @Test fun disassemblesAcrossAdjacentDumpRowsButKeepsAddressGaps() {
+        val root = Files.createTempDirectory("pgp-dump-disassembly-")
+        try {
+            root.resolve("src").createDirectories()
+            root.resolve("src/main.asm").writeText("ORG $4000\nRTN\n")
+            val workspace = openWorkspace(root, """{ "id": "main", "type": "assembly", "path": "src/main.asm" }""", "pc-1350")
+            fun disassemble(dump: String): String {
+                val image = assertIs<com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoadResult.Success>(
+                    com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoader.parse(dump.encodeToByteArray())).image
+                return DesktopAssemblySourceResult(workspace.sources.single(), image, emptyList(), emptyList()).renderDisassembly()
+            }
+            val joined = disassemble("4000:333333333333337A\n4008:014000\n")
+            assertTrue(joined.contains("CASE1 0x014000"), joined)
+            val gap = disassemble("4000:333333333333337A\n4010:014000\n")
+            assertTrue(gap.contains("DB 0x7A"), gap)
+            assertTrue(gap.contains("ORG 0x4010"), gap)
+        } finally { root.toFile().deleteRecursively() }
+    }
+    private fun externalSettings(): DesktopAssemblerSettings {
+        val classpath = listOf(Sc61ProcessFixture::class.java, Unit::class.java).joinToString(java.io.File.pathSeparator) {
+            java.io.File(it.protectionDomain.codeSource.location.toURI()).absolutePath
+        }
+        return DesktopAssemblerSettings(true, java.io.File(System.getProperty("java.home"), "bin/java").path,
+            "-cp \"$classpath\" ${Sc61ProcessFixture::class.java.name} {source}")
+    }
+
+    @Test fun buildsExternalOutputAndRejectsExternalFailureWithoutOverwritingBuild() = kotlinx.coroutines.runBlocking {
+        val root = Files.createTempDirectory("pgp-external-build-")
+        try {
+            root.resolve("src").createDirectories()
+            val source = root.resolve("src/main.asm").apply { writeText("external-only syntax") }
+            root.resolve("src/data.bin").writeBytes(byteArrayOf(0x42))
+            val workspace = openWorkspace(root, """{ "id": "main", "type": "assembly", "path": "src/main.asm" }""", "pc-1350")
+            val layout = com.digihori.pgp.core.api.MachineMemoryLayout(workspace.definition.machineId)
+            val assembly = DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, layout, externalSettings())
+            val built = assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(workspace, layout, compiledAssembly = assembly))
+            assertContentEquals(byteArrayOf(0x42), built.artifact.memoryImage!!.segments.single().copyBytes())
+            assertTrue(built.artifact.assemblySources.single().consoleLog.contains("NO ERRORS FOUND"))
+            val machine = workspace.definition.machineId
+            val session = assertIs<CreateSessionResult.Success>(EmulatorFactory.create(machine, RomSet(machine, listOf(
+                RomComponent(RomComponentId("internal"), RomRole.INTERNAL, ByteArray(0x2000)),
+                RomComponent(RomComponentId("external"), RomRole.EXTERNAL, ByteArray(0x8000)),
+            )))).session
+            val runner = DesktopEmulatorRunner(session, MonotonicClock { 0L })
+            assertIs<DesktopProjectApplyResult.Success>(DesktopProjectArtifactLoader.load(runner, built.artifact))
+            assertContentEquals(byteArrayOf(0x42), session.memorySnapshot(0x4000, 1).copyBytes())
+            val output = DesktopProjectBuildOutputWriter.write(workspace, built.artifact)!!
+            assertTrue(java.io.File(output.parentFile, "main.lst").readText().contains("ASSEMBLY LIST OF"))
+            assertTrue(java.io.File(output.parentFile, "main.map").readText().contains("RAW"))
+            val bytes = output.readBytes()
+            source.writeText("fail")
+            val failure = DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, layout, externalSettings())
+            assertEquals(1, assertIs<DesktopAssemblyWorkspaceResult.Failure>(failure).diagnostics.single().line)
+            assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace, layout, compiledAssembly = failure))
+            assertContentEquals(bytes, output.readBytes())
+            source.writeText("ORG $4000\nDB $37")
+            assertIs<DesktopAssemblyWorkspaceResult.Success>(DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, layout, DesktopAssemblerSettings()))
+            Unit
+        } finally { root.toFile().deleteRecursively() }
+    }
+
+    @Test fun rejectsOverlapBetweenExternalAssemblyAndOtherInputs() = kotlinx.coroutines.runBlocking {
+        val root = Files.createTempDirectory("pgp-external-overlap-")
+        try {
+            root.resolve("src").createDirectories()
+            root.resolve("src/main.asm").writeText("external-only syntax")
+            root.resolve("src/data.bin").writeBytes(byteArrayOf(0x42))
+            root.resolve("src/other.dmp").writeText("4000:37")
+            val workspace = openWorkspace(root, """{ "id": "main", "type": "assembly", "path": "src/main.asm" },
+                { "id": "other", "type": "memory-dump", "path": "src/other.dmp" }""", "pc-1350")
+            val layout = com.digihori.pgp.core.api.MachineMemoryLayout(workspace.definition.machineId)
+            val assembly = DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, layout, externalSettings())
+            assertTrue(assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace, layout, compiledAssembly = assembly)).errors.any {
+                it is DesktopProjectBuildError.MemoryOverlap
+            })
+        } finally { root.toFile().deleteRecursively() }
+    }
+
+    @Test fun rejectsOverlapBetweenExternalAssemblySources() = kotlinx.coroutines.runBlocking {
+        val root = Files.createTempDirectory("pgp-external-source-overlap-")
+        try {
+            root.resolve("src").createDirectories()
+            root.resolve("src/main.asm").writeText("external-only syntax")
+            root.resolve("src/other.asm").writeText("external-only syntax")
+            root.resolve("src/data.bin").writeBytes(byteArrayOf(0x42))
+            val workspace = openWorkspace(root, """{ "id": "main", "type": "assembly", "path": "src/main.asm" },
+                { "id": "other", "type": "assembly", "path": "src/other.asm" }""", "pc-1350")
+            val layout = com.digihori.pgp.core.api.MachineMemoryLayout(workspace.definition.machineId)
+            val result = assertIs<DesktopAssemblyWorkspaceResult.Failure>(DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, layout, externalSettings()))
+            assertTrue(result.diagnostics.single().message.contains("overlaps"))
+        } finally { root.toFile().deleteRecursively() }
+    }
     @Test
     fun buildsBasicDumpAndRawBinaryAsOneArtifact() {
         val root = Files.createTempDirectory("pgp-project-build-test")
@@ -158,7 +277,7 @@ class DesktopProjectBuilderTest {
     }
 
     @Test
-    fun rejectsBasicOverlapAndPhysicalAliasesDuringBuild() {
+    fun permitsBuildButLoadPreflightRejectsBasicOverlapAndPhysicalAliases() {
         for ((machine, source) in listOf(
             "pc-1245" to "C000: AA\n", "pc-1245" to "C6E1: AA\n",
             "pc-1245" to "C100: AA\nD100: BB\n", "pc-1401" to "6000: AA\n7000: BB\n",
@@ -171,8 +290,9 @@ class DesktopProjectBuilderTest {
                 { "id": "basic", "type": "basic", "path": "src/main.bas" },
                 { "id": "data", "type": "memory-dump", "path": "src/data.dmp" }
             """.trimIndent(), machine)
+            assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(workspace))
             val error = assertIs<DesktopProjectBuildError.Placement>(
-                assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace)).errors.single(),
+                assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace, validateForLoad = true)).errors.single(),
             )
             assertEquals("data", error.sourceId)
             if (source.contains("D100") || source.contains("7000")) assertIs<com.digihori.pgp.core.api.MemoryImageLoadError.MirrorOverlap>(error.error)
@@ -195,7 +315,8 @@ class DesktopProjectBuilderTest {
         assertEquals(3, diagnostic.line)
         assertTrue(diagnostic.message.contains("ROM"))
         assertTrue(diagnostic.message.contains("pc-1401"))
-        assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace))
+        assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace, validateForLoad = true))
+        assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(workspace))
         outputs.forEach { (name, bytes) -> assertContentEquals(bytes, root.resolve("build/$name").toFile().readBytes()) }
     }
 
@@ -220,7 +341,7 @@ class DesktopProjectBuilderTest {
     }
 
     @Test
-    fun buildChecksTheSelectedHardwareRamMode() {
+    fun loadPreflightChecksTheSelectedHardwareRamMode() {
         val root = Files.createTempDirectory("pgp-build-ram-mode")
         root.resolve("src").createDirectories()
         root.resolve("src/main.asm").writeText("ORG 0xA000\nRTN\n")
@@ -228,6 +349,7 @@ class DesktopProjectBuilderTest {
         assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(workspace))
         assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace,
             com.digihori.pgp.core.api.MachineMemoryLayout(workspace.definition.machineId, com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode.HARDWARE),
+            validateForLoad = true,
         ))
     }
 
@@ -271,7 +393,7 @@ class DesktopProjectBuilderTest {
             root.resolve("src/main.asm").writeText(source)
             val workspace = openWorkspace(root, """{ "id": "asm", "type": "assembly", "path": "src/main.asm" }""", "pc-1401")
             assertIs<DesktopAssemblyWorkspaceResult.Failure>(DesktopAssemblyWorkspaceCompiler.compile(workspace), source)
-            assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace), source)
+            assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace, validateForLoad = true), source)
         }
         val root = Files.createTempDirectory("pgp-ds-basic-overlap")
         root.resolve("src").createDirectories()
@@ -282,7 +404,7 @@ class DesktopProjectBuilderTest {
             { "id": "basic", "type": "basic", "path": "src/main.bas" }
         """.trimIndent())
         assertIs<com.digihori.pgp.core.api.MemoryImageLoadError.BasicOverlap>(
-            assertIs<DesktopProjectBuildError.Placement>(assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace)).errors.single()).error,
+            assertIs<DesktopProjectBuildError.Placement>(assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace, validateForLoad = true)).errors.single()).error,
         )
     }
 
