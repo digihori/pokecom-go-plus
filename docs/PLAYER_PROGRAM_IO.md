@@ -82,7 +82,7 @@ JDK 21の全体build・Coreテストに加え、共有PlayerとAndroidの単体�
 削除確認のキャンセル、バージョン情報を確認した。
 2026-10-12にユーザーが今回のPC-1245 Androidの動作を確認し、今回の対応を区切ることを承認した。
 過去の実装記録にある「端末確認待ち」は実装途中の状態であり、この記録を現在の判定とする。
-これは全Android端末・全document providerの網羅検証を意味しない。公開候補の配布物・署名・version・
-プライバシー仮表示の扱いは、次のTechnical Preview準備時に確認する。
+これは全Android端末・全document providerの網羅検証を意味しない。Technical Preview 0.4として2026-10-12に公開済み。配布物・署名・version・
+プライバシー仮表示の扱いは[0.4 Release Notes](RELEASE_NOTES_0.4.0-alpha.1.md)に記載している。
 次はPC-1245 iOS、続いてPC-1401／1350 Androidを予定する。
 音声出力・セーブステート・外付けキーボードは今回の範囲に含めない。

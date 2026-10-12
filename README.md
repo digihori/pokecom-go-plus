@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
 
-> **Technical Preview 0.4（公開準備中）** — PC-1245 Android Player、Studio WAV Tool、Assembler等を更新した早期評価版です。
+> **[Technical Preview 0.4公開済み](https://github.com/digihori/pokecom-go-plus/releases/tag/v0.4.0-alpha.1)** — PC-1245 Android Player、Studio WAV Tool、Assembler等を更新した早期評価版です。
 
 Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向けプログラムを
 現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す
@@ -222,7 +222,7 @@ PC-1261／1350／1401が32 KiB、PC-1360が128 KiB（bank 0〜7の順に連結�
 ### Technical Preview配布物
 
 Technical Previewではソースコード、macOS／Windows／Linux向けStudio配布物、およびAndroid向けPlayer
-プレビューAPKをGitHub Releasesへ掲載する予定である。StudioはDeveloper ID等による正式署名やmacOS公証を
+プレビューAPKをGitHub Releasesへ掲載する。StudioはDeveloper ID等による正式署名やmacOS公証を
 行わない。Player APKはAndroidのデバッグ署名を使用し、ストア配布用の正式署名版ではない。
 OSのセキュリティ警告が表示される可能性がある。ROMイメージは配布物にも含めない。
 

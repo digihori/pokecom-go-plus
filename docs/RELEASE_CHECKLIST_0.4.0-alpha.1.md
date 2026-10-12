@@ -38,11 +38,11 @@ previous checklists. This preview reports current automated tests/packaging sepa
 ## Publication
 
 - [x] Release-preparation commit pushed to main
-- [ ] Verified candidate annotated tag created/pushed
-- [ ] Tag workflow succeeds on all platforms and publishes prerelease
-- [ ] Release title/notes/version and complete asset set verified
-- [ ] Published platform checksum lists match packaged assets' SHA-256 digest metadata
-- [ ] Publication outcome recorded and main working tree clean
+- [x] Verified candidate annotated tag created/pushed
+- [x] Tag workflow succeeds on all platforms and publishes prerelease
+- [x] Release title/notes/version and complete asset set verified
+- [x] Published platform checksum lists match packaged assets' SHA-256 digest metadata
+- [x] Publication outcome recorded and main working tree clean
 
 The authorized release task includes prerelease publication after candidate checks. Source ROMs and
 ROM-derived fixtures are never published. Retain the existing debug signing strategy; do not introduce
@@ -58,3 +58,17 @@ Package-resource audit found license/notices and no ROM/keystore payloads in the
 Manual packaging verification: [Build Technical Preview #9](https://github.com/digihori/pokecom-go-plus/actions/runs/38203075953).
 
 Manual run #9 completed successfully on all four platforms and produced all four expected workflow artifacts. Publication was skipped as intended for a branch dispatch. The following verification commit changes documentation only; release code/version/workflow remain the tested candidate.
+
+## Publication result
+
+Published **2026-10-12 13:26 JST** as a GitHub prerelease:
+https://github.com/digihori/pokecom-go-plus/releases/tag/v0.4.0-alpha.1
+
+- Annotated tag points to `7ce33bcf95e164376d6445aa2e3f9f530af87cb2`.
+- Tagged source passes [CI #63](https://github.com/digihori/pokecom-go-plus/actions/runs/38203437501).
+- [Tag packaging/publication #10](https://github.com/digihori/pokecom-go-plus/actions/runs/38203642604)
+  succeeds for macOS, Windows, Linux, Android and publication.
+- Seven packages (macOS arm64 DMG/ZIP, Windows x64 MSI/ZIP, Linux amd64 DEB/tar.gz, Android APK)
+  and four platform checksum lists are public. GitHub additionally supplies source ZIP/tar.gz.
+- All seven published SHA-256 entries match GitHub release-asset digest metadata.
+- Tag/release code is not rewritten by the later publication-record commit on main.
