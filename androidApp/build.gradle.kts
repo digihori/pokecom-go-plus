@@ -21,8 +21,8 @@ android {
         applicationId = "com.digihori.pgp.player"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3.0-alpha.1"
+        versionCode = 4
+        versionName = "0.4.0-alpha.1"
     }
 
     compileOptions {

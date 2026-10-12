@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
 
-> **開発版（Technical Preview 0.3以降の変更を含む）** — PC-1245 Android Playerは2026-10-12に今回の対応・動作確認を完了しました。次の公開版は未確定です。
+> **Technical Preview 0.4（公開準備中）** — PC-1245 Android Player、Studio WAV Tool、Assembler等を更新した早期評価版です。
 
 Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向けプログラムを
 現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す
@@ -22,7 +22,7 @@ PGPは次の2製品と共有Emulator Coreで構成します。
 ## 現在の状態
 
 プロジェクトは初期実装段階です。Pokecom GO StudioではPC-1245、PC-1250／1251／1255ファミリー、
-PC-1350を実装し、PC-1360は実ROM起動、16KiB×8 ROMバンク、LCD、キー入力、S2 BASICに対応しています。
+PC-1261／1350／1401を実装し、PC-1360は実ROM起動、16KiB×8 ROMバンク、LCD、キー入力、S2 BASICに対応しています。
 macOSでは実ROMの起動、物理／画面キーボード入力、BASICと
 マシン語の入出力、LCD表示、サウンド出力まで動作確認済みです。WindowsではROM起動、キー入力、BASICと
 サウンド、Linux x86_64ではROM起動、基本操作、サウンド、tar.gz／DEB配布物を手動確認しています。
@@ -174,7 +174,7 @@ Android SDK 36とJDK 21を設定した環境でdebug APKを生成する。
 
 現在の選択対象は1245のみ。Project、Assembler、Debugger、WAV、音声出力、セーブステートは搭載しない。
 操作と制限は[Android Playerガイド](docs/PLAYER_PROGRAM_IO.md)を参照。
-今回の動作はユーザー確認済みだが、次の公開versionと配布物検証は別途決定する。
+今回の動作はユーザー確認済み。Technical Preview 0.4の公開状況は[公開チェックリスト](docs/RELEASE_CHECKLIST_0.4.0-alpha.1.md)を参照。
 
 ### BASICテキストの読み込み
 
@@ -230,7 +230,7 @@ OSのセキュリティ警告が表示される可能性がある。ROMイメー
 Releaseには各ファイルのSHA-256チェックサムを掲載する。
 
 `.github/workflows/release.yml`をGitHub Actionsから手動実行すると、Studioを3環境、PlayerをAndroid環境で
-テストして配布物を生成し、14日間保持されるworkflow artifactとして取得できる。`v0.3.0-alpha.1` tagをpushした場合は、
+テストして配布物を生成し、14日間保持されるworkflow artifactとして取得できる。`v0.4.0-alpha.1` tagをpushした場合は、
 同じ成果物を使ってprereleaseのGitHub Releaseを自動作成する。公開候補の検証が完了するまではtagを作成しない。
 
 GitHubへpushした場合とPull Requestを更新した場合は、GitHub ActionsがmacOS、Windows、
@@ -338,6 +338,7 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 - [S1／S2 WAV仕様と作者確認](docs/WAV_S1_S2_FORMAT.md)
 - [ロードマップ](docs/ROADMAP.md)
 - [Technical Preview公開チェックリスト](docs/PUBLIC_RELEASE_CHECKLIST.md)
+- [Technical Preview 0.4 Release Notes](docs/RELEASE_NOTES_0.4.0-alpha.1.md)
 - [Technical Preview 0.3 Release Notes](docs/RELEASE_NOTES_0.3.0-alpha.1.md)
 - [Technical Preview 0.2 Release Notes](docs/RELEASE_NOTES_0.2.0-alpha.1.md)
 - [Technical Preview 0.1 Release Notes](docs/RELEASE_NOTES_0.1.0-alpha.1.md)

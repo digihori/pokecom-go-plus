@@ -28,6 +28,12 @@ Studioのレイアウトと操作性、5×7 Character Editor、OLD WAV試作、�
 Pokecom GO Playerの最小プロトタイプを初めて同梱する早期評価版。公開条件と結果は
 [0.3 release checklist](RELEASE_CHECKLIST_0.3.0-alpha.1.md)で管理する。
 
+## Technical Preview 0.4
+
+PC-1245 Android Playerの今回の区切り、PC-1261／1401のStudio/Core対応、ゲームパッド、
+SC61860 Assembler強化、Studio統合WAV Toolと波形解析を含む。
+公開条件と結果は[0.4 release checklist](RELEASE_CHECKLIST_0.4.0-alpha.1.md)で管理する。
+
 ## Phase 0: プロジェクト基盤
 
 - [x] 構想書とアーキテクチャ文書を作成する
