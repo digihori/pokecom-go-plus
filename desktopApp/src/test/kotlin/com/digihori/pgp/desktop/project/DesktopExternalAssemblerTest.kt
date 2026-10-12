@@ -27,12 +27,24 @@ class DesktopExternalAssemblerTest {
         val directory = Files.createTempDirectory("pgp assembler 日本語").toFile()
         try {
             val source = File(directory, "test.asm").apply { writeText("ORG $4000") }
-            val result = assertIs<DesktopExternalAssemblerRunResult.Exited>(DesktopExternalAssemblerRunner.run(settings("exit"), source), "Fixture process did not exit")
+            val configured = if (System.getProperty("os.name").startsWith("Windows", true)) {
+                // The Windows Java launcher can convert Unicode argv using the system ANSI code page.
+                // PowerShell receives native Unicode arguments, matching ProcessBuilder's Windows contract.
+                val script = File(directory, "fixture.ps1").apply { writeText("""
+                    [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding
+                    [Console]::Out.WriteLine("stdout " + ${'$'}args[0])
+                    [Console]::Error.WriteLine("stderr")
+                    [IO.File]::WriteAllText([IO.Path]::Combine([Environment]::CurrentDirectory, "cwd marker.txt"), "ok")
+                    exit 2
+                """.trimIndent()) }
+                DesktopAssemblerSettings(true, "powershell.exe", "-NoProfile -NonInteractive -File \"${script.absolutePath}\" {source}", 15)
+            } else settings("exit")
+            val result = assertIs<DesktopExternalAssemblerRunResult.Exited>(DesktopExternalAssemblerRunner.run(configured, source), "Fixture process did not exit")
             assertEquals(2, result.code, "Fixture exit code; log=${result.log}")
             assertTrue(result.log.contains("stdout"), "Missing stdout; log=${result.log}")
             assertTrue(result.log.contains("stderr"), "Missing stderr; log=${result.log}")
             assertTrue(result.log.contains(source.absolutePath), "Source argument was changed; expected=${source.absolutePath}; log=${result.log}")
-            assertTrue(result.log.contains(directory.canonicalPath), "Working directory was changed; expected=${directory.canonicalPath}; log=${result.log}")
+            assertEquals("ok", File(directory, "cwd marker.txt").readText(), "Working directory was changed")
         } finally { directory.deleteRecursively() }
     }
 
@@ -80,6 +92,7 @@ object AssemblerProcessFixture {
         System.out.flush()
         System.err.write("stderr\n".toByteArray(Charsets.UTF_8))
         System.err.flush()
+        if (args[0] == "exit") File("cwd marker.txt").writeText("ok")
         if (args[0] == "sleep") {
             File(args[1] + ".started").writeText(ProcessHandle.current().pid().toString())
             Thread.sleep(20_000)
