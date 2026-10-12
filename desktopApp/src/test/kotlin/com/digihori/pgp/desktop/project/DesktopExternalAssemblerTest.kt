@@ -27,12 +27,12 @@ class DesktopExternalAssemblerTest {
         val directory = Files.createTempDirectory("pgp assembler 日本語").toFile()
         try {
             val source = File(directory, "test.asm").apply { writeText("ORG $4000") }
-            val result = assertIs<DesktopExternalAssemblerRunResult.Exited>(DesktopExternalAssemblerRunner.run(settings("exit"), source))
-            assertEquals(2, result.code)
-            assertTrue(result.log.contains("stdout"))
-            assertTrue(result.log.contains("stderr"))
-            assertTrue(result.log.contains(source.absolutePath))
-            assertTrue(result.log.contains(directory.canonicalPath))
+            val result = assertIs<DesktopExternalAssemblerRunResult.Exited>(DesktopExternalAssemblerRunner.run(settings("exit"), source), "Fixture process did not exit")
+            assertEquals(2, result.code, "Fixture exit code; log=${result.log}")
+            assertTrue(result.log.contains("stdout"), "Missing stdout; log=${result.log}")
+            assertTrue(result.log.contains("stderr"), "Missing stderr; log=${result.log}")
+            assertTrue(result.log.contains(source.absolutePath), "Source argument was changed; expected=${source.absolutePath}; log=${result.log}")
+            assertTrue(result.log.contains(directory.canonicalPath), "Working directory was changed; expected=${directory.canonicalPath}; log=${result.log}")
         } finally { directory.deleteRecursively() }
     }
 

@@ -36,6 +36,10 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
+tasks.withType<Test>().configureEach {
+    testLogging.exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+}
+
 val prepareDistributionResources by tasks.registering(Sync::class) {
     from(rootProject.layout.projectDirectory.file("LICENSE"))
     from(rootProject.layout.projectDirectory.file("THIRD_PARTY_NOTICES.md"))
