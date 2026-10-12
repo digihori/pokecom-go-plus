@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
 
-> **Technical Preview 0.3（公開準備中）** — 早期評価版です。仕様と実装は今後も変更される可能性があります。
+> **開発版（Technical Preview 0.3以降の変更を含む）** — PC-1245 Android Playerは2026-10-12に今回の対応・動作確認を完了しました。次の公開版は未確定です。
 
 Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向けプログラムを
 現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す
@@ -26,7 +26,7 @@ PC-1350を実装し、PC-1360は実ROM起動、16KiB×8 ROMバンク、LCD、キ
 macOSでは実ROMの起動、物理／画面キーボード入力、BASICと
 マシン語の入出力、LCD表示、サウンド出力まで動作確認済みです。WindowsではROM起動、キー入力、BASICと
 サウンド、Linux x86_64ではROM起動、基本操作、サウンド、tar.gz／DEB配布物を手動確認しています。
-Pokecom GO PlayerはAndroid向け最小プロトタイプを実装し、Technical Preview 0.3で初めて配布する予定です。
+Pokecom GO PlayerのPC-1245 Android版は、LCD／スキン入力、bas／dmp入出力、ROM管理、横向き・ノッチ対応、ゲームパッド割当に対応し、2026-10-12にユーザー動作確認済みです。iOSとAndroidの1401／1350は後続です。
 
 現在利用できる主な機能は次のとおりです。
 
@@ -73,7 +73,7 @@ Assembly WorkspaceのAssembleは結果確認、Buildはファイル生成、Buil
 - Windows
 - Linux
 
-実行機能へ特化したPokecom GO PlayerはAndroid最小プロトタイプの開発を開始しています。
+実行機能へ特化したPokecom GO PlayerはPC-1245 Android版の今回の開発範囲を完了しています。
 iOSは後続対象です。Playerにはデバッガ、アセンブラ、逆アセンブラなどの開発機能を搭載しません。
 
 ## リポジトリ構成
@@ -85,7 +85,7 @@ pokecom-go-plus/
 ├── controllerUi/  Studio／Android共通のコントローラー設定画面
 ├── playerShared/  Android／iOS Playerで共有する実行・表示モデル
 ├── desktopApp/    Pokecom GO Studio（現在のCompose Desktop実装）
-├── androidApp/    Pokecom GO Player（Android最小プロトタイプ）
+├── androidApp/    Pokecom GO Player（PC-1245 Android）
 ├── docs/          構想・設計・移植記録・ロードマップ
 ├── local-data/    ローカルROM等（Git管理外）
 └── test-data/     再配布可能なテストデータ
@@ -104,7 +104,7 @@ ROMイメージをコミットしない。
 - Kotlin 2.4.20
 - Compose Multiplatform 1.12.1
 
-通常のビルドと実行にはJDK 21、またはAndroid Studio付属JBRを使用できる。
+通常のビルドと実行にはJDK 21を使用する。Android Studio付属JBRはJava 21の場合のみ使用でき、Java 25は使用しない。
 DMG／MSI／DEBを生成する場合は、`jpackage`を含む完全なJDK 21が必要であり、
 現在のAndroid Studio付属JBRだけではパッケージを生成できない。
 
@@ -124,7 +124,7 @@ ROMは起動後に`File` → `Register ROM…`または`Manage ROMs…`から登
 ### macOSでの起動
 
 Finderで`run-pgp.command`をダブルクリックするか、ターミナルで次を実行する。
-Android Studio付属のJDK 21とローカルGradleキャッシュはスクリプトが自動設定する。
+インストール済みJDK 21とローカルGradleキャッシュはスクリプトが自動設定する。JDK 21が見つからない場合は起動を中止する。
 前回使用した機種のROMがLibraryにある場合は、アプリ内コピーから自動的に復元する。履歴がない場合は、既定位置の
 `local-data/roms/pc-1245/pc1245mem.bin`、続いて
 `local-data/roms/pc-1251/pc1251mem.bin`を探索し、最初に見つかったROMをロードして実行する。
@@ -153,25 +153,28 @@ Linuxでは次を実行する。
 Windows／LinuxともCIによるビルドと自動テストは実施しているが、画面操作、音声、ファイル選択を含む
 手動スモークテストは公開前の確認項目である。
 
-### Android Playerプロトタイプ
+### PC-1245 Android Player
 
-Android SDK 36を設定した環境で、debug APKを生成する。
+Android SDK 36とJDK 21を設定した環境でdebug APKを生成する。
 
 ```bash
 ./gradlew :androidApp:assembleDebug
 ```
 
-生成物は`androidApp/build/outputs/apk/debug/androidApp-debug.apk`へ出力される。現在はAndroidアプリの
-起動、SAFによる`.pgrom`／PC-1245 legacy ROMの取込み、検証、アプリ専用領域への保存と再起動時の
-再検証、単一エミュレータセッションの生成、可変サイズLCD描画、PC-1245ソフトウェアキーボードまで
-実装している。Androidの画面フレームに同期したRun／Pause／Reset、自作PC-1245スキンへのLCD重ね表示、
-およびスキン画像上の全52キーからの直接入力も利用できる。
-`Enlarge display`でLCD周辺だけを切り出したController Displayへ切り替え、`Show full device`で
-通常の実機スキン表示へ戻せる。
-動作モードは機種定義に従って表示し、PC-1245ではRUN／PROを切り替えられる。RSV対応機種を追加した場合は
-同じPlayer UIへRSVも表示される。
-実行画面はスクロールせず、端末の利用可能領域へスキンを縦横比維持で固定表示する。Run／Pause／Reset、
-表示部拡大、動作モードは右上のオーバーフローメニューから操作する。
+生成先は`androidApp/build/outputs/apk/debug/androidApp-debug.apk`。
+`.pgrom`／PC-1245 legacy ROMを取り込み、機種別のアプリ専用領域へ保存する。
+取込み・復元・Reset後はCPUを自動実行する。ROMは同梱しない。
+
+- スキン上の52キー、16桁LCDとSHIFT／DEF等、RUN／PRO、常時実行状態表示
+- 両方向の横向き、ノッチ・ナビゲーション領域回避、手動Controller Display
+- 画面内の階層メニュー、ROM取込み・置換・削除、ゲームパッド割当
+- `.bas`／`.dmp`の拡張子自動判定ロード、BASIC全体／指定RAM範囲の保存・共有
+- dmpロード成功後はCPUを自動再開。BASICロード、失敗・キャンセル後はPAUSED
+- バージョン情報、プライバシーポリシー／Studio案内の仮表示
+
+現在の選択対象は1245のみ。Project、Assembler、Debugger、WAV、音声出力、セーブステートは搭載しない。
+操作と制限は[Android Playerガイド](docs/PLAYER_PROGRAM_IO.md)を参照。
+今回の動作はユーザー確認済みだが、次の公開versionと配布物検証は別途決定する。
 
 ### BASICテキストの読み込み
 
@@ -304,7 +307,7 @@ Desktopアプリを起動する場合：
   Windowsでは、サウンドを使用したプログラムの終了後もクリックノイズが鳴り続けることがある。
   オーディオラインの終了判定と無音バッファ処理は今後の改善項目である。
 - PC-1245／1250の`0xb000..0xbfff`周辺のミラー仕様は再確認が必要である。
-- Pokecom GO PlayerはAndroid最小プロトタイプを実装中であり、iOS版と実行画面は未実装である。
+- PlayerはPC-1245 Androidに対応する。iOS、1401／1350のAndroidスキン、音声出力、セーブステートは後続。プライバシーポリシーとStudio案内は仮表示である。
 
 公開版に向けた確認状況は[Technical Preview公開チェックリスト](docs/PUBLIC_RELEASE_CHECKLIST.md)を参照する。
 

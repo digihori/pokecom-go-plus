@@ -20,4 +20,5 @@
     <string name="show_full_device">Show full device</string>
     <string name="player_menu_symbol">⋮</string>
     <string name="operating_mode_menu_item">%1$s %2$s mode</string>
+    <string name="player_menu_description">Player controls</string>
 </resources>

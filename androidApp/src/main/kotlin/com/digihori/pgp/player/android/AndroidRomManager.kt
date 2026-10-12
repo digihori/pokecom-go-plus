@@ -1,0 +1,136 @@
+package com.digihori.pgp.player.android
+
+import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.*
+import com.digihori.pgp.player.*
+import com.digihori.pgp.player.android.rom.*
+import com.digihori.pgp.core.api.MachineCatalog
+import com.digihori.pgp.core.rom.MachineId
+import java.util.concurrent.Executor
+
+internal sealed interface RomManagerState {
+    data class ListRoms(val entries: List<PlayerRomEntry>) : RomManagerState
+    data class Busy(val text: String) : RomManagerState
+    data class Confirm(val text: String, val action: () -> Unit) : RomManagerState
+    data class Message(val text: String) : RomManagerState
+}
+
+internal class AndroidRomManager(
+    private val activity: ComponentActivity,
+    private val executor: Executor,
+    private val session: () -> PlayerSession?,
+    private val pause: () -> Unit,
+    private val publishSession: (PlayerSession) -> Unit,
+    private val publishState: (PlayerScreenState) -> Unit,
+    private val onModalChange: () -> Unit,
+) {
+    var state: RomManagerState? by mutableStateOf(null)
+        private set
+    private val library = AndroidRomLibrary(activity.filesDir)
+    private var generation = 0
+    private var expectedMachine: MachineId? = null
+    private val picker = activity.registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) { dismiss(); return@registerForActivityResult }
+        val expected = expectedMachine
+        work("ROMを検証しています…", { AndroidRomImporter(activity.contentResolver).prepare(uri) }) { outcome ->
+            when (outcome) {
+                is RomImportOutcome.Failure -> show(RomManagerState.Message("ROMを取り込めませんでした（${outcome.kind}）。現在のROMは保持しています。"))
+                is RomImportOutcome.Success -> {
+                    val prepared = outcome.prepared
+                    val id = prepared.romSet.machineId
+                    if (PlayerMachineCatalog.definitions.none { it.id == id } || (expected != null && expected != id)) {
+                        show(RomManagerState.Message("選択したROMの機種は現在のPlayer対象と一致しません。"))
+                        return@work
+                    }
+                    work("登録状況を確認しています…", { library.load(id) != null }) { replacing ->
+                        val commit = { install(prepared) }
+                        if (replacing || session() != null) {
+                            show(RomManagerState.Confirm(
+                                "${MachineCatalog.require(id).displayName}のROMを${if (replacing) "置換" else "登録"}します。現在のRAMとロード済みプログラムは失われます。", commit,
+                            ))
+                        } else commit()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun show(value: RomManagerState?) { state = value; onModalChange() }
+    fun dismiss() { show(null) }
+    fun open() {
+        pause()
+        work("ROM一覧を読み込んでいます…", { library.entries(PlayerMachineCatalog.definitions.map { it.id }) }) {
+            show(RomManagerState.ListRoms(it))
+        }
+    }
+    fun importRom(machineId: MachineId? = null) {
+        pause()
+        generation++
+        expectedMachine = machineId
+        show(RomManagerState.Busy("ROMファイルを選択してください"))
+        runCatching { picker.launch(arrayOf("*/*")) }.onFailure { show(RomManagerState.Message("ファイル選択を開けませんでした。")) }
+    }
+
+    private fun install(prepared: PreparedAndroidRom) {
+        work("ROMを保存しています…", { library.install(prepared.bytes, prepared.romSet, prepared.sourceName) }) {
+            publishSession(prepared.session)
+            dismiss()
+        }
+    }
+
+    fun use(machineId: MachineId) {
+        show(RomManagerState.Confirm("${MachineCatalog.require(machineId).displayName}の新しいSessionを開始します。現在のRAMとプログラムは失われます。") {
+            work("ROMを読み込んでいます…", {
+                val created = createStoredSession(machineId)
+                library.select(machineId)
+                created
+            }) { publishSession(it); dismiss() }
+        })
+    }
+
+    fun delete(machineId: MachineId) {
+        val active = session()?.machineId == machineId
+        show(RomManagerState.Confirm("${MachineCatalog.require(machineId).displayName}の保存済みROMを削除します。${if (active) "現在のSessionとRAMも破棄します。" else ""}") {
+            work("ROMを削除しています…", { library.delete(machineId) }) {
+                if (active) publishState(PlayerScreenState.RomMissing)
+                open()
+            }
+        })
+    }
+
+    fun restore() {
+        work("ROMを復元しています…", {
+            library.activeMachineId()?.let { id ->
+                require(PlayerMachineCatalog.definitions.any { it.id == id }) { "この機種は現在のPlayerでは選択できません" }
+                createStoredSession(id)
+            }
+        }, initial = true) { restored ->
+            if (restored == null) publishState(PlayerScreenState.RomMissing) else publishSession(restored)
+            dismiss()
+        }
+    }
+
+    private fun createStoredSession(id: MachineId): PlayerSession {
+        val bytes = library.load(id) ?: error("保存済みROMが見つかりません")
+        val parsed = AndroidRomPackage.read(bytes) as? RomPackageReadResult.Success ?: error("保存済みROMの検証に失敗しました")
+        require(parsed.romSet.machineId == id) { "保存済みROMの機種が一致しません" }
+        return (PlayerSessionFactory.create(parsed.romSet) as? PlayerSessionCreationResult.Success)?.session
+            ?: error("Sessionを生成できませんでした")
+    }
+
+    private fun <T> work(text: String, operation: () -> T, initial: Boolean = false, complete: (T) -> Unit) {
+        val ticket = ++generation
+        if (!initial) show(RomManagerState.Busy(text))
+        executor.execute {
+            val result = runCatching(operation)
+            activity.runOnUiThread {
+                if (activity.isDestroyed || ticket != generation) return@runOnUiThread
+                result.fold(onSuccess = complete, onFailure = {
+                    if (initial) publishState(PlayerScreenState.Failure(PlayerFailureKind.ROM_VALIDATION))
+                    show(RomManagerState.Message(it.message ?: "ROM操作に失敗しました。"))
+                })
+            }
+        }
+    }
+}

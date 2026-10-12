@@ -21,6 +21,14 @@ public class PlayerSession internal constructor(
     private val coreSession: EmulatorSession,
 ) {
     public val runner: PlayerRunner = PlayerRunner(coreSession)
+    private val programIo = PlayerProgramIo(coreSession, runner)
+
+    public fun checkProgram(input: PlayerProgramInput): PlayerProgramCheckResult = programIo.check(input)
+    public fun loadProgram(input: PlayerProgramInput): PlayerProgramApplyResult = programIo.apply(input)
+    public fun exportBasic(): PlayerProgramExportResult = programIo.exportBasic()
+    public fun exportMemoryDump(startAddress: Int, endAddress: Int): PlayerProgramExportResult =
+        programIo.exportDump(startAddress, endAddress)
+
     public val machineId: MachineId get() = coreSession.machineId
     public val supportedOperatingModes: Set<OperatingMode> =
         MachineCatalog.require(machineId).supportedOperatingModes

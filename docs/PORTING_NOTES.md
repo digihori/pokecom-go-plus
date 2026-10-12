@@ -1820,3 +1820,147 @@ JDK 21の全体build / Core回帰成功。ツリー内ファイル名変更は�
 - Verification: JDK 21 full build/Core tests and createDistributable passed (579 tasks).
   Packaged Studio UI check with PC-1401: select Unlimited, quit/relaunch with the saved
   selection, then Pause and open Settings successfully. Restored Level 3 afterward.
+
+## PC-1245 Android Player display and lifecycle (2026-10-12)
+
+- Original Player UI work; no external reference code copied. Core DisplaySnapshot symbols and
+  PlayerSession operatingMode remain the sources of LCD status and hardware mode.
+- Shared SkinDefinition holds LCD panel, symbol rectangles and mode rectangle. User screenshots
+  and supplied manual image guided placement: dot rectangle (70,104,760,70), upper symbols y=64,
+  SHIFT right-aligned, adjacent DE/G/RAD centered. Android uses the same skin transform in
+  Controller Display, with 80% dot fill / 20% cell gap and unchanged character spacing.
+- CPU RUNNING/PAUSED/FAULTED appears separately; the menu is a light-grey 48dp circular control.
+- ROM import/restoration automatically starts CPU execution once the Activity is resumed.
+  onPause stops frame callbacks and releases keys; ordinary resume stays PAUSED. Reset uses
+  RUN hardware mode and PAUSED CPU state. Core/session factory create no scheduling resources.
+- sensorLandscape requests both landscape directions. Size/orientation changes retain the
+  Activity-owned session/RAM, release keys, refresh system bars, and let Compose recalculate.
+  Process death restores ROM only, without RAM/save-state restoration.
+- Sources: https://developer.android.com/guide/topics/manifest/activity-element and
+  https://developer.android.com/develop/adaptive-apps/guides/app-orientation-aspect-ratio-resizability
+  Android 16 targetSdk 36 can ignore orientation restrictions on >=600dp screens. No temporary
+  large-screen opt-out added. Device validation of rotation/lifecycle/reset remains pending.
+- JDK 21 build and core desktop tests passed (some tasks up-to-date); lint emitted Kotlin
+  metadata version mismatch messages while the build succeeded. No ROM test data committed.
+
+- Device screenshots exposed cutout overlap in Controller Display and insufficient protection
+  in full-device view. Android Player's root viewport now excludes the union of displayCutout
+  and navigationBars insets. This also protects persistent controls and follows the cutout side
+  on reverse landscape; overlapping insets use the maximum rather than summed padding.
+  Skin image, LCD and touch regions still share one viewport transform.
+
+## Player shared program I/O (2026-10-12)
+
+- Extracted Studio's existing machine-selected tokenizer/detokenizer dispatch into Core
+  BasicProgramCodec. This is internal PGP reuse, not a new external port. Studio keeps its
+  desktop-specific description metadata/ROM-keyboard loading paths and adapts shared errors.
+  Common UTF-8 decoding rejects invalid sequences; leading Studio # description lines are
+  accepted without shifting diagnostic line numbers. Existing machine codec output is retained.
+- PlayerProgramParser supports only explicit BASIC (.bas) and MEMORY_DUMP (.dmp). Reuses
+  Core PgpMemoryDumpParser/Writer and ProgramImageLoader; no bin/hex/WAV/Project/ROM hook.
+- PlayerSession exposes non-mutating check, revalidated apply, whole-BASIC export and one
+  inclusive-address RAM-range dump export. Calls require PAUSED, never reset or auto-run,
+  and leave operating mode unchanged. Host owns key release, user confirmation and serialization.
+- Dump loads validate all segments and aliases, restrict writes to RAM, and protect active
+  BASIC including its end marker and pointer words via physical-address comparisons. Invalid
+  BASIC pointers/content block dump application until the machine has a valid program area.
+  BASIC loads use existing all-input planning and pointer/old-text handling before mutation.
+- Parsed inputs own BASIC bytes and target machine; applying checks the actual session again.
+  Wrong-machine/running/faulted calls fail; export rejects ROM/LCD/control and alias overlap.
+  Hosts receive copies of output bytes; no platform file/UI/time/thread API was added to Core.
+- Synthetic tests cover BOM/line endings/Studio headers, BASIC and disjoint dump round trips,
+  malformed input, protected addresses/aliases, capacity failure with zero mutation, stale
+  confirmation revalidation, running/wrong-machine rejection, range checks, and special-symbol
+  byte round trips for PC-1245/1401/1350. No ROM-derived fixtures are used.
+- Android picker, confirmation dialogs, file writing and sharing are step 4 and remain unconnected.
+
+- Future-target check found PC-1350's existing tokenizer has no named-special-symbol mapping;
+  ordinary BASIC round trips are covered for 1350, special escapes for 1245/1401. This existing
+  1350 limitation is left for that machine's support phase rather than silently remapping bytes.
+
+## Android Player program document operations (2026-10-12)
+
+- Step 4 connects shared bas/dmp I/O to Android overflow menu, format selection, explicit
+  memory overwrite confirmation, whole-BASIC/range-dump export, SAF creation and share sheet.
+  File extension is checked against selected format; streaming reads are capped at 2 MiB.
+  Metadata uses OpenableColumns.DISPLAY_NAME. Filesystem/picker APIs remain Android-only.
+- All emulator calls stay on Activity main thread. An IO executor reads/parses files and writes
+  exported byte snapshots. Session identity is checked on completion and before confirmed load.
+  Entering operations pauses/releases keys; modal operations suppress gamepad input.
+  Cancellation/error/finished operations do not resume CPU or issue BASIC RUN.
+- CreateDocument creates a new file (existing-file replacement is not implemented). Binary MIME
+  is used for document creation to preserve custom bas/dmp suffixes. Share uses text/plain with
+  EXTRA_STREAM, ClipData, read-only grants and FileProvider restricted to program-share cache.
+  Unique share directories preserve earlier URI content. Background sharing is not launched.
+- Sources: https://developer.android.com/training/data-storage/shared/documents-files and
+  https://developer.android.com/reference/androidx/core/content/FileProvider
+- Boundary tests cover bounded streaming, unsupported/mismatched extensions and address input.
+  JDK 21 full build and Core desktop tests pass; real picker/share/dialog verification pending.
+  User steps and device checks: docs/PLAYER_PROGRAM_IO.md. No ROM or ROM-derived fixture added.
+
+## Player review fixes (2026-10-12)
+
+- Supersedes the initial step-3/4 overwrite-confirmation and BASIC-protection policies above,
+  per user review. Load now opens picker directly, detects bas/dmp from display-name extension,
+  validates and applies without confirmation. Unsupported extensions remain rejected.
+- Dump writes can replace BASIC text/end marker/pointer RAM including C000; no BASIC snapshot
+  is required. All-segment placement validation, ROM/LCD/control restrictions and mirror checks
+  remain. Tests cover C000 overwrite and further dump load after invalidating BASIC pointers.
+- Reset now schedules CPU execution after restoring RUN hardware mode, using the resumed-host
+  guard. It does not inject a BASIC RUN command. Normal resume after background stays paused.
+- LCD status and mode labels use TextMeasurer with fixed measurement density/fontScale, then
+  Canvas scales the measured layout uniformly to fit each skin rectangle. This includes actual
+  line metrics and avoids a fixed dp text box clipping system-scaled sp text. SHIFT remains
+  right-aligned and DE/G/RAD positions stay centered. Menu/dialog text retains system scaling.
+- Overflow UI is an in-Activity hierarchy with scrim, bounded scrolling, outside dismissal and
+  back navigation, replacing DropdownMenu's separate popup window. Input is released on open
+  and gamepad routing is suppressed while the panel is visible. Real-device system-bar and
+  font-setting validation remains pending; no ROM/test-data fixtures were added.
+
+## Android Player ROM management and information (2026-10-12)
+
+- New PlayerMachineCatalog exposes only Core machines with registered Player skins (currently
+  PC-1245); PlayerRomEntry is a portable listing model. ROM bytes/metadata/archive/filesystem
+  remain host-owned. Future 1401/1350 skins can reuse these selection/storage paths.
+- Android importer now prepares validated canonical ROM and a fresh session without storing it.
+  ROM manager separates import/replace/select/delete, confirms RAM loss, keeps existing session
+  paused until success, and checks generation/session machine identity. Startup results cannot
+  override a newer ROM operation. Selecting a stored ROM validates and creates before activation.
+- App-private library prepares package/metadata/active-id writes before mutation, restores changed
+  files on ordinary I/O failure, uses synced writes/atomic moves where supported, validates IDs
+  against MachineCatalog, lists per-machine status, and clears active selection on active deletion.
+  This is not a power-loss journal; failed rollback is surfaced as failure. No global session state.
+- Successful new session uses RUN and automatic CPU start, retaining presentation mode. Deleting
+  current ROM drops session to RomMissing; no implicit alternate-machine selection. ROM manager
+  and information screens render in the Activity with safe insets and suppress gamepad input.
+- Installed versionName/versionCode come from PackageManager. Privacy and Studio pages contain
+  user-approved placeholder text only. All entries are accessible from the screen hierarchy.
+- User-requested follow-up: successful dmp load schedules automatic CPU resume. BASIC load,
+  failed/cancelled load and ordinary background return stay paused. Automatic start is consumed
+  when the first frame runs; onPause preserves only an as-yet-unconsumed automatic start request.
+- Synthetic library tests cover multi-machine independence, replacement rollback, delete/select
+  behavior and invalid/path-traversal IDs. UI smoke on emulator-5554 confirmed saved-ROM startup
+  RUNNING, hierarchy without status-bar reveal, ROM list, delete confirmation/cancellation, and
+  installed version information. Destructive ROM changes and physical-device picker/share,
+  rotation/font-scale and dmp auto-resume remain explicit device checks in PLAYER_PROGRAM_IO.md.
+- No external emulator source was copied; no ROM/ROM-derived fixture committed.
+
+## PC-1245 Android milestone acceptance (2026-10-12)
+
+- User confirmed operation and explicitly accepted this as the end of the current PC-1245
+  Android scope, requesting documentation review and commit/push. This supersedes the pending
+  device-validation status in the preceding chronological implementation records. It does not
+  claim exhaustive coverage of all Android devices/providers or release-distribution validation.
+- Final behavior: bas/dmp extension detection without load confirmation; dmp may overwrite
+  BASIC RAM including C000 and auto-resumes CPU on success; BASIC loads and failed/cancelled
+  operations stay paused. ROM import/restore/replace/select and Reset automatically run CPU.
+  RUN/PRO machine mode remains separate from RUNNING/PAUSED/FAULTED execution state.
+- Landscape in both directions, cutout/navigation-bar insets, fitted LCD labels, 80/20 dot fill,
+  in-Activity hierarchy, ROM library and information placeholders are included. ROM operations
+  retain the current session until validated replacement succeeds; display selection is retained.
+- JDK 21 full build/Core checks pass. Current suites: Core 408; Studio 195 (1 skipped);
+  shared Player 20; Android 9; no failures. Some checks are up-to-date. Existing Android lint
+  Kotlin-metadata version diagnostics remain while the Gradle build succeeds.
+- Subsequent development: PC-1245 iOS, then PC-1401/1350 Android. WAV, Project/debugger, audio,
+  save-state, external keyboard and controller-triggered automatic display changes are separate.
+  This commit is not a release tag or publication; privacy/Studio text remains placeholder.

@@ -1,5 +1,6 @@
 package com.digihori.pgp.player.skin
 
+import com.digihori.pgp.core.api.DisplaySymbol
 import com.digihori.pgp.core.api.PocketKey
 import com.digihori.pgp.core.rom.MachineId
 
@@ -48,6 +49,11 @@ public data class SkinKeyRegion(
     public val bounds: SkinRect,
 )
 
+public data class SkinStatusRegion(
+    public val symbol: DisplaySymbol,
+    public val bounds: SkinRect,
+)
+
 /** Geometry only. Image loading and rendering remain platform responsibilities. */
 public data class SkinDefinition(
     public val id: String,
@@ -59,6 +65,9 @@ public data class SkinDefinition(
     public val controllerDisplayRegion: SkinRect,
     public val lcdContentRegion: SkinRect,
     public val keyRegions: List<SkinKeyRegion> = emptyList(),
+    public val lcdPanelRegion: SkinRect = lcdContentRegion,
+    public val statusRegions: List<SkinStatusRegion> = emptyList(),
+    public val operatingModeRegion: SkinRect? = null,
 ) {
     init {
         require(id.isNotBlank()) { "Skin ID must not be blank" }
@@ -69,7 +78,8 @@ public data class SkinDefinition(
             landscapeRegion,
             controllerDisplayRegion,
             lcdContentRegion,
-        ).forEach { region ->
+            lcdPanelRegion,
+        ).plus(statusRegions.map { it.bounds }).plus(listOfNotNull(operatingModeRegion)).forEach { region ->
             require(region.x >= 0f && region.y >= 0f) { "Skin regions must start inside the design canvas" }
             require(region.right <= designSize.width && region.bottom <= designSize.height) {
                 "Skin regions must fit inside the design canvas"

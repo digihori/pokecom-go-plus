@@ -2,6 +2,7 @@ package com.digihori.pgp.player.android.rom
 
 import android.content.ContentResolver
 import android.net.Uri
+import android.provider.OpenableColumns
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245FlatRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult
@@ -14,9 +15,8 @@ import java.io.ByteArrayOutputStream
 
 internal class AndroidRomImporter(
     private val contentResolver: ContentResolver,
-    private val library: AndroidRomLibrary,
 ) {
-    fun import(uri: Uri): RomImportOutcome {
+    fun prepare(uri: Uri): RomImportOutcome {
         val bytes = try {
             contentResolver.openInputStream(uri)?.use { input ->
                 val output = ByteArrayOutputStream()
@@ -43,12 +43,7 @@ internal class AndroidRomImporter(
             return RomImportOutcome.Failure(PlayerFailureKind.SESSION_CREATION)
         }
         val canonicalPackage = AndroidRomPackage.write(romSet)
-        return try {
-            library.install(canonicalPackage, romSet, displayName(uri))
-            RomImportOutcome.Success(created.session)
-        } catch (_: Exception) {
-            RomImportOutcome.Failure(PlayerFailureKind.STORAGE)
-        }
+        return RomImportOutcome.Success(PreparedAndroidRom(canonicalPackage, romSet, created.session, displayName(uri)))
     }
 
     private fun parse(bytes: ByteArray): RomSet? {
@@ -61,10 +56,16 @@ internal class AndroidRomImporter(
         return (AndroidRomPackage.read(bytes) as? RomPackageReadResult.Success)?.romSet
     }
 
-    private fun displayName(uri: Uri): String? = uri.lastPathSegment
+    private fun displayName(uri: Uri): String? = runCatching {
+        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
+            if (it.moveToFirst()) it.getString(0) else null
+        }
+    }.getOrNull() ?: uri.lastPathSegment
 }
 
 internal sealed interface RomImportOutcome {
-    data class Success(val session: PlayerSession) : RomImportOutcome
+    data class Success(val prepared: PreparedAndroidRom) : RomImportOutcome
     data class Failure(val kind: PlayerFailureKind) : RomImportOutcome
 }
+
+internal data class PreparedAndroidRom(val bytes: ByteArray, val romSet: RomSet, val session: PlayerSession, val sourceName: String?)

@@ -14,8 +14,8 @@ class PlayerSkinCatalogTest {
         val skin = assertNotNull(PlayerSkinCatalog.forMachine(Pc1245RomDefinition.MACHINE_ID))
 
         assertEquals(SkinSize(1206f, 616f), skin.designSize)
-        assertEquals(730f, skin.lcdContentRegion.width)
-        assertEquals(54f, skin.lcdContentRegion.height)
+        assertEquals(760f, skin.lcdContentRegion.width)
+        assertEquals(70f, skin.lcdContentRegion.height)
         assertEquals(52, skin.keyRegions.size)
         assertEquals(
             PlayerKeyboardCatalog.forMachine(Pc1245RomDefinition.MACHINE_ID)
@@ -33,6 +33,6 @@ class PlayerSkinCatalogTest {
         )
         assertEquals(0.5f, placement.scale)
         assertEquals(35f, placement.screenX(skin.lcdContentRegion.x))
-        assertEquals(53f, placement.screenY(skin.lcdContentRegion.y))
+        assertEquals(52f, placement.screenY(skin.lcdContentRegion.y))
     }
 }

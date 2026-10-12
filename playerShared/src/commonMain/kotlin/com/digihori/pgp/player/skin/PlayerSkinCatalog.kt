@@ -1,5 +1,6 @@
 package com.digihori.pgp.player.skin
 
+import com.digihori.pgp.core.api.DisplaySymbol
 import com.digihori.pgp.core.api.PocketKey
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.rom.MachineId
@@ -21,9 +22,18 @@ public object PlayerSkinCatalog {
         playableRegion = SkinRect(x = 0f, y = 0f, width = 1206f, height = 616f),
         landscapeRegion = SkinRect(x = 0f, y = 0f, width = 1206f, height = 616f),
         controllerDisplayRegion = SkinRect(x = 30f, y = 35f, width = 1146f, height = 210f),
-        // The illustration has no explicit LCD outline. Keep this provisional rectangle isolated here
-        // so device testing can refine it without changing renderer or input coordinates.
-        lcdContentRegion = SkinRect(x = 70f, y = 106f, width = 730f, height = 54f),
+        // LCD geometry uses illustration coordinates; final tuning needs device review.
+        lcdContentRegion = SkinRect(x = 70f, y = 104f, width = 760f, height = 70f),
+        lcdPanelRegion = SkinRect(55f, 60f, 787f, 158f),
+        statusRegions = listOf(
+            DisplaySymbol.BUSY, DisplaySymbol.P, DisplaySymbol.DEF, DisplaySymbol.SHIFT,
+            DisplaySymbol.DE, DisplaySymbol.G, DisplaySymbol.RAD,
+        ).mapIndexed { index, symbol ->
+            val x = listOf(70f, 172f, 274f, 730f, 392f, 422f, 442f)[index]
+            val width = listOf(100f, 100f, 100f, 100f, 30f, 20f, 60f)[index]
+            SkinStatusRegion(symbol, SkinRect(x, 64f, width, 24f))
+        },
+        operatingModeRegion = SkinRect(70f, 180f, 180f, 26f),
         keyRegions = pc1245KeyRegions(),
     )
 

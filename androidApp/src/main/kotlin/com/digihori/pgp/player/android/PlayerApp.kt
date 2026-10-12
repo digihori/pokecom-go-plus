@@ -2,6 +2,15 @@ package com.digihori.pgp.player.android
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Density
+import kotlin.math.min
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -24,15 +33,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -94,13 +107,18 @@ internal fun PlayerApp(
     onOperatingModeChange: (OperatingMode) -> Unit,
     romImportEnabled: Boolean,
     onControllerSettings: () -> Unit = {},
+    onLoadProgram: () -> Unit = {},
+    onSaveProgram: () -> Unit = {},
+    onMenuVisibilityChange: (Boolean) -> Unit = {},
+    onManageRom: () -> Unit = {},
+    onInformation: (String) -> Unit = {},
 ) {
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.navigationBars),
+                    .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.displayCutout)),
                 contentAlignment = Alignment.Center,
             ) {
                 when (screenState) {
@@ -123,11 +141,18 @@ internal fun PlayerApp(
                         onTogglePresentationMode,
                         onOperatingModeChange,
                         onControllerSettings = onControllerSettings,
+                        onLoadProgram = onLoadProgram,
+                        onSaveProgram = onSaveProgram,
+                        onMenuVisibilityChange = onMenuVisibilityChange,
+            onManageRom = onManageRom,
+                        onInformation = onInformation,
                     )
                 }
                 if (screenState !is PlayerScreenState.Emulator) {
-                    TextButton(onClick = onControllerSettings, modifier = Modifier.align(Alignment.TopEnd)) {
-                        Text("コントローラー設定")
+                    Column(Modifier.align(Alignment.TopEnd)) {
+                        TextButton(onClick = onManageRom) { Text("機種・ROM") }
+                        TextButton(onClick = { onInformation("バージョン") }) { Text("情報") }
+                        TextButton(onClick = onControllerSettings) { Text("コントローラー設定") }
                     }
                 }
             }
@@ -219,6 +244,11 @@ private fun EmulatorScreen(
     onTogglePresentationMode: () -> Unit,
     onOperatingModeChange: (OperatingMode) -> Unit,
     onControllerSettings: () -> Unit = {},
+    onLoadProgram: () -> Unit = {},
+    onSaveProgram: () -> Unit = {},
+    onMenuVisibilityChange: (Boolean) -> Unit = {},
+    onManageRom: () -> Unit = {},
+    onInformation: (String) -> Unit = {},
 ) {
     val skin = PlayerSkinCatalog.forMachine(machineId)
     Box(modifier = Modifier.fillMaxSize()) {
@@ -227,6 +257,7 @@ private fun EmulatorScreen(
         } else if (skin != null) {
             SkinnedDevice(
                 skin = skin,
+                operatingMode = operatingMode,
                 presentationMode = presentationMode,
                 displayFrame = displayFrame,
                 keyboard = keyboard,
@@ -246,6 +277,22 @@ private fun EmulatorScreen(
                 }
             }
         }
+        Surface(
+            modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
+            color = Color(0xFFE8E8E8),
+            shape = RoundedCornerShape(12.dp),
+        ) {
+            Text(
+                text = when (runState) {
+                    PlayerRunState.RUNNING -> "● RUNNING"
+                    PlayerRunState.PAUSED -> "Ⅱ PAUSED"
+                    PlayerRunState.FAULTED -> "! FAULTED"
+                },
+                color = if (runState == PlayerRunState.RUNNING) Color(0xFF205B35) else Color(0xFF263238),
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            )
+        }
         PlayerMenu(
             runState = runState,
             presentationMode = presentationMode,
@@ -258,7 +305,12 @@ private fun EmulatorScreen(
             onTogglePresentationMode = onTogglePresentationMode,
             onOperatingModeChange = onOperatingModeChange,
             onControllerSettings = onControllerSettings,
-            modifier = Modifier.align(Alignment.TopEnd),
+            onLoadProgram = onLoadProgram,
+            onSaveProgram = onSaveProgram,
+                        onMenuVisibilityChange = onMenuVisibilityChange,
+            onManageRom = onManageRom,
+                        onInformation = onInformation,
+            modifier = Modifier.fillMaxSize().padding(8.dp),
         )
     }
 }
@@ -277,63 +329,76 @@ private fun PlayerMenu(
     onOperatingModeChange: (OperatingMode) -> Unit,
     modifier: Modifier = Modifier,
     onControllerSettings: () -> Unit = {},
+    onLoadProgram: () -> Unit = {},
+    onSaveProgram: () -> Unit = {},
+    onMenuVisibilityChange: (Boolean) -> Unit = {},
+    onManageRom: () -> Unit = {},
+    onInformation: (String) -> Unit = {},
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Box(modifier = modifier) {
-        TextButton(onClick = { expanded = true }) {
-            Text(stringResource(R.string.player_menu_symbol))
+    var section by remember { mutableStateOf<String?>(null) }
+    fun close() { expanded = false; section = null; onMenuVisibilityChange(false) }
+    BackHandler(enabled = expanded) { if (section != null) section = null else close() }
+    val menuDescription = stringResource(R.string.player_menu_description)
+    BoxWithConstraints(modifier = modifier) {
+        IconButton(
+            onClick = { expanded = true; onMenuVisibilityChange(true) },
+            modifier = Modifier.align(Alignment.TopEnd).size(48.dp).background(Color(0xFFE8E8E8), CircleShape)
+                .semantics { contentDescription = menuDescription },
+        ) {
+            Text(stringResource(R.string.player_menu_symbol), fontSize = 28.sp, color = Color(0xFF263238))
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(
-                text = { Text("コントローラー設定") },
-                onClick = { expanded = false; onControllerSettings() },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.run_emulator)) },
-                enabled = runState == PlayerRunState.PAUSED,
-                onClick = { expanded = false; onRun() },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.pause_emulator)) },
-                enabled = runState == PlayerRunState.RUNNING,
-                onClick = { expanded = false; onPause() },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.reset_emulator)) },
-                onClick = { expanded = false; onReset() },
-            )
-            if (showPresentationMode) {
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            stringResource(
-                                if (presentationMode == PresentationMode.CONTROLLER_DISPLAY) {
-                                    R.string.show_full_device
-                                } else {
-                                    R.string.enlarge_display
-                                },
-                            ),
-                        )
-                    },
-                    onClick = { expanded = false; onTogglePresentationMode() },
-                )
-            }
-            OperatingMode.entries.filter { it in supportedOperatingModes }.forEach { mode ->
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            stringResource(
-                                R.string.operating_mode_menu_item,
-                                if (mode == operatingMode) "✓" else "",
-                                mode.shortLabel(),
-                            ),
-                        )
-                    },
-                    enabled = mode != operatingMode,
-                    onClick = { expanded = false; onOperatingModeChange(mode) },
-                )
+        if (expanded) {
+            Box(Modifier.fillMaxSize().background(Color(0x33000000)).clickable { close() })
+            Surface(
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 56.dp)
+                    .width(260.dp).heightIn(max = (maxHeight - 56.dp).coerceAtLeast(48.dp))
+                    .clickable {},
+                shape = RoundedCornerShape(12.dp), tonalElevation = 4.dp,
+            ) {
+                Column(Modifier.verticalScroll(rememberScrollState()).padding(8.dp)) {
+                    if (section == null) {
+                        MenuEntry("実行操作  ›") { section = "実行操作" }
+                        MenuEntry("プログラム  ›") { section = "プログラム" }
+                        MenuEntry("動作モード  ›") { section = "動作モード" }
+                        if (showPresentationMode) MenuEntry("表示  ›") { section = "表示" }
+                        MenuEntry("機種・ROM") { close(); onManageRom() }
+                        MenuEntry("情報  ›") { section = "情報" }
+                        MenuEntry("コントローラー設定") { close(); onControllerSettings() }
+                        MenuEntry("閉じる") { close() }
+                    } else {
+                        MenuEntry("‹ 戻る") { section = null }
+                        Text(section.orEmpty(), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(12.dp))
+                        when (section) {
+                            "実行操作" -> {
+                                MenuEntry(stringResource(R.string.run_emulator), runState == PlayerRunState.PAUSED) { close(); onRun() }
+                                MenuEntry(stringResource(R.string.pause_emulator), runState == PlayerRunState.RUNNING) { close(); onPause() }
+                                MenuEntry(stringResource(R.string.reset_emulator)) { close(); onReset() }
+                            }
+                            "プログラム" -> {
+                                MenuEntry("ロード") { close(); onLoadProgram() }
+                                MenuEntry("保存・共有") { close(); onSaveProgram() }
+                            }
+                            "情報" -> listOf("バージョン", "プライバシーポリシー", "Studio案内").forEach { label ->
+                                MenuEntry(label) { close(); onInformation(label) }
+                            }
+                            "動作モード" -> OperatingMode.entries.filter { it in supportedOperatingModes }.forEach { mode ->
+                                MenuEntry("${if (mode == operatingMode) "✓ " else ""}${mode.shortLabel()}", mode != operatingMode) { close(); onOperatingModeChange(mode) }
+                            }
+                            "表示" -> MenuEntry(stringResource(if (presentationMode == PresentationMode.CONTROLLER_DISPLAY)
+                                R.string.show_full_device else R.string.enlarge_display)) { close(); onTogglePresentationMode() }
+                        }
+                    }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun MenuEntry(label: String, enabled: Boolean = true, action: () -> Unit) {
+    TextButton(onClick = action, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+        Text(label, modifier = Modifier.fillMaxWidth())
     }
 }
 
@@ -347,6 +412,7 @@ private fun OperatingMode.shortLabel(): String = when (this) {
 @Composable
 private fun SkinnedDevice(
     skin: SkinDefinition,
+    operatingMode: OperatingMode,
     presentationMode: PresentationMode,
     displayFrame: PlayerDisplayFrame,
     keyboard: PlayerKeyboard?,
@@ -387,6 +453,28 @@ private fun SkinnedDevice(
                     srcSize = IntSize(source.width.toInt(), source.height.toInt()),
                     dstOffset = IntOffset.Zero,
                     dstSize = IntSize(size.width.toInt(), size.height.toInt()),
+                )
+            }
+            val panel = skin.lcdPanelRegion
+            Box(Modifier.offset(placement.screenX(panel.x).dp, placement.screenY(panel.y).dp)
+                .width((panel.width * placement.scale).dp).height((panel.height * placement.scale).dp)
+                .background(Color(0xFFB7C8A7)))
+            skin.statusRegions.forEach { region ->
+                val bounds = region.bounds
+                SkinLcdLabel(
+                    text = region.symbol.lcdLabel(),
+                    color = if (displayFrame.enabled && region.symbol in displayFrame.symbols)
+                        Color(0xFF26352C) else Color(0x1F26352C),
+                    alignEnd = region.symbol == DisplaySymbol.SHIFT,
+                    modifier = Modifier.offset(placement.screenX(bounds.x).dp, placement.screenY(bounds.y).dp)
+                        .width((bounds.width * placement.scale).dp).height((bounds.height * placement.scale).dp),
+                )
+            }
+            skin.operatingModeRegion?.let { bounds ->
+                SkinLcdLabel(
+                    text = operatingMode.shortLabel(), color = Color(0xFF26352C),
+                    modifier = Modifier.offset(placement.screenX(bounds.x).dp, placement.screenY(bounds.y).dp)
+                        .width((bounds.width * placement.scale).dp).height((bounds.height * placement.scale).dp),
                 )
             }
             val lcd = skin.lcdContentRegion
@@ -456,6 +544,24 @@ private fun SkinnedDevice(
                     )
                 }
             }
+        }
+    }
+}
+
+/** Fits measured glyphs in skin coordinates, independent of the host font-size setting. */
+@Composable
+private fun SkinLcdLabel(text: String, color: Color, modifier: Modifier, alignEnd: Boolean = false) {
+    val measurer = rememberTextMeasurer()
+    val layout = remember(measurer, text) {
+        measurer.measure(text, style = TextStyle(fontSize = 20.sp, lineHeight = 24.sp),
+            density = Density(1f, 1f), softWrap = false, maxLines = 1)
+    }
+    Canvas(modifier.semantics { contentDescription = text }) {
+        val factor = min(size.width / layout.size.width.coerceAtLeast(1), size.height / layout.size.height.coerceAtLeast(1))
+        val x = if (alignEnd) size.width - layout.size.width * factor else 0f
+        val y = (size.height - layout.size.height * factor) / 2f
+        withTransform({ translate(x, y); scale(factor, factor, pivot = Offset.Zero) }) {
+            drawText(layout, color = color, topLeft = Offset.Zero)
         }
     }
 }
@@ -569,8 +675,8 @@ private fun LcdDisplay(
             ) {
                 val cellWidth = size.width / frame.logicalColumns
                 val cellHeight = size.height / frame.logicalRows
-                val dotWidth = cellWidth * 0.72f
-                val dotHeight = cellHeight * 0.72f
+                val dotWidth = cellWidth * 0.80f
+                val dotHeight = cellHeight * 0.80f
                 val offsetX = (cellWidth - dotWidth) / 2f
                 val offsetY = (cellHeight - dotHeight) / 2f
                 val active = Color(0xFF26352C)

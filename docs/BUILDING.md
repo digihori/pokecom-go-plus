@@ -177,6 +177,9 @@ desktopApp/build/compose/binaries/main/deb/
 
 ## 6. Android Player
 
+現在のPlayer対応機種はPC-1245。ROM登録・bas/dmp入出力・保存／共有・実行操作は
+[Android Playerガイド](PLAYER_PROGRAM_IO.md)を参照。iOS hostと1401／1350のAndroidスキンは後続。
+
 Android SDK 36を設定した環境でdebug APKを生成する。
 
 macOS／Linux：

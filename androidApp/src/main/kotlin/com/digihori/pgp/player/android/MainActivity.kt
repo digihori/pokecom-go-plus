@@ -2,6 +2,7 @@ package com.digihori.pgp.player.android
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.content.res.Configuration
 import android.view.KeyEvent
 import android.view.MotionEvent
 import androidx.activity.compose.BackHandler
@@ -22,29 +23,20 @@ import android.view.Choreographer
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.digihori.pgp.core.api.PocketKey
 import com.digihori.pgp.core.api.OperatingMode
 import com.digihori.pgp.player.PlayerDisplayFrame
-import com.digihori.pgp.player.PlayerFailureKind
 import com.digihori.pgp.player.PlayerKeyboard
 import com.digihori.pgp.player.PlayerRunState
 import com.digihori.pgp.player.PlayerSession
-import com.digihori.pgp.player.PlayerSessionCreationResult
-import com.digihori.pgp.player.PlayerSessionFactory
 import com.digihori.pgp.player.PlayerScreenState
 import com.digihori.pgp.player.PresentationMode
-import com.digihori.pgp.player.android.rom.AndroidRomImporter
-import com.digihori.pgp.player.android.rom.AndroidRomLibrary
-import com.digihori.pgp.player.android.rom.AndroidRomPackage
-import com.digihori.pgp.player.android.rom.RomImportOutcome
-import com.digihori.pgp.player.android.rom.RomPackageReadResult
 import java.util.concurrent.Executors
 
 class MainActivity : ComponentActivity() {
@@ -57,33 +49,21 @@ class MainActivity : ComponentActivity() {
         press = { key -> playerSession?.pressKey(key) ?: InputResult.UnsupportedKey(key) },
         release = { key -> playerSession?.releaseKey(key) ?: InputResult.UnsupportedKey(key) },
     )
+    private lateinit var programIo: AndroidProgramIo
     private lateinit var gamepad: AndroidGamepadController
+    private var showPlayerMenu = false
     private var showControllerSettings by mutableStateOf(false)
+    private var hostResumed = false
+    private var pendingInitialRun = false
     private var windowHasFocus = false
     private var startRequested = false
     private var framePosted = false
     private val choreographer: Choreographer by lazy { Choreographer.getInstance() }
     private val frameCallback = Choreographer.FrameCallback(::onEmulationFrame)
     private val ioExecutor = Executors.newSingleThreadExecutor()
-    private val romPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@registerForActivityResult
-        pauseEmulator()
-        releaseAllKeys()
-        playerSession = null
-        displayFrame = null
-        keyboard = null
-        screenState = PlayerScreenState.Loading
-        ioExecutor.execute {
-            val outcome = AndroidRomImporter(
-                contentResolver,
-                AndroidRomLibrary(filesDir),
-            ).import(uri)
-            when (outcome) {
-                is RomImportOutcome.Success -> publishSession(outcome.session)
-                is RomImportOutcome.Failure -> publish(PlayerScreenState.Failure(outcome.kind))
-            }
-        }
-    }
+    private lateinit var romManager: AndroidRomManager
+    private var informationSection: String? by mutableStateOf(null)
+    private lateinit var playerVersion: String
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -94,6 +74,12 @@ class MainActivity : ComponentActivity() {
             release = { button, _ -> hostKeys.release("gamepad:${button.name}") },
         )
         gamepad.start()
+        programIo = AndroidProgramIo(this, ioExecutor, { playerSession }, ::pauseEmulator,
+            { playerSession?.let(::refreshSession) }, ::requestAutomaticRun, ::updateGamepadContext)
+        romManager = AndroidRomManager(this, ioExecutor, { playerSession }, ::pauseEmulator,
+            ::publishSession, ::replaceScreenState, ::updateGamepadContext)
+        val packageInfo = packageManager.getPackageInfo(packageName, 0)
+        playerVersion = "${packageInfo.versionName} (${androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(packageInfo)})"
         setContent {
             BackHandler(enabled = showControllerSettings) { closeControllerSettings() }
             Box(Modifier.fillMaxSize().onPreviewKeyEvent { gamepad.onKey(it.nativeKeyEvent) }) {
@@ -101,7 +87,20 @@ class MainActivity : ComponentActivity() {
                     screenState = screenState,
                     displayFrame = displayFrame,
                     keyboard = keyboard,
-                    onImportRom = { romPicker.launch(arrayOf("*/*")) },
+                    onImportRom = { romManager.importRom() },
+                    onManageRom = romManager::open,
+                    onInformation = { section ->
+                        releaseAllKeys()
+                        informationSection = section
+                        updateGamepadContext()
+                    },
+                    onMenuVisibilityChange = { open ->
+                        showPlayerMenu = open
+                        if (open) releaseAllKeys()
+                        updateGamepadContext()
+                    },
+                    onLoadProgram = programIo::openLoad,
+                    onSaveProgram = programIo::openSave,
                     onKeyPress = ::pressKey,
                     onKeyRelease = ::releaseKey,
                     onRun = ::runEmulator,
@@ -116,6 +115,14 @@ class MainActivity : ComponentActivity() {
                         updateGamepadContext()
                     },
                 )
+                ProgramDialogs(programIo)
+                RomManagementScreen(romManager, playerSession?.machineId)
+                informationSection?.let { section ->
+                    PlayerInformationScreen(section, playerVersion) {
+                        informationSection = null
+                        updateGamepadContext()
+                    }
+                }
                 if (showControllerSettings) {
                     MaterialTheme {
                         Surface(Modifier.fillMaxSize()) {
@@ -142,7 +149,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-        loadInstalledRom()
+        romManager.restore()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        releaseAllKeys()
+        configureSystemBars()
+        playerSession?.let(::refreshSession)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -171,7 +185,9 @@ class MainActivity : ComponentActivity() {
         if (::gamepad.isInitialized) gamepad.configure(
             playerSession?.machineId,
             windowHasFocus && playerSession?.runner?.state == PlayerRunState.RUNNING,
-            showControllerSettings,
+            showPlayerMenu || showControllerSettings || informationSection != null ||
+                (::programIo.isInitialized && programIo.dialog != null) ||
+                (::romManager.isInitialized && romManager.state != null),
         )
     }
 
@@ -183,36 +199,19 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    override fun onStop() {
-        pauseEmulator()
-        releaseAllKeys()
-        super.onStop()
+    override fun onResume() {
+        super.onResume()
+        hostResumed = true
+        if (pendingInitialRun) runEmulator()
     }
 
-    private fun loadInstalledRom() {
-        ioExecutor.execute {
-            val bytes = try {
-                AndroidRomLibrary(filesDir).loadActive()
-            } catch (_: Exception) {
-                publish(PlayerScreenState.Failure(PlayerFailureKind.STORAGE))
-                return@execute
-            }
-            if (bytes == null) {
-                publish(PlayerScreenState.RomMissing)
-                return@execute
-            }
-            val parsed = AndroidRomPackage.read(bytes)
-            if (parsed !is RomPackageReadResult.Success) {
-                publish(PlayerScreenState.Failure(PlayerFailureKind.ROM_VALIDATION))
-                return@execute
-            }
-            when (val created = PlayerSessionFactory.create(parsed.romSet)) {
-                is PlayerSessionCreationResult.Success -> publishSession(created.session)
-                is PlayerSessionCreationResult.Failure -> publish(
-                    PlayerScreenState.Failure(PlayerFailureKind.SESSION_CREATION),
-                )
-            }
-        }
+    override fun onPause() {
+        hostResumed = false
+        val waitingForAutomaticStart = pendingInitialRun
+        pauseEmulator()
+        pendingInitialRun = waitingForAutomaticStart
+        releaseAllKeys()
+        super.onPause()
     }
 
     private fun configureSystemBars() {
@@ -245,16 +244,26 @@ class MainActivity : ComponentActivity() {
                 releaseAllKeys()
                 playerSession = session
                 keyboard = session.keyboard()
-                presentationMode = PresentationMode.FULL_DEVICE
+                session.setOperatingMode(OperatingMode.RUN)
                 refreshSession(session)
+                requestAutomaticRun()
             }
         }
     }
 
-    private fun publish(state: PlayerScreenState) {
-        runOnUiThread {
-            if (!isDestroyed) screenState = state
-        }
+    private fun requestAutomaticRun() {
+        pendingInitialRun = true
+        if (hostResumed) runEmulator()
+    }
+
+    private fun replaceScreenState(state: PlayerScreenState) {
+        pauseEmulator()
+        pendingInitialRun = false
+        playerSession = null
+        displayFrame = null
+        keyboard = null
+        screenState = state
+        updateGamepadContext()
     }
 
     private fun pressKey(key: PocketKey) {
@@ -272,12 +281,13 @@ class MainActivity : ComponentActivity() {
 
     private fun runEmulator() {
         val session = playerSession ?: return
-        if (session.runner.state != PlayerRunState.PAUSED || startRequested) return
+        if (!hostResumed || session.runner.state != PlayerRunState.PAUSED || startRequested) return
         startRequested = true
         postFrame()
     }
 
     private fun pauseEmulator() {
+        pendingInitialRun = false
         startRequested = false
         stopFrameLoop()
         releaseAllKeys()
@@ -294,6 +304,7 @@ class MainActivity : ComponentActivity() {
         playerSession?.let { session ->
             session.reset()
             refreshSession(session)
+            requestAutomaticRun()
         }
     }
 
@@ -312,8 +323,10 @@ class MainActivity : ComponentActivity() {
 
     private fun onEmulationFrame(frameTimeNanoseconds: Long) {
         framePosted = false
+        if (!hostResumed) return
         val session = playerSession ?: return
         if (startRequested) {
+            pendingInitialRun = false
             startRequested = false
             session.runner.run(frameTimeNanoseconds)
         }
