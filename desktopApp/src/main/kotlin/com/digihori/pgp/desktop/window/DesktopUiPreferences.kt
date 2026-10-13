@@ -43,6 +43,13 @@ internal object DesktopUiPreferences {
         preferences.putFloat("projectPaneWidthDp", value)
     }
 
+    fun projectControlsHeight(defaultValue: Float): Float =
+        preferences.getFloat("projectControlsHeightDp", defaultValue)
+
+    fun saveProjectControlsHeight(value: Float) {
+        preferences.putFloat("projectControlsHeightDp", value)
+    }
+
     fun sourceInformationHeight(defaultValue: Float): Float =
         preferences.getFloat("sourceInformationHeightDp", defaultValue)
 

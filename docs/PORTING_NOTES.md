@@ -2135,3 +2135,15 @@ JDK 21の全体build / Core回帰成功。ツリー内ファイル名変更は�
 
 - User requested that out-of-RAM output (including PC-1261 address 0x6800+) be accepted at least for Build, with Load treated separately. Configured assembly and project Build now retain the full 16-bit image and logical overlap validation while deferring hardware/physical aliases/BASIC placement to the existing atomic loader.
 - SC61/FENSCER copied into a temporary PC-1261 project built all 13,568 bytes and 955 symbols successfully. Added a regression confirming unmapped output can be saved but its load fails before any partial memory write. Full JDK 21 build/tests and macOS distributable passed.
+
+
+### Windows Studio feedback: large assembly preview, project panes and MSI menu
+
+- Date: 2026-10-13
+- User observations: Windows Workspace Assemble with SC61 becomes unresponsive although connection test and command-line assembly work; scaled UI leaves almost no project-tree space; MSI installation has no visible Start menu entry.
+- Assembly preview: FENSCER produces an approximately 587 KB LST. Previously the UI generated the combined preview during composition and laid it out as one Text. Formatting now runs on Default, and a bounded LazyColumn renders visible lines. Full listing/map content remains available through Copy all and Build outputs.
+- Project pane: add an upper draggable divider between project controls and files, with saved control height and a scrollbar for controls. Cap controls to leave room for files. The lower divider can reduce source information to 24 dp, and its effective height is bounded by the available pane. Drag handlers use updated callbacks.
+- MSI: explicitly request the Windows Start menu group `Pokecom GO Studio`. Actual MSI registration/reinstallation remains a Windows acceptance check.
+- Scope: preserve OS display scaling; do not infer a Windows font/DPI setting from a screenshot. Improve layout under constrained height instead.
+- Verification: local JDK 21 full build and tests pass after the final pane refinement. Packaged macOS Workspace assembles 13,568 FENSCER bytes and remains responsive while scrolling the complete result. One earlier run returned a timeout without freezing the UI; its cause is unconfirmed. Windows hang resolution and MSI registration are not claimed as verified.
+- Source: current PGP implementation and user feedback; no external code or ROM assets copied.

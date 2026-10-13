@@ -25,6 +25,12 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.runtime.produceState
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -1951,9 +1957,10 @@ private fun FrameWindowScope.App(
                                     }) { Text(if (diagnostic.line == null) "Open source" else "Open at line") }
                                 }
                             }
-                            val assemblyOutput = remember(assemblyPreview, memoryLayout) {
-                                buildString {
-                                    assemblyPreview.forEach { result ->
+                            val previewSources = assemblyPreview
+                            val assemblyOutput by produceState("Preparing assembly result…", previewSources, memoryLayout) {
+                                value = withContext(Dispatchers.Default) { buildString {
+                                    previewSources.forEach { result ->
                                         appendLine(result.source.definition.path)
                                         appendLine("\nMemory")
                                         appendLine(result.renderMemorySummary(memoryLayout))
@@ -1963,11 +1970,11 @@ private fun FrameWindowScope.App(
                                         appendLine(result.renderListing().trimEnd())
                                         appendLine()
                                     }
-                                    if (assemblyPreview.isNotEmpty()) {
+                                    if (previewSources.isNotEmpty()) {
                                         appendLine("Symbol Map")
-                                        append(assemblyPreview.renderMap())
+                                        append(previewSources.renderMap())
                                     }
-                                }
+                                } }
                             }
                             AssemblyOutputField(assemblyOutput)
                         }
@@ -2081,10 +2088,18 @@ private fun FrameWindowScope.App(
                         color = MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier.width(projectPaneWidth).fillMaxHeight(),
                     ) {
+                        BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(12.dp)) {
+                        var controlsHeight by remember { mutableStateOf(
+                            DesktopUiPreferences.projectControlsHeight(280f).dp
+                        ) }
+                        val maximumControlsHeight = maxHeight * 0.55f
                         Column(
-                            modifier = Modifier.fillMaxSize().padding(12.dp),
+                            modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
+                            StudioScrollableColumn(modifier = Modifier.fillMaxWidth()
+                                .height(controlsHeight.coerceIn(48.dp, maxOf(48.dp, maximumControlsHeight))),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             SelectionContainer {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text("Project", style = MaterialTheme.typography.titleMedium)
@@ -2118,6 +2133,15 @@ private fun FrameWindowScope.App(
                                     onClick = { showAssemblyWorkspace = true },
                                     modifier = Modifier.fillMaxWidth(),
                                 ) { Text("Assembly Workspace", maxLines = 1, softWrap = false) }
+                            }
+                            }
+                            if (projectWorkspace != null) {
+                                ProjectHorizontalSplitter(
+                                    onDelta = { controlsHeight = (controlsHeight + it).coerceIn(48.dp, maxOf(48.dp, maximumControlsHeight)) },
+                                    onFinished = { DesktopUiPreferences.saveProjectControlsHeight(controlsHeight.value) },
+                                )
+                            }
+                            projectWorkspace?.let { workspace ->
                                 projectTree?.let { tree ->
                                     ProjectTreePanel(
                                         tree = tree,
@@ -2133,6 +2157,7 @@ private fun FrameWindowScope.App(
                                 } ?: Text("Project files are loading…")
                             }
                         }
+                    }
                     }
 
                     val density = LocalDensity.current
@@ -3752,6 +3777,24 @@ private fun openDocumentationUrl(url: String): String? = runCatching {
 private data class ProjectTreeDisplayFile(val path: String, val file: File, val supportsDescription: Boolean)
 
 @Composable
+private fun ProjectHorizontalSplitter(onDelta: (androidx.compose.ui.unit.Dp) -> Unit, onFinished: () -> Unit) {
+    val density = LocalDensity.current
+    val currentDelta by androidx.compose.runtime.rememberUpdatedState(onDelta)
+    val currentFinished by androidx.compose.runtime.rememberUpdatedState(onFinished)
+    Box(modifier = Modifier.fillMaxWidth().height(PROJECT_TREE_SPLITTER_HEIGHT)
+        .pointerHoverIcon(PointerIcon(Cursor.getPredefinedCursor(Cursor.N_RESIZE_CURSOR)))
+        .pointerInput(density) {
+            detectDragGestures(onDragEnd = { currentFinished() }, onDragCancel = { currentFinished() }) { change, amount ->
+                change.consume()
+                currentDelta(with(density) { amount.y.toDp() })
+            }
+        }, contentAlignment = Alignment.Center) {
+        Surface(color = MaterialTheme.colorScheme.outline,
+            modifier = Modifier.fillMaxWidth().height(1.dp)) {}
+    }
+}
+
+@Composable
 private fun ProjectTreePanel(
     tree: DesktopProjectTreeSnapshot,
     selectedPath: String?,
@@ -3782,8 +3825,11 @@ private fun ProjectTreePanel(
     }
     val selected = (tracked + untracked).firstOrNull { it.path == selectedPath }
     val description = tree.sourceDescriptions[selected?.path].orEmpty()
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+    val maximumInformationHeight = maxOf(24.dp, maxHeight * 0.3f)
+    val effectiveInformationHeight = sourceInformationHeight.coerceIn(24.dp, maximumInformationHeight)
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -3822,38 +3868,16 @@ private fun ProjectTreePanel(
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
             )
         }
-        val density = LocalDensity.current
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(PROJECT_TREE_SPLITTER_HEIGHT)
-                .pointerHoverIcon(PointerIcon(Cursor.getPredefinedCursor(Cursor.N_RESIZE_CURSOR)))
-                .pointerInput(density) {
-                    detectDragGestures(
-                        onDragEnd = {
-                            DesktopUiPreferences.saveSourceInformationHeight(sourceInformationHeight.value)
-                        },
-                        onDragCancel = {
-                            DesktopUiPreferences.saveSourceInformationHeight(sourceInformationHeight.value)
-                        },
-                    ) { change, dragAmount ->
-                        change.consume()
-                        val delta = with(density) { dragAmount.y.toDp() }
-                        sourceInformationHeight = (sourceInformationHeight - delta).coerceIn(
-                            MIN_SOURCE_INFORMATION_HEIGHT,
-                            MAX_SOURCE_INFORMATION_HEIGHT,
-                        )
-                    }
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Surface(
-                color = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.fillMaxWidth().height(1.dp),
-            ) {}
-        }
+        ProjectHorizontalSplitter(
+            onDelta = { delta ->
+                sourceInformationHeight = (effectiveInformationHeight - delta).coerceIn(
+                    MIN_SOURCE_INFORMATION_HEIGHT, maximumInformationHeight,
+                )
+            },
+            onFinished = { DesktopUiPreferences.saveSourceInformationHeight(sourceInformationHeight.value) },
+        )
         Column(
-            modifier = Modifier.fillMaxWidth().height(sourceInformationHeight),
+            modifier = Modifier.fillMaxWidth().height(effectiveInformationHeight),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text("Source information", style = MaterialTheme.typography.titleSmall)
@@ -3876,6 +3900,7 @@ private fun ProjectTreePanel(
             }
         }
     }
+}
 }
 
 @Composable
@@ -3906,11 +3931,25 @@ private fun ProjectTreeGroup(
 
 @Composable
 private fun AssemblyOutputField(content: String) {
-    Text("Assembly result", style = MaterialTheme.typography.titleMedium)
-    val verticalState = rememberScrollState()
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically) {
+        Text("Assembly result", style = MaterialTheme.typography.titleMedium)
+        TextButton(onClick = { copyToClipboard(content) }) { Text("Copy all") }
+    }
+    val lines = remember(content) { content.ifBlank {
+        "No assembly result yet. Select Assemble to preview the result."
+    }.lines() }
+    val verticalState = rememberLazyListState()
     val horizontalState = rememberScrollState()
+    val style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val textWidth = remember(lines, style, density) {
+        with(density) { measurer.measure(lines.maxByOrNull { it.length }.orEmpty(), style,
+            softWrap = false).size.width.toDp() } + 2.dp
+    }
     LaunchedEffect(content) {
-        verticalState.scrollTo(0)
+        verticalState.scrollToItem(0)
         horizontalState.scrollTo(0)
     }
     Surface(
@@ -3920,14 +3959,15 @@ private fun AssemblyOutputField(content: String) {
         color = MaterialTheme.colorScheme.surfaceVariant,
     ) {
         Box(modifier = Modifier.fillMaxSize().padding(8.dp)) {
-            Box(modifier = Modifier.fillMaxSize().padding(end = 12.dp, bottom = 12.dp)) {
-                Text(
-                    content.ifBlank { "No assembly result yet. Select Assemble to preview the result." },
-                    modifier = Modifier.verticalScroll(verticalState).horizontalScroll(horizontalState),
-                    fontFamily = FontFamily.Monospace,
-                    style = MaterialTheme.typography.bodySmall,
-                    softWrap = false,
-                )
+            BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(end = 12.dp, bottom = 12.dp)) {
+                val lineWidth = maxOf(maxWidth, textWidth)
+                Box(modifier = Modifier.fillMaxSize().horizontalScroll(horizontalState)) {
+                    LazyColumn(state = verticalState, modifier = Modifier.width(lineWidth).fillMaxHeight()) {
+                        items(lines) { line ->
+                            Text(line.ifEmpty { " " }, style = style, softWrap = false, maxLines = 1)
+                        }
+                    }
+                }
             }
             VerticalScrollbar(
                 adapter = rememberScrollbarAdapter(verticalState),
@@ -4118,7 +4158,7 @@ private val MIN_PROJECT_PANE_WIDTH = 220.dp
 private val MAX_PROJECT_PANE_WIDTH = 520.dp
 private val PROJECT_PANE_RESIZE_HANDLE_WIDTH = 12.dp
 private val DEFAULT_SOURCE_INFORMATION_HEIGHT = 160.dp
-private val MIN_SOURCE_INFORMATION_HEIGHT = 80.dp
+private val MIN_SOURCE_INFORMATION_HEIGHT = 24.dp
 private val MAX_SOURCE_INFORMATION_HEIGHT = 420.dp
 private val PROJECT_TREE_SPLITTER_HEIGHT = 10.dp
 private val SCROLLBAR_CONTENT_GUTTER = 10.dp

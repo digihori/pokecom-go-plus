@@ -67,6 +67,10 @@ compose.desktop {
             vendor = "Y Horiuchi"
             copyright = "Copyright (c) 2026 Y Horiuchi"
             appResourcesRootDir.set(layout.buildDirectory.dir("generated/distribution-resources"))
+            windows {
+                menu = true
+                menuGroup = "Pokecom GO Studio"
+            }
         }
     }
 }

@@ -101,3 +101,11 @@ Windows実機での残る確認項目:
 - [ ] LST／Map表示、外部エディタへの該当行移動、Internalへの切り替えを確認する
 
 調査・実装・検証の詳細は[SC61連携記録](SC61_INTEGRATION.md)を参照。
+
+
+### Connection test and large previews
+
+Run connection test directly tests the configured SC61 command even while Internal is selected.
+Workspace/Build/Quick Assemble use the saved Internal/External selection; choose External and Apply
+assembler setting to use SC61 there. Large Workspace results render visible lines only; Copy all
+copies the complete result, and Build preserves the full DMP/LST/Map outputs.
