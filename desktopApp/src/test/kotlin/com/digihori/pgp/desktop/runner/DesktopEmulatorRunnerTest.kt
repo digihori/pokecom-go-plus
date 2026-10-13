@@ -39,6 +39,21 @@ import kotlin.test.assertTrue
 
 class DesktopEmulatorRunnerTest {
     @Test
+    fun screenAndPhysicalBreakOwnersPreserveHoldAndPauseReleasesIt() {
+        val session = FakeSession()
+        val runner = runner(session, FakeClock())
+        runner.pressHostKey(PocketKey.BREAK, "keyboard:Escape")
+        runner.pressKey(PocketKey.BREAK)
+        runner.releaseHostKey(PocketKey.BREAK, "keyboard:Escape")
+        assertEquals(listOf("press:BREAK"), session.inputEvents)
+        runner.releaseKey(PocketKey.BREAK)
+        assertEquals(listOf("press:BREAK", "release:BREAK"), session.inputEvents)
+        runner.pressKey(PocketKey.BREAK)
+        runner.pause()
+        assertEquals(listOf("press:BREAK", "release:BREAK", "press:BREAK", "release:BREAK"), session.inputEvents)
+    }
+
+    @Test
     fun gamepadDoesNotPolluteHistoryOrPrematurelyReleaseKeyboard() {
         val session = FakeSession()
         val runner = runner(session, FakeClock())

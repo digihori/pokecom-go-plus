@@ -45,6 +45,36 @@ class DesktopAudioPlayerTest {
         assertTrue(failing.write(AudioPcmSnapshot(22_050, shortArrayOf(1))).isFailure)
     }
 
+    @Test
+    fun silenceFinishesPlaybackClosesTheLineAndNextToneReopensIt() {
+        val factory = FakeSinkFactory()
+        val player = DesktopAudioPlayer(factory)
+        player.write(AudioPcmSnapshot(22_050, shortArrayOf(123))).getOrThrow()
+        player.write(AudioPcmSnapshot(22_050, shortArrayOf())).getOrThrow()
+        assertTrue(factory.sinks.single().finished)
+        assertTrue(factory.sinks.single().closed)
+        repeat(3) { player.write(AudioPcmSnapshot(22_050, shortArrayOf(0, 0))).getOrThrow() }
+        assertEquals(1, factory.sinks.size)
+        player.write(AudioPcmSnapshot(22_050, shortArrayOf(456))).getOrThrow()
+        assertEquals(2, factory.sinks.size)
+        player.stop()
+        assertTrue(factory.sinks.last().closed)
+        assertTrue(!factory.sinks.last().finished)
+    }
+
+    @Test
+    fun deviceWriteFailureClosesAndAllowsRetry() {
+        var closed = false
+        val player = DesktopAudioPlayer {
+            object : PcmSink {
+                override fun write(bytes: ByteArray) { error("device disconnected") }
+                override fun close() { closed = true }
+            }
+        }
+        assertTrue(player.write(AudioPcmSnapshot(22_050, shortArrayOf(1))).isFailure)
+        assertTrue(closed)
+    }
+
     private class FakeSinkFactory : PcmSinkFactory {
         val sampleRates = mutableListOf<Int>()
         val sinks = mutableListOf<FakeSink>()
@@ -57,6 +87,8 @@ class DesktopAudioPlayerTest {
     private class FakeSink : PcmSink {
         val writes = mutableListOf<ByteArray>()
         var closed = false
+        var finished = false
+        override fun finish() { finished = true }
         override fun write(bytes: ByteArray) { writes += bytes.copyOf() }
         override fun close() { closed = true }
     }

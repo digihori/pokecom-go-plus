@@ -55,7 +55,8 @@ class Pc1245KeyboardTest {
         val keyboard = Pc1245Keyboard()
 
         keyboard.press(PocketKey.BREAK)
-        repeat(10) { assertTrue(keyboard.consumeKeyOnSignal()) }
+        repeat(100) { assertTrue(keyboard.consumeKeyOnSignal()) }
+        keyboard.release(PocketKey.BREAK)
         assertFalse(keyboard.consumeKeyOnSignal())
 
         keyboard.release(PocketKey.BREAK)

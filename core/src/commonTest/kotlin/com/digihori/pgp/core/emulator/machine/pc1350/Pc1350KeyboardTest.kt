@@ -38,7 +38,8 @@ class Pc1350KeyboardTest {
     fun breakProducesFiniteKeyOnPulse() {
         val keyboard = Pc1350Keyboard()
         keyboard.press(PocketKey.BREAK)
-        repeat(10) { assertTrue(keyboard.consumeKeyOnSignal()) }
+        repeat(100) { assertTrue(keyboard.consumeKeyOnSignal()) }
+        keyboard.release(PocketKey.BREAK)
         assertFalse(keyboard.consumeKeyOnSignal())
     }
 }

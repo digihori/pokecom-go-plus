@@ -1166,6 +1166,9 @@ private fun FrameWindowScope.App(
                 audioPlayer.write(activeRunner.drainAudioSamples()).onFailure {
                     message = "Audio output unavailable: ${it.message ?: it::class.simpleName}"
                 }
+            } else {
+                audioPlayer.stop()
+                activeRunner.drainAudioSamples()
             }
             val status = tick.runResult?.status
             if (status is ExecutionStatus.Faulted) {

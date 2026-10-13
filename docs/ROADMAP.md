@@ -187,8 +187,13 @@ SC61860 Assembler強化、Studio統合WAV Toolと波形解析を含む。
 - [ ] ゲームパッド入力に対応する（ゲームパッドの各操作にポケコンキーを割り当て、ゲームごとに設定できるようにする）
 - [ ] パッケージ生成とリリース自動化（3環境の成果物生成は確認済み、tag release検証待ち）
   - [ ] 次の修正タイミングでWindows MSIの更新インストール対応を整える（2026-10-13ユーザー指定）
-    - 修正前後のMSIが同じ`packageVersion`にならないよう、配布物更新時のバージョン運用を定義する。
-    - 既存MSIのUpgradeCodeを確認し、継続使用する`upgradeUuid`を明示する。旧版からの更新、スタートメニュー登録、設定・ROM Library保持をWindowsで検証する。
+    - [x] 公開0.4のUpgradeCodeを固定し、修正版のpackageVersionを1.3.1へ更新。配布更新ごとに増加する運用を定義。
+    - [ ] 旧版からの更新、スタートメニュー登録、設定・ROM Library保持のWindows受入れ（2026-10-13ユーザー方針: 次回テクニカルプレビュー時に実施）。
+    - [今回の修正・検証記録](PLATFORM_FIXES_2026-10.md)にMSI／音声／BRK／iOS CIを記録。
+
+2026-10-13ユーザー確認: 機種追加前のMSI／Windows音声／BRK／iOS CIの今回分は一旦完了。
+MSI実測は次回テクニカルプレビュー時、iOS hosted CIはpush後に確認する。
+詳細検証の未完了チェックは後続確認として保持する。
 
 ### ゲームデモ用のキー操作記録・再生（後続）
 
@@ -255,8 +260,8 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
   - [x] SC61のLST原文表示・保存、Symbol Map、行番号付き診断を取り込む。INCLUDEのファイル名はLSTに出ないため、行番号と内容で一意に特定できる場合のみ行移動する。未提供時もBuild／Loadは利用可能。
   - [x] macOSで設定、Workspace／Build & Load、Quick Assemble、エラー保持・診断行移動、内蔵切替を実画面確認し、[利用手順](EXTERNAL_ASSEMBLER.md)を整備する
   - [x] Windows版SC61 Rev 0.04aをWine 11.0の一時環境で確認する（Windows上のStudio確認とは別）
-  - [ ] Windows実機でStudio連携、日本語パス／文字コード、エディタ連携、キャンセルを確認する（[チェックリスト](EXTERNAL_ASSEMBLER.md)）
-  - [x] Windowsユーザー確認でSC61接続テストとBuild成功を確認する（2026-10-13）。「プログラム登録」成功も報告された。スタートメニューの登録先詳細は確認待ち。Assembleハングの解消と上記詳細項目は個別の確認待ち。
+  - [x] Windowsでの外部Assembler対応をユーザー確認により今回分完了とする（2026-10-13。[詳細項目](EXTERNAL_ASSEMBLER.md)の個別記録とは区別）
+  - [x] Windowsユーザー確認でSC61接続テストとBuild成功を確認する（2026-10-13）。「プログラム登録」成功も報告された。スタートメニューの登録先詳細は確認待ち。その後、ユーザー確認により外部AssemblerとWindows Projectツリーは今回分完了。
   - 内蔵Assemblerは維持する。初期対応はSC61のDMP出力。Windowsの詳細検証と他ツールのadapterは後続。
 - [ ] 外部Assembler基盤の次段階として「内蔵／SC61／yasm.pl／その他（汎用）」の選択構成を設計する
   - プロセス起動・ログ・タイムアウト・キャンセルを共有し、成功判定と成果物取り込みを種類ごとに分ける。選択はStudio全体の設定を維持する。
@@ -287,7 +292,7 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
   - 現状はDMP保存が中心で、生成された機械語・Listing・Symbol Mapを画面で確認できない。
   - Assembly Workspaceと同様のスクロール付き結果表示を検討し、成功／失敗と保存先も明確にする。
   - 単発変換の操作性を維持しつつ、結果表示とファイル保存の流れを設計する。仕様・実装は未着手。
-- [ ] Assembly Workspaceの外部エディタ操作とSources表示を改善する
+- [x] Assembly Workspaceの外部エディタ操作とSources表示を改善する（2026-10-13ユーザー指定で現在の対応を一旦完了。未実装の検出等は後続候補）
   - [ ] Studio内にExternal Editor設定を追加し、実行ファイル、引数テンプレート、行指定を保存する
   - [ ] macOS／Windows／Linuxで代表的なエディタを自動検出し、手動選択とTest起動も提供する
   - [ ] `PGP_EDITOR`はアプリ設定を上書きする上級者向け手段として維持する
@@ -481,7 +486,7 @@ WAV、Project、Debugger、音声出力、セーブステート、外付けキ�
   - [x] 16桁ドット表示に加えてSHIFT、DEF等の機種別LCDステータスをスキン内へ合成する
   - [x] PC-1245のRUN／PROをスキン内に明示する（Android、ユーザー動作確認済み）
   - [ ] PC-1251／1261系のRUN／PRO／RSVは実機のハードスイッチ状態であっても、PlayerではLCDステータスとして明示する
-  - [x] 3点メニューへバージョン情報、プライバシーポリシー、Pokecom GO Studioへの案内を追加する（後二つは仮文言）
+  - [x] 3点メニューへバージョン情報、プライバシーポリシー、Pokecom GO Studioへの案内を追加する（後二つは仮文言。次の機種対応時に整理する）
   - [x] 3点メニューからbas/dmpプログラムをロード／セーブできるようにする（Android、ユーザー動作確認済み。Playerの実行用入出力とし、Project機能とは分離する）
     - [x] bas/dmp拡張子の自動判定、確認なしのRAMロードとAndroidの保存／共有を実装する（docs/PLAYER_PROGRAM_IO.md、iOS hostは後続）
   - [x] 機種・ROM画面、機種別Library、Session再生成、表示モード維持を実装する（現在の選択対象は1245のみ）

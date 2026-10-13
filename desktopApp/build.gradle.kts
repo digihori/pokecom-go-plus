@@ -62,12 +62,14 @@ compose.desktop {
             packageName = "PokecomGOStudio"
             // jpackage requires 1-3 numeric components and macOS rejects a zero major version.
             // The project/Git version remains 0.4.0-alpha.1.
-            packageVersion = "1.3.0"
+            packageVersion = "1.3.1"
             description = "A multiplatform pocket-computer development environment"
             vendor = "Y Horiuchi"
             copyright = "Copyright (c) 2026 Y Horiuchi"
             appResourcesRootDir.set(layout.buildDirectory.dir("generated/distribution-resources"))
             windows {
+                // Preserve the UpgradeCode from the published 0.4 MSI (ProductVersion 1.3.0).
+                upgradeUuid = "D173EFD1-57EF-3753-A618-92481F262D95"
                 menu = true
                 menuGroup = "Pokecom GO Studio"
             }

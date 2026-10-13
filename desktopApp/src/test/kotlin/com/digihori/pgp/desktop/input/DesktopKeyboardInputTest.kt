@@ -15,6 +15,23 @@ import kotlin.test.assertTrue
 
 class DesktopKeyboardInputTest {
     @Test
+    fun escapePressHoldReleaseAndFocusLossWorkInBothInputModes() {
+        for (mode in HostKeyInputMode.entries) {
+            val sink = FakeSink()
+            val input = DesktopKeyboardInput().also { it.attach(sink); it.setInputMode(mode) }
+            assertTrue(input.handle(Key.Escape, 0, KeyEventType.KeyDown))
+            repeat(20) { assertTrue(input.handle(Key.Escape, 0, KeyEventType.KeyDown)) }
+            assertEquals(listOf("press:BREAK"), sink.events)
+            assertTrue(input.handle(Key.Escape, 0, KeyEventType.KeyUp))
+            assertEquals(listOf("press:BREAK", "release:BREAK"), sink.events)
+            input.handle(Key.Escape, 0, KeyEventType.KeyDown)
+            input.setEnabled(false)
+            assertEquals(listOf("press:BREAK", "release:BREAK", "press:BREAK", "release:BREAK"), sink.events)
+            assertTrue(sink.sequences.isEmpty())
+        }
+    }
+
+    @Test
     fun convertsHostCharacterToPc1245KeySequence() {
         val sink = FakeSink()
         val input = DesktopKeyboardInput().also { it.attach(sink) }

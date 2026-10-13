@@ -36,7 +36,13 @@ internal class Pc1360Keyboard {
         return 0
     }
 
-    fun consumeKeyOnSignal(): Boolean = if (keyOnCountdown > 0) { keyOnCountdown--; true } else false
+    fun consumeKeyOnSignal(): Boolean {
+        val latched = keyOnCountdown > 0
+        if (latched) keyOnCountdown--
+        // Keep KEY ON asserted while held, retaining the legacy pulse for short taps.
+        return PocketKey.BREAK in pressedKeys || latched
+    }
+
     fun reset() { groupMasks.fill(0); pressedKeys.clear(); keyOnCountdown = 0 }
     internal fun groupMask(group: Int): Int = groupMasks[group]
 

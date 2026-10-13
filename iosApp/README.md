@@ -51,7 +51,9 @@ env JAVA_HOME="$(/usr/libexec/java_home -v 21)" \
 - CoreはUI/OS/時刻/threadを所有しない。上部の直接操作欄は階層メニュー実装前の暫定導線。
 
 有料Developer登録/実機検証/iOS 16 runtime検証は未完了であり、今回Simulator完了と分ける。
-CI/リリースworkflowにはiOS app配布を追加していない。
+CIに共有Nativeテスト・frameworkリンク・署名なしSimulator build/testを追加した。
+`sh iosApp/test-simulator.sh` でCIと同じhost/UI検証を実行できる。
+[今回の確認記録](../docs/PLATFORM_FIXES_2026-10.md)を参照。リリースworkflowのiOS app配布は別途。
 
 ## 現在の確認結果（2026-10-12）
 

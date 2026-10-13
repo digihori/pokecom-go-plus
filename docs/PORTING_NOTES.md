@@ -2155,3 +2155,17 @@ JDK 21の全体build / Core回帰成功。ツリー内ファイル名変更は�
 - User confirms Windows SC61 connection test/Build success and "program registration" success after the fixes; the exact registration destination was not specified. Workspace hang resolution, detailed Unicode/cancellation/editor checks and actual program Load/run remain separate pending checks.
 - SC61 integration is paused at the completed initial milestone by user request. Future assembler-type selection (Internal/SC61/yasm.pl/generic) is design work, not current functionality.
 - User defers MSI upgrade identity/version handling to the next correction cycle; see ROADMAP. Preserve existing installer identity where possible rather than assigning an unrelated UpgradeCode.
+
+## 2026-10-13 — MSI、音声、BRK、iOS CI
+
+- 公開0.4 MSIのProperty tableとasset SHA-256を確認しUpgradeCodeを継続利用。次の配布版は1.3.1。公開タグ・履歴・assetsは変更しない。
+- Coreの無音PCMは空配列となるため、Desktopはqueued音声のdrain後にラインを閉じる。Pause/fault/debugger停止では即時stopする。
+- 従来Pokecom GO由来のBRK 10観測pulseは短tap互換として残し、保持中はKEY ONを継続する。全機種合成TEST 8とRunnerの入力所有者で検証。通常matrixやTEST dividerの仕様は変更しない。
+- iOS CIはApple Silicon・JDK 21・Native tests/framework・unsigned Simulator host/UI tests。iPhone/iOS 16設定と署名・配布の分離を維持。
+- 外部コードのコピー・ROM fixtureの追加なし。Windows音声は2026-10-13ユーザーから改善報告あり。停止経路ごとの個別結果、MSI／BRKのWindows受入れと実ROM／実機照合は未記録。詳細と結果は[修正・受入れ記録](PLATFORM_FIXES_2026-10.md)。
+
+### 2026-10-13 — PC-1360 BRKの追加調査とユーザー確認
+
+- PC-1245ではゲームのBRK認識をユーザー確認。PC-1360非反応の報告を受け、Keyboard→Io→TEST 8経路とPokecom GO参照実装を再確認。
+- PC-1360も操作を確認し直した結果、BRKを認識していたとユーザー報告。機種固有の追加修正なし。
+- 追加テスト実行は許可されず未実施。先の合成命令テスト成功と今回のユーザー操作確認を分けて記録する。

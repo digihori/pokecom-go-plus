@@ -30,9 +30,12 @@ internal class Pc1401Keyboard {
     }
     fun readInputB(ib: Int): Int = 0
     fun consumeKeyOnSignal(): Boolean {
-        if (keyOnCountdown == 0) return false
-        keyOnCountdown--; return true
+        val latched = keyOnCountdown > 0
+        if (latched) keyOnCountdown--
+        // Keep KEY ON asserted while held, retaining the legacy pulse for short taps.
+        return PocketKey.BREAK in pressed || latched
     }
+
     fun reset() { pressed.clear(); masks.fill(0); keyOnCountdown = 0 }
     private companion object {
         val positions = mapOf(

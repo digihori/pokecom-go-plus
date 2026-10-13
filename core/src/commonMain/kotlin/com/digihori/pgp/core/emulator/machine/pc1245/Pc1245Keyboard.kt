@@ -71,11 +71,12 @@ internal class Pc1245Keyboard {
         return result and ib.inv() and 0xff
     }
 
-    /** Models the ten TEST-instruction observations triggered by BREAK in Pokecom GO. */
+    /** Retains short BREAK taps for ten observations and asserts KEY ON while held. */
     fun consumeKeyOnSignal(): Boolean {
-        if (keyOnCountdown <= 0) return false
-        keyOnCountdown--
-        return true
+        val latched = keyOnCountdown > 0
+        if (latched) keyOnCountdown--
+        // Keep KEY ON asserted while held, retaining the legacy pulse for short taps.
+        return PocketKey.BREAK in pressedKeys || latched
     }
 
     fun reset() {

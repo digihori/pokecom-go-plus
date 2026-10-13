@@ -44,9 +44,10 @@ internal class Pc1350Keyboard {
     }
 
     fun consumeKeyOnSignal(): Boolean {
-        if (keyOnCountdown <= 0) return false
-        keyOnCountdown--
-        return true
+        val latched = keyOnCountdown > 0
+        if (latched) keyOnCountdown--
+        // Keep KEY ON asserted while held, retaining the legacy pulse for short taps.
+        return PocketKey.BREAK in pressedKeys || latched
     }
 
     fun reset() {

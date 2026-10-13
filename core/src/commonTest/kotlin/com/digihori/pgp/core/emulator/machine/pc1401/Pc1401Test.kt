@@ -60,7 +60,8 @@ class Pc1401Test {
         keyboard.release(PocketKey.SIN); assertEquals(0x40, keyboard.readInputA(0, 0x20))
         keyboard.press(PocketKey.NUM_0); assertEquals(0x80, keyboard.readInputA(0x40, 0))
         assertEquals(0, other.readInputA(0x40, 0)); assertFalse(keyboard.press(PocketKey.KANA))
-        keyboard.press(PocketKey.BREAK); repeat(10) { assertTrue(keyboard.consumeKeyOnSignal()) }
+        keyboard.press(PocketKey.BREAK); repeat(100) { assertTrue(keyboard.consumeKeyOnSignal()) }
+        keyboard.release(PocketKey.BREAK)
         assertFalse(keyboard.consumeKeyOnSignal()); keyboard.reset(); assertEquals(0, keyboard.readInputA(0x40, 0))
     }
 

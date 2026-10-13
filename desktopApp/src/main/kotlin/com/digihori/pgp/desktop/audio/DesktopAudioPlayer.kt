@@ -13,15 +13,21 @@ internal class DesktopAudioPlayer(
     private var sampleRate: Int? = null
 
     fun write(snapshot: AudioPcmSnapshot): Result<Unit> {
-        if (snapshot.sampleCount == 0) return Result.success(Unit)
-        return runCatching {
+        val samples = snapshot.copySamples()
+        if (samples.isEmpty() || samples.all { it == 0.toShort() }) {
+            return runCatching<Unit> {
+                sink?.finish()
+                stop()
+            }.onFailure { stop() }
+        }
+        return runCatching<Unit> {
             if (sink == null || sampleRate != snapshot.sampleRate) {
                 sink?.close()
                 sink = sinkFactory.create(snapshot.sampleRate)
                 sampleRate = snapshot.sampleRate
             }
-            sink?.write(snapshot.copySamples().toLittleEndianBytes())
-        }
+            sink?.write(samples.toLittleEndianBytes())
+        }.onFailure { stop() }
     }
 
     fun stop() {
@@ -39,6 +45,7 @@ internal fun interface PcmSinkFactory {
 
 internal interface PcmSink : AutoCloseable {
     fun write(bytes: ByteArray)
+    fun finish() = close()
 }
 
 private object JavaSoundPcmSinkFactory : PcmSinkFactory {
@@ -56,6 +63,10 @@ private class JavaSoundPcmSink(private val line: SourceDataLine) : PcmSink {
 
     override fun write(bytes: ByteArray) {
         if (!closed.get()) line.write(bytes, 0, bytes.size)
+    }
+
+    override fun finish() {
+        if (!closed.get()) line.drain()
     }
 
     override fun close() {

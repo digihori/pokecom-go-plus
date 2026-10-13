@@ -40,3 +40,6 @@ xcuserdata/
 *.log
 *.tmp
 *~
+
+# Windows source sync manifest
+.pgp-sync/
