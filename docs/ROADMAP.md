@@ -186,6 +186,9 @@ SC61860 Assembler強化、Studio統合WAV Toolと波形解析を含む。
   - PC側キーボードからENTERで確定した入力を記録し、通常セッションでもAlt+↑／Alt+↓で再入力できることを回帰テストする
 - [ ] ゲームパッド入力に対応する（ゲームパッドの各操作にポケコンキーを割り当て、ゲームごとに設定できるようにする）
 - [ ] パッケージ生成とリリース自動化（3環境の成果物生成は確認済み、tag release検証待ち）
+  - [ ] 次の修正タイミングでWindows MSIの更新インストール対応を整える（2026-10-13ユーザー指定）
+    - 修正前後のMSIが同じ`packageVersion`にならないよう、配布物更新時のバージョン運用を定義する。
+    - 既存MSIのUpgradeCodeを確認し、継続使用する`upgradeUuid`を明示する。旧版からの更新、スタートメニュー登録、設定・ROM Library保持をWindowsで検証する。
 
 ### ゲームデモ用のキー操作記録・再生（後続）
 
@@ -238,12 +241,12 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
 - [x] 現在PCから先を表示する読み取り専用Disassemblyビュー
 - [x] 指定範囲をアセンブラ向けテキストへ保存するDisassembler
 - [x] ラベル、ORG、DBに対応したSC61860 AssemblerとプロジェクトBuild連携
-- [ ] 設定で内蔵／外部SC61860 Assemblerを選択できるようにする（2026-10-12ユーザー要望）
-  - [x] macOS版SC61 Rev 0.04aの正常／異常終了、生成物、相対INCBIN、空白・日本語パスを調査する（[調査記録](SC61_INTEGRATION.md)）。WindowsとINCLUDEは未確認。
+- [x] 設定で内蔵／外部SC61860 Assemblerを選択できるようにする（SC61初版は2026-10-13に一区切り。詳細なWindows検証と他ツール対応は後続）
+  - [x] macOS版SC61 Rev 0.04aの正常／異常終了、生成物、相対INCBIN、空白・日本語パスを調査する（[調査記録](SC61_INTEGRATION.md)）。相対INCLUDEも後続で確認済み。
   - 既存Assemblerごとのニーモニック、条件Assembly、INCBIN等の方言を、そのツールで処理できるようにする。
   - 2026-10-12方針: 開発者が普段使うAssemblerを選べる外部連携を、内蔵Assemblerの追加の方言対応より先に進める。Assembler選択はStudio全体の共通設定とし、プロジェクトごとの切替は設けない。
-  - [x] Studio共通の設定保存と外部起動の接続テスト、ログ表示、タイムアウト・キャンセルを実装する（第2段階。Build連携は後続）
-  - [x] SC61の成功ログと隔離した新規DMPを取り込み、末尾DOS EOFを許容して機種別配置検査と範囲表示を行う（第3段階。Build／LoadとBASIC衝突検査への接続は後続）
+  - [x] Studio共通の設定保存と外部起動の接続テスト、ログ表示、タイムアウト・キャンセルを実装する（第2段階。Build連携も後続段階で実装済み）
+  - [x] SC61の成功ログと隔離した新規DMPを取り込み、末尾DOS EOFを許容して機種別配置検査と範囲表示を行う（第3段階。現行では機種別配置・BASIC衝突はLoad時に検査）
   - [x] Studio共通の内蔵／外部Assembler選択、実行ファイル、引数テンプレートを定義し、作業ディレクトリはソース／プロジェクト位置から解決できるようにする
   - [x] Workspace、Build／Build & Load、Quick Assembleで共通のAssembler選択処理を使用する
   - [x] 外部コマンドの終了コード・標準出力・標準エラーを取り込み、失敗・タイムアウト・キャンセルを扱う
@@ -253,7 +256,12 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
   - [x] macOSで設定、Workspace／Build & Load、Quick Assemble、エラー保持・診断行移動、内蔵切替を実画面確認し、[利用手順](EXTERNAL_ASSEMBLER.md)を整備する
   - [x] Windows版SC61 Rev 0.04aをWine 11.0の一時環境で確認する（Windows上のStudio確認とは別）
   - [ ] Windows実機でStudio連携、日本語パス／文字コード、エディタ連携、キャンセルを確認する（[チェックリスト](EXTERNAL_ASSEMBLER.md)）
-  - 内蔵Assemblerは維持する。初期対応はSC61のDMP出力。Windows動作確認と他ツールのadapterは後続。
+  - [x] Windowsユーザー確認でSC61接続テストとBuild成功を確認する（2026-10-13）。「プログラム登録」成功も報告された。スタートメニューの登録先詳細は確認待ち。Assembleハングの解消と上記詳細項目は個別の確認待ち。
+  - 内蔵Assemblerは維持する。初期対応はSC61のDMP出力。Windowsの詳細検証と他ツールのadapterは後続。
+- [ ] 外部Assembler基盤の次段階として「内蔵／SC61／yasm.pl／その他（汎用）」の選択構成を設計する
+  - プロセス起動・ログ・タイムアウト・キャンセルを共有し、成功判定と成果物取り込みを種類ごとに分ける。選択はStudio全体の設定を維持する。
+  - yasm.plの起動・出力・成功判定を調査し、汎用設定の出力形式・成功条件を定義する。現在のInternal/External画面には未実装。
+  - 優先見直し対象は、外部Assembler基盤、Studio日本語／英語対応、Projectの機種互換範囲・メモリ方針。空き領域RAMモードは引き続き後続検討。
 - [ ] SC61860 Assemblerの言語仕様を拡張する（最終構文と互換方針は別途策定）
   - [x] 即値、アドレス、`ORG`、`DB`等でラベルと数値を組み合わせた式を評価する（例：`LII 0x12+0x01`）
   - [x] 演算子、優先順位、括弧、範囲検査、オーバーフローの仕様を定義する

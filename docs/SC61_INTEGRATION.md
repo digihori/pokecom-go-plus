@@ -175,3 +175,14 @@ Windowsのこの実行テストにはUnicode引数を扱うPowerShell fixtureを
 macOS/LinuxではJava fixtureを使用し、タイムアウト・キャンセルのJava fixtureはWindowsでも継続する。
 日本語引数の検査を削除したり、Windowsでテストをskipしたりはしていない。
 これはテスト用プログラムの修正で、SC61本体やStudioの実行処理は変更していない。
+
+
+## SC61初版の区切り（2026-10-13）
+
+- Windowsユーザーから接続テストとBuild成功が報告された。SC61自体もコマンドプロンプトで正常動作。
+- Workspace Assembleのハング報告に対し、大きなLSTを含む結果の生成をUIから分離し、表示を行単位のLazyColumnへ変更した。macOSではFENSCERの13,568byteのAssembleとスクロールを確認。Windowsでのハング解消は個別確認待ち。
+- Projectツリー上側の高さ調整と下側説明欄の縮小、MSIスタートメニュー登録を修正。ユーザーは修正後の「プログラム登録」成功を報告したが、登録先詳細は未確認。
+- この対応は一区切りとし、Windowsの詳細チェック項目を残す。Build成功はLoadやFENSCER実行の確認ではない。
+- PC-1260/1262追加時のExpanded RAM検討と、空き領域をRAMとみなすモードは別の後続項目。現在のLoad保護を変更しない。
+- 次段階は内蔵／SC61／yasm.pl／その他（汎用）の構成を検討。共通実行層とツール固有の成功・成果物判定を分ける。今回の画面はInternal/Externalのまま。
+- MSIの旧版からの更新対応は次の修正時に行う。配布バージョン運用と既存UpgradeCode確認、更新後の設定・ROM保持をROADMAPに記録。

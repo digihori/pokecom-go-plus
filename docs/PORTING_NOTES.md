@@ -2147,3 +2147,11 @@ JDK 21の全体build / Core回帰成功。ツリー内ファイル名変更は�
 - Scope: preserve OS display scaling; do not infer a Windows font/DPI setting from a screenshot. Improve layout under constrained height instead.
 - Verification: local JDK 21 full build and tests pass after the final pane refinement. Packaged macOS Workspace assembles 13,568 FENSCER bytes and remains responsive while scrolling the complete result. One earlier run returned a timeout without freezing the UI; its cause is unconfirmed. Windows hang resolution and MSI registration are not claimed as verified.
 - Source: current PGP implementation and user feedback; no external code or ROM assets copied.
+
+
+### SC61 milestone and Windows user feedback follow-up
+
+- Date: 2026-10-13
+- User confirms Windows SC61 connection test/Build success and "program registration" success after the fixes; the exact registration destination was not specified. Workspace hang resolution, detailed Unicode/cancellation/editor checks and actual program Load/run remain separate pending checks.
+- SC61 integration is paused at the completed initial milestone by user request. Future assembler-type selection (Internal/SC61/yasm.pl/generic) is design work, not current functionality.
+- User defers MSI upgrade identity/version handling to the next correction cycle; see ROADMAP. Preserve existing installer identity where possible rather than assigning an unrelated UpgradeCode.

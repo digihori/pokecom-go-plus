@@ -86,16 +86,19 @@ Load時には対象機種のROM、未割当アドレス、物理ミラー重複�
 未割当部分を切り捨てたり、配置検査を迂回してメモリに書き込んだりはしない。
 Load失敗時は一部だけを書き込まず、以前のロード済み状態を保持する。
 
-## 確認済みの範囲（2026-10-12）
+## 確認済みの範囲（2026-10-13更新）
 
 - macOS / Apple Silicon、ユーザーがビルドしたSC61 Rev 0.04aで実画面の設定、接続テスト、Workspace、Build & Load、Quick Assemble、診断からVS Codeへの行移動を確認。
 - Windows版SC61 Rev 0.04aはmacOSのWine 11.0で確認。19byteの検証ソースはmacOS版とアドレス・byteが一致し、成功2、不明命令17、未定義operandエラー0、失敗後の旧DMP保持を確認。
-- Windows上のStudio、Windowsの日本語パス／文字コード、FENSCERのゲーム実行は未確認。
+- Windowsユーザー確認で、SC61接続テストとBuild成功、修正後の「プログラム登録」成功が報告された。登録先の詳細は未確認。
+- Windowsの設定再起動保持、日本語パス／文字コード、全操作の失敗・取消、Assembleハング解消の個別確認、FENSCERのゲーム実行は確認待ち。Build成功をLoadやゲーム実行成功とは扱わない。
+- SC61初版の対応は2026-10-13に一区切りとする。yasm.pl・汎用adapterと「内蔵／SC61／yasm.pl／その他」の選択画面は後続設計。現在はInternal/Externalの２択で、ExternalはSC61向け。
 
 Windows実機での残る確認項目:
 
 - [ ] SC61.exeのパスと引数を設定して保存・再起動後に保持される
-- [ ] 接続テスト、Workspace、Build & Load、Quick Assembleが成功する
+- [x] 接続テストとBuildが成功する（Windowsユーザー報告）
+- [ ] Workspace Assembleのハング解消、Build & Load、Quick Assembleを個別確認する
 - [ ] 空白・日本語パス、INCLUDE／INCBIN、Windows-31JのLSTと診断を確認する
 - [ ] エラー、タイムアウト、キャンセルで旧成果物をロードしない
 - [ ] LST／Map表示、外部エディタへの該当行移動、Internalへの切り替えを確認する
