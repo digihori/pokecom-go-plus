@@ -4,7 +4,12 @@ import androidx.compose.ui.input.key.Key
 import com.digihori.pgp.core.api.PocketKey
 
 internal object DesktopKeyMapper {
-    fun map(key: Key): PocketKey? = KEY_MAP[key]
+    fun map(key: Key, machineId: com.digihori.pgp.core.rom.MachineId? = null): PocketKey? =
+        if (machineId?.value == "pc-1470u") when (key) {
+            Key.Backspace -> PocketKey.BACKSPACE
+            Key.Delete -> PocketKey.DELETE
+            else -> KEY_MAP[key]
+        } else KEY_MAP[key]
 
     private val KEY_MAP: Map<Key, PocketKey> = buildMap {
         put(Key.A, PocketKey.A); put(Key.B, PocketKey.B); put(Key.C, PocketKey.C)

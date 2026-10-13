@@ -6,6 +6,7 @@ import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc14xx.Pc14xxModel
 import com.digihori.pgp.core.rom.MachineId
 
 public enum class MachineFamily {
@@ -15,6 +16,9 @@ public enum class MachineFamily {
     PC_1350,
     PC_1360,
     PC_1401,
+    PC_1450,
+    PC_1460,
+    PC_1470U,
 }
 
 public enum class MachineGeneration {
@@ -43,6 +47,7 @@ public enum class MachineRomLayout {
     SC61860_INTERNAL_8K_EXTERNAL_16K,
     SC61860_INTERNAL_8K_EXTERNAL_32K,
     SC61860_INTERNAL_8K_BANKED_16K_X8,
+    SC61860_INTERNAL_8K_BANKED_16K_X4,
 }
 
 public enum class MachineKeyboardLayout {
@@ -52,6 +57,9 @@ public enum class MachineKeyboardLayout {
     PC_1350,
     PC_1360,
     PC_1401,
+    PC_1450,
+    PC_1460,
+    PC_1470U,
 }
 
 public enum class MachineBasicDialect {
@@ -276,7 +284,80 @@ public object MachineCatalog {
         ),
     )
 
-    public val definitions: List<MachineDefinition> = listOf(pc1245) + pc1251Family + listOf(pc1261, pc1350, pc1360, pc1401)
+    private val pc1450 = MachineDefinition(
+        id = Pc14xxModel.PC_1450.machineId,
+        displayName = "PC-1450",
+        family = MachineFamily.PC_1450,
+        generation = MachineGeneration.S1,
+        memoryBanking = MachineMemoryBanking.None,
+        romLayout = MachineRomLayout.SC61860_INTERNAL_8K_EXTERNAL_32K,
+        keyboardLayout = MachineKeyboardLayout.PC_1450,
+        basicDialect = MachineBasicDialect.S1,
+        characterColumns = 16,
+        characterRows = 1,
+        supportedOperatingModes = setOf(OperatingMode.CALCULATOR, OperatingMode.RUN, OperatingMode.PROGRAM),
+        cyclesPerSecond = 256_000L,
+        automaticKeyHoldCycles = 40_000L,
+        automaticKeyGapCycles = 25_600L,
+        supportsConfigurableRam = false,
+        memoryRegions = listOf(
+            MachineMemoryRegion("internal-rom", "Internal ROM", 0, 0x1fff, MachineMemoryRegionKind.ROM),
+            MachineMemoryRegion("ram", "RAM (fixed 16 KiB card)", 0x2000, 0x5fff, MachineMemoryRegionKind.RAM),
+            MachineMemoryRegion("control", "Compatibility control/RAM window", 0x6000, 0x7fff, MachineMemoryRegionKind.DISPLAY),
+            MachineMemoryRegion("display", "Display memory", 0x7000, 0x707c, MachineMemoryRegionKind.DISPLAY),
+            MachineMemoryRegion("external-rom", "External ROM", 0x8000, 0xffff, MachineMemoryRegionKind.ROM),
+        ),
+    )
+
+    private val pc1460 = MachineDefinition(
+        id = Pc14xxModel.PC_1460.machineId,
+        displayName = "PC-1460",
+        family = MachineFamily.PC_1460,
+        generation = MachineGeneration.S1,
+        memoryBanking = MachineMemoryBanking.Banked(0x4000, 0x7fff, 4),
+        romLayout = MachineRomLayout.SC61860_INTERNAL_8K_BANKED_16K_X4,
+        keyboardLayout = MachineKeyboardLayout.PC_1460,
+        basicDialect = MachineBasicDialect.S1,
+        characterColumns = 24,
+        characterRows = 1,
+        supportedOperatingModes = setOf(OperatingMode.CALCULATOR, OperatingMode.RUN, OperatingMode.PROGRAM),
+        cyclesPerSecond = 256_000L,
+        automaticKeyHoldCycles = 40_000L,
+        automaticKeyGapCycles = 25_600L,
+        supportsConfigurableRam = false,
+        memoryRegions = listOf(
+            MachineMemoryRegion("internal-rom", "Internal ROM", 0, 0x1fff, MachineMemoryRegionKind.ROM),
+            MachineMemoryRegion("control", "Control / LCD", 0x2000, 0x3fff, MachineMemoryRegionKind.DISPLAY),
+            MachineMemoryRegion("banked-rom", "Banked ROM window", 0x4000, 0x7fff, MachineMemoryRegionKind.ROM),
+            MachineMemoryRegion("ram", "RAM (fixed 32 KiB card)", 0x8000, 0xffff, MachineMemoryRegionKind.RAM),
+        ),
+    )
+
+    private val pc1470u = MachineDefinition(
+        id = Pc14xxModel.PC_1470U.machineId,
+        displayName = "PC-1470U",
+        family = MachineFamily.PC_1470U,
+        generation = MachineGeneration.S2,
+        memoryBanking = MachineMemoryBanking.Banked(0x4000, 0x7fff, 8),
+        romLayout = MachineRomLayout.SC61860_INTERNAL_8K_BANKED_16K_X8,
+        keyboardLayout = MachineKeyboardLayout.PC_1470U,
+        basicDialect = MachineBasicDialect.S2,
+        characterColumns = 24,
+        characterRows = 2,
+        supportedOperatingModes = setOf(OperatingMode.CALCULATOR, OperatingMode.AER, OperatingMode.RUN, OperatingMode.PROGRAM),
+        cyclesPerSecond = 256_000L,
+        automaticKeyHoldCycles = 40_000L,
+        automaticKeyGapCycles = 25_600L,
+        supportsConfigurableRam = false,
+        memoryRegions = listOf(
+            MachineMemoryRegion("internal-rom", "Internal ROM", 0, 0x1fff, MachineMemoryRegionKind.ROM),
+            MachineMemoryRegion("control", "Control / LCD", 0x2000, 0x3fff, MachineMemoryRegionKind.DISPLAY),
+            MachineMemoryRegion("banked-rom", "Banked ROM window", 0x4000, 0x7fff, MachineMemoryRegionKind.ROM),
+            MachineMemoryRegion("ram", "RAM (32 KiB compatibility window)", 0x8000, 0xffff, MachineMemoryRegionKind.RAM),
+        ),
+    )
+
+    public val definitions: List<MachineDefinition> = listOf(pc1245) + pc1251Family + listOf(pc1261, pc1350, pc1360, pc1401, pc1450, pc1460, pc1470u)
     public val defaultDefinition: MachineDefinition = pc1245
 
     private val byId: Map<MachineId, MachineDefinition> = definitions.associateBy(MachineDefinition::id)

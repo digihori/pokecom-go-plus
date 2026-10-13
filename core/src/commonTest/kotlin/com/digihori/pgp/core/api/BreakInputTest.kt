@@ -8,7 +8,8 @@ class BreakInputTest {
         // Synthetic program: repeated TEST 8, with no copyrighted firmware.
         val internal = ByteArray(0x2000) { if (it % 2 == 0) 0x6b else 0x08 }
         val components = mutableListOf(RomComponent(RomComponentId("internal"), RomRole.INTERNAL, internal))
-        if (id.value == "pc-1360") repeat(8) {
+        val bankCount = (MachineCatalog.require(id).memoryBanking as? MachineMemoryBanking.Banked)?.bankCount ?: 0
+        if (bankCount > 0) repeat(bankCount) {
             components += RomComponent(RomComponentId("bank-$it"), RomRole.EXTERNAL, ByteArray(0x4000))
         } else components += RomComponent(RomComponentId("external"), RomRole.EXTERNAL,
             ByteArray(if (id.value in listOf("pc-1245", "pc-1250", "pc-1251", "pc-1255")) 0x4000 else 0x8000))

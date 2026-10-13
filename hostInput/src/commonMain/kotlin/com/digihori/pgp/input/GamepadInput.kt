@@ -1,6 +1,8 @@
 package com.digihori.pgp.input
 
 import com.digihori.pgp.core.api.InputResult
+import com.digihori.pgp.core.emulator.machine.pc14xx.Pc14xxKeyCatalog
+import com.digihori.pgp.core.emulator.machine.pc14xx.Pc14xxModel
 import com.digihori.pgp.core.api.MachineCatalog
 import com.digihori.pgp.core.api.MachineKeyboardLayout
 import com.digihori.pgp.core.api.PocketKey
@@ -140,6 +142,8 @@ object GamepadKeys {
         return when (MachineCatalog.require(machineId).keyboardLayout) {
             MachineKeyboardLayout.PC_1245, MachineKeyboardLayout.PC_1251,
             MachineKeyboardLayout.PC_1261 -> common
+            MachineKeyboardLayout.PC_1450, MachineKeyboardLayout.PC_1460, MachineKeyboardLayout.PC_1470U ->
+                Pc14xxKeyCatalog.supportedKeys(checkNotNull(Pc14xxModel.fromMachineId(machineId)))
             MachineKeyboardLayout.PC_1401 -> common + PocketKey.entries.filter {
                 it.ordinal in PocketKey.CAL.ordinal..PocketKey.MEMORY_ADD.ordinal
             } + setOf(PocketKey.LEFT_PAREN, PocketKey.RIGHT_PAREN, PocketKey.COMMA)

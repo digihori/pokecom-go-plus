@@ -24,7 +24,7 @@ internal class Pc1251Keyboard {
             ib and 0x08 != 0 -> when (operatingMode) {
                 OperatingMode.PROGRAM -> result = result or 0x02
                 OperatingMode.RESERVE -> result = result or 0x01
-                OperatingMode.RUN, OperatingMode.CALCULATOR -> Unit
+                OperatingMode.RUN, OperatingMode.CALCULATOR, OperatingMode.AER -> Unit
             }
             ib and 0x01 != 0 -> if (operatingMode == OperatingMode.RESERVE) result = result or 0x08
             ib and 0x02 != 0 -> if (operatingMode == OperatingMode.PROGRAM) result = result or 0x08

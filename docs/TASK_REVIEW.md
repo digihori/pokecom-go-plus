@@ -26,7 +26,7 @@ MSIの実測受入れは次回テクニカルプレビュー時、iOS hosted CI�
 
 外部Assembler、Windows Projectツリー、外部エディタはユーザー確認により今回分を完了とする。
 他ツールadapter・エディタ検出等の拡張は別の後続候補であり、今回の受入れを妨げない。
-Playerの仮文言整理は次の機種対応時に行う。Quick Assemble等は今回の４項目には含めない。
+Playerの仮文言整理は2026-10-13ユーザーの追加指示で先延ばし。Quick Assemble等は今回の４項目には含めない。
 
 実装・自動検証・Windows受入れの詳細は [今回の確認記録](PLATFORM_FIXES_2026-10.md) を参照。
 MSIは公開0.4のUpgradeCodeを固定しpackageVersionを1.3.1へ更新。更新インストール実測はユーザー方針により次回テクニカルプレビュー時にWindowsで行う（2026-10-13）。
@@ -56,7 +56,7 @@ MSIは公開0.4のUpgradeCodeを固定しpackageVersionを1.3.1へ更新。更�
 
 ## M: Studio/Coreの機種対応（優先順位を独立して検討）
 
-現在の対応機種はPC-1245、1250、1251、1255、1261、1350、1360、1401。
+現在のCore/Studio対応機種はPC-1245、1250、1251、1255、1261、1350、1360、1401、1450、1460、1470U。
 対応済みは全ROM版・全周辺機能の実機一致を保証する意味ではない。
 Android/iOS Playerへの機種追加（B3）とは別の作業として扱う。
 
@@ -64,13 +64,13 @@ Android/iOS Playerへの機種追加（B3）とは別の作業として扱う。
 |---|---|---|
 | M1 | PC-1260/1262 | PC-1261実装を基準に容量・ROM/BASIC差分を確認し、共通ファミリー、Studio選択、ROM Library、ロード検査を対応。その時点でExpanded RAM切替を検討（D1と同じ作業） |
 | M2 | PC-1402 | PC-1401を基準にRAM容量差とROM互換性を確認し、機種定義・Studio選択・ロード検査へ接続 |
-| M3 | PC-1450 | 将来対象一覧にあるが、ROADMAPの個別作業が不足。ROM、メモリマップ、LCD、キー、BASIC差分を調査して作業範囲を定義 |
-| M4 | PC-1460 | 機種固有のROMバンク、メモリ、LCD、キー、BASIC差分を確認しCore/Studioへ実装 |
-| M5 | PC-1470U | S2 BASICと機種別バンク定義を確認しCore/Studioへ実装 |
+| M3 | PC-1450 | Core/Studio実装・合成／ローカルROM検証済み。実機／Windowsユーザー操作は別。詳細はmachines/PC-1450.md |
+| M4 | PC-1460 | Core/Studioの4バンク・24桁LCD・S1実装済み。合成／ローカルROMと実機確認を区別。詳細はmachines/PC-1460.md |
+| M5 | PC-1470U | Core/Studioの8バンク・24桁×2行・専用S2/キー実装済み。↕︎／SHIFT TITLEキーの入力は未対応。実機照合は別。詳細はmachines/PC-1470U.md |
 | M6 | PC-1360K | 漢字ROMの配置・選択、文字コード、表示仕様を実機調査。仕様未確定のため機種実装は保留。C3の解析支援と関連 |
 | M7 | 既存機種の互換性確認 | PC-1245/1250のRAMミラー、機種固有BASIC/文字コード、ROM版差、BRK等を確認。既存PC-1360のバンク実装を新規作業に数えない |
 
-追加順は未確定。共通実装を利用できるM1/M2と、新たな仕様調査が大きいM3〜M6を分けて比較する。
+2026-10-13の追加依頼でM3→M4→M5の順に実装。M1/M2/M6は今回の対象外。
 空き領域RAMモード（D2）は機種追加とは独立した検討項目。
 
 ## C: 開発支援・解析の拡張
@@ -94,14 +94,14 @@ Android/iOS Playerへの機種追加（B3）とは別の作業として扱う。
 |---|---|---|
 | D1 | PC-1260/1262 | ROM/RAM/BASIC差分を確定し共通ファミリー化。その時点で実機RAM/Expanded RAM容量切替を検討 |
 | D2 | 空き領域をRAMとみなすモード | D1の容量切替と別項目。機種別に対象を確認しROM/LCD/制御領域を守る。ロードとCPU処理を一致させる。次回以降 |
-| D3 | その他機種・仕様差 | PC-1402容量差、PC-1460/1470Uバンク、機種固有BASIC、PC-1245/1250ミラー実機照合。PC-1360バンクは実装済み |
+| D3 | その他機種・仕様差 | PC-1402容量差、PC-1460/1470Uの実機／最大容量照合、機種固有BASIC、PC-1245/1250ミラー実機照合。PC-1360バンクは実装済み |
 | D4 | S1/S2 WAV | 信号・BASIC/Binary codec、checksum、実機往復。Playerを優先して後回し、当面pcwavを案内 |
 | D5 | WAV Analyzer追加 | 全信号形式、候補比較、ON/OFF/W0/W1/leader/byte境界overlay、原channel、段階間選択、個別export、実録音fixture。OLD波形/zoom/pan/cursor等は実装済み |
 | D6 | Player音声・Save State | Android/iOS PCM接続、完全状態の保存復元とライフサイクル。現在のCheckpoint出力とは別 |
 | D7 | Player後続UI・入力 | パッド接続時の表示自動切替、追加機種のRUN/PRO/RSV表示、外付けキーボード |
 | D8 | iOS実機・最低OS・配布 | Developer登録/署名、端末操作、Files共有受取り、実パッド、iOS 16確認。Simulator完了と別。iPadは現在対象外 |
 | D9 | ROM管理の拡張 | Import Wizard、bank slot一括割当、機種拡大時のPlayer Library、ROMをバックアップ/同期へ含めない方針 |
-| D10 | 設定・公開運用 | 最近使ったプログラム、次期Previewの差分・版数・配布物検証。Playerのプライバシー/Studio案内の仮文言は次の機種対応時に整理 |
+| D10 | 設定・公開運用 | 最近使ったプログラム、次期Previewの差分・版数・配布物検証。Playerのプライバシー/Studio案内の仮文言は2026-10-13ユーザー指示で先延ばし |
 | D11 | 低優先度機能 | PC-1251のユーザー登録予約語ショートカット、その他実需要を確認してから着手するもの |
 
 ## ロードマップの記録整理
@@ -121,3 +121,11 @@ Android/iOS Playerへの機種追加（B3）とは別の作業として扱う。
 参照: [ROADMAP](ROADMAP.md)、[外部Assembler](EXTERNAL_ASSEMBLER.md)、[iOS計画](IOS_PLAYER_PLAN.md)、
 [Debugger](DEBUGGER.md)、[ゲームパッド](GAMEPAD_DESIGN.md)、[WAV](WAV_OPERATIONS.md)、
 [公開確認](PUBLIC_RELEASE_CHECKLIST.md)、[0.4公開記録](RELEASE_CHECKLIST_0.4.0-alpha.1.md)。
+
+
+### 2026-10-14 の確認と残課題
+
+- Studio LCD比率は1460だけ3:4、他機種は1:1。ユーザー確認済み。
+- 関数panelは6列×3行。1401/1450/1460の通常「↕︎」／SHIFT STAT、1470Uの通常「↕︎」／SHIFT TITLE刻印は一旦OK。
+- 保留: Unicode矢印の絵文字表示（フォント選択・fallback）、1470Uの↕︎／TITLEキーの走査位置・入力対応。両者は別課題。
+- 全体buildとCore tests成功。ROM、作成中skin、Player新機種選択、仮文言整理は今回のcommit対象外。

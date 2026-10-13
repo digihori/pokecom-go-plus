@@ -1,5 +1,69 @@
 # Porting Notes
 
+## 2026-10-13: PC-1450 → PC-1460 → PC-1470U Core / Studio
+
+- Baseline: main `1700fe0`。開始時は未追跡の作成中スキン3枚のみ。作業途中の追加スキンも保護。
+- PGP files: `core/.../machine/pc14xx`、Catalog / Factory / MemoryLayout / ProgramImageLoader / BasicProgramCodec、
+  Studio ROM importer/package creator、キー・LCD presentation、機種別合成テストとoptional local ROM tests。
+- Primary reference: 同一作者Pokecom GO `3e3ae15aa004f10a9959764bfe5472cbeaa449f9`。
+  `Sc61860_1450/1460/1470.java`（メモリ／bank／INA/INB）、`KeyBoard1460/1470.java`、
+  `MainLoop1450/1460/1470.java`（dot wiring / symbol / pitch）、`SubActivity1450/1460/1470.java`
+  （BASIC pointers / token table）、README、対応キー刻印画像。READMEは1470クラスの対象を1470Uと明記。
+- Supplementary reference: PCWAV `14e1ef53596f0d8791b6d14965061f63846d11a7` のS1/S2 Encode/Decode / TextCodec。
+  行形式を照合する。汎用token tableを機種固有の全語彙と扱わず、1450/1460と1470Uの表を分ける。
+- Independent cross-check: [PockEmul Keyb1450.h](https://github.com/matsumo/PockEmul/blob/8c07fd1ff027e7ee69056b5d8273afbbf14037a8/src/core/Keyb1450.h)
+  （最終file commit `8c07fd1ff027e7ee69056b5d8273afbbf14037a8`）、pc1450.cpp。
+  GOの1450キー表にないF↔E／STATのscan位置を照合。[PC-1450実機メモリ観測](https://ht-deko.com/pc1450/)
+  の16 KiB card領域も参照。メーカー回路図PDFは今回の取得／表示に失敗し、新たな確認済み根拠には数えない。
+- Provenance/license: GO/PCWAVは既存の同一作者参照方針を継続（GOに独立LICENSEファイルなし）。
+  仕様・token表を抽出し、PGP既存CPU / S1/S2行処理 / buzzer / host ownershipを使って再実装。
+  PockEmulはGPL v2の独立照合資料であり、ソースコードをコピーしない。
+  参照checkoutはread-only、外部projectのbuild/runtime依存なし。ROM・ROM由来fixtureを追加しない。
+- Design: 1401のメモリ／キー／LCDを1450へ流用しない。1450/1460/1470Uの確認済み共通部分だけを
+  `Pc14xxModel`とセッション内Bus/Keyboard/Displayへ集約。旧機種のmemory decodeは維持。
+  commonMainにOS/UI/filesystem/time/thread APIなし。3機種は別familyでROM取り違えを拒否。
+- Banking: 1460=`3c00` lower 2 bits / 4×16 KiB、1470U=`3400..35ff` lower 3 bits / 8×16 KiB、
+  ともに窓`4000..7fff`。bankイベント、debugger physical ROM location、resetとROM保護を接続。
+  legacyはmem＋順番通りのbank file、canonical pgromはbank単位のcomponents/hash。
+- LCD: 1450=16×1、1460=24×1、1470U=24×2、各5×7。機種別に順序／反転／status registerを定義。
+  Studioの1460 dot pitch横:縦=3:4はMainLoop1460に基づくpresentation値。
+  1450/1470Uは1:1、Coreの論理dot数／行間と分離。実機寸法の精密測定とは区別する。
+- Keys/modes: 1450/1460のmemory selectorはbit mask、1470Uは1-based group番号。
+  BRKは保持中KEY ON＋既存短tap latch。1470UはDEL/BS/INS、2位置SHIFT、通常AER / SHIFT CALを刻印で照合。
+  AERをOperatingModeとして区別し、CALはSHIFT→AER key。モードqueueのhold/gapを新機種の設定に合わせる。
+  Studioの重複SHIFTに独立所有者を与え、1470Uのhost Backspace/DeleteをBS/DELへ接続。
+- BASIC: 1450/1460=S1専用語彙・FE kana、1470U=S2専用語彙・FE token / 1F line reference / 1-byte kana。
+  1360 codecはtoken table引数を追加して再利用。DEFDBL A等の書出し時の語境界も修正。
+  load/save、Project build/loadと原子的なplacement検査へ接続。1460/1470U writerのpointer手前上限は
+  ソフトウェア境界であり、実機の変数／work領域を含む最大容量は未確認。
+- RAM policy: 1450固定16 KiB card、1460固定32 KiB card、1470Uは参照の32 KiB互換窓。
+  広いcontrol窓を全て物理RAMと断定しない。1470のコメントアウトされたRAM/LCD mirrorは採用しない。
+  内蔵RAM＋card差／FO RAM bank／容量選択／空き領域拡張は将来項目で、今回推測追加しない。
+- Local firmware: ignored local-dataの3機種ROMで起動／モード切替／直接BASIC load、FACT(5)とPOKEで120を確認。
+  1460/1470Uの冷RAM起動はMEMORY ALL CLEAR O.K.?へY/ENTERをテストから入力。
+  Studioへ自動確認キーを追加しない。ローカルROM結果と合成fixture／実機／ユーザー操作を分ける。
+- Scope: 新機種はCore/Studioのみ。Player skin/catalog選択へ追加しない。
+  Player仮文言は2026-10-13ユーザーの追加指示で先延ばし。
+  Quick Assemble、他Assembler、Project互換、ローカライズ、RAM拡張は今回の追加依頼に含めない。
+  packageVersion 1.3.1、公開タグ／履歴を維持。公開配布物の更新は行わない。
+- Machine-specific mapping and limitations: [PC-1450](machines/PC-1450.md)、[PC-1460](machines/PC-1460.md)、[PC-1470U](machines/PC-1470U.md)。
+- Initial verification（2026-10-13。10-14の最終状態は末尾参照）: JDK 21 Core Desktop 428、Studio 218（既存skip 1）、hostInput Desktop 10、
+  iOS Simulator Native Core 398 / hostInput 10 / Player 23、全てfailure/error 0。
+  Core/Studio/hostInput tests、Native testsとmacOS `createDistributable`は成功。
+  `./gradlew build :core:desktopTest`も実行したが、作業中追加された未追跡`skin_pc1360K.png`を
+  Android resource mergerが大文字Kで拒否し、最終全体buildは停止。このファイルの変更／rename／除外はしていない。
+  開始時3枚に加え1360/1360K/1401の作成中スキンもcommit対象外。`git diff --check`成功。
+- macOS Studio manual: 一時Libraryに準備したcanonical packagesから1450→1460→1470Uを切替、
+  LCDと機種固有function panel／キーcaptionを目視。新機種のcaptionはCanvasで実測text layoutを
+  fitし、旧機種のText描画を維持。全3機種でhostキーから7+3=10、1470Uは画面SHIFT→AER keyでCALを確認。
+  1470Uの計算結果は下行に表示。冷RAMの確認キーY/ENTERは操作者として入力した。
+  package importer/library整合性は自動テスト。今回のnative file pickerはOpenがdisabledとなり登録操作を
+  完了できなかったため、picker経由の手動import成功とは記録しない。
+- QA isolation: 初回のJava prefs root指定はmacOSで分離できず、最近のROMパスが一時Libraryへ更新された。
+  元のPC-1360登録packageとのbyte一致を確認して元の登録先へ復旧。以降は検証専用のメモリ内PreferencesFactoryと
+  一時Libraryを使い、終了時に生成appのcfg/classpathを復旧。検証helperはrepositoryへ追加していない。
+  Windows／実機／最大BASIC容量／実ゲームパッドは未確認。
+
 ## 2026-10-12: iOS PC-1245 ROM vertical slice — items 7–8
 
 - User prioritized seeing real ROM boot over completing the menu hierarchy. Added provisional
@@ -2169,3 +2233,38 @@ JDK 21の全体build / Core回帰成功。ツリー内ファイル名変更は�
 - PC-1245ではゲームのBRK認識をユーザー確認。PC-1360非反応の報告を受け、Keyboard→Io→TEST 8経路とPokecom GO参照実装を再確認。
 - PC-1360も操作を確認し直した結果、BRKを認識していたとユーザー報告。機種固有の追加修正なし。
 - 追加テスト実行は許可されず未実施。先の合成命令テスト成功と今回のユーザー操作確認を分けて記録する。
+
+
+## 2026-10-14 — 関数キー・Studio LCD比率の最終状態
+
+### 関数キー
+
+- ユーザー提供の1401/1460/1470U実機画像を一次資料として、1460/1470Uの関数panelを6列×3行・18キーへ修正。1450は既存配置を維持。
+- 通常／SHIFT刻印: 1401/1450/1460はUnicode「↕︎」／STAT、1470Uは「↕︎」／TITLE。1470UのSTATはSHIFT＋「=」。F↔E位置は1450がF↔E、1460/1470UがFSE（SHIFTはTAB）。
+- 旧pokecomの1460/1470刻印画像とscan tableはFSEとSTAT/TITLEを欠いていたため、この2キーの仕様根拠として扱わない。
+- FORMATは既存の意味IDを使う。1470UのTITLEは別のPocketKeyを末尾追加したが、入力は未対応。
+- 1460のIA bit0選択時bit3（FSE）/bit2（STAT）はローカルROMで表示形式変更とSHIFT逐次入力後のSTAT symbolを確認。1470UのFSEも表示形式変更を確認。
+- 1470UのTITLE位置は同一物理位置のbit2を候補として調査したが、CAL/PRO/AERの操作で確認できなかった。候補配線は除去し、TITLE入力はUnsupportedKeyとする。通常「↕︎」の入力も含め、走査位置と操作条件の追加確認が必要。合成テストで未対応を明示する。
+- ユーザーは刻印・配置修正を一旦OKとし、矢印の絵文字表示を後続課題として保留。
+
+### 矢印の絵文字表示 — 未解決
+
+- Unicode「↕︎」（U+2195 U+FE0E）を他の主キャプションと同じTextStyle・寸法調整で描画している。
+- VS15を付けても実環境では絵文字表示になる。文字コードの指定だけで単色表示は保証できない。
+- 線画描画はユーザーの指示訂正により撤回済み。後続でフォント選択・fallbackを調査し、Unicode文字のまま単色表示し、他キーとサイズを揃える方法を確認する。対象環境で実表示を検証する。
+- TITLE入力の走査位置未確認とは別の課題。
+
+### Studio LCD比率 — ユーザー確認済み
+
+- 1460だけ細め（横:縦のdot pitch 3:4）を維持し、それ以外は1:1に統一。ユーザーが実表示を確認しOK。
+- 旧来の1行LCDに適用していた高さ11相当の計算を廃止し、実際の論理ドット数と文字間・行間からpanel比率を算出。
+- 1245/1251系/1401の文字比率が変わる。1261/1350/1360/1450/1470Uの比率は維持。
+- 1350/1360の論理6×8セルと他機種の5×7セルは維持。CoreのLCD配線・symbol判定とPlayer描画は変更しない。
+- 合成ROMで全Machine Catalogのsnapshotを作り、複数panel幅でdot比率と論理文字セルの縦横比を検証。
+
+### 検証・今回の区切り
+
+- JDK 21の全体 `build :core:desktopTest` 成功。Core desktop 429件、Studio 220件（既存skip 1）。共有Native testsも成功。刻印の最終訂正後にStudio・Player共有キーボードのdesktop testsも成功。
+- 初回の全体buildは作成中skinの大文字resource名で停止したが、その後の実行では小文字名の既存skinがあり成功。作成中skinはこちらでは変更せず、全てcommit対象外。
+- ローカルROM検証、合成配置／scan検証、ユーザーによる表示確認を区別する。ROM・ROM由来fixture・提供画像はGitへ追加しない。
+- Playerの新機種追加・仮文言整理、RAM拡張、他Assembler等は別の後続項目。packageVersionは1.3.1を維持。

@@ -11,6 +11,7 @@ import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401ComponentRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261FlatRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350ComponentRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360LegacyRomImporter
+import com.digihori.pgp.core.emulator.machine.pc14xx.*
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.api.MachineCatalog
 import com.digihori.pgp.core.api.MachineFamily
@@ -25,6 +26,9 @@ internal object DesktopRomPackageConverter {
             MachineFamily.PC_1245 -> Pc1245FlatRomImporter.importImage(image)
             MachineFamily.PC_1251 -> com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FlatRomImporter
                 .importImage(image, machineId)
+            MachineFamily.PC_1470U -> Pc14xxFlatRomImporter.importImage(Pc14xxModel.PC_1470U, image, bankImage)
+            MachineFamily.PC_1460 -> Pc14xxFlatRomImporter.importImage(Pc14xxModel.PC_1460, image, bankImage)
+            MachineFamily.PC_1450 -> Pc14xxFlatRomImporter.importImage(Pc14xxModel.PC_1450, image)
             MachineFamily.PC_1401 -> Pc1401FlatRomImporter.importImage(image)
             MachineFamily.PC_1261 -> Pc1261FlatRomImporter.importImage(image)
             MachineFamily.PC_1350 -> com.digihori.pgp.core.emulator.machine.pc1350.Pc1350FlatRomImporter
@@ -51,6 +55,18 @@ internal object DesktopRomPackageConverter {
     ): DesktopRomPackageConversionResult = when (MachineCatalog.find(machineId)?.family) {
         MachineFamily.PC_1245 -> createPc1245Package(internal, external)
         MachineFamily.PC_1251 -> createPc1251Package(internal, external, machineId)
+        MachineFamily.PC_1450 -> when (val imported = Pc14xxComponentRomImporter.importImages(Pc14xxModel.PC_1450, internal, external)) {
+            is RomImportResult.Failure -> DesktopRomPackageConversionResult.Failure(imported.error)
+            is RomImportResult.Success -> DesktopRomPackageConversionResult.Success(DesktopRomPackage.write(imported.romSet, title = "PC-1450 ROM"))
+        }
+        MachineFamily.PC_1460 -> when (val imported = Pc14xxComponentRomImporter.importImages(Pc14xxModel.PC_1460, internal, external)) {
+            is RomImportResult.Failure -> DesktopRomPackageConversionResult.Failure(imported.error)
+            is RomImportResult.Success -> DesktopRomPackageConversionResult.Success(DesktopRomPackage.write(imported.romSet, title = "PC-1460 ROM"))
+        }
+        MachineFamily.PC_1470U -> when (val imported = Pc14xxComponentRomImporter.importImages(Pc14xxModel.PC_1470U, internal, external)) {
+            is RomImportResult.Failure -> DesktopRomPackageConversionResult.Failure(imported.error)
+            is RomImportResult.Success -> DesktopRomPackageConversionResult.Success(DesktopRomPackage.write(imported.romSet, title = "PC-1470U ROM"))
+        }
         MachineFamily.PC_1401 -> when (val imported = Pc1401ComponentRomImporter.importImages(internal, external)) {
             is RomImportResult.Failure -> DesktopRomPackageConversionResult.Failure(imported.error)
             is RomImportResult.Success -> DesktopRomPackageConversionResult.Success(

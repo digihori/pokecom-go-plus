@@ -41,7 +41,7 @@ internal class Pc1401Machine(romSet: RomSet) {
         return keyboard.press(key)
     }
     fun requestOperatingMode(mode: OperatingMode) {
-        require(mode != OperatingMode.RESERVE) { "PC-1401 has no reserve mode" }
+        require(mode != OperatingMode.RESERVE && mode != OperatingMode.AER) { "PC-1401 has no reserve mode" }
         applyModeTransition(modeKeys.cancel())
         requestedMode = mode; modeAttempts = 0; modeSettleCycles = 0
     }

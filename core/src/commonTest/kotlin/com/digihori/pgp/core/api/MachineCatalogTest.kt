@@ -27,7 +27,7 @@ class MachineCatalogTest {
     fun exposesStableDefinitionsInUiOrder() {
         assertEquals(MachineId("pc-1245"), MachineCatalog.defaultDefinition.id)
         assertEquals(
-            listOf("pc-1245", "pc-1250", "pc-1251", "pc-1255", "pc-1261", "pc-1350", "pc-1360", "pc-1401"),
+            listOf("pc-1245", "pc-1250", "pc-1251", "pc-1255", "pc-1261", "pc-1350", "pc-1360", "pc-1401", "pc-1450", "pc-1460", "pc-1470u"),
             MachineCatalog.definitions.map { it.id.value },
         )
         assertEquals(

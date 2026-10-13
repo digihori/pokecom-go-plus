@@ -113,7 +113,7 @@ internal class DesktopKeyboardInput {
                 }
                 if (isCtrlPressed || isAltPressed) return false
                 if (inputMode == HostKeyInputMode.PHYSICAL) {
-                    val directKey = DesktopKeyMapper.map(key) ?: return false
+                    val directKey = DesktopKeyMapper.map(key, activeSink.machineId) ?: return false
                     activeInputs[physicalKey] = ActiveInput.Direct(directKey)
                     activeSink.pressHostKey(directKey, "keyboard:$physicalKey")
                     return true
@@ -127,7 +127,7 @@ internal class DesktopKeyboardInput {
                     activeSink.enqueueUserKeySequence(sequence)
                     return true
                 }
-                val directKey = DesktopKeyMapper.map(key)
+                val directKey = DesktopKeyMapper.map(key, activeSink.machineId)
                 if (directKey == PocketKey.ENTER) {
                     activeInputs[physicalKey] = ActiveInput.QueuedCharacter
                     activeSink.enqueueUserKeySequence(listOf(PocketKey.ENTER))
@@ -153,6 +153,7 @@ internal class DesktopKeyboardInput {
 
     private fun DesktopKeyInputSink.keySequence(character: Char): List<PocketKey>? =
         when (MachineCatalog.find(machineId)?.keyboardLayout) {
+            MachineKeyboardLayout.PC_1450, MachineKeyboardLayout.PC_1460, MachineKeyboardLayout.PC_1470U -> com.digihori.pgp.core.emulator.machine.pc1401.Pc1401CharacterInput.keySequence(character)
             MachineKeyboardLayout.PC_1401 -> com.digihori.pgp.core.emulator.machine.pc1401.Pc1401CharacterInput.keySequence(character)
             MachineKeyboardLayout.PC_1251 -> Pc1251CharacterInput.keySequence(character)
             MachineKeyboardLayout.PC_1261 -> Pc1251CharacterInput.keySequence(character)

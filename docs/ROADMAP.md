@@ -431,7 +431,15 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
 - [ ] RAM容量切り替えとは別に、機種ごとの空き領域をRAMとして利用するモードを検討する（次回以降）
   - ROM・LCD・制御領域を拡張対象にせず、ロード検査とCPUのメモリ処理で同じ設定を使用する。既存BASICとの衝突検査は維持する。
 - [ ] PC-1401/1402のユーザーメモリ容量差をデータ定義で表現する
-- [ ] PC-1360、PC-1460、PC-1470Uのバンク切替を機種別に実装する
+- [x] PC-1360、PC-1460、PC-1470Uのバンク切替を機種別に実装する（1460/1470Uは2026-10-13）
+- [x] PC-1450のCore/Studio、16桁LCD、キー走査、専用S1 BASICとROM入出力を実装する
+- [x] PC-1460のCore/Studio、4バンク、24桁LCDと物理3:4 dot pitch、S1 BASICを実装する
+- [x] PC-1470UのCore/Studio、8バンク、24桁×2行LCD、専用キー／S2 BASICを実装する
+  - [ ] ↕︎／SHIFT TITLEキーの走査位置を確認し、現在未対応の入力を追加する
+- [x] Studio LCD dot比率を1460のみ3:4、他機種1:1に統一する（ユーザー確認済み）
+- [ ] 関数キーのUnicode「↕︎」が絵文字表示になる問題を解決する（現状はユーザー了承で保留）
+  - 合成／ローカルROM確認と実機・Windowsユーザー操作を区別。Player機種追加・RAM容量選択は別。
+  - 詳細と未確定事項はdocs/machines/PC-1450.md、PC-1460.md、PC-1470U.md。
 - [ ] PC-1360KをMachine Catalogへ登録する（詳細不明のため実装は保留）
 
 ## Phase 7: Pokecom GO Player
@@ -486,7 +494,7 @@ WAV、Project、Debugger、音声出力、セーブステート、外付けキ�
   - [x] 16桁ドット表示に加えてSHIFT、DEF等の機種別LCDステータスをスキン内へ合成する
   - [x] PC-1245のRUN／PROをスキン内に明示する（Android、ユーザー動作確認済み）
   - [ ] PC-1251／1261系のRUN／PRO／RSVは実機のハードスイッチ状態であっても、PlayerではLCDステータスとして明示する
-  - [x] 3点メニューへバージョン情報、プライバシーポリシー、Pokecom GO Studioへの案内を追加する（後二つは仮文言。次の機種対応時に整理する）
+  - [x] 3点メニューへバージョン情報、プライバシーポリシー、Pokecom GO Studioへの案内を追加する（後二つは仮文言。2026-10-13ユーザー指示で整理を先延ばし）
   - [x] 3点メニューからbas/dmpプログラムをロード／セーブできるようにする（Android、ユーザー動作確認済み。Playerの実行用入出力とし、Project機能とは分離する）
     - [x] bas/dmp拡張子の自動判定、確認なしのRAMロードとAndroidの保存／共有を実装する（docs/PLAYER_PROGRAM_IO.md、iOS hostは後続）
   - [x] 機種・ROM画面、機種別Library、Session再生成、表示モード維持を実装する（現在の選択対象は1245のみ）

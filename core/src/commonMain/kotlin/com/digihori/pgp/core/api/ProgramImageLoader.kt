@@ -7,6 +7,8 @@ import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261BasicProgramMemory
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350BasicProgramMemory
 import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360BasicProgramMemory
 import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401BasicProgramMemory
+import com.digihori.pgp.core.emulator.machine.pc14xx.Pc14xxBasicProgramMemory
+import com.digihori.pgp.core.emulator.machine.pc14xx.Pc14xxModel
 import com.digihori.pgp.core.source.machine.AddressedMemoryImage
 import com.digihori.pgp.core.source.machine.AddressedMemoryImageCreateResult
 import com.digihori.pgp.core.source.machine.AddressedMemoryImageFactory
@@ -44,6 +46,8 @@ public object ProgramImageLoader {
                 "pc-1261" -> Pc1261BasicProgramMemory.load(program, read, write)
                 "pc-1350" -> Pc1350BasicProgramMemory.load(program, read, write)
                 "pc-1360" -> Pc1360BasicProgramMemory.load(program, read, write)
+                "pc-1450", "pc-1460", "pc-1470u" -> Pc14xxBasicProgramMemory.load(
+                    checkNotNull(Pc14xxModel.fromMachineId(layout.machineId)), program, read, write)
                 else -> Pc1401BasicProgramMemory.load(program, read, write)
             }
             when (result) {

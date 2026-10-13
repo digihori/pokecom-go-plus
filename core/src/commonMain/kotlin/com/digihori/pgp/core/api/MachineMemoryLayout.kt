@@ -26,7 +26,8 @@ public class MachineMemoryLayout(
     /** A starter location away from the initial BASIC text and its pointer words. */
     public val assemblyStartAddress: Int get() = when (machineId.value) {
         "pc-1261", "pc-1350" -> 0x6000
-        "pc-1360" -> 0xc000
+        "pc-1470u", "pc-1460", "pc-1360" -> 0xc000
+        "pc-1450" -> 0x5000
         "pc-1401" -> 0x4400
         else -> 0xc500
     }
@@ -35,15 +36,18 @@ public class MachineMemoryLayout(
         "pc-1245" -> 0xc000
         "pc-1250", "pc-1251", "pc-1255" -> checkNotNull(Pc1251FamilyModel.fromMachineId(machineId)).physicalRamStart
         "pc-1261" -> 0x4080
+        "pc-1450" -> 0x2030
         "pc-1350" -> 0x2030
-        "pc-1360" -> 0x8030
+        "pc-1470u", "pc-1460", "pc-1360" -> 0x8030
         else -> 0x3800
     }
 
     public val basicStartPointerAddress: Int get() = when (machineId.value) {
         "pc-1261" -> 0x66e1
         "pc-1350" -> 0x6f01
-        "pc-1360" -> 0xffd7
+        "pc-1470u", "pc-1360" -> 0xffd7
+        "pc-1460" -> 0xff01
+        "pc-1450" -> 0x5f01
         "pc-1401" -> 0x46e1
         else -> 0xc6e1
     }
@@ -105,6 +109,24 @@ public class MachineMemoryLayout(
                 address in 0x2000..0x3fff -> location(MachineMemoryKind.CONTROL, true, address)
                 address in 0x4000..0x7fff -> location(MachineMemoryKind.ROM, false, address)
                 else -> location(MachineMemoryKind.RAM, true, address)
+            }
+            "pc-1470u" -> when (address) {
+                in 0x2800..0x287d, in 0x2a00..0x2a7b -> location(MachineMemoryKind.LCD, true, address)
+                in 0x2000..0x3fff -> location(MachineMemoryKind.CONTROL, true, address)
+                in 0x4000..0x7fff -> location(MachineMemoryKind.ROM, false, address)
+                else -> location(MachineMemoryKind.RAM, true, address)
+            }
+            "pc-1460" -> when (address) {
+                in 0x3000..0x307c -> location(MachineMemoryKind.LCD, true, address)
+                in 0x2000..0x3fff -> location(MachineMemoryKind.CONTROL, true, address)
+                in 0x4000..0x7fff -> location(MachineMemoryKind.ROM, false, address)
+                else -> location(MachineMemoryKind.RAM, true, address)
+            }
+            "pc-1450" -> when (address) {
+                in 0x2000..0x5fff -> location(MachineMemoryKind.RAM, true, address)
+                in 0x7000..0x707c -> location(MachineMemoryKind.LCD, true, address)
+                in 0x6000..0x7fff -> location(MachineMemoryKind.CONTROL, true, address)
+                else -> location(MachineMemoryKind.ROM, false, address)
             }
             else -> when (address) {
                 in 0x3800..0x47ff -> location(MachineMemoryKind.RAM, true, address)

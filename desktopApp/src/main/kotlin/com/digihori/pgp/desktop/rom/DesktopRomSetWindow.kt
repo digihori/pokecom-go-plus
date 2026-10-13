@@ -76,12 +76,13 @@ internal fun DesktopRomSetWindow(initialMachineId: MachineId, onClose: () -> Uni
                         internal?.let { DesktopRomSetCreator.inputError(it, 8192) }) {
                         chooseRomSetFile(window, "Select internal ROM", "internal.bin")?.let { internal = it; changed() }
                     }
-                    val banked = definition.family == MachineFamily.PC_1360
-                    RomFileField(if (banked) "External ROM — 128 KiB (8 banks × 16 KiB)" else "External ROM — ${externalSize / 1024} KiB ($externalSize bytes)",
+                    val banking = definition.memoryBanking as? com.digihori.pgp.core.api.MachineMemoryBanking.Banked
+                    val banked = banking != null
+                    RomFileField(if (banked) "External ROM — ${externalSize / 1024} KiB (${banking.bankCount} banks × 16 KiB)" else "External ROM — ${externalSize / 1024} KiB ($externalSize bytes)",
                         external, !busy, external?.let { DesktopRomSetCreator.inputError(it, externalSize) }) {
-                        chooseRomSetFile(window, "Select external ROM", if (banked) "pc1360bank.bin" else "external.bin")?.let { external = it; changed() }
+                        chooseRomSetFile(window, "Select external ROM", if (banked) "${machineId.value.replace("-", "").removeSuffix("u")}bank.bin" else "external.bin")?.let { external = it; changed() }
                     }
-                    if (banked) Text("Choose a combined bank file containing bank 0 through bank 7 in order.", style = MaterialTheme.typography.bodySmall)
+                    if (banked) Text("Choose a combined bank file containing bank 0 through bank ${banking.bankCount - 1} in order.", style = MaterialTheme.typography.bodySmall)
                     RomFileField("Destination folder and file name (.pgrom)", destination, !busy) {
                         chooseRomSetFile(window, "Save ROM Set", destination?.name ?: "${machineId.value}.pgrom", FileDialog.SAVE,
                             destination?.parentFile)?.let { destination = DesktopRomSetCreator.destination(it); changed() }

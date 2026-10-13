@@ -40,6 +40,7 @@ internal object DesktopBasicLoader {
             is BasicTextParseResult.Success -> parsed.document
         }
         val compiled = when (MachineCatalog.find(machineId)?.keyboardLayout) {
+            MachineKeyboardLayout.PC_1450, MachineKeyboardLayout.PC_1460, MachineKeyboardLayout.PC_1470U -> Pc1401RomBasicInput.compile(document)
             MachineKeyboardLayout.PC_1401 -> Pc1401RomBasicInput.compile(document)
             MachineKeyboardLayout.PC_1251 -> Pc1251RomBasicInput.compile(document)
             MachineKeyboardLayout.PC_1261 -> Pc1251RomBasicInput.compile(document)

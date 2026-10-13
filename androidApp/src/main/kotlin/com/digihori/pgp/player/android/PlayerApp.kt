@@ -407,6 +407,7 @@ private fun OperatingMode.shortLabel(): String = when (this) {
     OperatingMode.CALCULATOR -> "CAL"
     OperatingMode.PROGRAM -> "PRO"
     OperatingMode.RESERVE -> "RSV"
+    OperatingMode.AER -> "AER"
 }
 
 @Composable

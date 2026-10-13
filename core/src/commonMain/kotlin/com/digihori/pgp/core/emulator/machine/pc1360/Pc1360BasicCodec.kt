@@ -5,12 +5,13 @@ import com.digihori.pgp.core.source.basic.BasicTextDocument
 import com.digihori.pgp.core.source.basic.BasicTextElement
 
 public object Pc1360BasicCodec {
-    public fun tokenize(document: BasicTextDocument): Pc1360BasicTokenizeResult {
+    public fun tokenize(document: BasicTextDocument, tokenNames: Map<Int, String> = TOKEN_NAMES): Pc1360BasicTokenizeResult {
         val lines = mutableListOf<MutableList<Pair<BasicTextElement, Int>>>(mutableListOf())
         document.tokens.forEach { token ->
             if (token.element == BasicTextElement.LineBreak) lines.add(mutableListOf())
             else lines.last() += token.element to token.column
         }
+        val keywords = tokenNames.map { (code, name) -> name to code }.sortedByDescending { it.first.length }
         val output = mutableListOf(0xff)
         lines.forEachIndexed { index, elements ->
             if (elements.isEmpty()) return@forEachIndexed
@@ -25,7 +26,7 @@ public object Pc1360BasicCodec {
             if (lineNumber !in 1..65279) return failure(index + 1, 1, "BASIC line number must be between 1 and 65279")
             while (position < elements.size && (elements[position].first as? BasicTextElement.Character)?.value?.let { it == ':' || it.isWhitespace() } == true) position++
             val bodyElements = elements.drop(position)
-            val encoded = encodeBody(bodyElements, index + 1)
+            val encoded = encodeBody(bodyElements, index + 1, keywords)
             if (encoded is BodyResult.Failure) return Pc1360BasicTokenizeResult.Failure(encoded.error)
             val bytes = (encoded as BodyResult.Success).bytes
             if (bytes.size + 1 > 0xff) return failure(index + 1, 1, "Encoded S2 line is too long")
@@ -36,7 +37,7 @@ public object Pc1360BasicCodec {
         return Pc1360BasicTokenizeResult.Success(output.map(Int::toByte).toByteArray())
     }
 
-    private fun encodeBody(elements: List<Pair<BasicTextElement, Int>>, line: Int): BodyResult {
+    private fun encodeBody(elements: List<Pair<BasicTextElement, Int>>, line: Int, keywords: List<Pair<String, Int>>): BodyResult {
         val chars = elements.map { (it.first as? BasicTextElement.Character)?.value ?: '\u0000' }.joinToString("")
         val output = mutableListOf<Int>()
         var i = 0; var quoted = false; var remark = false; var lineReference = false
@@ -45,7 +46,7 @@ public object Pc1360BasicCodec {
             val char = (element as? BasicTextElement.Character)?.value
             if (!quoted && !remark && char?.isWhitespace() == true) { i++; continue }
             if (!quoted && !remark) {
-                val keyword = KEYWORDS.firstOrNull { (word, _) ->
+                val keyword = keywords.firstOrNull { (word, _) ->
                     chars.regionMatches(i, word, 0, word.length, true) && boundary(chars, i, word)
                 }
                 if (keyword != null) {
@@ -85,7 +86,7 @@ public object Pc1360BasicCodec {
         return BodyResult.Success(output)
     }
 
-    public fun detokenize(bytes: ByteArray): Pc1360BasicDetokenizeResult {
+    public fun detokenize(bytes: ByteArray, tokenNames: Map<Int, String> = TOKEN_NAMES): Pc1360BasicDetokenizeResult {
         if (bytes.size < 2 || bytes.first().toInt() and 0xff != 0xff) return decodeFailure(0, "Missing S2 start marker")
         val lines = mutableListOf<String>(); var offset = 1
         while (offset < bytes.lastIndex) {
@@ -100,10 +101,11 @@ public object Pc1360BasicCodec {
                 val value = bytes[p].toInt() and 0xff
                 when {
                     !quoted && !remark && value == 0xfe && p + 1 < end - 1 -> {
-                        val keyword = TOKEN_NAMES[bytes[p + 1].toInt() and 0xff]
+                        val keyword = tokenNames[bytes[p + 1].toInt() and 0xff]
                             ?: return decodeFailure(p, "Unknown S2 token")
                         if (body.isNotEmpty() && body.last().isLetterOrDigit()) body.append(' ')
                         body.append(keyword)
+                        if (keyword != "REM" && p + 2 < end - 1 && (bytes[p + 2].toInt() and 0xff).toChar().let { it.isLetterOrDigit() || it == '$' }) body.append(' ')
                         if (keyword == "REM") { body.append(' '); remark = true }
                         p += 2; continue
                     }
@@ -150,7 +152,6 @@ public object Pc1360BasicCodec {
         0xb0 to "EOF", 0xb1 to "DSKF", 0xb2 to "LOF", 0xb3 to "LOC", 0xb6 to "NCR", 0xb7 to "NRR", 0xc0 to "ERN", 0xc1 to "ERL", 0xd0 to "ASC", 0xd1 to "VAL", 0xd2 to "LEN", 0xd4 to "KLEN",
         0xe0 to "AKCNV$", 0xe1 to "KACNV$", 0xe2 to "JIS$", 0xe8 to "OPEN$", 0xe9 to "INKEY$", 0xea to "MID$", 0xeb to "LEFT$", 0xec to "RIGHT$", 0xed to "KMID$", 0xee to "KLEFT$", 0xef to "KRIGHT$", 0xf0 to "CHR$", 0xf1 to "STR$", 0xf2 to "HEX$",
     )
-    private val KEYWORDS = TOKEN_NAMES.map { (code, name) -> name to code }.sortedByDescending { it.first.length }
 }
 
 public sealed interface Pc1360BasicTokenizeResult { public data class Success(public val bytes: ByteArray) : Pc1360BasicTokenizeResult; public data class Failure(public val error: Pc1360BasicTokenizeError) : Pc1360BasicTokenizeResult }

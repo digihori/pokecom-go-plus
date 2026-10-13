@@ -11,6 +11,7 @@ internal object DesktopRomSetCreator {
     fun externalSize(machineId: MachineId): Long = when (MachineCatalog.require(machineId).romLayout) {
         MachineRomLayout.SC61860_INTERNAL_8K_EXTERNAL_16K -> 16_384L
         MachineRomLayout.SC61860_INTERNAL_8K_EXTERNAL_32K -> 32_768L
+        MachineRomLayout.SC61860_INTERNAL_8K_BANKED_16K_X4 -> 65_536L
         MachineRomLayout.SC61860_INTERNAL_8K_BANKED_16K_X8 -> 131_072L
     }
 

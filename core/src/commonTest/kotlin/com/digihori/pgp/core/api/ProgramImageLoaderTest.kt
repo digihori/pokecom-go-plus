@@ -14,7 +14,8 @@ class ProgramImageLoaderTest {
 
     private fun session(id: MachineId, mode: Pc1251FamilyMemoryMode = Pc1251FamilyMemoryMode.EXPANDED): EmulatorSession {
         val components = mutableListOf(RomComponent(RomComponentId("internal"), RomRole.INTERNAL, ByteArray(0x2000)))
-        if (id.value == "pc-1360") repeat(8) { components += RomComponent(RomComponentId("bank-$it"), RomRole.EXTERNAL, ByteArray(0x4000)) }
+        val bankCount = (MachineCatalog.require(id).memoryBanking as? MachineMemoryBanking.Banked)?.bankCount ?: 0
+        if (bankCount > 0) repeat(bankCount) { components += RomComponent(RomComponentId("bank-$it"), RomRole.EXTERNAL, ByteArray(0x4000)) }
         else components += RomComponent(RomComponentId("external"), RomRole.EXTERNAL,
             ByteArray(if (id.value in listOf("pc-1245", "pc-1250", "pc-1251", "pc-1255")) 0x4000 else 0x8000))
         return assertIs<CreateSessionResult.Success>(EmulatorFactory.create(id, RomSet(id, components), EmulatorConfiguration(mode))).session

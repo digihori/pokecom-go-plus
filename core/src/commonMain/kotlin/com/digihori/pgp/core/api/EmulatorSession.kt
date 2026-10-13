@@ -93,6 +93,7 @@ public enum class PocketKey {
     CAL, BASIC, SIGN, HYP, SIN, COS, TAN, FORMAT, HEX, DEGREES, LN, LOG,
     RECIPROCAL, STAT, EXPONENT, POWER, ROOT, SQUARE, MEMORY_STORE, MEMORY_RECALL, MEMORY_ADD,
     LEFT_PAREN, RIGHT_PAREN, COLON, SEMICOLON, COMMA,
+    LOCK, DAKUTEN, LONG_VOWEL, BACKSPACE, TITLE,
 }
 
 public enum class OperatingMode {
@@ -100,6 +101,7 @@ public enum class OperatingMode {
     RUN,
     PROGRAM,
     RESERVE,
+    AER,
 }
 
 public sealed interface InputResult {
@@ -164,7 +166,7 @@ public enum class DisplaySymbol {
     PRINT,
     DEG,
     ERROR,
-    CAL, HYP, STAT, MEMORY, PARENTHESES,
+    CAL, HYP, STAT, MEMORY, PARENTHESES, KANA_SMALL, MATRIX, DBL, AER, BATTERY,
 }
 
 public class DisplaySnapshot internal constructor(

@@ -17,6 +17,7 @@ import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401ComponentRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261FlatRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350FlatRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360LegacyRomImporter
+import com.digihori.pgp.core.emulator.machine.pc14xx.*
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.rom.RomSet
 
@@ -36,6 +37,9 @@ internal object DesktopRomLoader {
         val imported = when (definition.family) {
             MachineFamily.PC_1245 -> Pc1245FlatRomImporter.importImage(image)
             MachineFamily.PC_1251 -> Pc1251FlatRomImporter.importImage(image, machineId)
+            MachineFamily.PC_1470U -> Pc14xxFlatRomImporter.importImage(Pc14xxModel.PC_1470U, image, bankImage)
+            MachineFamily.PC_1460 -> Pc14xxFlatRomImporter.importImage(Pc14xxModel.PC_1460, image, bankImage)
+            MachineFamily.PC_1450 -> Pc14xxFlatRomImporter.importImage(Pc14xxModel.PC_1450, image)
             MachineFamily.PC_1401 -> Pc1401FlatRomImporter.importImage(image)
             MachineFamily.PC_1261 -> Pc1261FlatRomImporter.importImage(image)
             MachineFamily.PC_1350 -> Pc1350FlatRomImporter.importImage(image)

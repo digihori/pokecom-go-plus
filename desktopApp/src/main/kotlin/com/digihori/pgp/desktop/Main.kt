@@ -68,6 +68,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -477,8 +481,8 @@ private fun FrameWindowScope.App(
                     DesktopRomLoader.loadPackageForMachine(bytes, machineIdOverride, configuration)
                 }
             } else {
-                val bankImage = if (MachineCatalog.require(selectedMachineId).family == MachineFamily.PC_1360) {
-                    File(file.parentFile, "pc1360bank.bin").readBytes()
+                val bankImage = if (MachineCatalog.require(selectedMachineId).memoryBanking is com.digihori.pgp.core.api.MachineMemoryBanking.Banked) {
+                    File(file.parentFile, "${selectedMachineId.value.replace("-", "").removeSuffix("u")}bank.bin").readBytes()
                 } else null
                 DesktopRomLoader.loadLegacyImage(selectedMachineId, bytes, configuration, bankImage)
             }
@@ -541,8 +545,8 @@ private fun FrameWindowScope.App(
             if (file.extension.equals("pgrom", ignoreCase = true)) {
                 source
             } else {
-                val bankImage = if (MachineCatalog.require(targetMachineId).family == MachineFamily.PC_1360) {
-                    File(file.parentFile, "pc1360bank.bin").readBytes()
+                val bankImage = if (MachineCatalog.require(targetMachineId).memoryBanking is com.digihori.pgp.core.api.MachineMemoryBanking.Banked) {
+                    File(file.parentFile, "${targetMachineId.value.replace("-", "").removeSuffix("u")}bank.bin").readBytes()
                 } else null
                 when (val converted = DesktopRomPackageConverter.convertLegacyImage(targetMachineId, source, bankImage)) {
                     is DesktopRomPackageConversionResult.Success -> converted.packageBytes
@@ -2199,7 +2203,7 @@ private fun FrameWindowScope.App(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        PocketLcdPanel(display)
+                        PocketLcdPanel(display, runner?.machineId ?: selectedMachineId)
                         PocketSoftwareKeyboard(
                             runner,
                             MachineCatalog.require(runner?.machineId ?: selectedMachineId).keyboardLayout,
@@ -3285,6 +3289,8 @@ private fun PocketKeyButton(
     cap: PocketKeyCap,
     runner: DesktopEmulatorRunner?,
     modifier: Modifier = Modifier,
+    inputOwner: String = "screen:${cap.key.name}",
+    fitLabels: Boolean = false,
 ) {
     var isPressed by remember(runner, cap.key) { mutableStateOf(false) }
     val componentColors = LocalStudioComponentColors.current
@@ -3336,14 +3342,14 @@ private fun PocketKeyButton(
                         if (activeRunner != null) {
                             val pressedAt = System.nanoTime()
                             isPressed = true
-                            activeRunner.pressKey(cap.key)
+                            activeRunner.pressHostKey(cap.key, inputOwner)
                             try {
                                 tryAwaitRelease()
                                 val elapsedMilliseconds = (System.nanoTime() - pressedAt) / 1_000_000L
                                 val remainingHold = activeRunner.minimumSoftwareKeyHoldMilliseconds() - elapsedMilliseconds
                                 if (remainingHold > 0L) delay(remainingHold)
                             } finally {
-                                activeRunner.releaseKey(cap.key)
+                                activeRunner.releaseHostKey(cap.key, inputOwner)
                                 isPressed = false
                             }
                         }
@@ -3351,43 +3357,60 @@ private fun PocketKeyButton(
                 )
             },
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 2.dp, vertical = 3.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                text = cap.shiftedLabel ?: cap.basicLabel.orEmpty(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.secondary,
-                maxLines = 1,
-            )
-            Text(
-                text = cap.primaryLabel,
-                style = MaterialTheme.typography.titleMedium,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-            )
-            Text(
-                text = if (cap.shiftedLabel != null) cap.basicLabel.orEmpty() else "",
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-            )
+        val upperLabel = cap.shiftedLabel ?: cap.basicLabel.orEmpty()
+        val lowerLabel = if (cap.shiftedLabel != null) cap.basicLabel.orEmpty() else ""
+        if (fitLabels) {
+            val measurer = rememberTextMeasurer()
+            val primaryStyle = MaterialTheme.typography.titleMedium
+            val secondaryStyle = MaterialTheme.typography.labelSmall
+            val secondaryColor = MaterialTheme.colorScheme.secondary
+            val primaryColor = contentColor
+            Canvas(Modifier.fillMaxSize().semantics {
+                contentDescription = listOf(cap.primaryLabel, upperLabel, lowerLabel).filter(String::isNotEmpty).joinToString(", ")
+            }) {
+                fun caption(text: String, style: androidx.compose.ui.text.TextStyle, color: Color, top: Float, height: Float) {
+                    if (text.isEmpty()) return
+                    val layout = measurer.measure(text, style = style, softWrap = false, maxLines = 1)
+                    val scale = minOf(1f, size.width * 0.86f / layout.size.width.coerceAtLeast(1),
+                        height / layout.size.height.coerceAtLeast(1))
+                    withTransform({
+                        translate((size.width - layout.size.width * scale) / 2f,
+                            top + (height - layout.size.height * scale) / 2f)
+                        scale(scale, scale, pivot = Offset.Zero)
+                    }) { drawText(layout, color = color) }
+                }
+                caption(upperLabel, secondaryStyle, secondaryColor, 0f, size.height * 0.25f)
+                caption(cap.primaryLabel, primaryStyle, primaryColor, size.height * 0.25f, size.height * 0.5f)
+                caption(lowerLabel, secondaryStyle, primaryColor, size.height * 0.75f, size.height * 0.25f)
+            }
+        } else {
+            Column(
+                modifier = Modifier.padding(horizontal = 2.dp, vertical = 3.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(text = upperLabel, style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary, maxLines = 1)
+                Text(text = cap.primaryLabel, style = MaterialTheme.typography.titleMedium,
+                    textAlign = TextAlign.Center, maxLines = 1)
+                Text(text = lowerLabel, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+            }
         }
     }
 }
 
 @Composable
 private fun PocketSoftwareKeyboard(runner: DesktopEmulatorRunner?, layout: MachineKeyboardLayout) {
-    if (layout == MachineKeyboardLayout.PC_1401) {
+    if (layout == MachineKeyboardLayout.PC_1401 || layout in setOf(MachineKeyboardLayout.PC_1450, MachineKeyboardLayout.PC_1460, MachineKeyboardLayout.PC_1470U)) {
+        val keyboard = com.digihori.pgp.desktop.input.Pc14xxKeyboardLayout.forLayout(layout) ?: Pc1401KeyboardLayout.keyboard
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            PocketKeyboardPanel(runner, Pc1401KeyboardLayout.functionPanel.copy(
-                columnCount = Pc1401KeyboardLayout.keyboard.columnCount,
-                rows = Pc1401KeyboardLayout.functionPanel.rows.map { row ->
-                    row.map { it.copy(column = it.column + 9) }
+            PocketKeyboardPanel(runner, checkNotNull(keyboard.functionPanel).copy(
+                columnCount = keyboard.columnCount,
+                rows = checkNotNull(keyboard.functionPanel).rows.map { row ->
+                    row.map { it.copy(column = it.column + keyboard.columnCount - checkNotNull(keyboard.functionPanel).columnCount) }
                 },
-            ))
-            PocketKeyboardPanel(runner, Pc1401KeyboardLayout.keyboard)
+            ), fitLabels = layout != MachineKeyboardLayout.PC_1401)
+            PocketKeyboardPanel(runner, keyboard, fitLabels = layout != MachineKeyboardLayout.PC_1401)
         }
         return
     }
@@ -3397,27 +3420,27 @@ private fun PocketSoftwareKeyboard(runner: DesktopEmulatorRunner?, layout: Machi
         MachineKeyboardLayout.PC_1261 -> Pc1261KeyboardLayout.rows to Pc1261KeyboardLayout.COLUMN_COUNT
         MachineKeyboardLayout.PC_1350 -> Pc1350KeyboardLayout.rows to Pc1350KeyboardLayout.COLUMN_COUNT
         MachineKeyboardLayout.PC_1360 -> Pc1360KeyboardLayout.rows to Pc1360KeyboardLayout.COLUMN_COUNT
-        MachineKeyboardLayout.PC_1401 -> error("PC-1401 panels are rendered separately")
+        MachineKeyboardLayout.PC_1470U, MachineKeyboardLayout.PC_1460, MachineKeyboardLayout.PC_1450, MachineKeyboardLayout.PC_1401 -> error("PC-1401 panels are rendered separately")
     }
     PocketKeyboardRows(runner, rows, columnCount)
 }
 
 @Composable
-private fun PocketKeyboardPanel(runner: DesktopEmulatorRunner?, panel: PlayerKeyboard) {
+private fun PocketKeyboardPanel(runner: DesktopEmulatorRunner?, panel: PlayerKeyboard, fitLabels: Boolean = false) {
     PocketKeyboardRows(runner, panel.rows.map { row -> row.map {
         com.digihori.pgp.desktop.input.PocketKeyCap(it.key, it.primaryLabel, it.shiftedLabel, it.basicLabel, it.column, it.columnSpan)
-    } }, panel.columnCount)
+    } }, panel.columnCount, fitLabels)
 }
 
 @Composable
-private fun PocketKeyboardRows(runner: DesktopEmulatorRunner?, rows: List<List<com.digihori.pgp.desktop.input.PocketKeyCap>>, columnCount: Int) {
+private fun PocketKeyboardRows(runner: DesktopEmulatorRunner?, rows: List<List<com.digihori.pgp.desktop.input.PocketKeyCap>>, columnCount: Int, fitLabels: Boolean = false) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .widthIn(max = 1_100.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        rows.forEach { row ->
+        rows.forEachIndexed { rowIndex, row ->
             Row(modifier = Modifier.fillMaxWidth()) {
                 var nextColumn = 0
                 row.forEach { cap ->
@@ -3426,6 +3449,8 @@ private fun PocketKeyboardRows(runner: DesktopEmulatorRunner?, rows: List<List<c
                     }
                     PocketKeyButton(
                         cap = cap,
+                        inputOwner = "screen:$rowIndex:${cap.column}:${cap.key.name}",
+                        fitLabels = fitLabels,
                         runner = runner,
                         modifier = Modifier
                             .weight(cap.columnSpan.toFloat())
@@ -3479,27 +3504,11 @@ private fun HostKeyInputModeButton(
 }
 
 @Composable
-private fun PocketLcdPanel(snapshot: DisplaySnapshot?) {
+private fun PocketLcdPanel(snapshot: DisplaySnapshot?, machineId: MachineId) {
     val componentColors = LocalStudioComponentColors.current
-    val panelAspectRatio = if (snapshot == null) {
-        LCD_PANEL_ASPECT_RATIO
-    } else if (snapshot.characterRows == 1) {
-        CharacterCellGeometry.visualColumnCount(
-            snapshot.characterColumns,
-            snapshot.characterWidth,
-            snapshot.interCharacterColumnGap,
-        ) / 11f
-    } else {
-        CharacterCellGeometry.visualColumnCount(
-            snapshot.characterColumns,
-            snapshot.characterWidth,
-            snapshot.interCharacterColumnGap,
-        ).toFloat() / CharacterCellGeometry.visualRowCount(
-            snapshot.characterRows,
-            snapshot.characterHeight,
-            snapshot.interCharacterRowGap,
-        )
-    }
+    val panelAspectRatio = snapshot?.let {
+        com.digihori.pgp.desktop.display.DesktopLcdGeometry.panelAspectRatio(machineId, it)
+    } ?: LCD_PANEL_ASPECT_RATIO
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Canvas(
             modifier = Modifier
@@ -3561,6 +3570,8 @@ private fun PocketLcdPanel(snapshot: DisplaySnapshot?) {
             text = snapshot?.let { com.digihori.pgp.player.lcdSymbolText(it.symbols) { when (it) {
                 com.digihori.pgp.core.api.DisplaySymbol.MEMORY -> "M"
                 com.digihori.pgp.core.api.DisplaySymbol.PARENTHESES -> "( )"
+                com.digihori.pgp.core.api.DisplaySymbol.KANA_SMALL -> "小"
+                com.digihori.pgp.core.api.DisplaySymbol.BATTERY -> "BATT"
                 else -> it.name
             } } }.orEmpty(),
             style = MaterialTheme.typography.labelMedium,

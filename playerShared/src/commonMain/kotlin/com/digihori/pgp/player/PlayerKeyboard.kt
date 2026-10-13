@@ -44,6 +44,9 @@ public object PlayerKeyboardCatalog {
             MachineKeyboardLayout.PC_1261,
             MachineKeyboardLayout.PC_1350,
             MachineKeyboardLayout.PC_1360,
+            MachineKeyboardLayout.PC_1450,
+            MachineKeyboardLayout.PC_1460,
+            MachineKeyboardLayout.PC_1470U,
             -> null
         }
 
