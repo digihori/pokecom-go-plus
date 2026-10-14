@@ -44,6 +44,22 @@ import com.digihori.pgp.input.GamepadSettings
 
 /** Isolated visual check: no preferences, ROM library, real ROM, credentials or native input backend. */
 fun main(args: Array<String>) {
+    if (args.firstOrNull() == "--debugger-step4") {
+        com.digihori.pgp.desktop.debug.renderDebuggerStep4Previews(File(args.getOrElse(1) { "build/debugger-step4-preview" }))
+        return
+    }
+    if (args.firstOrNull() == "--debugger-step3") {
+        com.digihori.pgp.desktop.debug.renderDebuggerStep3Previews(File(args.getOrElse(1) { "build/debugger-step3-preview" }))
+        return
+    }
+    if (args.firstOrNull() == "--debugger-step2") {
+        com.digihori.pgp.desktop.debug.renderDebuggerStep2Previews(File(args.getOrElse(1) { "build/debugger-step2-preview" }))
+        return
+    }
+    if (args.firstOrNull() == "--debugger-step1") {
+        com.digihori.pgp.desktop.debug.renderDebuggerStep1Previews(File(args.getOrElse(1) { "build/debugger-step1-preview" }))
+        return
+    }
     if (args.firstOrNull() == "--render") {
         renderPreviews(File(args.getOrElse(1) { "build/localization-preview" }), args.getOrNull(2))
         return

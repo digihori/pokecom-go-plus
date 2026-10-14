@@ -78,7 +78,7 @@ Android/iOS Playerへの機種追加（B3）とは別の作業として扱う。
 | ID | 項目 | 残作業・現在の状態 |
 |---|---|---|
 | C1 | Debuggerとソースの連携 | Assembly Listing、Symbol/Source Map、ソース行表示を接続 |
-| C2 | Debugger操作・表示 | 条件付きBreakpoint、設定永続化、Memory編集/履歴、複数パネル、bank履歴表示、Trace/Access export |
+| C2 | Debugger操作・表示 | 固定操作・停止情報・配置（[ステップ1](DEBUGGER_STEP1_VERIFICATION.md)）、値変更強調／比較基準管理（[ステップ2](DEBUGGER_STEP2_VERIFICATION.md)）、読み書き／bank履歴の表示・絞込み・移動（[ステップ3](DEBUGGER_STEP3_VERIFICATION.md)）、登録一覧／編集／有効切替・複数監視（[ステップ4](DEBUGGER_STEP4_VERIFICATION.md)）は実装済み。条件付きBreakpoint、設定永続化、Memory検索／編集、Trace/Access export等は後続 |
 | C3 | 実機Checkpoint比較 | 実機側採取手順、差分ツール、PC-1360Kの漢字ROM/work RAM観測。機種登録は仕様不明で保留 |
 | C4 | AI/MCP相互運用 | Claude Code等の接続・認証・設定案内、schema整理、BASIC/Assembly解析E2E。読み取り専用サーバーは実装済み |
 | C5 | AI/MCP操作権限 | Breakpoint/Watch/Pause/Step、ソース差分適用、Load/Continue/Memory書込み、承認・履歴・送信範囲検証。内蔵AI Providerは外部運用評価後 |

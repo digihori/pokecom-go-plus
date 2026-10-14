@@ -238,6 +238,10 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
 - [ ] 新規Project sourceを`.dmp`／Intel HEXへ統一し、既存`raw-binary` manifestを後方互換入力にする
 - [ ] Debugger Core
 - [x] Debuggerの停止理由とStep後のCPU状態差分を扱う基盤
+- [x] Debugger内のRun／Pause／Step、固定の停止情報、停止原因への移動、広幅の左右配置／縮小時タブ（日英。検証範囲は[ステップ1記録](DEBUGGER_STEP1_VERIFICATION.md)）
+- [x] Step前後／前回停止時のレジスタ・表示メモリの変更強調、比較基準の表示、Reset／ページ／Session／物理ROM切替時の基準管理（日英。[ステップ2記録](DEBUGGER_STEP2_VERIFICATION.md)）
+- [x] 読み書き／bank履歴タブ、表示の絞込み、保持状態・上限表示、現在の命令／メモリ表示への移動（日英。MCP出力・記録は維持。[ステップ3記録](DEBUGGER_STEP3_VERIFICATION.md)）
+- [x] 登録一覧・追加／編集／削除・有効切替、複数の値変更／読み書き監視（日英。[ステップ4記録](DEBUGGER_STEP4_VERIFICATION.md)）
 - [x] 複数の実行ブレークポイントと継続実行
 - [x] Disassembly行を指定した1回限りのRun to Cursor
 - [x] 指定アドレスをHEX＋ASCIIで確認する読み取り専用メモリビュー

@@ -39,6 +39,20 @@ import kotlin.test.assertTrue
 
 class DesktopEmulatorRunnerTest {
     @Test
+    fun disabledRegistrationsKeepFastRunAndDoNotEnableAccessTracing() {
+        val session = FakeSession()
+        val clock = FakeClock()
+        val runner = runner(session, clock)
+        runner.saveBreakpoint(null, 0x1000, false)
+        runner.saveWatch(null, 0xc000, 0xc0ff, com.digihori.pgp.desktop.debug.DebuggerWatchKind.CHANGE, false)
+        runner.saveWatch(null, 0xc000, 0xc0ff, com.digihori.pgp.desktop.debug.DebuggerWatchKind.READ, false)
+        runner.run(); clock.advance(1_000_000); runner.tick()
+        assertEquals(0, session.stepCount)
+        assertEquals(1, session.budgets.size)
+        assertEquals(false, session.memoryTracing)
+        assertEquals(RunnerState.RUNNING, runner.state)
+    }
+    @Test
     fun screenAndPhysicalBreakOwnersPreserveHoldAndPauseReleasesIt() {
         val session = FakeSession()
         val runner = runner(session, FakeClock())

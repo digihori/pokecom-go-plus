@@ -17,7 +17,6 @@ import com.digihori.pgp.core.api.RunResult
 import com.digihori.pgp.core.api.StepResult
 import com.digihori.pgp.core.api.MachineCatalog
 import com.digihori.pgp.core.api.MemoryAccess
-import com.digihori.pgp.core.api.MemoryAccessKind
 import com.digihori.pgp.core.api.PhysicalRomLocation
 import com.digihori.pgp.core.runtime.CycleBudget
 import com.digihori.pgp.core.runtime.CycleBudgetPlanner
@@ -29,9 +28,14 @@ import com.digihori.pgp.desktop.input.DesktopCommandHistory
 import com.digihori.pgp.input.HostKeyState
 import com.digihori.pgp.input.GamepadButton
 import com.digihori.pgp.core.source.machine.AddressedMemoryImage
+import com.digihori.pgp.desktop.debug.DebuggerRegistrationStore
+import com.digihori.pgp.desktop.debug.DebuggerRegistrationResult
+import com.digihori.pgp.desktop.debug.DebuggerRegistrationError
+import com.digihori.pgp.desktop.debug.DebuggerBreakpoint
+import com.digihori.pgp.desktop.debug.DebuggerWatch
+import com.digihori.pgp.desktop.debug.DebuggerWatchKind
 import com.digihori.pgp.desktop.debug.DebuggerStopReason
 import com.digihori.pgp.desktop.debug.DesktopInstructionTraceEntry
-import com.digihori.pgp.desktop.debug.MemoryValueChange
 import com.digihori.pgp.desktop.debug.DesktopMemoryAccessHistoryEntry
 import com.digihori.pgp.desktop.debug.DesktopBankHistoryEntry
 import com.digihori.pgp.core.debug.Sc61860InstructionDecoder
@@ -90,16 +94,18 @@ internal class DesktopEmulatorRunner(
     private var previousTimeNanoseconds: Long? = null
     private var requestedOperatingMode: OperatingMode = OperatingMode.RUN
     private val operatingMode: OperatingMode get() = session.currentOperatingMode() ?: requestedOperatingMode
-    private val executionBreakpoints: MutableSet<Int> = mutableSetOf()
+    private val registrations = DebuggerRegistrationStore(memoryBytesProvider)
+    private val executionBreakpoints: Set<Int> get() = registrations.enabledBreakpointAddresses
+    var registrationRevision: Long = 0
+        private set
     private var breakpointToSkipOnce: Int? = null
     private var temporaryRunToAddress: Int? = null
     private var instructionTraceEnabled: Boolean = false
     private var instructionTraceCapacity: Int = DEFAULT_INSTRUCTION_TRACE_CAPACITY
     private val instructionTrace: ArrayDeque<DesktopInstructionTraceEntry> = ArrayDeque()
     private var nextTraceSequence: Long = 0
-    private var memoryWatchRange: IntRange? = null
-    private var memoryWatchBaseline: ByteArray? = null
-    private var memoryAccessWatch: MemoryAccessWatch? = null
+    private val hasMemoryWatch: Boolean get() = registrations.hasChangeWatch
+    private val hasMemoryAccessWatch: Boolean get() = registrations.hasAccessWatch
     private var debugObservationEnabled: Boolean = false
     private val memoryAccessHistory: ArrayDeque<DesktopMemoryAccessHistoryEntry> = ArrayDeque()
     private val bankHistory: ArrayDeque<DesktopBankHistoryEntry> = ArrayDeque()
@@ -163,14 +169,61 @@ internal class DesktopEmulatorRunner(
         sessionRevision++
     }
 
-    fun toggleBreakpoint(address: Int): Boolean {
-        val normalized = address and 0xffff
-        return if (executionBreakpoints.remove(normalized)) false else {
-            executionBreakpoints += normalized
-            true
-        }
+    fun breakpointRegistrations(): List<DebuggerBreakpoint> = registrations.breakpoints()
+    fun watchRegistrations(): List<DebuggerWatch> = registrations.watches()
+
+    fun saveBreakpoint(id: Long?, address: Int, enabled: Boolean = true): DebuggerRegistrationResult =
+        registrationChanged(registrations.saveBreakpoint(id, address, enabled))
+
+    fun removeBreakpoint(id: Long): DebuggerRegistrationResult = registrationChanged(registrations.removeBreakpoint(id))
+
+    fun setBreakpointEnabled(id: Long, enabled: Boolean): DebuggerRegistrationResult {
+        val entry = breakpointRegistrations().firstOrNull { it.id == id }
+            ?: return DebuggerRegistrationResult.Failure(DebuggerRegistrationError.NOT_FOUND)
+        return saveBreakpoint(id, entry.address, enabled)
     }
 
+    fun saveWatch(id: Long?, start: Int, end: Int, kind: DebuggerWatchKind, enabled: Boolean = true): DebuggerRegistrationResult {
+        val tracedBefore = debugObservationEnabled || hasMemoryAccessWatch
+        val result = registrationChanged(registrations.saveWatch(id, start, end, kind, enabled))
+        if (result is DebuggerRegistrationResult.Success) updateAccessTracing(tracedBefore)
+        return result
+    }
+
+    fun removeWatch(id: Long): DebuggerRegistrationResult {
+        val tracedBefore = debugObservationEnabled || hasMemoryAccessWatch
+        val result = registrationChanged(registrations.removeWatch(id))
+        if (result is DebuggerRegistrationResult.Success) updateAccessTracing(tracedBefore)
+        return result
+    }
+
+    fun setWatchEnabled(id: Long, enabled: Boolean): DebuggerRegistrationResult {
+        val entry = watchRegistrations().firstOrNull { it.id == id }
+            ?: return DebuggerRegistrationResult.Failure(DebuggerRegistrationError.NOT_FOUND)
+        return saveWatch(id, entry.range.first, entry.range.last, entry.kind, enabled)
+    }
+
+    private fun registrationChanged(result: DebuggerRegistrationResult): DebuggerRegistrationResult {
+        if (result is DebuggerRegistrationResult.Success) { registrationRevision++; sessionRevision++ }
+        return result
+    }
+
+    private fun updateAccessTracing(previous: Boolean) {
+        val enabled = debugObservationEnabled || hasMemoryAccessWatch
+        if (previous == enabled) return
+        session.setMemoryAccessTracing(enabled)
+        session.drainMemoryAccesses()
+        lastStepMemoryAccesses = emptyList()
+    }
+
+    fun toggleBreakpoint(address: Int): Boolean {
+        val normalized = address and 0xffff
+        val old = breakpointRegistrations().firstOrNull { it.address == normalized }
+        if (old?.enabled == true) { removeBreakpoint(old.id); return false }
+        return saveBreakpoint(old?.id, normalized, true) is DebuggerRegistrationResult.Success
+    }
+
+    /** Legacy active-address view, also used by execution checks. */
     fun breakpoints(): Set<Int> = executionBreakpoints.toSortedSet()
 
     fun setInstructionTraceEnabled(enabled: Boolean) {
@@ -188,7 +241,7 @@ internal class DesktopEmulatorRunner(
     fun setDebugObservationEnabled(enabled: Boolean) {
         if (debugObservationEnabled == enabled) return
         debugObservationEnabled = enabled
-        session.setMemoryAccessTracing(enabled || memoryAccessWatch != null)
+        session.setMemoryAccessTracing(enabled || hasMemoryAccessWatch)
         session.drainMemoryAccesses()
         lastStepMemoryAccesses = emptyList()
         sessionRevision++
@@ -214,37 +267,33 @@ internal class DesktopEmulatorRunner(
         sessionRevision++
     }
 
+    /** Compatibility setters replace their own category; the UI uses saveWatch for multiple entries. */
     fun setMemoryWatch(startAddress: Int, endAddressInclusive: Int) {
-        require(startAddress in 0..0xffff)
-        require(endAddressInclusive in startAddress..0xffff)
+        require(startAddress in 0..0xffff && endAddressInclusive in startAddress..0xffff)
         require(endAddressInclusive - startAddress + 1 <= MAX_MEMORY_WATCH_BYTES)
-        memoryWatchRange = startAddress..endAddressInclusive
-        refreshMemoryWatchBaseline()
+        clearMemoryWatch()
+        check(saveWatch(null, startAddress, endAddressInclusive, DebuggerWatchKind.CHANGE) is DebuggerRegistrationResult.Success)
     }
 
     fun clearMemoryWatch() {
-        memoryWatchRange = null
-        memoryWatchBaseline = null
+        watchRegistrations().filter { it.kind == DebuggerWatchKind.CHANGE }.forEach { removeWatch(it.id) }
     }
 
-    fun memoryWatch(): IntRange? = memoryWatchRange
+    fun memoryWatch(): IntRange? = watchRegistrations().firstOrNull { it.enabled && it.kind == DebuggerWatchKind.CHANGE }?.range
 
     fun setMemoryAccessWatch(startAddress: Int, endAddressInclusive: Int, reads: Boolean, writes: Boolean) {
         require(startAddress in 0..0xffff && endAddressInclusive in startAddress..0xffff)
         require(reads || writes)
-        memoryAccessWatch = MemoryAccessWatch(startAddress..endAddressInclusive, reads, writes)
-        session.drainMemoryAccesses()
-        session.setMemoryAccessTracing(true)
+        clearMemoryAccessWatch()
+        val kind = if (reads && writes) DebuggerWatchKind.READ_WRITE else if (reads) DebuggerWatchKind.READ else DebuggerWatchKind.WRITE
+        check(saveWatch(null, startAddress, endAddressInclusive, kind) is DebuggerRegistrationResult.Success)
     }
 
     fun clearMemoryAccessWatch() {
-        memoryAccessWatch = null
-        session.setMemoryAccessTracing(debugObservationEnabled)
-        session.drainMemoryAccesses()
-        lastStepMemoryAccesses = emptyList()
+        watchRegistrations().filter { it.kind != DebuggerWatchKind.CHANGE }.forEach { removeWatch(it.id) }
     }
 
-    fun memoryAccessWatchRange(): IntRange? = memoryAccessWatch?.range
+    fun memoryAccessWatchRange(): IntRange? = watchRegistrations().firstOrNull { it.enabled && it.kind != DebuggerWatchKind.CHANGE }?.range
 
     fun runToAddress(address: Int) {
         if (state == RunnerState.FAULTED) return
@@ -263,7 +312,7 @@ internal class DesktopEmulatorRunner(
 
     fun step(): StepResult {
         pause()
-        val instructionAddress = if (memoryWatchRange != null || memoryAccessWatch != null) {
+        val instructionAddress = if (hasMemoryWatch || hasMemoryAccessWatch) {
             programCounterProvider() and 0xffff
         } else 0
         val result = stepSession()
@@ -272,9 +321,7 @@ internal class DesktopEmulatorRunner(
             state = RunnerState.FAULTED
             stopReason = DebuggerStopReason.Fault(executionStatus.fault)
         } else {
-            stopReason = detectMemoryAccesses(instructionAddress)
-                ?: detectMemoryChanges(instructionAddress)
-                ?: DebuggerStopReason.StepComplete
+            stopReason = detectWatches(instructionAddress) ?: DebuggerStopReason.StepComplete
         }
         return result
     }
@@ -509,7 +556,7 @@ internal class DesktopEmulatorRunner(
     private fun runUntilBreakpoint(cycleBudget: Long): BreakpointRunResult {
         if (
             executionBreakpoints.isEmpty() && temporaryRunToAddress == null &&
-            !instructionTraceEnabled && memoryWatchRange == null && memoryAccessWatch == null &&
+            !instructionTraceEnabled && !hasMemoryWatch && !hasMemoryAccessWatch &&
             !debugObservationEnabled
         ) {
             val result = session.runCycles(cycleBudget)
@@ -522,7 +569,7 @@ internal class DesktopEmulatorRunner(
         var status: ExecutionStatus = ExecutionStatus.Ready
         while (cycles < cycleBudget && status !is ExecutionStatus.Faulted) {
             val needsProgramCounter = temporaryRunToAddress != null ||
-                executionBreakpoints.isNotEmpty() || memoryWatchRange != null || memoryAccessWatch != null
+                executionBreakpoints.isNotEmpty() || hasMemoryWatch || hasMemoryAccessWatch
             val pc = if (needsProgramCounter) programCounterProvider() and 0xffff else 0
             if (temporaryRunToAddress != null || executionBreakpoints.isNotEmpty()) {
                 if (pc == temporaryRunToAddress) {
@@ -544,19 +591,9 @@ internal class DesktopEmulatorRunner(
             cycles += step.cycles
             instructions++
             status = step.status
-            val accessStop = detectMemoryAccesses(pc)
-            if (accessStop != null) {
-                return BreakpointRunResult(
-                    RunResult(cycles, instructions, status),
-                    stopReason = accessStop,
-                )
-            }
-            val memoryStop = detectMemoryChanges(pc)
-            if (memoryStop != null) {
-                return BreakpointRunResult(
-                    RunResult(cycles, instructions, status),
-                    stopReason = memoryStop,
-                )
+            val watchStop = detectWatches(pc)
+            if (watchStop != null) {
+                return BreakpointRunResult(RunResult(cycles, instructions, status), stopReason = watchStop)
             }
         }
         return BreakpointRunResult(RunResult(cycles, instructions, status))
@@ -582,7 +619,7 @@ internal class DesktopEmulatorRunner(
     }
 
     private fun stepSession(): StepResult {
-        val instructionAddress = if (debugObservationEnabled || memoryAccessWatch != null) {
+        val instructionAddress = if (debugObservationEnabled || hasMemoryAccessWatch) {
             programCounterProvider() and 0xffff
         } else {
             0
@@ -595,7 +632,7 @@ internal class DesktopEmulatorRunner(
         }
         val result = session.step()
         sessionRevision++
-        lastStepMemoryAccesses = if (debugObservationEnabled || memoryAccessWatch != null) {
+        lastStepMemoryAccesses = if (debugObservationEnabled || hasMemoryAccessWatch) {
             session.drainMemoryAccesses()
         } else {
             emptyList()
@@ -629,41 +666,14 @@ internal class DesktopEmulatorRunner(
         )
     }
 
-    private fun refreshMemoryWatchBaseline() {
-        val range = memoryWatchRange ?: return
-        memoryWatchBaseline = memoryBytesProvider(range.first, range.last - range.first + 1)
-    }
+    private fun refreshMemoryWatchBaseline() = registrations.refreshBaselines()
 
-    private fun detectMemoryChanges(instructionAddress: Int): DebuggerStopReason.MemoryChanged? {
-        val range = memoryWatchRange ?: return null
-        val before = memoryWatchBaseline ?: return null
-        val after = memoryBytesProvider(range.first, before.size)
-        val changes = buildList {
-            before.indices.forEach { index ->
-                val oldValue = before[index].toInt() and 0xff
-                val newValue = after[index].toInt() and 0xff
-                if (oldValue != newValue) {
-                    add(MemoryValueChange(range.first + index, oldValue, newValue))
-                }
-            }
-        }
-        memoryWatchBaseline = after
-        return changes.takeIf { it.isNotEmpty() }?.let {
-            DebuggerStopReason.MemoryChanged(instructionAddress, it)
-        }
-    }
-
-    private fun detectMemoryAccesses(instructionAddress: Int): DebuggerStopReason.MemoryAccessed? {
-        val watch = memoryAccessWatch ?: return null
-        val matching = lastStepMemoryAccesses.filter { access ->
-            access.address in watch.range && when (access.kind) {
-                MemoryAccessKind.READ -> watch.reads
-                MemoryAccessKind.WRITE -> watch.writes
-            }
-        }
-        return matching.takeIf { it.isNotEmpty() }?.let {
-            DebuggerStopReason.MemoryAccessed(instructionAddress, it)
-        }
+    private fun detectWatches(instructionAddress: Int): DebuggerStopReason? {
+        val accesses = registrations.accesses(lastStepMemoryAccesses)
+        // Refresh every change baseline even when an access watch wins the stop reason.
+        val changes = registrations.changes()
+        return if (accesses.isNotEmpty()) DebuggerStopReason.MemoryAccessed(instructionAddress, accesses)
+            else if (changes.isNotEmpty()) DebuggerStopReason.MemoryChanged(instructionAddress, changes) else null
     }
 
     private fun collectBankEvents() {
@@ -714,8 +724,6 @@ internal class DesktopEmulatorRunner(
         const val MAX_DEBUG_HISTORY_ENTRIES: Int = 4_096
     }
 }
-
-private data class MemoryAccessWatch(val range: IntRange, val reads: Boolean, val writes: Boolean)
 
 private data class BreakpointRunResult(
     val result: RunResult,

@@ -1,5 +1,19 @@
 package com.digihori.pgp.desktop
 
+import com.digihori.pgp.desktop.debug.DebuggerRegistrationPanel
+import com.digihori.pgp.desktop.debug.DebuggerRegistrationError
+import com.digihori.pgp.desktop.debug.DebuggerRegistrationResult
+import com.digihori.pgp.desktop.debug.display
+import com.digihori.pgp.desktop.debug.DebuggerHistoryPanel
+import com.digihori.pgp.desktop.debug.captureDebuggerHistory
+import com.digihori.pgp.desktop.debug.DebuggerComparisonTracker
+import com.digihori.pgp.desktop.debug.DebuggerComparisonFrame
+import com.digihori.pgp.desktop.debug.DebuggerComparisonBasis
+import com.digihori.pgp.desktop.debug.DebuggerCpuValues
+import com.digihori.pgp.desktop.debug.DebuggerMemoryLine
+import com.digihori.pgp.desktop.debug.DebuggerComparisonLegend
+import com.digihori.pgp.desktop.debug.DebuggerControls
+import com.digihori.pgp.desktop.debug.DebuggerLayout
 import com.digihori.pgp.desktop.debug.DebugContextFieldPair
 import com.digihori.pgp.desktop.localization.LanguageSettingsPanel
 import com.digihori.pgp.desktop.mcp.McpServerPanel
@@ -70,6 +84,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -326,6 +342,16 @@ private fun FrameWindowScope.App(
     var debuggerStopReason by remember { mutableStateOf<DebuggerStopReason?>(null) }
     var showDebuggerWindow by remember { mutableStateOf(false) }
     var memoryViewStartAddress by remember { mutableStateOf(DEFAULT_MEMORY_VIEW_ADDRESS) }
+    val comparisonTracker = remember { DebuggerComparisonTracker(DEFAULT_MEMORY_VIEW_ADDRESS) }
+    var debuggerComparison by remember { mutableStateOf(DebuggerComparisonFrame()) }
+    fun resetDebuggerComparison() {
+        debuggerComparison = comparisonTracker.reset(runner)
+        changedCpuFields = emptySet()
+    }
+    fun selectDebuggerMemory(address: Int) {
+        memoryViewStartAddress = address and 0xffff
+        debuggerComparison = comparisonTracker.selectMemory(runner, memoryViewStartAddress)
+    }
     var operatingMode by remember { mutableStateOf(OperatingMode.RUN) }
     var requestedToneHz by remember { mutableStateOf(0) }
     var showCreateRomSetWindow by remember { mutableStateOf(false) }
@@ -534,7 +560,7 @@ private fun FrameWindowScope.App(
                 executedCycles = bootResult?.executedCycles ?: 0L
                 display = newRunner.displaySnapshot()
                 cpu = newRunner.cpuSnapshot()
-                changedCpuFields = emptySet()
+                resetDebuggerComparison()
                 debuggerStopReason = newRunner.stopReason
                 operatingMode = OperatingMode.RUN
                 requestedToneHz = 0
@@ -625,6 +651,7 @@ private fun FrameWindowScope.App(
             runner = null
             display = null
             cpu = null
+            resetDebuggerComparison()
             loadedRomName = null
             loadedRomFile = null
             runnerState = RunnerState.PAUSED
@@ -845,6 +872,7 @@ private fun FrameWindowScope.App(
                         runnerState = activeRunner.state
                         display = activeRunner.displaySnapshot()
                         cpu = activeRunner.cpuSnapshot()
+                        resetDebuggerComparison()
                         requestedToneHz = activeRunner.audioSnapshot().frequencyHz
                         projectBasicBaseline = if (built.artifact.copyBasicProgram() != null) {
                             (activeRunner.basicProgramSnapshot() as? BasicProgramSnapshotResult.Success)
@@ -908,6 +936,7 @@ private fun FrameWindowScope.App(
                     runnerState = activeRunner.state
                     display = activeRunner.displaySnapshot()
                     cpu = activeRunner.cpuSnapshot()
+                    resetDebuggerComparison()
                     message = uiText("basic.loadedDirect", (file.name).toString(), (loaded.size).toString(), (loaded.startAddress.hex(4)), (loaded.endAddress.hex(4)))
                 }
             }
@@ -934,6 +963,7 @@ private fun FrameWindowScope.App(
                 runnerState = activeRunner.state
                 display = activeRunner.displaySnapshot()
                 cpu = activeRunner.cpuSnapshot()
+                resetDebuggerComparison()
             }
         }
     }
@@ -980,6 +1010,7 @@ private fun FrameWindowScope.App(
                 runnerState = activeRunner.state
                 display = activeRunner.displaySnapshot()
                 cpu = activeRunner.cpuSnapshot()
+                resetDebuggerComparison()
                 requestedToneHz = activeRunner.audioSnapshot().frequencyHz
                 message = if (runResult.status is ExecutionStatus.Faulted) {
                     uiText("basic.loadingStopped", (runResult.status as ExecutionStatus.Faulted).fault.message())
@@ -1031,6 +1062,7 @@ private fun FrameWindowScope.App(
     }
 
     fun runEmulator() {
+        runner?.let { debuggerComparison = comparisonTracker.running(it) }
         runner?.run()
         runnerState = runner?.state ?: RunnerState.PAUSED
         changedCpuFields = emptySet()
@@ -1039,11 +1071,13 @@ private fun FrameWindowScope.App(
     }
 
     fun pauseEmulator() {
+        val wasRunning = runner?.state == RunnerState.RUNNING
         runner?.pause()
         audioPlayer.stop()
         runnerState = runner?.state ?: RunnerState.PAUSED
         cpu = runner?.cpuSnapshot()
-        changedCpuFields = emptySet()
+        if (wasRunning) runner?.let { debuggerComparison = comparisonTracker.stopped(it) }
+        changedCpuFields = CpuSnapshotDifference.changed(debuggerComparison.previousCpu, cpu)
         debuggerStopReason = runner?.stopReason
         message = uiText("main.paused")
     }
@@ -1058,7 +1092,7 @@ private fun FrameWindowScope.App(
         executedCycles = 0L
         display = runner?.displaySnapshot()
         cpu = runner?.cpuSnapshot()
-        changedCpuFields = emptySet()
+        resetDebuggerComparison()
         debuggerStopReason = runner?.stopReason
         operatingMode = OperatingMode.RUN
         requestedToneHz = 0
@@ -1069,12 +1103,14 @@ private fun FrameWindowScope.App(
 
     fun stepEmulator() {
         val before = runner?.cpuSnapshot()
+        runner?.let(comparisonTracker::preparingStep)
         val result = runner?.step() ?: return
         runnerState = runner?.state ?: RunnerState.PAUSED
         executedCycles += result.cycles
         display = runner?.displaySnapshot()
         val after = runner?.cpuSnapshot()
         changedCpuFields = CpuSnapshotDifference.changed(before, after)
+        runner?.let { debuggerComparison = comparisonTracker.stepped(it) }
         cpu = after
         debuggerStopReason = runner?.stopReason
         requestedToneHz = runner?.audioSnapshot()?.frequencyHz ?: 0
@@ -1155,6 +1191,11 @@ private fun FrameWindowScope.App(
             delay(if (runner?.unlimited == true && runner?.state == RunnerState.RUNNING) 1L
                 else FRAME_DELAY_MILLISECONDS)
             val activeRunner = runner ?: continue
+            val stateBeforeTick = activeRunner.state
+            if (stateBeforeTick == RunnerState.RUNNING && debuggerComparison.cpuBasis != DebuggerComparisonBasis.RUNNING) {
+                debuggerComparison = comparisonTracker.running(activeRunner)
+                changedCpuFields = emptySet()
+            }
             val tick = activeRunner.tick()
             executedCycles += tick.runResult?.executedCycles ?: 0L
             runnerState = activeRunner.state
@@ -1164,8 +1205,13 @@ private fun FrameWindowScope.App(
             if (display?.revision != latestDisplay.revision || display?.enabled != latestDisplay.enabled) {
                 display = latestDisplay
             }
-            if (++cpuRefreshCounter >= CPU_REFRESH_FRAME_INTERVAL) {
+            if (++cpuRefreshCounter >= CPU_REFRESH_FRAME_INTERVAL ||
+                (stateBeforeTick == RunnerState.RUNNING && activeRunner.state != RunnerState.RUNNING)) {
                 cpu = activeRunner.cpuSnapshot()
+                if (stateBeforeTick == RunnerState.RUNNING && activeRunner.state != RunnerState.RUNNING) {
+                    debuggerComparison = comparisonTracker.stopped(activeRunner)
+                    changedCpuFields = CpuSnapshotDifference.changed(debuggerComparison.previousCpu, cpu)
+                }
                 projectBasicBaseline?.let { baseline ->
                     projectBasicModified = when (val snapshot = activeRunner.basicProgramSnapshot()) {
                         is BasicProgramSnapshotResult.Success -> !snapshot.copyBytes().contentEquals(baseline)
@@ -1661,83 +1707,129 @@ private fun FrameWindowScope.App(
             }
             PgpStudioTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    StudioScrollableColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = 16.dp,
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        SelectionContainer {
-                            DebuggerSection {
-                                CpuRegisterPanel(cpu, changedCpuFields)
-                                debuggerStopReason?.let { Text(uiText("debug.stopLabel", (it.displayName()))) }
-                                Button(
-                                    enabled = runner != null && cpu != null,
-                                    onClick = {
-                                        checkpointRangeError = null
-                                        showSaveCheckpointDialog = true
-                                    },
-                                ) { Text(uiText("debug.checkpointTitle")) }
-                                Button(
-                                    enabled = runner != null && cpu != null,
-                                    onClick = {
-                                        val activeRunner = runner ?: return@Button
-                                        val ram = MachineCatalog.require(activeRunner.machineId).memoryRegions
-                                            .firstOrNull { it.kind == MachineMemoryRegionKind.RAM }
-                                        ram?.let {
-                                            debugContextMemoryStart = it.startAddress.hex(4)
-                                            debugContextMemoryEnd = (it.startAddress + 0xff)
-                                                .coerceAtMost(it.endAddressInclusive).hex(4)
-                                        }
-                                        debugContextError = null
-                                        debugContextPreview = null
-                                        showDebugContextDialog = true
-                                    },
-                                ) { Text(uiText("debug.contextTitle")) }
-                            }
+                    key(runner) {
+                        var memoryNavigationRevision by remember { mutableStateOf(0) }
+                        var navigationRevision by remember(runner) { mutableStateOf(0) }
+                        var disassemblyNavigation by remember(runner) { mutableStateOf<Pair<Int, Int?>?>(null) }
+                        var navigateMemory by remember(runner) { mutableStateOf(false) }
+                        fun navigateInstruction(address: Int?) {
+                            navigateMemory = false
+                            navigationRevision++
+                            disassemblyNavigation = navigationRevision to address
                         }
-                        DebuggerSection {
-                            SelectionContainer {
-                                DisassemblyPanel(
-                                    runner = runner,
+                        fun navigateToMemory(address: Int) {
+                            selectDebuggerMemory(address)
+                            memoryNavigationRevision++
+                            navigateMemory = true
+                            navigationRevision++
+                        }
+                        DebuggerLayout(
+                            navigationRevision = navigationRevision,
+                            navigateMemory = navigateMemory,
+                            header = {
+                                DebuggerControls(
+                                    hasSession = runner != null,
+                                    state = runnerState,
                                     snapshot = cpu,
-                                    keyboardInput = keyboardInput,
-                                    onSaveRange = {
-                                        disassemblyStartAddress = (cpu?.programCounter ?: 0).hex(4)
-                                        disassemblyEndAddress = ((cpu?.programCounter ?: 0) + 0xff)
-                                            .coerceAtMost(0xffff).hex(4)
-                                        disassemblyRangeError = null
-                                        showSaveDisassemblyDialog = true
-                                    },
+                                    stopReason = debuggerStopReason,
+                                    onRun = ::runEmulator,
+                                    onPause = ::pauseEmulator,
+                                    onStep = ::stepEmulator,
+                                    onFollowPc = { navigateInstruction(null) },
+                                    onStopInstruction = { navigateInstruction(it) },
+                                    onStopMemory = ::navigateToMemory,
                                 )
-                            }
-                        }
-                        DebuggerSection {
-                            SelectionContainer {
-                                InstructionTracePanel(runner, executedCycles, keyboardInput)
-                            }
-                        }
-                        DebuggerSection {
-                            SelectionContainer {
-                                MemoryMapPanel(
-                                    regions = MachineCatalog.require(
-                                        runner?.machineId ?: selectedMachineId,
-                                    ).memoryRegions,
-                                    onSelect = { memoryViewStartAddress = it.startAddress },
-                                )
-                            }
-                        }
-                        DebuggerSection {
-                            SelectionContainer {
-                                MemoryViewPanel(
-                                    runner = runner,
-                                    keyboardInput = keyboardInput,
-                                    startAddress = memoryViewStartAddress,
-                                    onStartAddressChange = { memoryViewStartAddress = it },
-                                )
-                            }
-                        }
-                        DebuggerSection { SelectionContainer { MemoryWatchPanel(runner, keyboardInput) } }
+                            },
+                            execution = {
+                                DebuggerSection {
+                                    SelectionContainer {
+                                        CpuRegisterPanel(cpu, changedCpuFields,
+                                            previousSnapshot = debuggerComparison.previousCpu,
+                                            comparisonBasis = debuggerComparison.cpuBasis)
+                                    }
+                                }
+                                DebuggerSection {
+                                    SelectionContainer {
+                                        DisassemblyPanel(
+                                            runner = runner,
+                                            snapshot = cpu,
+                                            keyboardInput = keyboardInput,
+                                            navigation = disassemblyNavigation,
+                                            onSaveRange = {
+                                                disassemblyStartAddress = (cpu?.programCounter ?: 0).hex(4)
+                                                disassemblyEndAddress = ((cpu?.programCounter ?: 0) + 0xff)
+                                                    .coerceAtMost(0xffff).hex(4)
+                                                disassemblyRangeError = null
+                                                showSaveDisassemblyDialog = true
+                                            },
+                                        )
+                                    }
+                                }
+                                DebuggerSection { SelectionContainer { InstructionTracePanel(runner, executedCycles, keyboardInput) } }
+                                DebuggerSection {
+                                    Button(
+                                        enabled = runner != null && cpu != null,
+                                        onClick = {
+                                            checkpointRangeError = null
+                                            showSaveCheckpointDialog = true
+                                        },
+                                    ) { Text(uiText("debug.checkpointTitle")) }
+                                    Button(
+                                        enabled = runner != null && cpu != null,
+                                        onClick = {
+                                            val activeRunner = runner ?: return@Button
+                                            val ram = MachineCatalog.require(activeRunner.machineId).memoryRegions
+                                                .firstOrNull { it.kind == MachineMemoryRegionKind.RAM }
+                                            ram?.let {
+                                                debugContextMemoryStart = it.startAddress.hex(4)
+                                                debugContextMemoryEnd = (it.startAddress + 0xff)
+                                                    .coerceAtMost(it.endAddressInclusive).hex(4)
+                                            }
+                                            debugContextError = null
+                                            debugContextPreview = null
+                                            showDebugContextDialog = true
+                                        },
+                                    ) { Text(uiText("debug.contextTitle")) }
+                                }
+                            },
+                            memory = {
+                                DebuggerSection {
+                                    SelectionContainer {
+                                        MemoryViewPanel(
+                                            runner = runner,
+                                            keyboardInput = keyboardInput,
+                                            startAddress = memoryViewStartAddress,
+                                            onStartAddressChange = ::selectDebuggerMemory,
+                                            snapshotRevision = cpu,
+                                            comparison = debuggerComparison,
+                                            navigationRevision = memoryNavigationRevision,
+                                        )
+                                    }
+                                }
+                                DebuggerSection {
+                                    SelectionContainer {
+                                        MemoryMapPanel(
+                                            regions = MachineCatalog.require(runner?.machineId ?: selectedMachineId).memoryRegions,
+                                            onSelect = { navigateToMemory(it.startAddress) },
+                                        )
+                                    }
+                                }
+                            },
+                            history = {
+                                var refreshRevision by rememberSaveable { mutableStateOf(0) }
+                                // CPU refresh is paced independently of fast Runner ticks.
+                                val historySnapshot = remember(runner, cpu, runnerState, refreshRevision) { captureDebuggerHistory(runner) }
+                                DebuggerSection {
+                                    DebuggerHistoryPanel(historySnapshot, keyboardInput,
+                                        onInstruction = { navigateInstruction(it) },
+                                        onMemory = ::navigateToMemory,
+                                        onRefresh = { refreshRevision++ })
+                                }
+                            },
+                            registrations = {
+                                DebuggerSection { DebuggerRegistrationPanel(runner, keyboardInput, executionRevision = cpu) }
+                            },
+                        )
                     }
                 }
             }
@@ -2485,7 +2577,9 @@ private fun FrameWindowScope.App(
                                 checkpointRangeError = uiText("debug.checkpointLimit")
                             else -> {
                                 val activeRunner = runner ?: return@TextButton
+                                val wasRunning = activeRunner.state == RunnerState.RUNNING
                                 activeRunner.pause()
+                                if (wasRunning) debuggerComparison = comparisonTracker.stopped(activeRunner)
                                 audioPlayer.stop()
                                 runnerState = activeRunner.state
                                 debuggerStopReason = activeRunner.stopReason
@@ -2672,43 +2766,11 @@ private fun FrameWindowScope.App(
 }
 
 @Composable
-internal fun CpuRegisterPanel(snapshot: CpuSnapshot?, changedFields: Set<CpuField>, strings: StudioStrings = StudioStrings.system) {
-    val ram = snapshot?.copyInternalRam()
-    fun register(index: Int): String = ram?.getOrNull(index)?.toInt()?.and(0xff)?.hex(2) ?: "--"
-    val lines = if (snapshot == null) {
-        listOf(
-            "PC=----  CURRENT_PC=----  OP=--  DP=----  P=--  Q=--  R=--  Z=-  C=-",
-            "I=--  J=--  A=--  B=--  XL=--  XH=--  YL=--  YH=--",
-            "K=--  L=--  M=--  N=--  IA=--  IB=--  FO=--  OUTC=--",
-        )
-    } else {
-        listOf(
-            "PC=${snapshot.programCounter.hex(4)}  CURRENT_PC=${snapshot.currentProgramCounter.hex(4)}  " +
-                "OP=${snapshot.opcode.hex(2)}  DP=${snapshot.dataPointer.hex(4)}  " +
-                "P=${snapshot.p.hex(2)}  Q=${snapshot.q.hex(2)}  R=${snapshot.r.hex(2)}  " +
-                "Z=${snapshot.zero.bit()}  C=${snapshot.carry.bit()}",
-            "I=${register(0x00)}  J=${register(0x01)}  A=${register(0x02)}  B=${register(0x03)}  " +
-                "XL=${register(0x04)}  XH=${register(0x05)}  " +
-                "YL=${register(0x06)}  YH=${register(0x07)}",
-            "K=${register(0x08)}  L=${register(0x09)}  M=${register(0x0a)}  N=${register(0x0b)}  " +
-                "IA=${snapshot.ia.hex(2)}  IB=${snapshot.ib.hex(2)}  " +
-                "FO=${snapshot.fo.hex(2)}  OUTC=${snapshot.control.hex(2)}",
-        )
-    }
-
-    Column(horizontalAlignment = Alignment.Start) {
-        Text("CPU", style = MaterialTheme.typography.labelLarge)
-        Column(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-            lines.forEach { Text(it, fontFamily = FontFamily.Monospace, softWrap = false) }
-        }
-        if (changedFields.isNotEmpty()) {
-            Text(
-                strings.text("debug.cpuChanged", changedFields.joinToString { it.uiLabel(strings) }),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
-        }
-    }
+internal fun CpuRegisterPanel(
+    snapshot: CpuSnapshot?, changedFields: Set<CpuField>, strings: StudioStrings = StudioStrings.system,
+    previousSnapshot: CpuSnapshot? = null, comparisonBasis: DebuggerComparisonBasis = DebuggerComparisonBasis.NONE,
+) {
+    DebuggerCpuValues(snapshot, previousSnapshot, changedFields, comparisonBasis, strings)
 }
 
 @Composable
@@ -2718,11 +2780,24 @@ internal fun DisassemblyPanel(
     keyboardInput: DesktopKeyboardInput,
     onSaveRange: () -> Unit,
     strings: StudioStrings = StudioStrings.system,
+    navigation: Pair<Int, Int?>? = null,
 ) {
-    var customStartAddress by remember(runner) { mutableStateOf<Int?>(null) }
-    var addressText by remember(runner) { mutableStateOf("") }
-    var addressError by remember(runner) { mutableStateOf(false) }
-    var breakpoints by remember(runner) { mutableStateOf(runner?.breakpoints().orEmpty()) }
+    var customStartAddress by rememberSaveable(runner) { mutableStateOf<Int?>(null) }
+    var addressText by rememberSaveable(runner) { mutableStateOf("") }
+    var addressError by rememberSaveable(runner) { mutableStateOf(false) }
+    var breakpointRevision by remember(runner) { mutableStateOf(0) }
+    var breakpointError by remember(runner) { mutableStateOf<DebuggerRegistrationError?>(null) }
+    val breakpointEntries = remember(runner, snapshot, runner?.registrationRevision, breakpointRevision) { runner?.breakpointRegistrations().orEmpty() }
+    val breakpoints = breakpointEntries.filter { it.enabled }.map { it.address }.toSet()
+    var handledNavigation by rememberSaveable(runner) { mutableStateOf<Int?>(null) }
+    LaunchedEffect(navigation) {
+        navigation?.takeIf { it.first != handledNavigation }?.let {
+            customStartAddress = it.second
+            addressText = it.second?.hex(4).orEmpty()
+            addressError = false
+            handledNavigation = it.first
+        }
+    }
     val startAddress = customStartAddress ?: snapshot?.programCounter
     val lines = if (runner == null || startAddress == null) {
         emptyList()
@@ -2772,24 +2847,30 @@ internal fun DisassemblyPanel(
                 onClick = onSaveRange,
             ) { Text(strings.text("debug.saveRange")) }
         }
+        breakpointError?.let { Text(it.display(strings), color = MaterialTheme.colorScheme.error) }
         if (lines.isEmpty()) {
             Text(strings.text("debug.noCpu"), fontFamily = FontFamily.Monospace)
         } else {
             Column(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-            lines.forEachIndexed { index, line ->
-                val marker = if (index == 0) ">" else " "
+            lines.forEach { line ->
                 val address = line.instruction.address
+                val isCurrent = address == snapshot?.programCounter
+                val marker = if (isCurrent) ">" else " "
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+                    val registration = breakpointEntries.firstOrNull { it.address == address }
                     TextButton(
-                        modifier = Modifier.semantics { contentDescription = strings.text(if (address in breakpoints) "debug.breakpointRemove" else "debug.breakpointAdd", address.hex(4)) },
+                        modifier = Modifier.semantics { contentDescription = strings.text(
+                            if (address in breakpoints) "debug.breakpointRemove" else if (registration != null) "debug.registration.enableBreakpoint" else "debug.breakpointAdd", address.hex(4)) },
                         onClick = {
-                            runner?.toggleBreakpoint(address)
-                            breakpoints = runner?.breakpoints().orEmpty()
+                            val result = if (registration?.enabled == true) runner?.removeBreakpoint(registration.id)
+                                else runner?.saveBreakpoint(registration?.id, address, true)
+                            breakpointError = (result as? DebuggerRegistrationResult.Failure)?.error
+                            breakpointRevision++
                         },
-                    ) { Text(if (address in breakpoints) "●" else "○") }
+                    ) { Text(if (address in breakpoints) "●" else if (registration != null) "○-" else "○") }
                     TextButton(
                         enabled = runner != null && runner.state != RunnerState.FAULTED,
                         onClick = { runner?.runToAddress(address) },
@@ -2799,7 +2880,7 @@ internal fun DisassemblyPanel(
                         "$marker${address.hex(4)}  " +
                             "${line.byteText.padEnd(DISASSEMBLY_BYTE_COLUMN_WIDTH)}  ${line.instructionText}",
                         fontFamily = FontFamily.Monospace,
-                        color = if (index == 0) MaterialTheme.colorScheme.primary else Color.Unspecified,
+                        color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.Unspecified,
                     )
                 }
             }
@@ -2815,15 +2896,24 @@ internal fun MemoryViewPanel(
     startAddress: Int,
     onStartAddressChange: (Int) -> Unit,
     strings: StudioStrings = StudioStrings.system,
+    snapshotRevision: CpuSnapshot? = null,
+    navigationRevision: Int = 0,
+    comparison: DebuggerComparisonFrame = DebuggerComparisonFrame(),
 ) {
-    var addressText by remember(runner) { mutableStateOf(startAddress.hex(4)) }
-    var addressError by remember(runner) { mutableStateOf(false) }
+    var addressText by rememberSaveable(runner) { mutableStateOf(startAddress.hex(4)) }
+    var addressError by rememberSaveable(runner) { mutableStateOf(false) }
     var refreshRevision by remember(runner) { mutableStateOf(0) }
-    LaunchedEffect(startAddress) {
-        addressText = startAddress.hex(4)
-        addressError = false
+    var handledStartAddress by rememberSaveable(runner) { mutableStateOf(startAddress) }
+    var handledNavigation by rememberSaveable(runner) { mutableStateOf(navigationRevision) }
+    LaunchedEffect(startAddress, navigationRevision) {
+        if (startAddress != handledStartAddress || navigationRevision != handledNavigation) {
+            addressText = startAddress.hex(4)
+            addressError = false
+            handledStartAddress = startAddress
+            handledNavigation = navigationRevision
+        }
     }
-    val lines = remember(runner, startAddress, refreshRevision) {
+    val lines = remember(runner, startAddress, refreshRevision, snapshotRevision, navigationRevision) {
         if (runner == null) {
             emptyList()
         } else {
@@ -2838,6 +2928,13 @@ internal fun MemoryViewPanel(
         horizontalAlignment = Alignment.Start,
     ) {
         Text(strings.text("debug.memory"), style = MaterialTheme.typography.labelLarge)
+        val comparisonMatches = comparison.memoryStart == startAddress && runner?.state != RunnerState.RUNNING
+        val basis = if (runner?.state == RunnerState.RUNNING) DebuggerComparisonBasis.RUNNING
+            else if (comparisonMatches) comparison.memoryBasis else DebuggerComparisonBasis.NONE
+        DebuggerComparisonLegend(basis, strings)
+        if (comparisonMatches && comparison.excludedMemoryBytes > 0) {
+            Text(strings.text("debug.diff.mappingChanged", comparison.excludedMemoryBytes.toString()))
+        }
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -2887,10 +2984,7 @@ internal fun MemoryViewPanel(
         } else {
             Column(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
             lines.forEach { line ->
-                Text(
-                    "${line.address.hex(4)}: ${line.hexText}  |${line.asciiText}|",
-                    fontFamily = FontFamily.Monospace,
-                )
+                DebuggerMemoryLine(line, if (comparisonMatches) comparison.memoryChanges else emptyMap(), strings)
             }
             }
         }
@@ -2906,10 +3000,10 @@ internal fun InstructionTracePanel(
 ) {
     var enabled by remember(runner) { mutableStateOf(runner?.isInstructionTraceEnabled() == true) }
     var localRevision by remember(runner) { mutableStateOf(0) }
-    var capacityText by remember(runner) {
+    var capacityText by rememberSaveable(runner) {
         mutableStateOf((runner?.instructionTraceCapacity() ?: DesktopEmulatorRunner.DEFAULT_INSTRUCTION_TRACE_CAPACITY).toString())
     }
-    var capacityError by remember(runner) { mutableStateOf(false) }
+    var capacityError by rememberSaveable(runner) { mutableStateOf(false) }
     val entries = remember(runner, executionRevision, localRevision) {
         runner?.instructionTrace().orEmpty().takeLast(INSTRUCTION_TRACE_VISIBLE_LINES).asReversed()
     }
@@ -2995,106 +3089,9 @@ internal fun InstructionTracePanel(
 
 @Composable
 internal fun MemoryWatchPanel(
-    runner: DesktopEmulatorRunner?,
-    keyboardInput: DesktopKeyboardInput,
-    strings: StudioStrings = StudioStrings.system,
+    runner: DesktopEmulatorRunner?, keyboardInput: DesktopKeyboardInput, strings: StudioStrings = StudioStrings.system,
 ) {
-    var startText by remember(runner) { mutableStateOf("C000") }
-    var endText by remember(runner) { mutableStateOf("C0FF") }
-    var error by remember(runner) { mutableStateOf<String?>(null) }
-    var activeRange by remember(runner) { mutableStateOf(runner?.memoryWatch()) }
-    var activeAccessRange by remember(runner) { mutableStateOf(runner?.memoryAccessWatchRange()) }
-
-    Column(
-        modifier = Modifier.fillMaxWidth().widthIn(max = 900.dp),
-        horizontalAlignment = Alignment.Start,
-    ) {
-        Text(strings.text("debug.watchChanges"), style = MaterialTheme.typography.labelLarge)
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            OutlinedTextField(
-                value = startText,
-                onValueChange = {
-                    startText = it
-                    error = null
-                },
-                label = { Text(strings.text("debug.watchStart")) },
-                singleLine = true,
-                modifier = Modifier.widthIn(max = 150.dp)
-                    .onFocusChanged { keyboardInput.setEnabled(!it.isFocused) },
-            )
-            OutlinedTextField(
-                value = endText,
-                onValueChange = {
-                    endText = it
-                    error = null
-                },
-                label = { Text(strings.text("debug.watchEnd")) },
-                singleLine = true,
-                modifier = Modifier.widthIn(max = 150.dp)
-                    .onFocusChanged { keyboardInput.setEnabled(!it.isFocused) },
-            )
-            Button(
-                enabled = runner != null,
-                onClick = {
-                    val start = parseHexAddress(startText)
-                    val end = parseHexAddress(endText)
-                    when {
-                        start == null || end == null -> error = strings.text("debug.invalidAddresses")
-                        end < start -> error = strings.text("memory.reversedRange")
-                        end - start + 1 > DesktopEmulatorRunner.MAX_MEMORY_WATCH_BYTES ->
-                            error = strings.text("debug.watchLimit")
-                        else -> {
-                            runner?.setMemoryWatch(start, end)
-                            activeRange = start..end
-                            error = null
-                        }
-                    }
-                },
-            ) { Text(strings.text("debug.watch")) }
-            Button(
-                enabled = runner != null && activeRange != null,
-                onClick = {
-                    runner?.clearMemoryWatch()
-                    activeRange = null
-                },
-            ) { Text(strings.text("common.clear")) }
-        }
-        activeRange?.let { Text(strings.text("debug.watching", (it.first.hex(4)), (it.last.hex(4)))) }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            fun setAccessWatch(reads: Boolean, writes: Boolean) {
-                val start = parseHexAddress(startText)
-                val end = parseHexAddress(endText)
-                when {
-                    start == null || end == null -> error = strings.text("debug.invalidAddresses")
-                    end < start -> error = strings.text("memory.reversedRange")
-                    else -> {
-                        runner?.setMemoryAccessWatch(start, end, reads, writes)
-                        activeAccessRange = start..end
-                        error = null
-                    }
-                }
-            }
-            Button(enabled = runner != null, onClick = { setAccessWatch(true, false) }) { Text(strings.text("debug.watchRead")) }
-            Button(enabled = runner != null, onClick = { setAccessWatch(false, true) }) { Text(strings.text("debug.watchWrite")) }
-            Button(enabled = runner != null, onClick = { setAccessWatch(true, true) }) { Text(strings.text("debug.watchRw")) }
-            Button(
-                enabled = runner != null && activeAccessRange != null,
-                onClick = {
-                    runner?.clearMemoryAccessWatch()
-                    activeAccessRange = null
-                },
-            ) { Text(strings.text("debug.clearRw")) }
-        }
-        activeAccessRange?.let { Text(strings.text("debug.watchAccessRange", (it.first.hex(4)), (it.last.hex(4)))) }
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Text(
-            strings.text("debug.watchHelp"),
-            style = MaterialTheme.typography.labelMedium,
-        )
-    }
+    DebuggerRegistrationPanel(runner, keyboardInput, strings = strings, initialWatch = true)
 }
 
 @Composable

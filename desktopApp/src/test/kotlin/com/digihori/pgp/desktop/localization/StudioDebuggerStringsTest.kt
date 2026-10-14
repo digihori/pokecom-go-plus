@@ -9,9 +9,10 @@ import com.digihori.pgp.desktop.application.debug.*
 import com.digihori.pgp.desktop.runner.DesktopEmulatorRunner
 import kotlin.test.*
 
-internal fun debuggerTestRunner(): DesktopEmulatorRunner {
+internal fun debuggerTestRunner(program: ByteArray = byteArrayOf()): DesktopEmulatorRunner {
+    val internalRom = ByteArray(0x2000).also { program.copyInto(it) }
     val rom = RomSet(Pc1245RomDefinition.MACHINE_ID, listOf(
-        RomComponent(Pc1245RomDefinition.INTERNAL_ID, RomRole.INTERNAL, ByteArray(0x2000)),
+        RomComponent(Pc1245RomDefinition.INTERNAL_ID, RomRole.INTERNAL, internalRom),
         RomComponent(Pc1245RomDefinition.EXTERNAL_ID, RomRole.EXTERNAL, ByteArray(0x4000))))
     return DesktopEmulatorRunner(assertIs<CreateSessionResult.Success>(EmulatorFactory.create(Pc1245RomDefinition.MACHINE_ID, rom)).session)
 }
