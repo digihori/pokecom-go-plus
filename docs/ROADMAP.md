@@ -194,7 +194,8 @@ SC61860 Assembler強化、Studio統合WAV Toolと波形解析を含む。
     - [今回の修正・検証記録](PLATFORM_FIXES_2026-10.md)にMSI／音声／BRK／iOS CIを記録。
 
 2026-10-13ユーザー確認: 機種追加前のMSI／Windows音声／BRK／iOS CIの今回分は一旦完了。
-MSI実測は次回テクニカルプレビュー時、iOS hosted CIはpush後に確認する。
+2026-10-14にWindows／Linux動作とWindows更新インストールをユーザー確認。
+AI読み取り登録APIまでの5環境CI・配布物生成は成功。0.5公開記録は[チェックリスト](RELEASE_CHECKLIST_0.5.0-alpha.1.md)を参照。
 詳細検証の未完了チェックは後続確認として保持する。
 
 ### ゲームデモ用のキー操作記録・再生（後続）

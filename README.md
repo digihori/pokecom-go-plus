@@ -230,7 +230,7 @@ OSのセキュリティ警告が表示される可能性がある。ROMイメー
 Releaseには各ファイルのSHA-256チェックサムを掲載する。
 
 `.github/workflows/release.yml`をGitHub Actionsから手動実行すると、Studioを3環境、PlayerをAndroid環境で
-テストして配布物を生成し、14日間保持されるworkflow artifactとして取得できる。`v0.4.0-alpha.1` tagをpushした場合は、
+テストして配布物を生成し、14日間保持されるworkflow artifactとして取得できる。`v0.5.0-alpha.1` tagをpushした場合は、
 同じ成果物を使ってprereleaseのGitHub Releaseを自動作成する。公開候補の検証が完了するまではtagを作成しない。
 
 GitHubへpushした場合とPull Requestを更新した場合は、GitHub ActionsがmacOS、Windows、
@@ -338,6 +338,7 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 - [S1／S2 WAV仕様と作者確認](docs/WAV_S1_S2_FORMAT.md)
 - [ロードマップ](docs/ROADMAP.md)
 - [Technical Preview公開チェックリスト](docs/PUBLIC_RELEASE_CHECKLIST.md)
+- [Technical Preview 0.5 Release Notes](docs/RELEASE_NOTES_0.5.0-alpha.1.md)
 - [Technical Preview 0.4 Release Notes](docs/RELEASE_NOTES_0.4.0-alpha.1.md)
 - [Technical Preview 0.3 Release Notes](docs/RELEASE_NOTES_0.3.0-alpha.1.md)
 - [Technical Preview 0.2 Release Notes](docs/RELEASE_NOTES_0.2.0-alpha.1.md)

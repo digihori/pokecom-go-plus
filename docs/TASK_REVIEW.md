@@ -29,7 +29,8 @@ MSIの実測受入れは次回テクニカルプレビュー時、iOS hosted CI�
 Playerの仮文言整理は2026-10-13ユーザーの追加指示で先延ばし。Quick Assemble等は今回の４項目には含めない。
 
 実装・自動検証・Windows受入れの詳細は [今回の確認記録](PLATFORM_FIXES_2026-10.md) を参照。
-MSIは公開0.4のUpgradeCodeを固定しpackageVersionを1.3.1へ更新。更新インストール実測はユーザー方針により次回テクニカルプレビュー時にWindowsで行う（2026-10-13）。
+MSIは公開0.4のUpgradeCodeを固定しpackageVersionを1.3.1へ更新。Windows／Linux動作とWindows更新インストールを2026-10-14にユーザー確認済み。
+Technical Preview 0.5の公開作業は[チェックリスト](RELEASE_CHECKLIST_0.5.0-alpha.1.md)へ記録する。
 
 ## A: 先に確認・解消したいもの
 
