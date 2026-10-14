@@ -22,11 +22,11 @@ Studioの日英UIに続き、Debugger改善ステップ1〜4を実装した。
 - [x] Core 435件、失敗0（変更なしの既存成功結果を再利用）
 - [x] 日英UIの隔離描画とSemanticsによる操作検証
 - [x] macOS本番StudioとAIクライアントの実接続で登録取得成功（停止中PC-1470U、基本取得のみ）
-- [ ] 今回のcommitを対象とするAndroid／Linux／Windows／macOS／iPhone SimulatorのCI成功
+- [x] 公開候補0a26749でAndroid／Linux／Windows／macOS／iPhone SimulatorのCI成功
 - [ ] macOS本番Studioで実ROMを使った停止・再開・Step・複数監視・入力focusの確認
 - [x] Windows／Linuxの動作をユーザー確認（2026-10-14）
 - [x] Windowsの更新インストールをユーザー確認（2026-10-14）
-- [ ] 公開版の番号・tag確定、Release Notesと配布物の最終確認
+- [x] Technical Preview 0.5公開、Release Notes・7配布物・4チェックサム一覧を最終確認
 
 既存commitのCI成功は今回の変更のCI結果と区別する。
 iOSのDebugger UIは今回の対象ではなく、共有モジュールへの回帰と実機確認を区別する。
@@ -39,3 +39,5 @@ iOSのDebugger UIは今回の対象ではなく、共有モジュールへの回
 packageVersionは1.3.1を維持し、公開済みtag・履歴は変更しない。
 モバイルスキンは先行する別commitに含まれており、Debugger変更には混ぜない。
 ROM・ROM由来fixtureは含めない。
+
+公開日: 2026-10-14。公開結果とCI・配布workflowは[0.5チェックリスト](RELEASE_CHECKLIST_0.5.0-alpha.1.md)を参照。

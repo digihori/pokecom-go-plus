@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
 
-> **[Technical Preview 0.4公開済み](https://github.com/digihori/pokecom-go-plus/releases/tag/v0.4.0-alpha.1)** — PC-1245 Android Player、Studio WAV Tool、Assembler等を更新した早期評価版です。
+> **[Technical Preview 0.5公開済み](https://github.com/digihori/pokecom-go-plus/releases/tag/v0.5.0-alpha.1)** — Studio日英UI、デバッガ、AI読み取り連携と対応機種を更新した早期評価版です。
 
 Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向けプログラムを
 現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す

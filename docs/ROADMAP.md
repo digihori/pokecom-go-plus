@@ -513,3 +513,5 @@ WAV、Project、Debugger、音声出力、セーブステート、外付けキ�
 Pokecom GO Playerはエミュレータの実行に特化し、Pokecom GO Studioが提供するデバッガ、
 アセンブラ、ディスアセンブラ、メモリ編集等の開発機能は実装しない。機能範囲は既存の
 Pokecom GOを基準とする。
+
+2026-10-14: Technical Preview 0.5を公開。[公開記録](RELEASE_CHECKLIST_0.5.0-alpha.1.md)。

@@ -14,11 +14,11 @@
 - [x] Release notes distinguish implemented features, synthetic tests and device checks
 - [x] Version references and release workflow updated; native version remains 1.3.1
 - [x] Versioned candidate local JDK 21 full build/Core tests and macOS createDistributable
-- [ ] Versioned candidate pushed and all five CI jobs successful
-- [ ] Annotated tag pushed after candidate checks
-- [ ] Tagged packaging workflow publishes prerelease
-- [ ] Seven packages and four checksum lists verified
-- [ ] Publication outcome recorded
+- [x] Versioned candidate 0a26749 pushed and all five CI jobs successful
+- [x] Annotated tag v0.5.0-alpha.1 pushed after candidate checks
+- [x] Tagged packaging workflow publishes prerelease
+- [x] Seven packages and four checksum lists verified
+- [x] Publication outcome recorded
 
 ## Expected assets
 
@@ -34,3 +34,17 @@ Existing tags/history are unchanged. Release authorization includes commit/push,
 
 Implementation CI: https://github.com/digihori/pokecom-go-plus/actions/runs/38563336723
 Implementation packaging: https://github.com/digihori/pokecom-go-plus/actions/runs/38563652964
+
+Candidate CI: https://github.com/digihori/pokecom-go-plus/actions/runs/38568572064
+
+Tag packaging/publication: https://github.com/digihori/pokecom-go-plus/actions/runs/38570054194
+
+## Publication result
+
+Published 2026-10-14 22:18 JST as a prerelease:
+https://github.com/digihori/pokecom-go-plus/releases/tag/v0.5.0-alpha.1
+
+Annotated tag references candidate 0a26749. Packaging/publication succeeds for macOS, Windows, Linux, Android and GitHub Release.
+Seven packages and four checksum lists are public; all seven checksum entries match GitHub asset SHA-256 digest metadata.
+The checksum files' own hashes also match asset metadata. Published notes match the repository notes.
+Publication-record updates on main do not rewrite the tag or released code.
