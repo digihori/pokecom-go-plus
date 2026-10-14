@@ -1,5 +1,18 @@
 # Porting Notes
 
+## 2026-10-14: PC-1470U ↕ key recheck
+
+- ユーザーの「キーの取り違えでは」という指摘を受け、STAT（SHIFT＋「=」）と通常↕／SHIFT TITLEを分けてローカルROMで再検証。
+- 前回の空入力中心の確認ではbit2の機能を判定できず、入力を無効にしていた。今回はRUNでA=123、CALで123+456を入力後に確認し、IA bit0選択時のbit2が反応することを確認。他の未使用scan bitは同条件で画面変化もSHIFT消費もない。
+- PocketKey.TITLEを物理↕キーとしてbit2へ接続する。SHIFTを自動付加しない。通常↕はCALの579表示を456表示へ変更し、別セッションで456を直接評価したsnapshotと一致。RUNでは通常／SHIFTとも入力受付状態へ移行しSHIFTを消費する。
+- 途中で通常／SHIFTのpromptが異なると目視判断したが、pixel比較テストで同じと判明し訂正。TITLE機能固有の操作条件・結果は引き続き未確認。キー入力配線の確認とTITLE機能全体の確認を区別する。
+- SHIFT＋「=」でSTAT symbolがON／OFFすることは実ROMで確認済み。独立STATキーの推測追加はしない。
+- 合成scanテストとStudio全表示キー受入れを更新。ローカルROMテストは期待glyphのROM由来fixtureを保存せず、入力結果のセッション間比較とsymbolで判定する。探索用の一時probeテストは削除し、ROM・描画結果画像はGitへ追加しない。
+- 先の「↕キー入力未対応」は本修正で解消。TITLE機能の確認とUnicode矢印の絵文字表示は後続課題として残す。
+- Verification: JDK 21で `build :core:desktopTest` 成功。ローカルROM・合成scan・Studio接続・共有Native testsを通過。
+- User decision: TITLE機能はユーザーも使用経験がなく、取説にも記載を見つけられないため、詳細確認をペンディングにする。追加調査は止め、確認済みの↕入力とSHIFT＋「=」のSTAT切替は維持する。
+
+
 ## 2026-10-14: 126x / 140x capacity families
 
 - User policy: 1250/1251/1255と同じ考え方で、機能仕様はシリーズ共通、モデル差はユーザーメモリ容量。126x/125xのexternal ROM複数版、1401/1402のexternal ROM差は版差として受け入れる。BASICロード位置は容量により異なりROM版による差とはしない。

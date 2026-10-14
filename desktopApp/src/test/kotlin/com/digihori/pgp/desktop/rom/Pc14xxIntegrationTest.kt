@@ -18,7 +18,7 @@ class Pc14xxIntegrationTest {
         Pc14xxModel.PC_1460 -> Pc14xxKeyboardLayout.pc1460
         Pc14xxModel.PC_1470U -> Pc14xxKeyboardLayout.pc1470u
     }
-    @Test fun packagesLoadOnlyForTheirOwnModelAndConfirmedKeysAreAccepted() {
+    @Test fun packagesLoadOnlyForTheirOwnModelAndAllShownKeysAreAccepted() {
         for (model in Pc14xxModel.entries) {
             val bytes = packageFor(model)
             val read = assertIs<DesktopRomPackageReadResult.Success>(DesktopRomPackage.read(bytes))
@@ -27,10 +27,6 @@ class Pc14xxIntegrationTest {
             val panel = checkNotNull(Pc14xxKeyboardLayout.forLayout(MachineCatalog.require(model.machineId).keyboardLayout))
             assertSame(keyboard(model), panel)
             for (cap in (panel.rows + checkNotNull(panel.functionPanel).rows).flatten()) {
-                if (cap.key == PocketKey.TITLE) {
-                    assertIs<InputResult.UnsupportedKey>(session.pressKey(cap.key))
-                    continue
-                }
                 assertIs<InputResult.Accepted>(session.pressKey(cap.key), "$model ${cap.key}")
                 assertIs<InputResult.Accepted>(session.releaseKey(cap.key))
             }

@@ -439,7 +439,8 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
 - [x] PC-1450のCore/Studio、16桁LCD、キー走査、専用S1 BASICとROM入出力を実装する
 - [x] PC-1460のCore/Studio、4バンク、24桁LCDと物理3:4 dot pitch、S1 BASICを実装する
 - [x] PC-1470UのCore/Studio、8バンク、24桁×2行LCD、専用キー／S2 BASICを実装する
-  - [ ] ↕︎／SHIFT TITLEキーの走査位置を確認し、現在未対応の入力を追加する
+  - [x] ↕︎キーの走査位置をローカルROMで確認し入力を接続する
+  - [ ] SHIFT TITLE機能固有の操作条件・結果を確認する（ユーザー指示で保留。取説の記載も未発見）
 - [x] Studio LCD dot比率を1460のみ3:4、他機種1:1に統一する（ユーザー確認済み）
 - [ ] 関数キーのUnicode「↕︎」が絵文字表示になる問題を解決する（現状はユーザー了承で保留）
   - 合成／ローカルROM確認と実機・Windowsユーザー操作を区別。Player機種追加・RAM容量選択は別。

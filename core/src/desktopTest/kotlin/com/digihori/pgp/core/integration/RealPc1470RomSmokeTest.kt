@@ -10,6 +10,52 @@ import kotlin.test.*
 
 /** Optional local firmware checks; all assertions are behavioral, no firmware bytes are fixtures. */
 class RealPc1470RomSmokeTest {
+    @Test fun localRomArrowAndShiftEqualsStatUseRealScanInputs() {
+        val directory = generateSequence(File(System.getProperty("user.dir"))) { it.parentFile }
+            .map { File(it, "local-data/roms/pc-1470U") }
+            .firstOrNull { File(it, "pc1470mem.bin").isFile && File(it, "pc1470bank.bin").isFile } ?: return
+        val rom = assertIs<RomImportResult.Success>(Pc14xxFlatRomImporter.importImage(Pc14xxModel.PC_1470U,
+            File(directory, "pc1470mem.bin").readBytes(), File(directory, "pc1470bank.bin").readBytes())).romSet
+        fun tap(s: EmulatorSession, key: PocketKey) {
+            assertIs<InputResult.Accepted>(s.pressKey(key)); s.runCycles(80_000)
+            assertIs<InputResult.Accepted>(s.releaseKey(key)); s.runCycles(200_000)
+        }
+        fun session(mode: OperatingMode): EmulatorSession {
+            val s = assertIs<CreateSessionResult.Success>(EmulatorFactory.create(Pc14xxModel.PC_1470U.machineId, rom)).session
+            s.runCycles(1_000_000); tap(s, PocketKey.Y); tap(s, PocketKey.ENTER); s.runCycles(1_000_000)
+            s.setOperatingMode(mode); s.runCycles(1_000_000)
+            return s
+        }
+        fun type(s: EmulatorSession, text: String) {
+            for (key in text.flatMap { checkNotNull(Pc1401CharacterInput.keySequence(it)) }) tap(s, key)
+            tap(s, PocketKey.ENTER)
+        }
+        for (shift in listOf(false, true)) {
+            val s = session(OperatingMode.RUN)
+            type(s, "A=123")
+            val before = s.displaySnapshot().copyDots()
+            if (shift) tap(s, PocketKey.SHIFT)
+            tap(s, PocketKey.TITLE) // Physical ↕ key; SHIFT selects its TITLE legend.
+            val after = s.displaySnapshot()
+            assertFalse(before.contentEquals(after.copyDots()))
+            assertFalse(DisplaySymbol.SHIFT in after.symbols)
+            assertTrue((0..6).any { row -> (0 until after.dotColumns).any { after.isDotOn(it, row) } })
+            assertFalse((7..13).any { row -> (0 until after.dotColumns).any { after.isDotOn(it, row) } })
+        }
+        val calculator = session(OperatingMode.CALCULATOR)
+        type(calculator, "123+456")
+        val before = calculator.displaySnapshot().copyDots()
+        tap(calculator, PocketKey.TITLE)
+        assertFalse(before.contentEquals(calculator.displaySnapshot().copyDots()))
+        val control = session(OperatingMode.CALCULATOR)
+        type(control, "456")
+        assertContentEquals(control.displaySnapshot().copyDots(), calculator.displaySnapshot().copyDots())
+        tap(calculator, PocketKey.SHIFT); tap(calculator, PocketKey.EQUALS)
+        assertTrue(DisplaySymbol.STAT in calculator.displaySnapshot().symbols)
+        tap(calculator, PocketKey.SHIFT); tap(calculator, PocketKey.EQUALS)
+        assertFalse(DisplaySymbol.STAT in calculator.displaySnapshot().symbols)
+    }
+
     @Test fun localRomBootModesAndBasicExecution() {
         val directory = generateSequence(File(System.getProperty("user.dir"))) { it.parentFile }
             .map { File(it, "local-data/roms/pc-1470U") }

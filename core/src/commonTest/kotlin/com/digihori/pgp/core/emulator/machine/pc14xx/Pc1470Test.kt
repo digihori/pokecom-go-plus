@@ -7,9 +7,9 @@ import kotlin.test.*
 
 class Pc1470Test {
     private val model = Pc14xxModel.PC_1470U
-    @Test fun fseUsesVerifiedIaBitAndTitleRemainsUnconfirmed() {
+    @Test fun arrowAndFseUseDistinctIaBitsWithoutIndependentStatKey() {
         val k = Pc14xxKeyboard(Pc14xxModel.PC_1470U)
-        assertFalse(k.press(PocketKey.TITLE)); assertEquals(0, k.readInputA(1, 0))
+        assertTrue(k.press(PocketKey.TITLE)); assertEquals(4, k.readInputA(1, 0))
         k.release(PocketKey.TITLE)
         assertTrue(k.press(PocketKey.FORMAT)); assertEquals(8, k.readInputA(1, 0))
         k.release(PocketKey.FORMAT); assertEquals(0, k.readInputA(1, 0))

@@ -66,7 +66,7 @@ Android/iOS Playerへの機種追加（B3）とは別の作業として扱う。
 | M2 | PC-1402 | PC-1401を基準にRAM容量差とROM互換性を確認し、機種定義・Studio選択・ロード検査へ接続 |
 | M3 | PC-1450 | Core/Studio実装・合成／ローカルROM検証済み。実機／Windowsユーザー操作は別。詳細はmachines/PC-1450.md |
 | M4 | PC-1460 | Core/Studioの4バンク・24桁LCD・S1実装済み。合成／ローカルROMと実機確認を区別。詳細はmachines/PC-1460.md |
-| M5 | PC-1470U | Core/Studioの8バンク・24桁×2行・専用S2/キー実装済み。↕︎／SHIFT TITLEキーの入力は未対応。実機照合は別。詳細はmachines/PC-1470U.md |
+| M5 | PC-1470U | Core/Studioの8バンク・24桁×2行・専用S2/キー実装済み。↕︎キーの入力は対応済み、SHIFT TITLE機能固有の条件は未確認。実機照合は別。詳細はmachines/PC-1470U.md |
 | M6 | PC-1360K | 漢字ROMの配置・選択、文字コード、表示仕様を実機調査。仕様未確定のため機種実装は保留。C3の解析支援と関連 |
 | M7 | 既存機種の互換性確認 | PC-1245/1250のRAMミラー、機種固有BASIC/文字コード、ROM版差、BRK等を確認。既存PC-1360のバンク実装を新規作業に数えない |
 
@@ -127,7 +127,7 @@ Android/iOS Playerへの機種追加（B3）とは別の作業として扱う。
 
 - Studio LCD比率は1460だけ3:4、他機種は1:1。ユーザー確認済み。
 - 関数panelは6列×3行。1401/1450/1460の通常「↕︎」／SHIFT STAT、1470Uの通常「↕︎」／SHIFT TITLE刻印は一旦OK。
-- 保留: Unicode矢印の絵文字表示（フォント選択・fallback）、1470Uの↕︎／TITLEキーの走査位置・入力対応。両者は別課題。
+- 保留: Unicode矢印の絵文字表示（フォント選択・fallback）、1470UのSHIFT TITLE機能固有の操作条件・結果。両者は別課題。
 - 全体buildとCore tests成功。ROM、作成中skin、Player新機種選択、仮文言整理は今回のcommit対象外。
 
 
@@ -141,3 +141,7 @@ Android/iOS Playerへの機種追加（B3）とは別の作業として扱う。
 
 - ROM登録画面はPC-1261 family／PC-1401 familyへ集約。実行機種選択は個別。
 - ユーザー確認: 1260/1261のMEM値は異なる。1402 ROMでは1401選択時に1401容量となる。全ROM版互換や1402のBASIC実行の確認とは区別する。
+
+- 1470U再確認: ↕物理キーのbit2接続・SHIFT消費と、SHIFT＋「=」のSTAT ON/OFFをローカルROMで確認。TITLE機能固有の結果は未確認で残す。
+
+- ユーザー指示: TITLE機能は使用経験がなく取説の記載も見つからないため、詳細確認はペンディング。追加調査は行わず、確認済みの↕入力・STAT切替を維持する。

@@ -46,7 +46,8 @@ internal class Pc14xxKeyboard(private val model: Pc14xxModel) {
             "HYP SIN COS TAN KANA E D C",
             "HEX DEGREES LN LOG DAKUTEN R F V",
             "EXPONENT POWER ROOT SQUARE LONG_VOWEL T G B",
-            if (model == Pc14xxModel.PC_1470U) "_ CLEAR _ FORMAT DOWN Y H N" else "_ CLEAR STAT FORMAT DOWN Y H N",
+            // TITLE identifies the physical ↕ key; SHIFT interpretation belongs to firmware.
+            if (model == Pc14xxModel.PC_1470U) "_ CLEAR TITLE FORMAT DOWN Y H N" else "_ CLEAR STAT FORMAT DOWN Y H N",
             "_ _ RIGHT_PAREN RECIPROCAL UP U J M",
             "_ _ _ LEFT_PAREN LEFT I K SPACE",
             "_ _ _ _ RIGHT O L ENTER",
