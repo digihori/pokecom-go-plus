@@ -28,7 +28,7 @@ class DesktopMcpServerTest {
         val adapter = PgpMcpToolAdapter({ FakeDebugContextService() })
         val tools = adapter.tools()
 
-        assertEquals(setOf(PgpMcpToolAdapter.GET_CAPABILITIES, PgpMcpToolAdapter.GET_DEBUG_CONTEXT), tools.map {
+        assertEquals(setOf(PgpMcpToolAdapter.GET_CAPABILITIES, PgpMcpToolAdapter.GET_DEBUG_CONTEXT, PgpMcpToolAdapter.GET_DEBUG_REGISTRATIONS), tools.map {
             it.jsonObject.getValue("name").jsonPrimitive.content
         }.toSet())
         assertTrue(tools.all {
@@ -82,7 +82,7 @@ class DesktopMcpServerTest {
             )
             val tools = Json.parseToJsonElement(toolsResponse.body()).jsonObject
                 .getValue("result").jsonObject.getValue("tools").jsonArray
-            assertEquals(2, tools.size)
+            assertEquals(3, tools.size)
 
             val callResponse = post(
                 info.url,
@@ -96,6 +96,13 @@ class DesktopMcpServerTest {
                 callResult.getValue("structuredContent").jsonObject.getValue("machineId").jsonPrimitive.content,
             )
             assertTrue(summaries.any { it.toolName == PgpMcpToolAdapter.GET_CAPABILITIES && it.succeeded })
+            val registrationsResponse = post(info.url, info.token,
+                """{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"pgp_get_debug_registrations","arguments":{}}}""")
+            val registrations = Json.parseToJsonElement(registrationsResponse.body()).jsonObject.getValue("result").jsonObject
+            assertEquals("false", registrations.getValue("isError").jsonPrimitive.content)
+            assertEquals("pgp-debug-registrations", registrations.getValue("structuredContent").jsonObject.getValue("format").jsonPrimitive.content)
+            assertEquals("http-session", registrations.getValue("structuredContent").jsonObject.getValue("session").jsonObject.getValue("id").jsonPrimitive.content)
+            assertTrue(summaries.any { it.toolName == PgpMcpToolAdapter.GET_DEBUG_REGISTRATIONS && it.succeeded })
         } finally {
             server.stop()
         }
@@ -128,6 +135,14 @@ class DesktopMcpServerTest {
     }
 
     private class FakeDebugContextService : DebugContextService {
+        override fun registrations(): com.digihori.pgp.desktop.application.debug.DebugRegistrationsResult =
+            com.digihori.pgp.desktop.application.debug.DebugRegistrationsResult.Success(
+                com.digihori.pgp.desktop.application.debug.DebugRegistrationsSnapshot(
+                    com.digihori.pgp.desktop.application.debug.DebugSessionContext("http-session", 7L, "pc-1360", "paused", null),
+                    emptyList(), emptyList(),
+                ),
+            )
+
         override fun capabilities(): DebugContextCapabilities = DebugContextCapabilities(
             format = "pgp-debug-context",
             schemaVersion = 1,

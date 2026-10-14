@@ -71,7 +71,7 @@ internal fun McpServerPanel(
             )
         }
         Text(strings.text("mcp.tools"), style = MaterialTheme.typography.titleMedium)
-        Text("• pgp_get_capabilities\n• pgp_get_debug_context", fontFamily = FontFamily.Monospace)
+        Text("• pgp_get_capabilities\n• pgp_get_debug_context\n• pgp_get_debug_registrations", fontFamily = FontFamily.Monospace)
         Text(strings.text("mcp.lastRequest"), style = MaterialTheme.typography.titleMedium)
         Text(strings.mcpRequestDescription(lastRequest))
     }

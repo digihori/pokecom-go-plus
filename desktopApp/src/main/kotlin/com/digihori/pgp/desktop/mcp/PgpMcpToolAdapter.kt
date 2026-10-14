@@ -1,5 +1,6 @@
 package com.digihori.pgp.desktop.mcp
 
+import com.digihori.pgp.desktop.application.debug.DebugRegistrationsResult
 import com.digihori.pgp.desktop.application.debug.DebugContextError
 import com.digihori.pgp.desktop.application.debug.DebugContextJsonWriter
 import com.digihori.pgp.desktop.application.debug.DebugContextRequest
@@ -49,6 +50,14 @@ internal class PgpMcpToolAdapter(
             put("outputSchema", buildJsonObject { put("type", "object") })
             put("annotations", readOnlyAnnotations())
         })
+        add(buildJsonObject {
+            put("name", GET_DEBUG_REGISTRATIONS)
+            put("title", "Get Pokecom GO debug registrations")
+            put("description", "Returns all enabled and disabled breakpoints and watches with session ID and revision. Logical addresses apply to all banks. The emulator must already be paused or faulted.")
+            put("inputSchema", objectSchema())
+            put("outputSchema", buildJsonObject { put("type", "object") })
+            put("annotations", readOnlyAnnotations())
+        })
     }
 
     fun call(name: String, arguments: JsonObject): JsonObject = applicationDispatcher.dispatch {
@@ -56,7 +65,16 @@ internal class PgpMcpToolAdapter(
         when (name) {
             GET_CAPABILITIES -> capabilities(service)
             GET_DEBUG_CONTEXT -> debugContext(service, arguments)
+            GET_DEBUG_REGISTRATIONS -> registrations(service, arguments)
             else -> toolError("UNKNOWN_TOOL", "Unknown tool: $name")
+        }
+    }
+
+    private fun registrations(service: DebugContextService, arguments: JsonObject): JsonObject {
+        if (arguments.isNotEmpty()) return toolError("INVALID_ARGUMENTS", "This tool accepts no arguments")
+        return when (val result = service.registrations()) {
+            is DebugRegistrationsResult.Success -> toolSuccess(result.snapshot.toJson(), "Read-only debug registrations")
+            DebugRegistrationsResult.SessionRunning -> toolError("SESSION_RUNNING", "Pause the emulator before requesting debug registrations")
         }
     }
 
@@ -217,6 +235,7 @@ internal class PgpMcpToolAdapter(
 
     companion object {
         const val GET_CAPABILITIES: String = "pgp_get_capabilities"
+        const val GET_DEBUG_REGISTRATIONS: String = "pgp_get_debug_registrations"
         const val GET_DEBUG_CONTEXT: String = "pgp_get_debug_context"
     }
 }

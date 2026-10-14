@@ -286,3 +286,8 @@ Memory Access／Bank／Trace件数を指定し、JSONをプレビューしてか
 読み書き監視の停止を値変更より優先し、その命令の値変更基準も更新する。
 MCP tool名・Debug Context schema・停止理由の形式は維持する。
 検証範囲は[ステップ4記録](DEBUGGER_STEP4_VERIFICATION.md)を参照する。
+
+登録一覧は読み取り専用MCP tool `pgp_get_debug_registrations`からも取得できる。
+既存Debug Context version 1の応答を維持し、別形式のversion 1でSession ID／revisionと全登録を返す。
+取得は停止中／Fault時に限定する。登録の変更APIは追加しない。
+詳細は[AI連携](AI_INTEGRATION.md#登録状態の読み取り2026-10-14)を参照。

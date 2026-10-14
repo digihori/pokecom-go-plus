@@ -12,14 +12,16 @@ Studioの日英UIに続き、Debugger改善ステップ1〜4を実装した。
 
 登録はResetで保持するが、新Sessionやアプリ終了後には引き継がない。
 条件・ヒット回数・bank指定、Step Over／Out、ソース連携、設定保存は後続の候補である。
-今回の公開準備では新しい機能を追加せず、実際の利用環境での確認を優先する。
+追加でAI向け登録状態の読み取りを実装した。実際の利用環境での確認を公開前に行う。
+読み取りAPIの仕様と既存クライアントの設定更新は[AI連携](AI_INTEGRATION.md#登録状態の読み取り2026-10-14)を参照。
 
 ## 確認状況
 
 - [x] JDK 21・macOSローカルの全体build／Core tests成功
-- [x] Studio 309件、失敗0、既存SDL条件付きskip 1件
+- [x] Studio 312件、失敗0、既存SDL条件付きskip 1件
 - [x] Core 435件、失敗0（変更なしの既存成功結果を再利用）
 - [x] 日英UIの隔離描画とSemanticsによる操作検証
+- [x] macOS本番StudioとAIクライアントの実接続で登録取得成功（停止中PC-1470U、基本取得のみ）
 - [ ] 今回のcommitを対象とするAndroid／Linux／Windows／macOS／iPhone SimulatorのCI成功
 - [ ] macOS本番Studioで実ROMを使った停止・再開・Step・複数監視・入力focusの確認
 - [ ] Windows／Linuxの実表示・操作確認

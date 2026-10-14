@@ -3550,7 +3550,7 @@ internal fun codexMcpConfiguration(info: DesktopMcpServerInfo): String = """
     [mcp_servers.pokecom_go_studio]
     url = "${info.url}"
     http_headers_helper = "${tomlEscape(info.headerHelperCommand)}"
-    enabled_tools = ["pgp_get_capabilities", "pgp_get_debug_context"]
+    enabled_tools = ["pgp_get_capabilities", "pgp_get_debug_context", "pgp_get_debug_registrations"]
     default_tools_approval_mode = "auto"
 """.trimIndent()
 

@@ -16,6 +16,7 @@ import java.util.UUID
 
 internal interface DebugContextService {
     fun capabilities(): DebugContextCapabilities
+    fun registrations(): DebugRegistrationsResult
     fun capture(request: DebugContextRequest): DebugContextResult
 }
 
@@ -37,6 +38,16 @@ internal class DesktopDebugContextService(
         bankHistorySupported = runner.selectedRomBank() != null,
         romBytesAllowed = false,
     )
+
+    override fun registrations(): DebugRegistrationsResult {
+        if (runner.state == RunnerState.RUNNING) return DebugRegistrationsResult.SessionRunning
+        return DebugRegistrationsResult.Success(DebugRegistrationsSnapshot(
+            session = DebugSessionContext(sessionId, runner.sessionRevision, runner.machineId.value,
+                runner.state.name.lowercase(), null),
+            breakpoints = runner.breakpointRegistrations(),
+            watches = runner.watchRegistrations(),
+        ))
+    }
 
     override fun capture(request: DebugContextRequest): DebugContextResult {
         if (runner.state == RunnerState.RUNNING) return DebugContextResult.Failure(DebugContextError.SessionRunning)
