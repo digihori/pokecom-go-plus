@@ -61,3 +61,12 @@ GUIツールはJavaアプリを一覧に出したが、bundle IDでの選択がI
 - packageVersionは1.3.1。ユーザー指示によりローカライズ変更をcommit／pushする。既存1470U差分と作成中スキンは対象外。公開済みタグ・履歴は変更しない。
 
 詳細なステップ別記録は[作業整理](STUDIO_LOCALIZATION_PLAN.md)、用語・分類は[棚卸し](STUDIO_LOCALIZATION_INVENTORY.md)。
+
+
+## CI追加確認：Windowsの起動言語テスト（2026-10-14）
+
+- ローカライズcommitの[CI #79 Windows job](https://github.com/digihori/pokecom-go-plus/actions/runs/38522437621/job/115715003333)でStudioStartupLanguageTestが失敗。期待値「ドットエディター」に対し、取得した標準出力が「????????」となっていた。同実行のmacOS／Linux／Android／iPhone Simulatorは成功。
+- テスト用の独立JVMでprintlnの標準出力文字コードに依存していた。親側のUTF-8読取りとWindows側の出力が一致せず、リソースの言語選択とは別に文字が失われる。
+- ローカルJDK 21で `-Dstdout.encoding=US-ASCII` を指定し、同じ期待値／「????????」の失敗を再現。テスト用probeだけUTF-8のPrintStreamで出力し、親の読取りもUTF-8を明示。非UTF-8標準出力でも日本語が保持される回帰テストを追加。
+- 修正後の起動言語テスト3件とStudio／Core tests、全体buildはローカルで成功。ローカライズ関連は37 tests。アプリ本体のResourceBundle・言語設定・Locale・保存形式・CI workflowは変更していない。
+- この追加修正のWindows hosted CI通過確認は未実施。ローカルでの再現・修正検証とGitHub Actionsの再検証は区別する。
