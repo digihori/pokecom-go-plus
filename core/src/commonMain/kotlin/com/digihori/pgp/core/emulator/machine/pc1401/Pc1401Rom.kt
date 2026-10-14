@@ -18,7 +18,7 @@ public object Pc1401RomDefinition {
 }
 
 public object Pc1401ComponentRomImporter {
-    public fun importImages(internal: ByteArray, external: ByteArray): RomImportResult {
+    public fun importImages(internal: ByteArray, external: ByteArray, model: Pc1401FamilyModel = Pc1401FamilyModel.PC_1401): RomImportResult {
         if (internal.size != Pc1401RomDefinition.INTERNAL_SIZE) return RomImportResult.Failure(
             RomImportError.InvalidComponentSize(
                 Pc1401RomDefinition.INTERNAL_ID, Pc1401RomDefinition.INTERNAL_SIZE, internal.size,
@@ -31,7 +31,7 @@ public object Pc1401ComponentRomImporter {
         )
         return RomImportResult.Success(
             RomSet(
-                Pc1401RomDefinition.MACHINE_ID,
+                model.machineId,
                 listOf(
                     RomComponent(Pc1401RomDefinition.INTERNAL_ID, RomRole.INTERNAL, internal),
                     RomComponent(Pc1401RomDefinition.EXTERNAL_ID, RomRole.EXTERNAL, external),
@@ -43,13 +43,14 @@ public object Pc1401ComponentRomImporter {
 
 /** Imports the historical 64 KiB address-space image; its 0x2000-0x7fff contents are not ROM. */
 public object Pc1401FlatRomImporter {
-    public fun importImage(image: ByteArray): RomImportResult {
+    public fun importImage(image: ByteArray, model: Pc1401FamilyModel = Pc1401FamilyModel.PC_1401): RomImportResult {
         if (image.size != Pc1401RomDefinition.LEGACY_IMAGE_SIZE) return RomImportResult.Failure(
             RomImportError.InvalidImageSize(listOf(Pc1401RomDefinition.LEGACY_IMAGE_SIZE), image.size),
         )
         return Pc1401ComponentRomImporter.importImages(
             image.copyOfRange(0x0000, 0x2000),
             image.copyOfRange(0x8000, 0x10000),
+            model,
         )
     }
 }

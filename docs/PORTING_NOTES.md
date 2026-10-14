@@ -1,5 +1,21 @@
 # Porting Notes
 
+## 2026-10-14: 126x / 140x capacity families
+
+- User policy: 1250/1251/1255と同じ考え方で、機能仕様はシリーズ共通、モデル差はユーザーメモリ容量。126x/125xのexternal ROM複数版、1401/1402のexternal ROM差は版差として受け入れる。BASICロード位置は容量により異なりROM版による差とはしない。
+- User correction: 1262は1261の価格改定版なので独立ラインナップから外す。RAMミラーはミラーしていない可能性もあるため追加を保留。今回の追加IDはpc-1260とpc-1402。
+- Hardware values: 1260=RAM5800..67ff／BASIC5880、1261=4000..67ff／4080、1401=3800..47ff／3800、1402=2000..47ff／2000。start/end pointerは126x=66e1..66e4、140x=46e1..46e4。既存writer上限は維持し、固定変数・work領域を含む最大ユーザー容量を新たに確定しない。
+- References: [PC-1260/61/62の実機メモリマップ](https://ht-deko.com/pc1260/)、[1260のRAM交換記録](https://ht-deko.com/pc1260/pc1260_repair.html)、[1401のRAM交換実験](https://hw-by-design.blogspot.com/2018/07/sharp-pc-1401-memory-mod.html)、[MAME pocketc.cpp](https://github.com/mamedev/mame/blob/master/src/mame/sharp/pocketc.cpp)のpc1260_mem/pc1261_mem/pc1401_mem/pc1402_mem（2026-10-14閲覧）。既存Pokecom GOのhook差はROM版を拒否する根拠にはしない。資料にないRAM aliasは実装しない。
+- Implementation: Pc1261FamilyModel／Pc1401FamilyModelをCatalog・Factory・Bus・BASIC writer/plannerへ接続。CPU/LCD/キー/codecをシリーズ内で共用し、機種IDは個別。既知hash allowlist・ROM address hook・外部build依存なし。commonMainのplatform API／thread追加なし。
+- Studio: component/legacy/package作成・読込みで選択モデルを保持。シリーズROM登録は125x同様に共用し、既存pc-1261／pc-1401のLibrary pathを維持。package hashは整合性検査のみ。別シリーズROMは拒否。1260にもRUN/PRO/RSVボタンを表示する。
+- Tests: 合成ROMで版byte差を受入れ、モデルidentity、BASIC開始／pointer／往復／容量超過の原子性、RAM端・範囲外・reset・セッション分離を確認。Studioでcomponent/legacy/package／シリーズ共用／旧Library path／キー／別シリーズ拒否を検証する。
+- Local ROM: ignored local-dataの1261 internal/externalを1260/1261の両容量で使い、NEW後pointerとBASIC POKE実行を確認。1401 ROMは1401を確認。手元の1401 ROMを1402配置へ渡すとNEW後も3800となり、全ROM版が異なる容量を自動認識するとは確認できない。1402用ROMは未提供で実ROM検証を残す。ユーザーROMをpatchしたり既知版に限定したりしない。
+- Scope: 旧文書の「1260/1262をcapacity-onlyと扱わない」「1402対応保留」は今回のユーザー方針で更新。Player新機種選択／skin、Project機種互換方針、Expanded RAM、1350/1460等のメモリーカード拡張は別項目。既存125x挙動、作成中skin、packageVersion1.3.1を維持。ROM／ROM由来fixtureはGitへ追加しない。
+- Verification: JDK 21で `./gradlew build :core:desktopTest` 成功。Core desktop 434件、Studio 223件（既存skip 1）、共有Native tests成功。`:desktopApp:run`は一時homeとメモリ内PreferencesFactoryで実行後に手動停止し、実設定・Libraryは変更しない。検証用起動scriptのclasspath/files参照エラーは一時script内で修正。GUIでの新機種操作・Windows・1402用ROMのローカルBASIC実行は未確認。
+- User follow-up: 1260/1261のMEM値は容量に応じて異なることをユーザー確認。1401 ROM共用時は1401/1402で同じMEM値になり、1402 ROMに替えると1401選択時に1401のMEM容量になったとの報告。1402選択時のMEM値／BASIC実行まで確認済みとは扱わない。全版の互換性の保証とは区別する。ROM登録メニューは125xと同様にPC-1261 family／PC-1401 familyの1行ずつへ集約し、削除確認も同じ名称にする。実行機種選択とCreate ROM Setの機種指定は個別のまま。
+- 詳細: [126x](machines/PC-126x.md)、[140x](machines/PC-1401.md)。
+
+
 ## 2026-10-13: PC-1450 → PC-1460 → PC-1470U Core / Studio
 
 - Baseline: main `1700fe0`。開始時は未追跡の作成中スキン3枚のみ。作業途中の追加スキンも保護。

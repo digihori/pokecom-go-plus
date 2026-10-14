@@ -5,13 +5,12 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicMemoryResult
 internal object Pc1401BasicProgramMemory {
     private const val START_POINTER_LOW = 0x46e1
     private const val END_POINTER_LOW = 0x46e3
-    private const val DEFAULT_START = 0x3800
     private const val STORAGE_END_EXCLUSIVE = 0x46e0
 
-    fun load(program: ByteArray, read: (Int) -> Int, write: (Int, Int) -> Unit): Pc1245BasicMemoryResult {
+    fun load(program: ByteArray, read: (Int) -> Int, write: (Int, Int) -> Unit, model: Pc1401FamilyModel = Pc1401FamilyModel.PC_1401): Pc1245BasicMemoryResult {
         validate(program)?.let { return Pc1245BasicMemoryResult.InvalidProgram(it.first, it.second) }
         val configured = pointer(START_POINTER_LOW, read)
-        val start = configured.takeIf { it in DEFAULT_START until STORAGE_END_EXCLUSIVE } ?: DEFAULT_START
+        val start = configured.takeIf { it in model.basicStart until STORAGE_END_EXCLUSIVE } ?: model.basicStart
         val capacity = STORAGE_END_EXCLUSIVE - start
         if (program.size > capacity) return Pc1245BasicMemoryResult.TooLarge(program.size, capacity)
         program.forEachIndexed { offset, byte -> write(start + offset, byte.toInt() and 0xff) }
@@ -21,10 +20,10 @@ internal object Pc1401BasicProgramMemory {
         return Pc1245BasicMemoryResult.Success(start, end, program.copyOf())
     }
 
-    fun extract(read: (Int) -> Int): Pc1245BasicMemoryResult {
+    fun extract(read: (Int) -> Int, model: Pc1401FamilyModel = Pc1401FamilyModel.PC_1401): Pc1245BasicMemoryResult {
         val start = pointer(START_POINTER_LOW, read)
         val end = pointer(END_POINTER_LOW, read)
-        if (start !in DEFAULT_START until STORAGE_END_EXCLUSIVE || end !in start until STORAGE_END_EXCLUSIVE) {
+        if (start !in model.basicStart until STORAGE_END_EXCLUSIVE || end !in start until STORAGE_END_EXCLUSIVE) {
             return Pc1245BasicMemoryResult.InvalidPointers(start, end)
         }
         val bytes = ByteArray(end - start + 1) { read(start + it).toByte() }

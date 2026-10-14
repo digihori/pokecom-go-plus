@@ -2066,7 +2066,7 @@ private fun FrameWindowScope.App(
                     ) { Text("Step") }
                     val activeDefinition = MachineCatalog.require(runner?.machineId ?: selectedMachineId)
                     val showModeButtons = activeDefinition.id.value in setOf(
-                        "pc-1245", "pc-1250", "pc-1251", "pc-1255", "pc-1261",
+                        "pc-1245", "pc-1250", "pc-1251", "pc-1255", "pc-1260", "pc-1261",
                     )
                     if (showModeButtons && OperatingMode.RUN in activeDefinition.supportedOperatingModes &&
                         OperatingMode.PROGRAM in activeDefinition.supportedOperatingModes
@@ -2263,10 +2263,7 @@ private fun FrameWindowScope.App(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text("Registered ROMs are copied into the application data folder and remain available when the original files are moved or deleted.")
-                        MachineCatalog.definitions
-                            .filter { definition ->
-                                definition.family != MachineFamily.PC_1251 || definition.id.value == "pc-1251"
-                            }
+                        com.digihori.pgp.desktop.rom.DesktopRomRegistrationCatalog.definitions
                             .forEach { definition ->
                             val installed = definition.id in installedRomMachines
                             Row(
@@ -2276,11 +2273,7 @@ private fun FrameWindowScope.App(
                             ) {
                                 Column {
                                     Text(
-                                        if (definition.family == MachineFamily.PC_1251) {
-                                            "PC-1250 / PC-1251 / PC-1255 family"
-                                        } else {
-                                            definition.displayName
-                                        },
+                                        com.digihori.pgp.desktop.rom.DesktopRomRegistrationCatalog.label(definition.id),
                                     )
                                     val metadata = romLibrary.metadata(definition.id)
                                     Text(
@@ -2317,11 +2310,7 @@ private fun FrameWindowScope.App(
                 onDismissRequest = { pendingRomRemoval = null },
                 title = {
                     Text(
-                        if (MachineCatalog.require(machineId).family == MachineFamily.PC_1251) {
-                            "Remove PC-1250 / PC-1251 / PC-1255 family ROM?"
-                        } else {
-                            "Remove ${machineId.displayName()} ROM?"
-                        },
+                        "Remove ${com.digihori.pgp.desktop.rom.DesktopRomRegistrationCatalog.label(machineId)} ROM?",
                     )
                 },
                 text = { Text("The application-managed copy will be deleted. The original ROM file is not changed.") },

@@ -357,7 +357,12 @@ public object MachineCatalog {
         ),
     )
 
-    public val definitions: List<MachineDefinition> = listOf(pc1245) + pc1251Family + listOf(pc1261, pc1350, pc1360, pc1401, pc1450, pc1460, pc1470u)
+    private val pc1260 = pc1261.copy(id = MachineId("pc-1260"), displayName = "PC-1260",
+        memoryRegions = pc1261.memoryRegions.map { if (it.id == "ram") it.copy(startAddress = 0x5800) else it })
+    private val pc1402 = pc1401.copy(id = MachineId("pc-1402"), displayName = "PC-1402",
+        memoryRegions = pc1401.memoryRegions.map { if (it.id == "ram") it.copy(startAddress = 0x2000) else it })
+
+    public val definitions: List<MachineDefinition> = listOf(pc1245) + pc1251Family + listOf(pc1260, pc1261, pc1350, pc1360, pc1401, pc1402, pc1450, pc1460, pc1470u)
     public val defaultDefinition: MachineDefinition = pc1245
 
     private val byId: Map<MachineId, MachineDefinition> = definitions.associateBy(MachineDefinition::id)

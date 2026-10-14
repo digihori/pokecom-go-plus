@@ -15,11 +15,11 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicMemoryResult
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245Buzzer
 import com.digihori.pgp.core.rom.RomSet
 
-internal class Pc1401Machine(romSet: RomSet) {
+internal class Pc1401Machine(romSet: RomSet, val model: Pc1401FamilyModel = Pc1401FamilyModel.PC_1401) {
     private val display = Pc1401Display()
     private val keyboard = Pc1401Keyboard()
     private val buzzer = Pc1245Buzzer(clockHz = 192_000.0)
-    private val bus = Pc1401MemoryBus(romSet, display)
+    private val bus = Pc1401MemoryBus(romSet, display, model)
     private val cpuBus = Sc61860BusAccessRecorder(bus)
     private val cpu = Sc61860Cpu(cpuBus, Pc1401Io(keyboard, display, buzzer))
 
@@ -86,8 +86,8 @@ internal class Pc1401Machine(romSet: RomSet) {
     fun readMemory(address: Int) = bus.read(address)
     fun writeMemory(address: Int, value: Int) = bus.write(address, value)
     fun loadBasicProgram(program: ByteArray): Pc1245BasicMemoryResult =
-        Pc1401BasicProgramMemory.load(program, ::readMemory, ::writeMemory)
-    fun basicProgram(): Pc1245BasicMemoryResult = Pc1401BasicProgramMemory.extract(::readMemory)
+        Pc1401BasicProgramMemory.load(program, ::readMemory, ::writeMemory, model)
+    fun basicProgram(): Pc1245BasicMemoryResult = Pc1401BasicProgramMemory.extract(::readMemory, model)
     fun isWritableAddress(address: Int) = bus.isWritableAddress(address)
     val cpuState get() = cpu.state
     val displayState get() = display

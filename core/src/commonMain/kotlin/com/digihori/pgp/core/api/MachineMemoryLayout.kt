@@ -1,5 +1,7 @@
 package com.digihori.pgp.core.api
 
+import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261FamilyModel
+import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401FamilyModel
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350Display
 import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360Display
@@ -25,17 +27,18 @@ public class MachineMemoryLayout(
 
     /** A starter location away from the initial BASIC text and its pointer words. */
     public val assemblyStartAddress: Int get() = when (machineId.value) {
-        "pc-1261", "pc-1350" -> 0x6000
+        "pc-1260", "pc-1261", "pc-1350" -> 0x6000
         "pc-1470u", "pc-1460", "pc-1360" -> 0xc000
         "pc-1450" -> 0x5000
-        "pc-1401" -> 0x4400
+        "pc-1401", "pc-1402" -> 0x4400
         else -> 0xc500
     }
 
     public val defaultBasicStartAddress: Int get() = when (machineId.value) {
         "pc-1245" -> 0xc000
         "pc-1250", "pc-1251", "pc-1255" -> checkNotNull(Pc1251FamilyModel.fromMachineId(machineId)).physicalRamStart
-        "pc-1261" -> 0x4080
+        "pc-1260", "pc-1261" -> checkNotNull(Pc1261FamilyModel.fromMachineId(machineId)).basicStart
+        "pc-1401", "pc-1402" -> checkNotNull(Pc1401FamilyModel.fromMachineId(machineId)).basicStart
         "pc-1450" -> 0x2030
         "pc-1350" -> 0x2030
         "pc-1470u", "pc-1460", "pc-1360" -> 0x8030
@@ -43,12 +46,12 @@ public class MachineMemoryLayout(
     }
 
     public val basicStartPointerAddress: Int get() = when (machineId.value) {
-        "pc-1261" -> 0x66e1
+        "pc-1260", "pc-1261" -> 0x66e1
         "pc-1350" -> 0x6f01
         "pc-1470u", "pc-1360" -> 0xffd7
         "pc-1460" -> 0xff01
         "pc-1450" -> 0x5f01
-        "pc-1401" -> 0x46e1
+        "pc-1401", "pc-1402" -> 0x46e1
         else -> 0xc6e1
     }
 
@@ -93,9 +96,9 @@ public class MachineMemoryLayout(
                     else -> location(MachineMemoryKind.UNMAPPED, false, mapped)
                 }
             }
-            "pc-1261" -> when (address) {
+            "pc-1260", "pc-1261" -> when (address) {
                 in 0x2000..0x3fff -> location(MachineMemoryKind.LCD, true, address and 0x28ff)
-                in 0x4000..0x67ff -> location(MachineMemoryKind.RAM, true, address)
+                in checkNotNull(Pc1261FamilyModel.fromMachineId(machineId)).physicalRamStart..0x67ff -> location(MachineMemoryKind.RAM, true, address)
                 in 0x8000..0xffff -> location(MachineMemoryKind.ROM, false, address)
                 else -> location(MachineMemoryKind.UNMAPPED, false, address)
             }
@@ -129,7 +132,7 @@ public class MachineMemoryLayout(
                 else -> location(MachineMemoryKind.ROM, false, address)
             }
             else -> when (address) {
-                in 0x3800..0x47ff -> location(MachineMemoryKind.RAM, true, address)
+                in checkNotNull(Pc1401FamilyModel.fromMachineId(machineId)).physicalRamStart..0x47ff -> location(MachineMemoryKind.RAM, true, address)
                 in 0x6000..0x67ff, in 0x7000..0x77ff -> location(MachineMemoryKind.LCD, true, 0x6000 or (address and 0xff))
                 in 0x8000..0xffff -> location(MachineMemoryKind.ROM, false, address)
                 else -> location(MachineMemoryKind.UNMAPPED, false, address)

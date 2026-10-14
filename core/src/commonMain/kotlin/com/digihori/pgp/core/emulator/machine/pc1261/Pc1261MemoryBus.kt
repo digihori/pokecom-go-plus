@@ -7,11 +7,12 @@ import com.digihori.pgp.core.rom.RomSet
 internal class Pc1261MemoryBus(
     romSet: RomSet,
     private val display: Pc1261Display = Pc1261Display(),
+    private val model: Pc1261FamilyModel = Pc1261FamilyModel.PC_1261,
 ) : Sc61860Bus {
     private val memory = ByteArray(0x10000)
 
     init {
-        require(romSet.machineId == Pc1261RomDefinition.MACHINE_ID) { "PC-1261 ROM set has wrong machine ID" }
+        require(romSet.machineId == model.machineId) { "PC-1261 ROM set has wrong machine ID" }
         install(romSet, Pc1261RomDefinition.INTERNAL_ID, Pc1261RomDefinition.INTERNAL_SIZE, 0x0000)
         install(romSet, Pc1261RomDefinition.EXTERNAL_ID, Pc1261RomDefinition.EXTERNAL_SIZE, 0x8000)
     }
@@ -23,7 +24,7 @@ internal class Pc1261MemoryBus(
 
     override fun write(address: Int, value: Int) {
         requireAddress(address)
-        if (address !in WRITABLE_RANGE) return
+        if (!isWritableAddress(address)) return
         val canonical = if (address in 0x2000..0x3fff) address and 0x28ff else address
         val byte = (value and 0xff).toByte()
         memory[canonical] = byte
@@ -36,7 +37,7 @@ internal class Pc1261MemoryBus(
         display.reset()
     }
 
-    fun isWritableAddress(address: Int): Boolean = address in WRITABLE_RANGE
+    fun isWritableAddress(address: Int): Boolean = address in 0x2000..0x3fff || address in model.physicalRamStart..0x67ff
 
     private fun install(romSet: RomSet, id: RomComponentId, size: Int, start: Int) {
         val component = requireNotNull(romSet.component(id)) { "PC-1261 ROM set is missing ${id.value}" }
@@ -48,5 +49,4 @@ internal class Pc1261MemoryBus(
         "PC-1261 address must be a 16-bit value"
     }
 
-    private companion object { val WRITABLE_RANGE = 0x2000..0x67ff }
 }

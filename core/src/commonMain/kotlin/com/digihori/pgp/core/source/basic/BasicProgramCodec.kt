@@ -1,10 +1,10 @@
 package com.digihori.pgp.core.source.basic
 
+import com.digihori.pgp.core.api.MachineFamily
+import com.digihori.pgp.core.api.MachineCatalog
 import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401BasicTokenizer
-import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc14xx.Pc14xxBasicTokenizer
 import com.digihori.pgp.core.emulator.machine.pc14xx.Pc1470BasicCodec
-import com.digihori.pgp.core.api.MachineCatalog
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicDetokenizeError
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicDetokenizeResult
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicDetokenizer
@@ -16,7 +16,6 @@ import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350BasicTokenizeResult
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350BasicDetokenizeResult
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350BasicTokenizer
 import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261BasicTokenizer
-import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360BasicCodec
 import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360BasicDetokenizeResult
 import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360BasicTokenizeResult
@@ -46,11 +45,11 @@ public object BasicProgramCodec {
         }
         return when (MachineCatalog.find(machineId)?.basicDialect) {
             com.digihori.pgp.core.api.MachineBasicDialect.S1 -> {
-            val tokenizerResult = if (machineId == Pc1401RomDefinition.MACHINE_ID) {
+            val tokenizerResult = if (MachineCatalog.require(machineId).family == MachineFamily.PC_1401) {
                 Pc1401BasicTokenizer.tokenize(document)
             } else if (machineId.value in setOf("pc-1450", "pc-1460")) {
                 Pc14xxBasicTokenizer.tokenize(document)
-            } else if (machineId == Pc1261RomDefinition.MACHINE_ID) {
+            } else if (MachineCatalog.require(machineId).family == MachineFamily.PC_1261) {
                 Pc1261BasicTokenizer.tokenize(document)
             } else {
                 Pc1350BasicTokenizer.tokenize(document)
@@ -86,7 +85,7 @@ public object BasicProgramCodec {
 
     fun detokenizeProgram(bytes: ByteArray, machineId: MachineId): BasicProgramDecodeResult =
         if (MachineCatalog.find(machineId) == null) BasicProgramDecodeResult.UnsupportedMachine(machineId)
-        else if (machineId == Pc1401RomDefinition.MACHINE_ID) {
+        else if (MachineCatalog.require(machineId).family == MachineFamily.PC_1401) {
             when (val decoded = Pc1401BasicTokenizer.detokenize(bytes)) {
                 is Pc1350BasicDetokenizeResult.Success -> BasicProgramDecodeResult.Success((decoded.source + "\n").encodeToByteArray())
                 is Pc1350BasicDetokenizeResult.Failure -> BasicProgramDecodeResult.GenericFailure(decoded.error.offset, decoded.error.message)
@@ -96,7 +95,7 @@ public object BasicProgramCodec {
                 is Pc1350BasicDetokenizeResult.Success -> BasicProgramDecodeResult.Success((decoded.source + "\n").encodeToByteArray())
                 is Pc1350BasicDetokenizeResult.Failure -> BasicProgramDecodeResult.GenericFailure(decoded.error.offset, decoded.error.message)
             }
-        } else if (machineId == Pc1261RomDefinition.MACHINE_ID) {
+        } else if (MachineCatalog.require(machineId).family == MachineFamily.PC_1261) {
             when (val decoded = Pc1261BasicTokenizer.detokenize(bytes)) {
                 is Pc1350BasicDetokenizeResult.Success -> BasicProgramDecodeResult.Success((decoded.source + "\n").encodeToByteArray())
                 is Pc1350BasicDetokenizeResult.Failure -> BasicProgramDecodeResult.GenericFailure(decoded.error.offset, decoded.error.message)

@@ -1,5 +1,7 @@
 package com.digihori.pgp.desktop.rom
 
+import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401FamilyModel
+import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261FamilyModel
 import com.digihori.pgp.core.api.CreateSessionError
 import com.digihori.pgp.core.api.CreateSessionResult
 import com.digihori.pgp.core.api.EmulatorFactory
@@ -40,8 +42,8 @@ internal object DesktopRomLoader {
             MachineFamily.PC_1470U -> Pc14xxFlatRomImporter.importImage(Pc14xxModel.PC_1470U, image, bankImage)
             MachineFamily.PC_1460 -> Pc14xxFlatRomImporter.importImage(Pc14xxModel.PC_1460, image, bankImage)
             MachineFamily.PC_1450 -> Pc14xxFlatRomImporter.importImage(Pc14xxModel.PC_1450, image)
-            MachineFamily.PC_1401 -> Pc1401FlatRomImporter.importImage(image)
-            MachineFamily.PC_1261 -> Pc1261FlatRomImporter.importImage(image)
+            MachineFamily.PC_1401 -> Pc1401FlatRomImporter.importImage(image, checkNotNull(Pc1401FamilyModel.fromMachineId(machineId)))
+            MachineFamily.PC_1261 -> Pc1261FlatRomImporter.importImage(image, checkNotNull(Pc1261FamilyModel.fromMachineId(machineId)))
             MachineFamily.PC_1350 -> Pc1350FlatRomImporter.importImage(image)
             MachineFamily.PC_1360 -> if (bankImage == null) {
                 RomImportResult.Failure(RomImportError.InvalidImageSize(listOf(0x20000), 0))

@@ -11,6 +11,8 @@ import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251MemoryImageLoadResult
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251Display
+import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261FamilyModel
+import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401FamilyModel
 import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261Display
 import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261Machine
 import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261RomDefinition
@@ -58,8 +60,8 @@ public object EmulatorFactory {
                     MachineFamily.PC_1470U -> Pc14xxEmulatorSession(Pc14xxMachine(romSet, Pc14xxModel.PC_1470U))
                     MachineFamily.PC_1460 -> Pc14xxEmulatorSession(Pc14xxMachine(romSet, Pc14xxModel.PC_1460))
                     MachineFamily.PC_1450 -> Pc14xxEmulatorSession(Pc14xxMachine(romSet, Pc14xxModel.PC_1450))
-                    MachineFamily.PC_1401 -> Pc1401EmulatorSession(Pc1401Machine(romSet))
-                    MachineFamily.PC_1261 -> Pc1261EmulatorSession(Pc1261Machine(romSet))
+                    MachineFamily.PC_1401 -> Pc1401EmulatorSession(Pc1401Machine(romSet, checkNotNull(Pc1401FamilyModel.fromMachineId(machineId))))
+                    MachineFamily.PC_1261 -> Pc1261EmulatorSession(Pc1261Machine(romSet, checkNotNull(Pc1261FamilyModel.fromMachineId(machineId))))
                     MachineFamily.PC_1350 -> Pc1350EmulatorSession(Pc1350Machine(romSet))
                     MachineFamily.PC_1360 -> Pc1360EmulatorSession(Pc1360Machine(romSet))
                 },
@@ -73,7 +75,7 @@ public object EmulatorFactory {
 }
 
 private class Pc1261EmulatorSession(private val machine: Pc1261Machine) : EmulatorSession {
-    override val machineId: MachineId = Pc1261RomDefinition.MACHINE_ID
+    override val machineId: MachineId = machine.model.machineId
     private var status: ExecutionStatus = ExecutionStatus.Ready
     override fun reset() { machine.coldReset(); status = ExecutionStatus.Ready }
     override fun step(): StepResult = machine.step().let {
@@ -160,7 +162,7 @@ private class Pc1261EmulatorSession(private val machine: Pc1261Machine) : Emulat
 }
 
 private class Pc1401EmulatorSession(private val machine: Pc1401Machine) : EmulatorSession {
-    override val machineId: MachineId = Pc1401RomDefinition.MACHINE_ID
+    override val machineId: MachineId = machine.model.machineId
     private var status: ExecutionStatus = ExecutionStatus.Ready
     override fun reset() { machine.coldReset(); status = ExecutionStatus.Ready }
     override fun step(): StepResult = machine.step().let {

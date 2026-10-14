@@ -114,12 +114,14 @@ internal class DesktopRomLibrary(
         }
     }
 
-    private fun storageId(machineId: MachineId): String =
-        if (MachineCatalog.find(machineId)?.family == MachineFamily.PC_1251) {
-            "pc-1251-family"
-        } else {
-            machineId.value
-        }
+    private fun storageId(machineId: MachineId): String = when (MachineCatalog.find(machineId)?.family) {
+        MachineFamily.PC_1251 -> "pc-1251-family"
+        // Keep existing Library paths so previously registered packages remain usable.
+        MachineFamily.PC_1261 -> "pc-1261"
+        MachineFamily.PC_1401 -> "pc-1401"
+        else -> machineId.value
+    }
+
 }
 
 internal sealed interface DesktopRomLibraryResult {
