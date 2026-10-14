@@ -1,5 +1,6 @@
 package com.digihori.pgp.desktop.debug
 
+import com.digihori.pgp.desktop.checkpointDescription
 import com.digihori.pgp.core.api.CreateSessionResult
 import com.digihori.pgp.core.api.EmulatorFactory
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
@@ -34,10 +35,11 @@ class DesktopDebuggerCheckpointWriterTest {
             cpu = session.cpuSnapshot(),
             memory = session.memorySnapshot(0xc000, 4),
             trace = emptyList(),
-            stopReason = "Reset",
+            stopReason = DebuggerStopReason.Reset.checkpointDescription(),
         )
         val root = Json.parseToJsonElement(bytes.decodeToString()).jsonObject
 
+        assertEquals("Reset", root.getValue("stopReason").jsonPrimitive.content)
         assertEquals("pgp-debug-checkpoint", root.getValue("format").jsonPrimitive.content)
         assertEquals("1", root.getValue("formatVersion").jsonPrimitive.content)
         assertEquals("pc-1245", root.getValue("machineId").jsonPrimitive.content)

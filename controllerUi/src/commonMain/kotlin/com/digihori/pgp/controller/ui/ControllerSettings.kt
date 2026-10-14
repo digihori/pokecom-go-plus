@@ -9,6 +9,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -31,20 +34,21 @@ fun ControllerSettings(
     onSettingsChange: (GamepadSettings) -> Unit,
     availableButtons: Set<GamepadButton> = GamepadButton.entries.toSet(),
     status: String? = null,
+    strings: ControllerStrings = ControllerStrings(),
 ) {
     var selectedButton by remember { mutableStateOf<GamepadButton?>(null) }
     var deviceMenu by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("ゲームコントローラー", style = MaterialTheme.typography.titleLarge)
+        Text(strings.title, style = MaterialTheme.typography.titleLarge)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Switch(checked = settings.enabled, onCheckedChange = { onSettingsChange(settings.copy(enabled = it)) })
+            Switch(modifier = Modifier.semantics { contentDescription = strings.enable }, checked = settings.enabled, onCheckedChange = { onSettingsChange(settings.copy(enabled = it)) })
             Spacer(Modifier.width(12.dp))
-            Text("コントローラー入力を有効にする")
+            Text(strings.enable)
         }
         Box {
             OutlinedButton(onClick = { deviceMenu = true }, enabled = devices.isNotEmpty()) {
                 Text(devices.find { it.id == selectedId }?.let { "${it.name} (${it.id})" }
-                    ?: if (devices.isEmpty()) "未接続" else "使用する1台を選択")
+                    ?: if (devices.isEmpty()) strings.disconnected else strings.selectDevice)
             }
             DropdownMenu(expanded = deviceMenu, onDismissRequest = { deviceMenu = false }) {
                 devices.forEach { device ->
@@ -56,20 +60,20 @@ fun ControllerSettings(
             }
         }
         status?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-        Text("図のボタンを選び、ポケコンのキーを割り当てます。設定中の操作はテスト表示のみです。")
+        Text(strings.instructions)
         ControllerDiagram(
-            settings, pressed, allowedKeys, availableButtons,
+            settings, pressed, allowedKeys, availableButtons, strings,
             onClick = { selectedButton = it },
         )
-        Text("ABXYは標準位置を表示しています。機器の印字が異なる場合は上下左右の位置で選んでください。",
+        Text(strings.positions,
             style = MaterialTheme.typography.bodySmall)
-        Text("スティックは対象外です。変更は自動保存され、以前の設定を上書きします。",
+        Text(strings.saveHelp,
             style = MaterialTheme.typography.bodySmall)
     }
     selectedButton?.let { button ->
         AlertDialog(
             onDismissRequest = { selectedButton = null },
-            title = { Text("${button.label} の割当") },
+            title = { Text(strings.assignment(strings.buttonLabel(button))) },
             text = {
                 Column(Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
                     val choices = allowedKeys.sortedWith(compareBy<PocketKey> {
@@ -83,11 +87,11 @@ fun ControllerSettings(
                         TextButton(
                             modifier = Modifier.fillMaxWidth(),
                             onClick = { onSettingsChange(settings.withBinding(button, key)); selectedButton = null },
-                        ) { Text(GamepadKeys.label(key)) }
+                        ) { Text(if (key == null) strings.unassigned else GamepadKeys.label(key)) }
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { selectedButton = null }) { Text("閉じる") } },
+            confirmButton = { TextButton(onClick = { selectedButton = null }) { Text(strings.close) } },
         )
     }
 }
@@ -98,6 +102,7 @@ private fun ControllerDiagram(
     pressed: Set<GamepadButton>,
     allowedKeys: Set<PocketKey>,
     availableButtons: Set<GamepadButton>,
+    strings: ControllerStrings,
     onClick: (GamepadButton) -> Unit,
 ) {
     val body = MaterialTheme.colorScheme.surfaceVariant
@@ -138,7 +143,11 @@ private fun ControllerDiagram(
                     modifier = Modifier.offset(
                         x = (diagramWidth - buttonWidth) * position.first,
                         y = 200.dp * position.second,
-                    ).width(buttonWidth).height(56.dp),
+                    ).width(buttonWidth).height(56.dp).semantics {
+                        contentDescription = strings.assignment(strings.buttonLabel(button))
+                        stateDescription = (if (button in pressed) strings.pressed else strings.released) +
+                            (if (unsupported || button !in availableButtons) " / ${strings.unavailable}" else "")
+                    },
                     contentPadding = PaddingValues(2.dp),
                     border = BorderStroke(if (button in pressed) 3.dp else 1.dp,
                         if (button in pressed) accent else MaterialTheme.colorScheme.outline),
@@ -148,11 +157,11 @@ private fun ControllerDiagram(
                     ),
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(button.label, style = MaterialTheme.typography.labelSmall)
-                        Text(GamepadKeys.label(key), textAlign = TextAlign.Center,
+                        Text(strings.buttonLabel(button), style = MaterialTheme.typography.labelSmall)
+                        Text(if (key == null) strings.unassignedShort else GamepadKeys.label(key), textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.labelMedium)
                         if (unsupported || button !in availableButtons) {
-                            Text("利用不可", style = MaterialTheme.typography.labelSmall,
+                            Text(strings.unavailableShort, style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.error)
                         }
                     }

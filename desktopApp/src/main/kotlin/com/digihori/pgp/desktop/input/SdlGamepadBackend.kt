@@ -26,7 +26,7 @@ internal data class DesktopGamepadSnapshot(
 )
 
 /** Input only: no SDL video window or audio subsystem. All native calls share one thread. */
-internal class SdlGamepadBackend {
+internal class SdlGamepadBackend(private val unnamedDeviceName: String = "Gamepad") {
     private var initialized = false
     private var handle = 0L
     private var openedId: String? = null
@@ -45,7 +45,7 @@ internal class SdlGamepadBackend {
         val devices = try {
             (ids.position() until ids.limit()).map { index ->
                 val id = ids[index]
-                GamepadDevice(id.toString(), SDL_GetGamepadNameForID(id) ?: "Gamepad")
+                GamepadDevice(id.toString(), SDL_GetGamepadNameForID(id) ?: unnamedDeviceName)
             }
         } finally {
             SDL_free(ids)

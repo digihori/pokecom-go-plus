@@ -22,6 +22,9 @@ internal data class DesktopWavResult(
     val wav: WavByteSequence? = null,
     val content: String = "",
     val error: String? = null,
+    val compileError: DesktopBasicProgramCompileError? = null,
+    val memoryError: DesktopMemoryDumpLoadError? = null,
+    val targetMachine: String? = null,
 ) {
     fun report(): String = buildString {
         appendLine(summary)
@@ -43,7 +46,7 @@ internal object DesktopWavOperation {
         }
         val encoded = if (binary) {
             val image = when (val parsed = DesktopMemoryDumpLoader.parse(bytes)) {
-                is DesktopMemoryDumpLoadResult.Failure -> return DesktopWavResult("Invalid memory dump", error = parsed.error.toString())
+                is DesktopMemoryDumpLoadResult.Failure -> return DesktopWavResult("Invalid memory dump", error = parsed.error.toString(), memoryError = parsed.error)
                 is DesktopMemoryDumpLoadResult.Success -> parsed.image
             }
             val contiguous = when (val flattened = DesktopContiguousMemoryImage.flatten(image)) {
@@ -53,7 +56,7 @@ internal object DesktopWavOperation {
             OldWavCodec.encodeBinary(filename, contiguous.startAddress, LogicalByteSequence(contiguous.bytes))
         } else {
             val compiled = when (val result = DesktopBasicLoader.compileProgram(bytes, machine)) {
-                is DesktopBasicProgramCompileResult.Failure -> return DesktopWavResult("BASIC conversion failed", error = result.error.toString())
+                is DesktopBasicProgramCompileResult.Failure -> return DesktopWavResult("BASIC conversion failed", error = result.error.toString(), compileError = result.error, targetMachine = machine.value)
                 is DesktopBasicProgramCompileResult.Success -> result.bytes
             }
             val body = when (val adapted = DesktopOldBasicTransferAdapter.toTransferBody(compiled)) {

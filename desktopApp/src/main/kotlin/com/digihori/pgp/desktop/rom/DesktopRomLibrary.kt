@@ -45,11 +45,12 @@ internal class DesktopRomLibrary(
     fun install(packageBytes: ByteArray, sourceName: String): DesktopRomLibraryResult {
         val read = DesktopRomPackage.read(packageBytes)
         if (read is DesktopRomPackageReadResult.Failure) {
-            return DesktopRomLibraryResult.Failure("Invalid ROM package: ${read.error}")
+            return DesktopRomLibraryResult.Failure("Invalid ROM package: ${read.error}", DesktopRomLoadError.InvalidPackage(read.error))
         }
         val machineId = (read as DesktopRomPackageReadResult.Success).romSet.machineId
-        if (DesktopRomLoader.loadPackage(packageBytes) is DesktopRomLoadResult.Failure) {
-            return DesktopRomLibraryResult.Failure("The ROM package does not create a valid emulator session")
+        val loaded = DesktopRomLoader.loadPackage(packageBytes)
+        if (loaded is DesktopRomLoadResult.Failure) {
+            return DesktopRomLibraryResult.Failure("The ROM package does not create a valid emulator session", loaded.error)
         }
         val storageId = storageId(machineId)
         val machineDirectory = File(root, storageId)
@@ -126,7 +127,7 @@ internal class DesktopRomLibrary(
 
 internal sealed interface DesktopRomLibraryResult {
     data class Success(val machineId: MachineId, val file: File) : DesktopRomLibraryResult
-    data class Failure(val message: String) : DesktopRomLibraryResult
+    data class Failure(val message: String, val error: DesktopRomLoadError? = null) : DesktopRomLibraryResult
 }
 
 internal data class DesktopRomMetadata(

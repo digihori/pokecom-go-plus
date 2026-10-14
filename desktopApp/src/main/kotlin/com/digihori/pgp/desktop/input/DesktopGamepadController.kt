@@ -1,6 +1,7 @@
 package com.digihori.pgp.desktop.input
 
 import androidx.compose.runtime.*
+import com.digihori.pgp.desktop.localization.uiText
 import com.digihori.pgp.desktop.runner.DesktopEmulatorRunner
 import com.digihori.pgp.desktop.runner.RunnerState
 import com.digihori.pgp.input.*
@@ -8,7 +9,7 @@ import com.digihori.pgp.input.*
 /** Mutable UI state and emulator input live on EDT; only immutable snapshots cross Cocoa. */
 internal class DesktopGamepadController {
     private val preferences = DesktopGamepadPreferences()
-    private val backend = SdlGamepadBackend()
+    private val backend = SdlGamepadBackend(unnamedDeviceName = uiText("controller.unnamedDevice"))
     var settings by mutableStateOf(runCatching { preferences.load() }.getOrDefault(GamepadSettings()))
         private set
     var devices by mutableStateOf(emptyList<GamepadDevice>())
@@ -55,8 +56,8 @@ internal class DesktopGamepadController {
         runCatching { preferences.save(value) }.onSuccess {
             settings = value.copy(bindings = value.bindings.toMap())
             configure()
-            status = "設定を保存しました"
-        }.onFailure { status = "保存できませんでした: ${it.message}" }
+            status = uiText("controller.saved")
+        }.onFailure { status = uiText("controller.saveFailed", it.message) }
     }
 
     suspend fun poll() {
@@ -75,7 +76,7 @@ internal class DesktopGamepadController {
         devices = emptyList()
         selectedId = null
         pressed = emptySet()
-        status = "コントローラー入力を利用できません: ${failure.message ?: failure::class.simpleName}"
+        status = uiText("controller.inputUnavailable", failure.message ?: failure::class.simpleName)
     }
 
     suspend fun close() {

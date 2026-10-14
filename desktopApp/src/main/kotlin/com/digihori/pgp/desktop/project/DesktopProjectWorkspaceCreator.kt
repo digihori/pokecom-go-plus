@@ -7,10 +7,8 @@ import com.digihori.pgp.core.project.ProjectSourceType
 import com.digihori.pgp.core.rom.MachineId
 import java.io.File
 
-internal enum class DesktopProjectStarter(val displayName: String) {
-    BASIC("BASIC"),
-    MEMORY_DUMP("Machine code (.dmp)"),
-    ASSEMBLY("Assembly (.asm)"),
+internal enum class DesktopProjectStarter {
+    BASIC, MEMORY_DUMP, ASSEMBLY,
 }
 
 internal sealed interface DesktopProjectCreateResult {

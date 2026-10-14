@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -29,6 +30,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import com.digihori.pgp.desktop.localization.*
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
@@ -40,9 +44,9 @@ import com.digihori.pgp.core.character.CharacterEditorFormats
 import com.digihori.pgp.desktop.theme.LocalStudioComponentColors
 
 @Composable
-internal fun CharacterEditorPanel() {
+internal fun CharacterEditorPanel(strings: StudioStrings = StudioStrings.system, initialModel: DesktopCharacterEditorModel? = null) {
     val format = CharacterEditorFormats.FIVE_BY_SEVEN_COLUMN_LSB_TOP
-    var model by remember { mutableStateOf(DesktopCharacterEditorModel(format)) }
+    var model by remember { mutableStateOf(initialModel ?: DesktopCharacterEditorModel(format)) }
 
     val scrollState = rememberScrollState()
     Box(modifier = Modifier.fillMaxSize()) {
@@ -52,40 +56,41 @@ internal fun CharacterEditorPanel() {
         ) {
             SelectionContainer {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Character Editor", style = MaterialTheme.typography.titleLarge)
-                    Text(format.displayName)
+                    Text(strings.text("character.title"), style = MaterialTheme.typography.titleLarge)
+                    Text(strings.text("character.format"))
                     Text(
-                        "Column-major bytes; top dot is bit 0. Generic prototype format, not a verified machine UDC format.",
+                        strings.text("character.help"),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 CharacterGrid(
                     model = model,
                     onDotChange = { column, row, set -> model = model.withDot(column, row, set) },
+                    strings = strings,
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { model = model.clear() }) { Text("Clear") }
-                        Button(onClick = { model = model.invert() }) { Text("Invert") }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { model = model.clear() }) { Text(strings.text("character.clear")) }
+                        Button(onClick = { model = model.invert() }) { Text(strings.text("character.invert")) }
                     }
                     OutlinedTextField(
                         value = model.byteText,
                         onValueChange = { model = model.withByteText(it) },
-                        label = { Text("Byte values") },
+                        label = { Text(strings.text("character.bytes")) },
                         supportingText = {
                             Text(
-                                model.inputError
-                                    ?: "${format.byteCount} decimal, 0xNN, or &NN values",
+                                model.inputError?.let { strings.characterInputError(it) }
+                                    ?: strings.text("character.byteHelp", format.byteCount.toString()),
                             )
                         },
                         isError = model.inputError != null,
                         singleLine = true,
-                        modifier = Modifier.widthIn(min = 360.dp, max = 640.dp),
+                        modifier = Modifier.widthIn(max = 640.dp),
                     )
-                    Button(onClick = { model = model.applyByteText() }) { Text("Apply to grid") }
+                    Button(onClick = { model = model.applyByteText() }) { Text(strings.text("character.apply")) }
                 }
             }
 
@@ -109,6 +114,7 @@ internal fun CharacterEditorPanel() {
 private fun CharacterGrid(
     model: DesktopCharacterEditorModel,
     onDotChange: (column: Int, row: Int, set: Boolean) -> Unit,
+    strings: StudioStrings,
 ) {
     val componentColors = LocalStudioComponentColors.current
     var dragSet by remember { mutableStateOf<Boolean?>(null) }
@@ -127,6 +133,7 @@ private fun CharacterGrid(
 
     Canvas(
         modifier = Modifier
+            .semantics { contentDescription = strings.text("character.grid", model.pattern.width.toString(), model.pattern.height.toString()) }
             .width(160.dp)
             .aspectRatio(model.pattern.width.toFloat() / model.pattern.height)
             .pointerInput(model.pattern.width, model.pattern.height) {

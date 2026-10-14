@@ -15,26 +15,35 @@ internal object DesktopRomSetCreator {
         MachineRomLayout.SC61860_INTERNAL_8K_BANKED_16K_X8 -> 131_072L
     }
 
-    fun inputError(file: File?, expectedSize: Long): String? = when {
-        file == null -> "Select a file."
-        !file.isFile || !file.canRead() -> "The file cannot be read."
-        file.length() != expectedSize -> "Expected ${expectedSize / 1024} KiB; selected ${file.length()} bytes."
+    fun inputIssue(file: File?, expectedSize: Long): RomSetInputIssue? = when {
+        file == null -> RomSetInputIssue.MissingFile
+        !file.isFile || !file.canRead() -> RomSetInputIssue.UnreadableFile
+        file.length() != expectedSize -> RomSetInputIssue.SizeMismatch(expectedSize, file.length())
         else -> null
+    }
+
+    // Keep the existing non-UI diagnostic contract for callers and exceptions.
+    fun inputError(file: File?, expectedSize: Long): String? = inputIssue(file, expectedSize)?.description()
+
+    private fun RomSetInputIssue.description(): String = when (this) {
+        RomSetInputIssue.MissingFile -> "Select a file."
+        RomSetInputIssue.UnreadableFile -> "The file cannot be read."
+        is RomSetInputIssue.SizeMismatch -> "Expected ${expectedSize / 1024} KiB; selected ${actualSize} bytes."
     }
 
     fun destination(file: File): File = if (file.extension.equals("pgrom", ignoreCase = true)) file
         else File(file.parentFile, "${file.name}.pgrom")
 
     fun create(machineId: MachineId, internal: File, external: File, destination: File, overwrite: Boolean = false): File {
-        require(inputError(internal, 8192) == null) { inputError(internal, 8192).orEmpty() }
-        require(inputError(external, externalSize(machineId)) == null) { inputError(external, externalSize(machineId)).orEmpty() }
+        inputIssue(internal, 8192)?.let { throw RomSetInputException(it, it.description()) }
+        inputIssue(external, externalSize(machineId))?.let { throw RomSetInputException(it, it.description()) }
         val target = destination.canonicalFile
         require(target != internal.canonicalFile && target != external.canonicalFile) { "The output must not replace an input ROM." }
         require(overwrite || !target.exists()) { "The destination already exists." }
         val conversion = DesktopRomPackageConverter.createPackage(machineId, internal.readBytes(), external.readBytes())
         val bytes = when (conversion) {
             is DesktopRomPackageConversionResult.Success -> conversion.packageBytes
-            is DesktopRomPackageConversionResult.Failure -> error("ROM validation failed: ${conversion.error}")
+            is DesktopRomPackageConversionResult.Failure -> throw RomSetValidationException(conversion.error)
         }
         val temporary = Files.createTempFile(target.parentFile.toPath(), ".pgrom-", ".tmp")
         try {
@@ -47,3 +56,14 @@ internal object DesktopRomSetCreator {
         return target
     }
 }
+
+internal sealed interface RomSetInputIssue {
+    data object MissingFile : RomSetInputIssue
+    data object UnreadableFile : RomSetInputIssue
+    data class SizeMismatch(val expectedSize: Long, val actualSize: Long) : RomSetInputIssue
+}
+
+internal class RomSetValidationException(val error: com.digihori.pgp.core.emulator.machine.pc1245.RomImportError) :
+    IllegalStateException("ROM validation failed: $error")
+
+internal class RomSetInputException(val issue: RomSetInputIssue, message: String) : IllegalArgumentException(message)

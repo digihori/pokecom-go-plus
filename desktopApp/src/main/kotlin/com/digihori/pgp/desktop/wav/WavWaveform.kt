@@ -10,6 +10,9 @@ import androidx.compose.foundation.v2.ScrollbarAdapter
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.ExperimentalComposeUiApi
+import com.digihori.pgp.desktop.localization.*
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -29,10 +32,10 @@ import java.util.Locale
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-internal fun WavWaveform(output: DesktopWavResult, cursor: Int, onCursor: (Int) -> Unit, onRaw: (Int) -> Unit) {
+internal fun WavWaveform(output: DesktopWavResult, cursor: Int, onCursor: (Int) -> Unit, onRaw: (Int) -> Unit, strings: StudioStrings = StudioStrings.system) {
     val pcm = output.pcm
     val samples = remember(output) { pcm?.samples?.copySamples() }
-    if (pcm == null || samples == null || samples.isEmpty()) { Text("No PCM available"); return }
+    if (pcm == null || samples == null || samples.isEmpty()) { Text(strings.text("wave.noPcm")); return }
     val inspection = remember(output) { OldSignalDecoder.inspect(pcm.sampleRate, pcm.samples) }
     val differences = remember(inspection) { inspection.copyDifferences() }
     val amplitudes = remember(samples) { IntArray(samples.size) { samples[it].toInt() } }
@@ -71,29 +74,29 @@ internal fun WavWaveform(output: DesktopWavResult, cursor: Int, onCursor: (Int) 
         span = next
     }
     Row {
-        Checkbox(stepDisplay, { stepDisplay = it }); Text("Sample hold (square wave)")
+        Checkbox(stepDisplay, { stepDisplay = it }, modifier = Modifier.semantics { contentDescription = strings.text("wave.hold") }); Text(strings.text("wave.hold"))
     }
-    Text(if (stepDisplay) "Horizontal hold and vertical sample edges" else "Connected samples — no smoothing or resampling")
-    Text("Signed PCM units: min ${statistics.first}, max ${statistics.second}, DC ${format(statistics.third, 1)}")
-    Row { Checkbox(amplitudeGuides, { amplitudeGuides = it }); Text("Amplitude guides (visual only)") }
+    Text(if (stepDisplay) strings.text("wave.holdHelp") else strings.text("wave.connected"))
+    Text(strings.text("wave.statistics", statistics.first.toString(), statistics.second.toString(), format(statistics.third, 1)))
+    Row { Checkbox(amplitudeGuides, { amplitudeGuides = it }, modifier = Modifier.semantics { contentDescription = strings.text("wave.guides") }); Text(strings.text("wave.guides")) }
     if (amplitudeGuides) {
-        Text("Amplitude guides ±${guide.roundToInt()} — not the OLD decoder threshold")
-        Slider(guide, { guide = it }, valueRange = 0f..32767f)
+        Text(strings.text("wave.guideValue", guide.roundToInt().toString()))
+        Slider(guide, { guide = it }, valueRange = 0f..32767f, modifier = Modifier.semantics { contentDescription = strings.text("wave.guideValue", guide.roundToInt().toString()) })
     }
-    Row { Checkbox(showDifference, { showDifference = it }); Text("Show OLD decoder difference / threshold") }
-    Text("OLD uses x[n] − x[n−${inspection.tapSamples}], |difference| > ${inspection.threshold}; zero crossings alone do not determine decoding.")
-    Text("Samples $start..${start + span} • cursor $cursor (${time(cursor.toDouble() / pcm.sampleRate)}) • value ${samples[cursor.coerceIn(samples.indices)]}")
+    Row { Checkbox(showDifference, { showDifference = it }, modifier = Modifier.semantics { contentDescription = strings.text("wave.difference") }); Text(strings.text("wave.difference")) }
+    Text(strings.text("wave.algorithm", inspection.tapSamples.toString(), inspection.threshold.toString()))
+    Text(strings.text("wave.samples", start.toString(), (start + span).toString(), cursor.toString(), time(cursor.toDouble() / pcm.sampleRate), samples[cursor.coerceIn(samples.indices)].toString()))
 
     val values = amplitudes
     val bound = 32768f
-    Text("Blue: PCM amplitude (±32768); bold center line is 0")
+    Text(strings.text("wave.blue"))
     if (showDifference) {
-        Text("Orange: decoder difference (separate scale ±65536), dashed lines: difference threshold ±${inspection.threshold}")
+        Text(strings.text("wave.orange", inspection.threshold.toString()))
         if ((start until start + span).all { differences[it] == 0 }) {
-            Text("Difference is 0 in this interval: samples repeat at the decoder tap. The PCM waveform remains visible.")
+            Text(strings.text("wave.zero"))
         }
     }
-    Canvas(Modifier.fillMaxWidth().height(280.dp).onSizeChanged { plotWidth = (it.width - 80).toDouble().coerceAtLeast(1.0) }
+    Canvas(Modifier.semantics { contentDescription = strings.text("wave.canvas") }.fillMaxWidth().height(280.dp).onSizeChanged { plotWidth = (it.width - 80).toDouble().coerceAtLeast(1.0) }
         .onPointerEvent(PointerEventType.Scroll, pass = PointerEventPass.Initial) { event ->
             val delta = event.changes.firstOrNull()?.scrollDelta ?: Offset.Zero
             val horizontal = if (abs(delta.x) > .01f) delta.x else if (event.keyboardModifiers.isShiftPressed) delta.y else 0f
@@ -210,19 +213,19 @@ internal fun WavWaveform(output: DesktopWavResult, cursor: Int, onCursor: (Int) 
             unhoverColor = axisColor.copy(alpha = .5f), hoverColor = axisColor.copy(alpha = .8f),
         ),
     )
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        OutlinedButton(onClick = { zoom(span / 2) }) { Text("Zoom +") }
-        OutlinedButton(onClick = { zoom((span.toLong() * 2).coerceAtMost(samples.size.toLong()).toInt()) }) { Text("Zoom −") }
-        OutlinedButton(onClick = { start = (start - span / 2).coerceAtLeast(0) }) { Text("←") }
-        OutlinedButton(onClick = { start = (start + span / 2).coerceAtMost(samples.size - span) }) { Text("→") }
-        OutlinedButton(onClick = { start = 0; span = samples.size }) { Text("Fit") }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        OutlinedButton(onClick = { zoom(span / 2) }) { Text(strings.text("wave.zoomIn")) }
+        OutlinedButton(onClick = { zoom((span.toLong() * 2).coerceAtMost(samples.size.toLong()).toInt()) }) { Text(strings.text("wave.zoomOut")) }
+        OutlinedButton(modifier = Modifier.semantics { contentDescription = strings.text("wave.left") }, onClick = { start = (start - span / 2).coerceAtLeast(0) }) { Text("←") }
+        OutlinedButton(modifier = Modifier.semantics { contentDescription = strings.text("wave.right") }, onClick = { start = (start + span / 2).coerceAtMost(samples.size - span) }) { Text("→") }
+        OutlinedButton(onClick = { start = 0; span = samples.size }) { Text(strings.text("wave.fit")) }
     }
-    Text("Two-finger horizontal scroll or Shift+wheel to pan; scrollbar covers the whole recording. Zoom in for samples/zero crossings (green).")
-    Text("Tap for cursor; long press for selection end. Purple marks: nibble sync.")
-    selectionEnd?.let { Text("Selected samples ${minOf(cursor, it)}..${maxOf(cursor, it)}") }
+    Text(strings.text("wave.panHelp"))
+    Text(strings.text("wave.cursorHelp"))
+    selectionEnd?.let { Text(strings.text("wave.selected", minOf(cursor, it).toString(), maxOf(cursor, it).toString())) }
     val raw = output.mappings.firstOrNull { cursor in it.source }
-    Text(raw?.let { "Cursor corresponds to raw byte ${it.target.offset}" } ?: "Cursor is outside decoded byte ranges")
-    raw?.let { OutlinedButton(onClick = { onRaw(it.target.offset) }) { Text("Show raw byte ${it.target.offset}") } }
+    Text(raw?.let { strings.text("wave.rawCursor", it.target.offset.toString()) } ?: strings.text("wave.outside"))
+    raw?.let { OutlinedButton(onClick = { onRaw(it.target.offset) }) { Text(strings.text("wave.showRaw", it.target.offset.toString())) } }
 }
 
 private fun format(value: Double, decimals: Int) = String.format(Locale.ROOT, "%.${decimals}f", value)

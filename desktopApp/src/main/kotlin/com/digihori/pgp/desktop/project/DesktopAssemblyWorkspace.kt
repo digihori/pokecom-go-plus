@@ -1,5 +1,6 @@
 package com.digihori.pgp.desktop.project
 
+import com.digihori.pgp.desktop.localization.StudioStrings
 import com.digihori.pgp.core.debug.Sc61860Assembler
 import com.digihori.pgp.core.debug.Sc61860AssemblyListingLine
 import com.digihori.pgp.core.debug.Sc61860AssemblyResult
@@ -175,14 +176,15 @@ internal fun DesktopAssemblySourceResult.renderDisassembly(): String {
     }.plus("\n")
 }
 
-internal fun DesktopAssemblySourceResult.renderMemorySummary(layout: MachineMemoryLayout): String = image.segments.joinToString("\n") { segment ->
+internal fun DesktopAssemblySourceResult.renderMemorySummary(layout: MachineMemoryLayout, strings: StudioStrings? = null): String = image.segments.joinToString("\n") { segment ->
     val kinds = (segment.startAddress..segment.endAddress).map { layout.locate(it).kind }.distinct()
     val mirrors = (segment.startAddress..segment.endAddress).any { layout.locate(it).physicalAddress != it }
-    "0x${segment.startAddress.hex(4)}..0x${segment.endAddress.hex(4)}  ${segment.size} bytes  ${kinds.joinToString()}" +
+    if (strings == null) "0x${segment.startAddress.hex(4)}..0x${segment.endAddress.hex(4)}  ${segment.size} bytes  ${kinds.joinToString()}" +
         if (mirrors) " (contains mirrors)" else ""
+    else strings.text(if (mirrors) "assembly.memorySummaryMirrors" else "assembly.memorySummary", segment.startAddress.hex(4), segment.endAddress.hex(4), segment.size.toString(), kinds.joinToString())
 }
 
-internal fun MachineMemoryLayout.renderMemoryLayout(): String = buildString {
+internal fun MachineMemoryLayout.renderMemoryLayout(strings: StudioStrings? = null): String = buildString {
     append(machineId.value)
     if (com.digihori.pgp.core.api.MachineCatalog.require(machineId).supportsConfigurableRam) append(" — ").append(pc1251MemoryMode)
     append('\n')
@@ -192,11 +194,11 @@ internal fun MachineMemoryLayout.renderMemoryLayout(): String = buildString {
         var end = start
         while (end < 0xffff && locate(end + 1).kind == region.kind && locate(end + 1).writable == region.writable) end++
         append(start.hex(4)).append("..").append(end.hex(4)).append("  ").append(region.kind)
-            .append(if (region.writable) " (writable)" else " (read-only)").append('\n')
+            .append(if (strings == null) { if (region.writable) " (writable)" else " (read-only)" } else strings.text(if (region.writable) "assembly.writable" else "assembly.readOnly")).append('\n')
         start = end + 1
     }
-    if (machineId.value == "pc-1360") append("4000..7FFF: ROM bank 0..7; bank output is not supported.\n")
-    append("LCD/control writes have side effects. BASIC placement is checked again at load time.")
+    if (machineId.value == "pc-1360") append(strings?.text("assembly.bankLayoutNote") ?: "4000..7FFF: ROM bank 0..7; bank output is not supported.\n")
+    append(strings?.text("assembly.layoutNote") ?: "LCD/control writes have side effects. BASIC placement is checked again at load time.")
 }
 
 internal fun MemoryImageLoadError.placementMessage(layout: MachineMemoryLayout): String = when (this) {

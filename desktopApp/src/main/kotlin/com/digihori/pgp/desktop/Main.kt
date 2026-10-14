@@ -1,5 +1,9 @@
 package com.digihori.pgp.desktop
 
+import com.digihori.pgp.desktop.debug.DebugContextFieldPair
+import com.digihori.pgp.desktop.localization.LanguageSettingsPanel
+import com.digihori.pgp.desktop.mcp.McpServerPanel
+import com.digihori.pgp.desktop.localization.mcpStartError
 import com.digihori.pgp.desktop.wav.WavToolInput
 import com.digihori.pgp.desktop.wav.WavToolPanel
 import com.digihori.pgp.core.api.PocketKey
@@ -38,6 +42,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -70,6 +75,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.geometry.Offset
@@ -169,6 +175,17 @@ import com.digihori.pgp.desktop.project.renderListing
 import com.digihori.pgp.desktop.project.renderMap
 import com.digihori.pgp.desktop.project.renderMemorySummary
 import com.digihori.pgp.desktop.input.DesktopGamepadController
+import com.digihori.pgp.desktop.localization.uiText
+import com.digihori.pgp.desktop.localization.debugContextRequestError
+import com.digihori.pgp.desktop.localization.memoryRegionLabel
+import com.digihori.pgp.desktop.localization.transferDetail
+import com.digihori.pgp.desktop.localization.projectOperationError
+import com.digihori.pgp.desktop.localization.romLoadError
+import com.digihori.pgp.desktop.localization.uiLabel
+import com.digihori.pgp.desktop.localization.editorError
+import com.digihori.pgp.desktop.localization.StudioLanguage
+import com.digihori.pgp.desktop.localization.StudioStrings
+import com.digihori.pgp.desktop.localization.controllerStrings
 import com.digihori.pgp.controller.ui.ControllerSettings
 import com.digihori.pgp.input.GamepadKeys
 import kotlinx.coroutines.NonCancellable
@@ -231,6 +248,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 
 fun main() {
+    StudioStrings.configureForStartup(DesktopUiPreferences.languagePreference())
+    StudioStrings.system // Resolve and freeze the UI language before opening windows.
     configureSkikoRenderApi()
     application {
         val keyboardInput = remember { DesktopKeyboardInput() }
@@ -297,7 +316,9 @@ private fun FrameWindowScope.App(
     var loadedRomName by remember { mutableStateOf<String?>(null) }
     var loadedRomFile by remember { mutableStateOf<File?>(null) }
     var familyMemoryMode by remember { mutableStateOf(Pc1251FamilyMemoryMode.EXPANDED) }
-    var message by remember { mutableStateOf("Select a PC-1245 legacy 32/64 KiB ROM image.") }
+    var languagePreference by remember { mutableStateOf(StudioStrings.startupPreference) }
+    var languageSettingsError by remember { mutableStateOf<String?>(null) }
+    var message by remember { mutableStateOf(uiText("main.initial")) }
     var executedCycles by remember { mutableLongStateOf(0L) }
     var display by remember { mutableStateOf<DisplaySnapshot?>(null) }
     var cpu by remember { mutableStateOf<CpuSnapshot?>(null) }
@@ -381,7 +402,7 @@ private fun FrameWindowScope.App(
     var wavToolInput by remember { mutableStateOf<WavToolInput?>(null) }
     var assemblyPreview by remember { mutableStateOf(emptyList<DesktopAssemblySourceResult>()) }
     var assemblyDiagnostics by remember { mutableStateOf(emptyList<DesktopAssemblyDiagnostic>()) }
-    var assemblyStatus by remember { mutableStateOf("Not assembled") }
+    var assemblyStatus by remember { mutableStateOf(uiText("assembly.notAssembled")) }
     var showRenameProjectDialog by remember { mutableStateOf(false) }
     var renamedProjectName by remember { mutableStateOf("") }
     var renameProjectError by remember { mutableStateOf<String?>(null) }
@@ -488,7 +509,7 @@ private fun FrameWindowScope.App(
             }
         }
             .getOrElse {
-                if (reportErrors) showError("Could not read ROM: ${it.message ?: it::class.simpleName}")
+                if (reportErrors) showError(uiText("rom.readFailed", it.message ?: it::class.simpleName))
                 return false
         }
         when (result) {
@@ -521,9 +542,9 @@ private fun FrameWindowScope.App(
                 if (startAutomatically) newRunner.run()
                 runnerState = newRunner.state
                 message = if (startAutomatically) {
-                    "ROM loaded automatically and running."
+                    uiText("rom.loadedRunning")
                 } else {
-                    "ROM loaded. Press Run to start."
+                    uiText("rom.loaded")
                 }
                 loadedProgramLabel = null
                 loadedProjectManifest = null
@@ -555,12 +576,12 @@ private fun FrameWindowScope.App(
                 }
             }
         }.getOrElse {
-            if (reportErrors) showError("Could not import ROM: ${it.message ?: it::class.simpleName}")
+            if (reportErrors) showError(uiText("rom.importFailed", it.message ?: it::class.simpleName))
             return false
         }
         return when (val installed = romLibrary.install(packageBytes, file.name)) {
             is DesktopRomLibraryResult.Failure -> {
-                if (reportErrors) showError("Could not store ROM: ${installed.message}")
+                if (reportErrors) showError(uiText("rom.storeFailed", installed.error?.let { StudioStrings.system.romLoadError(it) } ?: installed.message))
                 false
             }
             is DesktopRomLibraryResult.Success -> {
@@ -593,7 +614,7 @@ private fun FrameWindowScope.App(
 
     fun removeStoredRom(machineId: MachineId) {
         if (!romLibrary.remove(machineId)) {
-            showError("Could not remove the stored ${machineId.displayName()} ROM.")
+            showError(uiText("rom.removeFailed", machineId.displayName()))
             return
         }
         installedRomMachines = romLibrary.installedMachineIds()
@@ -608,7 +629,7 @@ private fun FrameWindowScope.App(
             loadedRomFile = null
             runnerState = RunnerState.PAUSED
         }
-        message = "Removed the stored ${machineId.displayName()} ROM."
+        message = uiText("rom.removed", machineId.displayName())
     }
 
     fun openProject(file: File, resetBasicTracking: Boolean = true) {
@@ -627,7 +648,7 @@ private fun FrameWindowScope.App(
                 changedAssemblySources = emptySet()
                 assemblyPreview = emptyList()
                 assemblyDiagnostics = emptyList()
-                assemblyStatus = "Not assembled"
+                assemblyStatus = uiText("assembly.notAssembled")
                 projectRuntimeStatus = ProjectRuntimeStatus.NOT_BUILT
                 if (resetBasicTracking) {
                     projectBasicBaseline = null
@@ -644,10 +665,9 @@ private fun FrameWindowScope.App(
                     switchMachine(projectMachineId)
                 }
                 message = if (projectMachineId in installedRomMachines) {
-                    "Opened project ${opened.workspace.definition.name} ($sourceSummary)."
+                    uiText("project.opened" , (opened.workspace.definition.name), (sourceSummary))
                 } else {
-                    "Opened project ${opened.workspace.definition.name} ($sourceSummary). " +
-                        "Register the ${projectMachineId.displayName()} ROM before Build & Load."
+                    uiText("project.openedNeedsRom" , (opened.workspace.definition.name), (sourceSummary), (projectMachineId.displayName()))
                 }
             }
         }
@@ -664,14 +684,14 @@ private fun FrameWindowScope.App(
         changedAssemblySources = emptySet()
         assemblyPreview = emptyList()
         assemblyDiagnostics = emptyList()
-        assemblyStatus = "Not assembled"
+        assemblyStatus = uiText("assembly.notAssembled")
         projectRuntimeStatus = ProjectRuntimeStatus.NOT_BUILT
         showAssemblyWorkspace = false
-        message = "Project closed. The loaded program is retained."
+        message = uiText("project.closed")
     }
 
     fun markStandalone(file: File, additional: Boolean = false) {
-        loadedProgramLabel = "Standalone: ${file.name}（${if (additional) "追加ロード・" else ""}プロジェクト外）"
+        loadedProgramLabel = uiText(if (additional) "transfer.standaloneAdditional" else "transfer.standalone", file.name)
         loadedProjectManifest = null
         projectBasicBaseline = null
         projectBasicModified = false
@@ -681,7 +701,7 @@ private fun FrameWindowScope.App(
     fun addProjectSource() {
         val workspace = projectWorkspace ?: return
         val file = selectAndRestoreFocus {
-            selectFile(ownerWindow, "Add Source (.bas, .asm, .dmp)", "*.*")
+            selectFile(ownerWindow, uiText("project.addFile"), "*.*")
         } ?: return
         DesktopProjectEditor.addSource(workspace, file).fold(
             onSuccess = { updated ->
@@ -690,9 +710,9 @@ private fun FrameWindowScope.App(
                 projectTree = DesktopProjectTreeScanner.scan(updated)
                 selectedProjectSourcePath = updated.sources.last().definition.path
                 projectRuntimeStatus = ProjectRuntimeStatus.NOT_BUILT
-                message = "Added ${updated.sources.last().definition.path} to project."
+                message = uiText("project.added" , (updated.sources.last().definition.path))
             },
-            onFailure = { showError("Could not add source: ${it.message}") },
+            onFailure = { showError(uiText("project.addFailed" , StudioStrings.system.projectOperationError(it.message.orEmpty()))) },
         )
     }
 
@@ -703,12 +723,12 @@ private fun FrameWindowScope.App(
             is DesktopProjectUpdateResult.Success -> {
                 openProject(workspace.manifestFile, resetBasicTracking = false)
                 val skipped = if (result.skippedPaths.isEmpty()) "" else {
-                    " Skipped unsupported files: ${result.skippedPaths.joinToString()}."
+                    uiText("project.skipped", result.skippedPaths.joinToString())
                 }
-                message = "Updated project: ${result.addedCount} added, ${result.removedCount} removed.$skipped"
+                message = uiText("project.updated", result.addedCount.toString(), result.removedCount.toString(), skipped)
             }
             is DesktopProjectUpdateResult.CouldNotWrite -> showError(
-                "Could not update project manifest: ${result.message}",
+                uiText("project.updateFailed" , (result.message)),
             )
         }
     }
@@ -720,19 +740,19 @@ private fun FrameWindowScope.App(
     suspend fun assembleWorkspaceWork() {
         val workspace = projectWorkspace ?: return
         val result = DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, projectMemoryLayout(workspace), DesktopUiPreferences.assemblerSettings())
-        check(projectWorkspace === workspace) { "Project changed during assembly; result discarded" }
+        check(projectWorkspace === workspace) { uiText("assembly.projectChanged") }
         when (result) {
             is DesktopAssemblyWorkspaceResult.Failure -> {
                 assemblyDiagnostics = result.diagnostics
-                assemblyStatus = "Assembly failed — last successful preview retained"
-                message = "Assembly failed with ${result.diagnostics.size} diagnostic(s)."
+                assemblyStatus = uiText("assembly.failedPreview")
+                message = uiText("assembly.diagnosticsCount" , (result.diagnostics.size).toString())
             }
             is DesktopAssemblyWorkspaceResult.Success -> {
                 assemblyPreview = result.sources
                 assemblyDiagnostics = emptyList()
                 changedAssemblySources = emptySet()
                 val bytes = result.sources.sumOf { it.image.byteCount }
-                assemblyStatus = "Assembled preview — $bytes bytes from ${result.sources.size} source(s). Use Build to save outputs."
+                assemblyStatus = uiText("assembly.previewReady" , (bytes).toString(), (result.sources.size).toString())
                 message = assemblyStatus
             }
         }
@@ -740,9 +760,9 @@ private fun FrameWindowScope.App(
 
     fun openExternalSource(file: File, line: Int? = null) {
         when (val opened = DesktopExternalEditor.open(file, line)) {
-            DesktopExternalEditorResult.Opened -> message = "Opened ${file.name}."
+            DesktopExternalEditorResult.Opened -> message = uiText("editor.opened", file.name)
             is DesktopExternalEditorResult.Failed -> showError(
-                "Could not open external editor: ${opened.message}",
+                uiText("editor.openFailed", StudioStrings.system.editorError(opened.message)),
             )
         }
     }
@@ -752,15 +772,15 @@ private fun FrameWindowScope.App(
         val layout = projectMemoryLayout(workspace)
         val assembly = DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, layout, DesktopUiPreferences.assemblerSettings())
         val built = withContext(Dispatchers.IO) { DesktopProjectBuilder.build(workspace, layout, compiledAssembly = assembly) }
-        check(projectWorkspace === workspace) { "Project changed during build; result discarded" }
+        check(projectWorkspace === workspace) { uiText("assembly.buildProjectChanged") }
         return when (built) {
             is DesktopProjectBuildResult.Failure -> {
                 projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
-                assemblyStatus = "Build failed — outputs were not loaded; last successful preview retained"
+                assemblyStatus = uiText("assembly.buildFailedNoLoad")
                 when (assembly) {
                     is DesktopAssemblyWorkspaceResult.Failure -> {
                         assemblyDiagnostics = assembly.diagnostics
-                        assemblyStatus = "Build failed — last successful preview retained"
+                        assemblyStatus = uiText("assembly.buildFailedPreview")
                     }
                     is DesktopAssemblyWorkspaceResult.Success -> Unit
                 }
@@ -773,15 +793,15 @@ private fun FrameWindowScope.App(
                     .getOrElse {
                         if (it is CancellationException) throw it
                         projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
-                        assemblyStatus = "Output save failed — not loaded into the emulator"
-                        showError("Could not write build output: ${it.message ?: it::class.simpleName}")
+                        assemblyStatus = uiText("assembly.saveFailedNoLoad")
+                        showError(uiText("assembly.saveFailed" , (it.message ?: it::class.simpleName).toString()))
                         return null
                     }
-                check(projectWorkspace === workspace) { "Project changed while saving; build was not loaded" }
+                check(projectWorkspace === workspace) { uiText("assembly.changedWhileSaving") }
                 assemblyPreview = built.artifact.assemblySources
                 assemblyDiagnostics = emptyList()
                 changedAssemblySources = emptySet()
-                assemblyStatus = "Built — files saved; this build has not been loaded${output?.let { " — ${it.path}" }.orEmpty()}"
+                assemblyStatus = if (output == null) uiText("assembly.built") else uiText("assembly.builtPath", output.path)
                 projectRuntimeStatus = ProjectRuntimeStatus.BUILT_NOT_LOADED
                 message = assemblyStatus
                 built
@@ -794,38 +814,34 @@ private fun FrameWindowScope.App(
         val activeRunner = runner ?: return
         if (activeRunner.machineId != workspace.definition.machineId) {
             projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
-            assemblyStatus = "Build & Load failed — emulator machine does not match the project"
+            assemblyStatus = uiText("assembly.machineMismatchStatus")
             showError(
-                "Project targets ${workspace.definition.machineId.displayName()}, but the loaded " +
-                    "ROM is ${activeRunner.machineId.displayName()}.",
+                uiText("project.machineMismatch" , (workspace.definition.machineId.displayName()), (activeRunner.machineId.displayName())),
             )
             return
         }
         buildProjectOutputsWork()?.let { built ->
-                check(runner === activeRunner && projectWorkspace === workspace) { "Emulator or project changed; build was not loaded" }
+                check(runner === activeRunner && projectWorkspace === workspace) { uiText("assembly.changedBeforeLoad") }
                 when (val applied = DesktopProjectArtifactLoader.load(activeRunner, built.artifact)) {
                     is DesktopProjectApplyResult.BasicFailure -> {
                         projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
-                        assemblyStatus = "Files saved — emulator load failed: ${applied.error.message()}"
+                        assemblyStatus = uiText("assembly.loadFailed" , (applied.error.message()))
                         showError(applied.error.message())
                     }
                     is DesktopProjectApplyResult.MemoryFailure -> {
                         projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
-                        assemblyStatus = "Files saved — emulator load failed: ${applied.error.message()}"
+                        assemblyStatus = uiText("assembly.loadFailed" , (applied.error.message()))
                         showError(applied.error.message())
                     }
                     is DesktopProjectApplyResult.Success -> {
-                        loadedProgramLabel = "Project: ${workspace.definition.name}"
+                        loadedProgramLabel = uiText("project.programLabel" , (workspace.definition.name))
                         loadedProjectManifest = workspace.manifestFile.absolutePath
                         projectRuntimeStatus = ProjectRuntimeStatus.UP_TO_DATE
                         changedProjectSources = emptySet()
                         projectChangeTracker = DesktopProjectChangeTracker(workspace)
-                        val summary = "${applied.basicByteCount} BASIC bytes, " +
-                            "${applied.memoryByteCount} machine-code bytes in " +
-                            "${applied.memorySegmentCount} segments"
-                        assemblyStatus = "Built & loaded into ${activeRunner.machineId.displayName()} — $summary"
-                        message = "$assemblyStatus. " +
-                            "Start it from the pocket-computer keyboard."
+                        val summary = uiText("assembly.loadedSummary" , (applied.basicByteCount).toString(), (applied.memoryByteCount).toString(), (applied.memorySegmentCount).toString())
+                        assemblyStatus = uiText("assembly.loaded" , (activeRunner.machineId.displayName()), (summary))
+                        message = uiText("assembly.startHelp" , (assemblyStatus))
                         runnerState = activeRunner.state
                         display = activeRunner.displaySnapshot()
                         cpu = activeRunner.cpuSnapshot()
@@ -848,15 +864,15 @@ private fun FrameWindowScope.App(
     fun startAssembly(action: suspend () -> Unit) {
         if (assemblyBusy) return
         assemblyBusy = true
-        assemblyStatus = "Assembly / build in progress…"
+        assemblyStatus = uiText("assembly.busy")
         message = assemblyStatus
         assemblyJob = assemblyScope.launch {
             try { action() }
             catch (cancelled: CancellationException) {
-                assemblyStatus = "Assembly cancelled — not loaded"
+                assemblyStatus = uiText("assembly.cancelledNoLoad")
                 message = assemblyStatus
                 throw cancelled
-            } catch (error: Exception) { showError(error.message ?: "Assembly failed") }
+            } catch (error: Exception) { showError(uiText("assembly.failureDetail", StudioStrings.system.projectOperationError(error.message ?: error::class.simpleName.orEmpty()))) }
             finally { assemblyBusy = false }
         }
     }
@@ -872,11 +888,11 @@ private fun FrameWindowScope.App(
 
     fun loadBasicFromDisk() {
         val activeRunner = runner ?: return
-        val file = selectAndRestoreFocus { selectBasicFile(ownerWindow, "Load BASIC source") } ?: return
+        val file = selectAndRestoreFocus { selectBasicFile(ownerWindow, uiText("basic.loadTitle")) } ?: return
         val compiled = runCatching {
             DesktopBasicLoader.compileProgram(file.readBytes(), activeRunner.machineId)
         }.getOrElse {
-            showError("Could not read BASIC source: ${it.message ?: it::class.simpleName}")
+            showError(uiText("basic.readFailed", (it.message ?: it::class.simpleName).toString()))
             return
         }
         when (compiled) {
@@ -892,8 +908,7 @@ private fun FrameWindowScope.App(
                     runnerState = activeRunner.state
                     display = activeRunner.displaySnapshot()
                     cpu = activeRunner.cpuSnapshot()
-                    message = "Loaded ${file.name} directly (${loaded.size} bytes at " +
-                        "0x${loaded.startAddress.hex(4)}..0x${loaded.endAddress.hex(4)})."
+                    message = uiText("basic.loadedDirect", (file.name).toString(), (loaded.size).toString(), (loaded.startAddress.hex(4)), (loaded.endAddress.hex(4)))
                 }
             }
         }
@@ -903,7 +918,7 @@ private fun FrameWindowScope.App(
         val activeRunner = runner ?: return
         val file = selectAndRestoreFocus { selectMemoryDumpFile(ownerWindow) } ?: return
         val parsed = runCatching { DesktopMemoryDumpLoader.parse(file.readBytes()) }.getOrElse {
-            showError("Could not read memory dump: ${it.message ?: it::class.simpleName}")
+            showError(uiText("memory.readFailed", (it.message ?: it::class.simpleName).toString()))
             return
         }
         when (parsed) {
@@ -912,8 +927,7 @@ private fun FrameWindowScope.App(
                 when (val loaded = activeRunner.loadMemoryImage(parsed.image)) {
                     is MemoryImageLoadResult.Failure -> showError(loaded.error.message())
                     is MemoryImageLoadResult.Success -> {
-                        message = "Loaded ${file.name} (${loaded.byteCount} bytes in " +
-                            "${loaded.segmentCount} segments)."
+                        message = uiText("memory.loaded", (file.name).toString(), (loaded.byteCount).toString(), (loaded.segmentCount).toString())
                         markStandalone(file, additional = true)
                     }
                 }
@@ -932,16 +946,16 @@ private fun FrameWindowScope.App(
                 val decoded = DesktopBasicLoader.detokenizeProgram(snapshot.copyBytes(), activeRunner.machineId)
             ) {
                 is DesktopBasicProgramDecodeResult.Failure -> showError(
-                    "BASIC program error at byte ${decoded.error.offset}: ${decoded.error.message}",
+                    uiText("basic.decodeFailure", (decoded.error.offset).toString(), StudioStrings.system.transferDetail(decoded.error.message)),
                 )
                 is DesktopBasicProgramDecodeResult.GenericFailure -> showError(
-                    "BASIC program error at byte ${decoded.offset}: ${decoded.message}",
+                    uiText("basic.genericDecodeFailure", (decoded.offset).toString(), StudioStrings.system.transferDetail(decoded.message)),
                 )
                 is DesktopBasicProgramDecodeResult.Success -> {
                     val file = selectAndRestoreFocus { selectBasicSaveFile(ownerWindow) } ?: return
                     runCatching { file.writeBytes(decoded.utf8Bytes) }
-                        .onSuccess { message = "Saved BASIC source to ${file.name}." }
-                        .onFailure { showError("Could not save BASIC source: ${it.message ?: it::class.simpleName}") }
+                        .onSuccess { message = uiText("basic.saved", (file.name).toString()) }
+                        .onFailure { showError(uiText("basic.saveFailed", (it.message ?: it::class.simpleName).toString())) }
                 }
             }
         }
@@ -949,11 +963,11 @@ private fun FrameWindowScope.App(
 
     fun typeBasicThroughRom() {
         val activeRunner = runner ?: return
-        val file = selectAndRestoreFocus { selectBasicFile(ownerWindow, "Type BASIC through ROM") } ?: return
+        val file = selectAndRestoreFocus { selectBasicFile(ownerWindow, uiText("basic.typeTitle")) } ?: return
         val loadResult = runCatching {
             DesktopBasicLoader.compileRomInput(file.readBytes(), activeRunner.machineId)
         }.getOrElse {
-            showError("Could not read BASIC source: ${it.message ?: it::class.simpleName}")
+            showError(uiText("basic.readFailed", (it.message ?: it::class.simpleName).toString()))
             return
         }
         when (loadResult) {
@@ -968,10 +982,9 @@ private fun FrameWindowScope.App(
                 cpu = activeRunner.cpuSnapshot()
                 requestedToneHz = activeRunner.audioSnapshot().frequencyHz
                 message = if (runResult.status is ExecutionStatus.Faulted) {
-                    "BASIC loading stopped: ${runResult.status}"
+                    uiText("basic.loadingStopped", (runResult.status as ExecutionStatus.Faulted).fault.message())
                 } else {
-                    "Merged ${file.name} through the ${activeRunner.machineId.displayName()} ROM " +
-                        "(${loadResult.keys.size} key taps)."
+                    uiText("basic.merged", (file.name).toString(), (activeRunner.machineId.displayName()), (loadResult.keys.size).toString())
                 }
                 if (runResult.status !is ExecutionStatus.Faulted) {
                     markStandalone(file, additional = true)
@@ -985,28 +998,28 @@ private fun FrameWindowScope.App(
         if (settings.external) {
             val layout = runner?.memoryLayout ?: MachineMemoryLayout(selectedMachineId)
             when (val result = com.digihori.pgp.desktop.project.DesktopSc61Assembler.assemble(settings, sourceFile, layout)) {
-                is com.digihori.pgp.desktop.project.DesktopSc61AssemblyResult.Failure -> showError(result.message + "\n" + result.log)
+                is com.digihori.pgp.desktop.project.DesktopSc61AssemblyResult.Failure -> showError(uiText("quick.externalFailed", StudioStrings.system.projectOperationError(result.message)) + "\n" + result.log)
                 is com.digihori.pgp.desktop.project.DesktopSc61AssemblyResult.Success -> {
                     val destination = selectAndRestoreFocus { selectAssembledDumpDestination(ownerWindow) } ?: return
                     withContext(Dispatchers.IO) { destination.writeBytes(DesktopMemoryDumpWriter.write(result.image)) }
-                    message = "Assembled ${result.image.byteCount} bytes into ${destination.name}.\n${result.log}"
+                    message = uiText("quick.externalSaved", (result.image.byteCount).toString(), (destination.name).toString(), (result.log))
                 }
             }
             return
         }
         val assembled = runCatching { withContext(Dispatchers.IO) { Sc61860Assembler.assemble(sourceFile.readText()) } }.getOrElse {
-            showError("Could not read assembly source: ${it.message ?: it::class.simpleName}")
+            showError(uiText("quick.readFailed", (it.message ?: it::class.simpleName).toString()))
             return
         }
         when (assembled) {
             is Sc61860AssemblyResult.Failure -> showError(
-                "Assembly error at line ${assembled.line}: ${assembled.message}",
+                uiText("quick.error", (assembled.line).toString(), StudioStrings.system.transferDetail(assembled.message)),
             )
             is Sc61860AssemblyResult.Success -> {
                 val destination = selectAndRestoreFocus { selectAssembledDumpDestination(ownerWindow) } ?: return
                 runCatching { destination.writeBytes(DesktopMemoryDumpWriter.write(assembled.image)) }
-                    .onSuccess { message = "Assembled ${assembled.image.byteCount} bytes into ${destination.name}." }
-                    .onFailure { showError("Could not save assembled output: ${it.message ?: it::class.simpleName}") }
+                    .onSuccess { message = uiText("quick.saved", (assembled.image.byteCount).toString(), (destination.name).toString()) }
+                    .onFailure { showError(uiText("quick.saveFailed", (it.message ?: it::class.simpleName).toString())) }
             }
         }
     }
@@ -1022,7 +1035,7 @@ private fun FrameWindowScope.App(
         runnerState = runner?.state ?: RunnerState.PAUSED
         changedCpuFields = emptySet()
         debuggerStopReason = runner?.stopReason
-        message = "Running: ${executionSpeed.label}."
+        message = uiText("main.running", executionSpeed.uiLabel())
     }
 
     fun pauseEmulator() {
@@ -1032,7 +1045,7 @@ private fun FrameWindowScope.App(
         cpu = runner?.cpuSnapshot()
         changedCpuFields = emptySet()
         debuggerStopReason = runner?.stopReason
-        message = "Paused."
+        message = uiText("main.paused")
     }
 
     fun resetEmulator() {
@@ -1051,7 +1064,7 @@ private fun FrameWindowScope.App(
         requestedToneHz = 0
         projectBasicBaseline = null
         projectBasicModified = false
-        message = "Reset complete."
+        message = uiText("main.resetComplete")
     }
 
     fun stepEmulator() {
@@ -1065,7 +1078,7 @@ private fun FrameWindowScope.App(
         cpu = after
         debuggerStopReason = runner?.stopReason
         requestedToneHz = runner?.audioSnapshot()?.frequencyHz ?: 0
-        message = "Executed one instruction (${result.cycles} cycles)."
+        message = uiText("main.stepped", result.cycles.toString())
     }
 
     fun setMode(mode: OperatingMode) {
@@ -1080,15 +1093,15 @@ private fun FrameWindowScope.App(
         familyMemoryMode = mode
         if (file == null) {
             message = if (mode == Pc1251FamilyMemoryMode.EXPANDED) {
-                "Expanded RAM selected. It will apply when a ROM is loaded."
+                uiText("main.expandedSelected")
             } else {
-                "Hardware RAM selected. It will apply when a ROM is loaded."
+                uiText("main.hardwareSelected")
             }
         } else if (loadRom(file, resume, memoryMode = mode, machineIdOverride = runner?.machineId)) {
             message = if (mode == Pc1251FamilyMemoryMode.EXPANDED) {
-                "Restarted with expanded PC-1255-size RAM."
+                uiText("main.expandedRestart")
             } else {
-                "Restarted with ${selectedMachineId.displayName()} hardware RAM."
+                uiText("main.hardwareRestart", selectedMachineId.displayName())
             }
         }
     }
@@ -1168,7 +1181,7 @@ private fun FrameWindowScope.App(
                 activeRunner.drainAudioSamples()
             } else if (activeRunner.state == RunnerState.RUNNING) {
                 audioPlayer.write(activeRunner.drainAudioSamples()).onFailure {
-                    message = "Audio output unavailable: ${it.message ?: it::class.simpleName}"
+                    message = uiText("main.audioUnavailable", it.message ?: it::class.simpleName)
                 }
             } else {
                 audioPlayer.stop()
@@ -1189,7 +1202,7 @@ private fun FrameWindowScope.App(
             delay(PROJECT_SCAN_DELAY_MILLISECONDS)
             val changes = runCatching { withContext(Dispatchers.IO) { tracker.scan() } }.getOrElse {
                 if (it is CancellationException) throw it
-                message = "Could not check project files: ${it.message ?: it::class.simpleName}"
+                message = uiText("project.scanFailed" , (it.message ?: it::class.simpleName).toString())
                 continue
             }
             projectWorkspace?.let { workspace ->
@@ -1197,7 +1210,7 @@ private fun FrameWindowScope.App(
                     withContext(Dispatchers.IO) { DesktopProjectTreeScanner.scan(workspace) }
                 }.getOrElse {
                     if (it is CancellationException) throw it
-                    message = "Could not refresh project tree: ${it.message ?: it::class.simpleName}"
+                    message = uiText("project.treeFailed" , (it.message ?: it::class.simpleName).toString())
                     projectTree
                 }
             }
@@ -1208,9 +1221,9 @@ private fun FrameWindowScope.App(
                     .map { it.source.definition.id }
                 if (loadedProjectManifest == projectWorkspace?.manifestFile?.absolutePath &&
                     loadedProjectManifest != null) projectRuntimeStatus = ProjectRuntimeStatus.SOURCE_CHANGED
-                message = "External changes detected: " + changes.joinToString { change ->
-                    "${change.source.definition.path} (${change.kind.name.lowercase()})"
-                }
+                message = uiText("project.externalChanges", changes.joinToString { change ->
+                    uiText("project.changedPath", change.source.definition.path, uiText("project.change.${change.kind.name}"))
+                })
             }
         }
     }
@@ -1236,7 +1249,7 @@ private fun FrameWindowScope.App(
             selectAndRestoreFocus(restoreMainWindowFocus = false) { selectProjectParentDirectory(ownerWindow) }
         }.getOrElse { error ->
             requestProjectParentSelection = false
-            newProjectError = "Could not choose project folder: ${error.message ?: error::class.simpleName}"
+            newProjectError = uiText("project.chooseFolderFailed" , (error.message ?: error::class.simpleName).toString())
             showCreateProjectDialog = true
             return@LaunchedEffect
         }
@@ -1263,133 +1276,133 @@ private fun FrameWindowScope.App(
     MenuBar {
         Menu(ProjectInfo.STUDIO_DISPLAY_NAME) {
             Item(
-                "About ${ProjectInfo.STUDIO_DISPLAY_NAME}…",
+                uiText("about.menu", ProjectInfo.STUDIO_DISPLAY_NAME),
                 enabled = !showAboutWindow,
                 onClick = { showAboutWindow = true },
             )
-            Item("Settings…", enabled = !showSettingsWindow, onClick = { showSettingsWindow = true })
+            Item(uiText("action.settings"), enabled = !showSettingsWindow, onClick = { showSettingsWindow = true })
             Separator()
-            Item("Quit ${ProjectInfo.STUDIO_DISPLAY_NAME}", onClick = onQuit)
+            Item(uiText("action.quit", ProjectInfo.STUDIO_DISPLAY_NAME), onClick = onQuit)
         }
-        Menu("File") {
-            Item("Register ROM…", onClick = { showRomManager = true })
-            Item("Manage ROMs…", onClick = { showRomManager = true })
-            Item("Create ROM Set…", enabled = !showCreateRomSetWindow, onClick = { showCreateRomSetWindow = true })
+        Menu(uiText("menu.file")) {
+            Item(uiText("rom.register"), onClick = { showRomManager = true })
+            Item(uiText("rom.manage"), onClick = { showRomManager = true })
+            Item(uiText("rom.create"), enabled = !showCreateRomSetWindow, onClick = { showCreateRomSetWindow = true })
         }
-        Menu("Project") {
-            Item("New Project…", onClick = {
+        Menu(uiText("menu.project")) {
+            Item(uiText("project.new"), onClick = {
                 newProjectError = null
                 showCreateProjectDialog = true
             })
-            Item("Open Project…", onClick = ::openProjectFromDisk)
-            Item("Rename Project…", enabled = projectWorkspace != null, onClick = {
+            Item(uiText("project.open"), onClick = ::openProjectFromDisk)
+            Item(uiText("project.rename"), enabled = projectWorkspace != null, onClick = {
                 renamedProjectName = projectWorkspace?.definition?.name.orEmpty()
                 renameProjectError = null
                 showRenameProjectDialog = true
             })
-            Item("Add Source…", enabled = projectWorkspace != null, onClick = ::addProjectSource)
-            Item("Close Project", enabled = projectWorkspace != null, onClick = ::closeProject)
+            Item(uiText("project.addSource"), enabled = projectWorkspace != null, onClick = ::addProjectSource)
+            Item(uiText("project.close"), enabled = projectWorkspace != null, onClick = ::closeProject)
             Item(
-                "Open Assembly Workspace",
+                uiText("assembly.open"),
                 onClick = { showAssemblyWorkspace = true },
             )
             Separator()
             Item(
-                "Build & Load",
+                uiText("project.buildLoad"),
                 enabled = projectWorkspace != null && runner != null && runnerState != RunnerState.FAULTED,
                 onClick = ::buildProject,
             )
-            Item("Update Project", enabled = projectWorkspace != null, onClick = ::updateProject)
+            Item(uiText("project.update"), enabled = projectWorkspace != null, onClick = ::updateProject)
         }
-        Menu("Program") {
+        Menu(uiText("menu.program")) {
             Item(
-                "Load BASIC…",
+                uiText("basic.load"),
                 enabled = runner != null && runnerState != RunnerState.FAULTED,
                 onClick = ::loadBasicFromDisk,
             )
             Item(
-                "Save BASIC…",
+                uiText("basic.save"),
                 enabled = runner != null && runnerState != RunnerState.FAULTED,
                 onClick = ::saveBasicToDisk,
             )
             Item(
-                "Type BASIC through ROM…",
+                uiText("basic.type"),
                 enabled = runner != null && runnerState != RunnerState.FAULTED,
                 onClick = ::typeBasicThroughRom,
             )
             Separator()
             Item(
-                "Load Machine Code…",
+                uiText("memory.load"),
                 enabled = runner != null && runnerState != RunnerState.FAULTED,
                 onClick = ::loadMachineCodeFromDisk,
             )
-            Item("Save Machine Code…", enabled = runner != null, onClick = {
+            Item(uiText("memory.save"), enabled = runner != null, onClick = {
                 dumpRangeError = null
                 showSaveMemoryDumpDialog = true
             })
-            Item("Quick Assemble…", onClick = ::quickAssemble)
+            Item(uiText("assembly.quick"), onClick = ::quickAssemble)
         }
-        Menu("Tools") {
+        Menu(uiText("menu.tools")) {
             Item(
-                "Character Editor",
+                uiText("character.title"),
                 enabled = !showCharacterEditor,
                 onClick = { showCharacterEditor = true },
             )
             Item(
-                "WAV Tool",
+                uiText("wav.title"),
                 enabled = !showWavTool,
                 onClick = { showWavTool = true },
             )
         }
-        Menu("Emulator") {
-            Item("Run", enabled = runner != null && runnerState == RunnerState.PAUSED, onClick = ::runEmulator)
-            Item("Pause", enabled = runnerState == RunnerState.RUNNING, onClick = ::pauseEmulator)
-            Item("Step", enabled = runner != null && runnerState == RunnerState.PAUSED, onClick = ::stepEmulator)
-            Item("Reset", enabled = runner != null, onClick = ::resetEmulator)
+        Menu(uiText("menu.emulator")) {
+            Item(uiText("emulator.run"), enabled = runner != null && runnerState == RunnerState.PAUSED, onClick = ::runEmulator)
+            Item(uiText("emulator.pause"), enabled = runnerState == RunnerState.RUNNING, onClick = ::pauseEmulator)
+            Item(uiText("emulator.step"), enabled = runner != null && runnerState == RunnerState.PAUSED, onClick = ::stepEmulator)
+            Item(uiText("emulator.reset"), enabled = runner != null, onClick = ::resetEmulator)
             Separator()
             Item(
-                "Previous Command (Alt+↑)",
+                uiText("history.previous"),
                 enabled = runner?.commandHistorySize()?.let { it > 0 } == true && operatingMode == OperatingMode.RUN,
                 onClick = {
                     message = if (runner?.recallPreviousCommand() == true) {
-                        "Recalled the previous RUN-mode command."
+                        uiText("history.recalledPrevious")
                     } else {
-                        "No RUN-mode command is available."
+                        uiText("history.empty")
                     }
                 },
             )
             Item(
-                "Next Command (Alt+↓)",
+                uiText("history.next"),
                 enabled = runner?.commandHistorySize()?.let { it > 0 } == true && operatingMode == OperatingMode.RUN,
                 onClick = {
                     message = if (runner?.recallNextCommand() == true) {
-                        "Recalled the next RUN-mode command."
+                        uiText("history.recalledNext")
                     } else {
-                        "No newer RUN-mode command is available."
+                        uiText("history.noNewer")
                     }
                 },
             )
             if (MachineCatalog.require(runner?.machineId ?: selectedMachineId).supportsConfigurableRam) {
                 Separator()
                 Item(
-                    "Expanded RAM",
+                    uiText("memory.expanded"),
                     enabled = familyMemoryMode != Pc1251FamilyMemoryMode.EXPANDED,
                     onClick = { setMemoryMode(Pc1251FamilyMemoryMode.EXPANDED) },
                 )
                 Item(
-                    "Hardware RAM",
+                    uiText("memory.hardware"),
                     enabled = familyMemoryMode != Pc1251FamilyMemoryMode.HARDWARE,
                     onClick = { setMemoryMode(Pc1251FamilyMemoryMode.HARDWARE) },
                 )
             }
         }
-        Menu("Debug") {
-            Item("Open Debugger", enabled = !showDebuggerWindow, onClick = { showDebuggerWindow = true })
-            Item("Save Debug Checkpoint…", enabled = runner != null && cpu != null, onClick = {
+        Menu(uiText("menu.debug")) {
+            Item(uiText("debug.open"), enabled = !showDebuggerWindow, onClick = { showDebuggerWindow = true })
+            Item(uiText("debug.saveCheckpoint"), enabled = runner != null && cpu != null, onClick = {
                 checkpointRangeError = null
                 showSaveCheckpointDialog = true
             })
-            Item("Export AI Debug Context…", enabled = runner != null && cpu != null, onClick = {
+            Item(uiText("debug.exportContext"), enabled = runner != null && cpu != null, onClick = {
                 val activeRunner = runner ?: return@Item
                 val ram = MachineCatalog.require(activeRunner.machineId).memoryRegions
                     .firstOrNull { it.kind == MachineMemoryRegionKind.RAM }
@@ -1402,22 +1415,22 @@ private fun FrameWindowScope.App(
                 showDebugContextDialog = true
             })
             Separator()
-            Item("AI / MCP Server…", enabled = !showMcpServerWindow, onClick = { showMcpServerWindow = true })
+            Item(uiText("mcp.title"), enabled = !showMcpServerWindow, onClick = { showMcpServerWindow = true })
         }
-        Menu("Help") {
-            Item("Help Contents…", enabled = !showHelpWindow, onClick = { showHelpWindow = true })
+        Menu(uiText("menu.help")) {
+            Item(uiText("help.contents"), enabled = !showHelpWindow, onClick = { showHelpWindow = true })
             Separator()
-            Item("Getting Started", onClick = {
+            Item(uiText("help.gettingStarted"), onClick = {
                 openDocumentationUrl(GETTING_STARTED_URL)?.let { message = it }
             })
-            Item("Keyboard and Command History", onClick = {
+            Item(uiText("help.keyboard"), onClick = {
                 openDocumentationUrl(PROJECTS_HELP_URL)?.let { message = it }
             })
-            Item("Debugger Guide", onClick = {
+            Item(uiText("help.debugger"), onClick = {
                 openDocumentationUrl(DEBUGGER_HELP_URL)?.let { message = it }
             })
             Separator()
-            Item("Pokecom GO Plus on GitHub", onClick = {
+            Item(uiText("help.github"), onClick = {
                 openDocumentationUrl(REPOSITORY_URL)?.let { message = it }
             })
         }
@@ -1427,7 +1440,7 @@ private fun FrameWindowScope.App(
         StudioWindow(
             id = "about",
             onCloseRequest = { showAboutWindow = false },
-            title = "About ${ProjectInfo.STUDIO_DISPLAY_NAME}",
+            title = uiText("about.title", ProjectInfo.STUDIO_DISPLAY_NAME),
         ) {
             PgpStudioTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -1442,14 +1455,14 @@ private fun FrameWindowScope.App(
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
                                 Text(ProjectInfo.STUDIO_DISPLAY_NAME, style = MaterialTheme.typography.headlineMedium)
-                                Text("Version ${ProjectInfo.VERSION}")
-                                Text("Pocket-computer development environment")
+                                Text(uiText("about.version", ProjectInfo.VERSION))
+                                Text(uiText("about.description"))
                                 Text("Copyright © 2026 Y Horiuchi", style = MaterialTheme.typography.bodySmall)
                             }
                         }
                         Button(onClick = {
                             openDocumentationUrl(REPOSITORY_URL)?.let { message = it }
-                        }) { Text("Open GitHub") }
+                        }) { Text(uiText("about.github")) }
                     }
                 }
             }
@@ -1468,7 +1481,7 @@ private fun FrameWindowScope.App(
         StudioWindow(
             id = "settings",
             onCloseRequest = { showSettingsWindow = false },
-            title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — Settings",
+            title = uiText("settings.window", ProjectInfo.STUDIO_DISPLAY_NAME),
         ) {
             PgpStudioTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -1477,78 +1490,90 @@ private fun FrameWindowScope.App(
                         contentPadding = 20.dp,
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        Text("Settings", style = MaterialTheme.typography.headlineSmall)
-                        SettingsSection("Appearance") {
-                            Text("Theme")
+                        Text(uiText("settings.title"), style = MaterialTheme.typography.headlineSmall)
+                        SettingsSection(uiText("settings.language")) {
+                            LanguageSettingsPanel(
+                                selected = languagePreference,
+                                onSelect = { preference ->
+                                    runCatching { DesktopUiPreferences.saveLanguagePreference(preference) }
+                                        .onSuccess { languagePreference = preference; languageSettingsError = null }
+                                        .onFailure { languageSettingsError = uiText("settings.languageSaveFailed", it.message ?: it::class.simpleName) }
+                                },
+                                pendingRestart = languagePreference != StudioStrings.startupPreference,
+                                error = languageSettingsError,
+                            )
+                        }
+                        SettingsSection(uiText("settings.appearance")) {
+                            Text(uiText("settings.theme"))
                             Text("INSTRUMENT", fontFamily = FontFamily.Monospace)
                             Text(
-                                "Additional theme presets can be added without changing individual screens.",
+                                uiText("settings.themeHelp"),
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
-                        SettingsSection("Emulation speed") {
-                            Text("Adjust the machine clock baseline. Level 3 is standard.")
+                        SettingsSection(uiText("settings.speed")) {
+                            Text(uiText("settings.speedHelp"))
                             DesktopExecutionSpeed.entries.forEach { option ->
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(
                                         selected = executionSpeed == option,
+                                        modifier = Modifier.semantics { contentDescription = option.uiLabel() },
                                         onClick = {
                                             executionSpeed = option
                                             runner?.setExecutionSpeed(option)
                                             DesktopUiPreferences.saveExecutionSpeed(option)
                                         },
                                     )
-                                    Text(option.label)
+                                    Text(option.uiLabel())
                                 }
                             }
-                            Text("Step percentages are provisional. Unlimited mode mutes audio and keeps a 1 ms UI pause.",
+                            Text(uiText("settings.speedNote"),
                                 style = MaterialTheme.typography.bodySmall)
                         }
-                        SettingsSection("External editor") {
-                            Text("Source files and diagnostic locations use this editor.")
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SettingsSection(uiText("settings.editor")) {
+                            Text(uiText("settings.editorHelp"))
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedButton(onClick = {
                                     DesktopUiPreferences.saveExternalEditorCommand("")
                                     externalEditorCommand = ""
                                     editorCommandDraft = ""
                                     editorSettingsError = null
-                                }) { Text("Use OS text editor") }
+                                }) { Text(uiText("settings.osEditor")) }
                             }
-                            Text(if (externalEditorCommand.isBlank()) "Current: OS text editor"
-                                else "Current: $externalEditorCommand", style = MaterialTheme.typography.bodySmall)
+                            Text(if (externalEditorCommand.isBlank()) uiText("settings.currentOsEditor")
+                                else uiText("settings.currentEditor", externalEditorCommand), style = MaterialTheme.typography.bodySmall)
                             OutlinedTextField(
                                 value = editorCommandDraft,
                                 onValueChange = { editorCommandDraft = it; editorSettingsError = null },
-                                label = { Text("Editor command") },
+                                label = { Text(uiText("settings.editorCommand")) },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
                             )
-                            Text("Example: code --goto \"{file}:{line}\". Quote paths containing spaces. " +
-                                "The file path is appended if {file} is omitted.",
+                            Text(uiText("settings.editorExample"),
                                 style = MaterialTheme.typography.bodySmall)
                             Button(onClick = {
                                 val command = editorCommandDraft.trim()
                                 val failure = if (command.isBlank()) null else
                                     runCatching { DesktopExternalEditor.splitCommand(command) }.exceptionOrNull()
-                                if (failure != null) editorSettingsError = failure.message else {
+                                if (failure != null) editorSettingsError = StudioStrings.system.editorError(failure.message ?: failure::class.simpleName.orEmpty()) else {
                                     DesktopUiPreferences.saveExternalEditorCommand(command)
                                     externalEditorCommand = command
                                     editorSettingsError = null
                                 }
-                            }) { Text("Apply editor setting") }
+                            }) { Text(uiText("settings.applyEditor")) }
                             editorSettingsError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                         }
-                        SettingsSection("Assembler") {
+                        SettingsSection(uiText("settings.assembler")) {
                             com.digihori.pgp.desktop.project.DesktopAssemblerSettingsPanel(
                                 projectWorkspace?.let(::projectMemoryLayout) ?: MachineMemoryLayout(selectedMachineId),
                             )
                         }
-                        SettingsSection("Keyboard input") {
-                            Text("Choose Logical or Physical below the software keyboard in the main window.")
-                            Text("Left Control and F1 operate the pocket-computer DEF key.")
-                            Text("Command history: Alt+↑ / Alt+↓", fontFamily = FontFamily.Monospace)
+                        SettingsSection(uiText("settings.keyboard")) {
+                            Text(uiText("settings.keyboardHelp"))
+                            Text(uiText("settings.defHelp"))
+                            Text(uiText("settings.historyHelp"), fontFamily = FontFamily.Monospace)
                         }
-                        SettingsSection("Controller") {
+                        SettingsSection(uiText("settings.controller")) {
                             ControllerSettings(
                                 settings = gamepad.settings,
                                 devices = gamepad.devices,
@@ -1557,6 +1582,7 @@ private fun FrameWindowScope.App(
                                 allowedKeys = GamepadKeys.forMachine(runner?.machineId ?: selectedMachineId),
                                 availableButtons = gamepad.available,
                                 status = gamepad.status,
+                                strings = StudioStrings.system.controllerStrings(),
                                 onSelectDevice = gamepad::select,
                                 onSettingsChange = gamepad::save,
                             )
@@ -1571,7 +1597,7 @@ private fun FrameWindowScope.App(
         StudioWindow(
             id = "help",
             onCloseRequest = { showHelpWindow = false },
-            title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — Help",
+            title = uiText("help.window", ProjectInfo.STUDIO_DISPLAY_NAME),
         ) {
             PgpStudioTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -1580,12 +1606,12 @@ private fun FrameWindowScope.App(
                         contentPadding = 20.dp,
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Text("Help", style = MaterialTheme.typography.headlineSmall)
-                        Text("The current documentation is maintained with the source repository.")
-                        HelpLink("Getting Started", GETTING_STARTED_URL, onMessage = { message = it })
-                        HelpLink("Keyboard and Command History", PROJECTS_HELP_URL, onMessage = { message = it })
-                        HelpLink("Debugger Guide", DEBUGGER_HELP_URL, onMessage = { message = it })
-                        HelpLink("GitHub Repository", REPOSITORY_URL, onMessage = { message = it })
+                        Text(uiText("menu.help"), style = MaterialTheme.typography.headlineSmall)
+                        Text(uiText("help.description"))
+                        HelpLink(uiText("help.gettingStarted"), GETTING_STARTED_URL, onMessage = { message = it })
+                        HelpLink(uiText("help.keyboard"), PROJECTS_HELP_URL, onMessage = { message = it })
+                        HelpLink(uiText("help.debugger"), DEBUGGER_HELP_URL, onMessage = { message = it })
+                        HelpLink(uiText("help.repository"), REPOSITORY_URL, onMessage = { message = it })
                     }
                 }
             }
@@ -1596,7 +1622,7 @@ private fun FrameWindowScope.App(
         StudioWindow(
             id = "character-editor",
             onCloseRequest = { showCharacterEditor = false },
-            title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — Character Editor",
+            title = uiText("character.window", ProjectInfo.STUDIO_DISPLAY_NAME),
         ) {
             PgpStudioTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -1610,7 +1636,7 @@ private fun FrameWindowScope.App(
         StudioWindow(
             id = "old-wav",
             onCloseRequest = { closeWavToolRequested = true },
-            title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — WAV Tool",
+            title = uiText("wav.window", ProjectInfo.STUDIO_DISPLAY_NAME),
         ) {
             PgpStudioTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -1627,7 +1653,7 @@ private fun FrameWindowScope.App(
         StudioWindow(
             id = "debugger",
             onCloseRequest = { showDebuggerWindow = false },
-            title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — Debugger",
+            title = uiText("debug.window", (ProjectInfo.STUDIO_DISPLAY_NAME)),
         ) {
             DisposableEffect(runner) {
                 runner?.setDebugObservationEnabled(true)
@@ -1644,14 +1670,14 @@ private fun FrameWindowScope.App(
                         SelectionContainer {
                             DebuggerSection {
                                 CpuRegisterPanel(cpu, changedCpuFields)
-                                debuggerStopReason?.let { Text("Debugger: ${it.displayName()}") }
+                                debuggerStopReason?.let { Text(uiText("debug.stopLabel", (it.displayName()))) }
                                 Button(
                                     enabled = runner != null && cpu != null,
                                     onClick = {
                                         checkpointRangeError = null
                                         showSaveCheckpointDialog = true
                                     },
-                                ) { Text("Save Debug Checkpoint") }
+                                ) { Text(uiText("debug.checkpointTitle")) }
                                 Button(
                                     enabled = runner != null && cpu != null,
                                     onClick = {
@@ -1667,7 +1693,7 @@ private fun FrameWindowScope.App(
                                         debugContextPreview = null
                                         showDebugContextDialog = true
                                     },
-                                ) { Text("Export AI Debug Context") }
+                                ) { Text(uiText("debug.contextTitle")) }
                             }
                         }
                         DebuggerSection {
@@ -1722,7 +1748,7 @@ private fun FrameWindowScope.App(
         StudioWindow(
             id = "mcp-server",
             onCloseRequest = { showMcpServerWindow = false },
-            title = "${ProjectInfo.STUDIO_DISPLAY_NAME} — AI / MCP Server",
+            title = uiText("mcp.window", ProjectInfo.STUDIO_DISPLAY_NAME),
         ) {
             PgpStudioTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -1731,95 +1757,30 @@ private fun FrameWindowScope.App(
                         contentPadding = 16.dp,
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Text("Read-only localhost MCP server", style = MaterialTheme.typography.headlineSmall)
-                        Text(
-                            "Exposes only pgp_get_capabilities and pgp_get_debug_context. " +
-                                "It never pauses, runs, writes memory, changes source, or reads arbitrary files.",
-                        )
-                        Text("How it works", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "1. Start server creates a new temporary bearer token.\n" +
-                                "2. Studio writes an Authorization header to an owner-only file outside the project.\n" +
-                                "3. Codex runs the configured http_headers_helper for each connection and reads the current header.\n" +
-                                "4. Studio accepts authenticated requests only from this computer through 127.0.0.1.\n" +
-                                "5. Stop server or quitting Studio invalidates the token and removes its credential file.",
-                        )
-                        Text("One-time Codex setup", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "After starting the server, choose Copy Codex config and add it to Codex config.toml. " +
-                                "You do not need to copy the token or update an environment variable after restarting Studio. " +
-                                "Copy the configuration again only if you change the port or move to another OS/user account.",
-                        )
-                        OutlinedTextField(
-                            value = mcpPort,
-                            onValueChange = { mcpPort = it; mcpServerError = null },
-                            enabled = mcpServerInfo == null,
-                            label = { Text("Local port") },
-                            singleLine = true,
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if (mcpServerInfo == null) {
-                                Button(onClick = {
-                                    val port = mcpPort.toIntOrNull()
-                                    if (port == null || port !in 1..65535) {
-                                        mcpServerError = "Port must be between 1 and 65535."
-                                    } else {
-                                        when (val result = mcpServer.start(port)) {
-                                            is DesktopMcpStartResult.Success -> {
-                                                mcpServerInfo = result.info
-                                                mcpServerError = null
-                                            }
-                                            is DesktopMcpStartResult.Failure -> mcpServerError = result.message
+                        McpServerPanel(
+                            port = mcpPort,
+                            onPortChange = { mcpPort = it; mcpServerError = null },
+                            info = mcpServerInfo,
+                            error = mcpServerError,
+                            lastRequest = mcpLastRequest,
+                            onStart = {
+                                val port = mcpPort.toIntOrNull()
+                                if (port == null || port !in 1..65535) {
+                                    mcpServerError = uiText("mcp.invalidPort")
+                                } else {
+                                    when (val result = mcpServer.start(port)) {
+                                        is DesktopMcpStartResult.Success -> {
+                                            mcpServerInfo = result.info
+                                            mcpServerError = null
                                         }
+                                        is DesktopMcpStartResult.Failure -> mcpServerError = StudioStrings.system.mcpStartError(result.message)
                                     }
-                                }) { Text("Start server") }
-                            } else {
-                                Button(onClick = {
-                                    mcpServer.stop()
-                                    mcpServerInfo = null
-                                    mcpLastRequest = null
-                                }) { Text("Stop server") }
-                            }
-                        }
-                        mcpServerError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                        mcpServerInfo?.let { info ->
-                            SelectionContainer {
-                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text("Listening on loopback only")
-                                    Text("URL: ${info.url}", fontFamily = FontFamily.Monospace)
-                                    Text("Bearer token: ${info.token}", fontFamily = FontFamily.Monospace)
-                                    Text("Credential file: ${info.credentialPath}", fontFamily = FontFamily.Monospace)
                                 }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                TextButton(onClick = {
-                                    copyToClipboard(info.url)
-                                    message = "Copied MCP URL."
-                                }) { Text("Copy URL") }
-                                TextButton(onClick = {
-                                    copyToClipboard(info.token)
-                                    message = "Copied the temporary MCP token."
-                                }) { Text("Copy token") }
-                                TextButton(onClick = {
-                                    copyToClipboard(codexMcpConfiguration(info))
-                                    message = "Copied Codex MCP configuration."
-                                }) { Text("Copy Codex config") }
-                            }
-                            Text(
-                                "The credential contains only the temporary Authorization header. It does not contain ROM, " +
-                                    "Debug Context, API keys, or project files. If the file cannot be protected for the " +
-                                    "current OS user, Studio refuses to start the server.",
-                            )
-                        }
-                        Text("Published tools", style = MaterialTheme.typography.titleMedium)
-                        Text("• pgp_get_capabilities\n• pgp_get_debug_context", fontFamily = FontFamily.Monospace)
-                        Text("Last request", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            mcpLastRequest?.let { request ->
-                                val target = request.toolName?.let { " / $it" }.orEmpty()
-                                "${request.capturedAt} — ${request.method}$target — " +
-                                    if (request.succeeded) "success" else "failed"
-                            } ?: "No authenticated requests yet.",
+                            },
+                            onStop = { mcpServer.stop(); mcpServerInfo = null; mcpLastRequest = null },
+                            onCopyUrl = { mcpServerInfo?.let { copyToClipboard(it.url); message = uiText("mcp.copiedUrl") } },
+                            onCopyToken = { mcpServerInfo?.let { copyToClipboard(it.token); message = uiText("mcp.copiedToken") } },
+                            onCopyConfiguration = { mcpServerInfo?.let { copyToClipboard(codexMcpConfiguration(it)); message = uiText("mcp.copiedConfig") } },
                         )
                     }
                 }
@@ -1831,8 +1792,8 @@ private fun FrameWindowScope.App(
         StudioWindow(
             id = "assembly-workspace",
             onCloseRequest = { showAssemblyWorkspace = false },
-            title = projectWorkspace?.let { "${ProjectInfo.STUDIO_DISPLAY_NAME} — ${it.definition.name} — Assembly" }
-                ?: "${ProjectInfo.STUDIO_DISPLAY_NAME} — Assembly Workspace",
+            title = projectWorkspace?.let { uiText("assembly.windowProject" , (ProjectInfo.STUDIO_DISPLAY_NAME), (it.definition.name)) }
+                ?: uiText("assembly.window" , (ProjectInfo.STUDIO_DISPLAY_NAME)),
         ) {
             PgpStudioTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -1844,56 +1805,56 @@ private fun FrameWindowScope.App(
                         ) {
                         val workspace = projectWorkspace
                         if (workspace == null) {
-                            Text("No project is open.")
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(onClick = ::openProjectFromDisk) { Text("Open Project…") }
+                            Text(uiText("project.empty"))
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = ::openProjectFromDisk) { Text(uiText("project.open")) }
                                 Button(onClick = {
                                     newProjectError = null
                                     showCreateProjectDialog = true
-                                }) { Text("New Project…") }
+                                }) { Text(uiText("project.new")) }
                             }
                         } else {
-                            Text("Assembly Workspace", style = MaterialTheme.typography.titleLarge)
+                            Text(uiText("assembly.title"), style = MaterialTheme.typography.titleLarge)
                             Text(assemblyStatus)
                             assemblyPreview.filter { it.consoleLog.isNotBlank() }.forEach {
-                                AssemblyPreviewSection("Assembler log — ${it.source.definition.path}", it.consoleLog)
+                                AssemblyPreviewSection(uiText("assembly.logTitle" , (it.source.definition.path)), it.consoleLog)
                             }
                             val memoryLayout = projectMemoryLayout(workspace)
                             val memoryLayoutText = remember(memoryLayout.machineId, memoryLayout.pc1251MemoryMode) {
-                                memoryLayout.renderMemoryLayout()
+                                memoryLayout.renderMemoryLayout(StudioStrings.system)
                             }
                             var showMemoryLayout by remember { mutableStateOf(false) }
                             TextButton(onClick = { showMemoryLayout = !showMemoryLayout }) {
-                                Text(if (showMemoryLayout) "Hide memory layout" else "Show memory layout")
+                                Text(if (showMemoryLayout) uiText("assembly.hideLayout") else uiText("assembly.showLayout"))
                             }
-                            if (showMemoryLayout) AssemblyPreviewSection("Memory layout", memoryLayoutText)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (showMemoryLayout) AssemblyPreviewSection(uiText("assembly.layout"), memoryLayoutText)
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 val hasAssemblySources = workspace.sources.any {
                                     it.definition.type == ProjectSourceType.ASSEMBLY
                                 }
                                 Button(enabled = hasAssemblySources && !assemblyBusy, onClick = ::assembleWorkspace) {
-                                    Text("Assemble")
+                                    Text(uiText("assembly.assemble"))
                                 }
                                 Button(enabled = hasAssemblySources && !assemblyBusy, onClick = { buildProjectOutputs() }) {
-                                    Text("Build")
+                                    Text(uiText("assembly.build"))
                                 }
                                 Button(
                                     enabled = hasAssemblySources && !assemblyBusy && runner != null && runnerState != RunnerState.FAULTED,
                                     onClick = ::buildProject,
-                                ) { Text("Build & Load") }
+                                ) { Text(uiText("project.buildLoad")) }
                             }
-                            if (assemblyBusy) OutlinedButton(onClick = { assemblyJob?.cancel() }) { Text("Cancel assembly") }
-                            Text("Assemble updates the preview. Build saves these files; Build & Load also loads the result.")
+                            if (assemblyBusy) OutlinedButton(onClick = { assemblyJob?.cancel() }) { Text(uiText("assembly.cancel")) }
+                            Text(uiText("assembly.help"))
                             val projectIsLoaded = loadedProjectManifest == workspace.manifestFile.absolutePath
                             val emulatorLoadStatus = when {
-                                !projectIsLoaded -> "Emulator: project not loaded"
+                                !projectIsLoaded -> uiText("assembly.emulatorNotLoaded")
                                 projectRuntimeStatus == ProjectRuntimeStatus.UP_TO_DATE ->
-                                    "Emulator: loaded in ${runner?.machineId?.displayName().orEmpty()}"
+                                    uiText("assembly.emulatorLoaded" , (runner?.machineId?.displayName().orEmpty()))
                                 projectRuntimeStatus == ProjectRuntimeStatus.SOURCE_CHANGED ->
-                                    "Emulator: previous version loaded — source changed; use Build & Load to update"
+                                    uiText("assembly.emulatorChanged")
                                 projectRuntimeStatus == ProjectRuntimeStatus.BUILT_NOT_LOADED ->
-                                    "Emulator: previous version loaded — latest build not loaded; use Build & Load to update"
-                                else -> "Emulator: previous successful load retained — latest result not confirmed loaded"
+                                    uiText("assembly.emulatorBuilt")
+                                else -> uiText("assembly.emulatorPrevious")
                             }
                             Text(
                                 emulatorLoadStatus,
@@ -1901,8 +1862,8 @@ private fun FrameWindowScope.App(
                                 color = if (projectIsLoaded && projectRuntimeStatus == ProjectRuntimeStatus.UP_TO_DATE)
                                     Color(0xff28783c) else MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            if (projectIsLoaded) Text("Loading places the program in memory. Start it from the pocket-computer keyboard.")
-                            Text("Sources", style = MaterialTheme.typography.titleMedium)
+                            if (projectIsLoaded) Text(uiText("load.help"))
+                            Text(uiText("project.sources"), style = MaterialTheme.typography.titleMedium)
                             val assemblySources = workspace.sources.filter {
                                 it.definition.type == ProjectSourceType.ASSEMBLY
                             }
@@ -1910,7 +1871,7 @@ private fun FrameWindowScope.App(
                                 it.file.extension.equals("asm", ignoreCase = true)
                             }
                             if (assemblySources.isEmpty() && untrackedAssemblyFiles.isEmpty()) {
-                                Text("No Assembly sources. Add an .asm file under src, then select Update Project.")
+                                Text(uiText("assembly.noSources"))
                             }
                             assemblySources.forEach { source ->
                                 Row(
@@ -1921,9 +1882,10 @@ private fun FrameWindowScope.App(
                                     Text(
                                         "  ${source.definition.path}" +
                                             if (source.definition.id in changedAssemblySources) " *" else "",
+                                        modifier = Modifier.weight(1f),
                                         fontFamily = FontFamily.Monospace,
                                     )
-                                    Button(onClick = { openExternalSource(source.file) }) { Text("Open") }
+                                    Button(onClick = { openExternalSource(source.file) }) { Text(uiText("common.open")) }
                                 }
                             }
                             untrackedAssemblyFiles.forEach { source ->
@@ -1932,19 +1894,19 @@ private fun FrameWindowScope.App(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
-                                    Text("  ${source.relativePath} * (untracked)", fontFamily = FontFamily.Monospace)
-                                    Button(onClick = { openExternalSource(source.file) }) { Text("Open") }
+                                    Text(uiText("assembly.untrackedSource" , (source.relativePath)), fontFamily = FontFamily.Monospace)
+                                    Button(onClick = { openExternalSource(source.file) }) { Text(uiText("common.open")) }
                                 }
                             }
                             if (untrackedAssemblyFiles.isNotEmpty()) {
-                                Button(onClick = ::updateProject) { Text("Add to Project") }
+                                Button(onClick = ::updateProject) { Text(uiText("assembly.addToProject")) }
                             }
-                            Text("Build outputs", style = MaterialTheme.typography.titleMedium)
+                            Text(uiText("assembly.outputs"), style = MaterialTheme.typography.titleMedium)
                             Text(DesktopProjectBuildOutputWriter.outputFiles(workspace).joinToString("\n") {
-                                "  build/${it.name} — ${if (it.isFile) "exists" else "not generated"}"
+                                uiText("assembly.outputFile", "build/${it.name}", uiText(if (it.isFile) "assembly.fileExists" else "assembly.fileMissing"))
                             }, fontFamily = FontFamily.Monospace)
-                            Text("Diagnostics", style = MaterialTheme.typography.titleMedium)
-                            if (assemblyDiagnostics.isEmpty()) Text("No diagnostics.")
+                            Text(uiText("common.diagnostics"), style = MaterialTheme.typography.titleMedium)
+                            if (assemblyDiagnostics.isEmpty()) Text(uiText("assembly.noDiagnostics"))
                             assemblyDiagnostics.forEach { diagnostic ->
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -1954,31 +1916,32 @@ private fun FrameWindowScope.App(
                                     Text(
                                         buildString {
                                             append(if (diagnostic.file == diagnostic.source.file) diagnostic.source.definition.path else diagnostic.file.path).append(':')
-                                                .append(diagnostic.line ?: "?").append(": ").append(diagnostic.message)
+                                                .append(diagnostic.line ?: "?").append(": ").append(StudioStrings.system.projectOperationError(diagnostic.message))
                                             diagnostic.sourceText?.let { append("\n  ").append(it) }
                                         },
+                                        modifier = Modifier.weight(1f),
                                         fontFamily = FontFamily.Monospace,
                                     )
                                     TextButton(onClick = {
                                         openExternalSource(diagnostic.file, diagnostic.line)
-                                    }) { Text(if (diagnostic.line == null) "Open source" else "Open at line") }
+                                    }) { Text(if (diagnostic.line == null) uiText("assembly.openSource") else uiText("assembly.openLine")) }
                                 }
                             }
                             val previewSources = assemblyPreview
-                            val assemblyOutput by produceState("Preparing assembly result…", previewSources, memoryLayout) {
+                            val assemblyOutput by produceState(uiText("assembly.preparing"), previewSources, memoryLayout) {
                                 value = withContext(Dispatchers.Default) { buildString {
                                     previewSources.forEach { result ->
                                         appendLine(result.source.definition.path)
-                                        appendLine("\nMemory")
-                                        appendLine(result.renderMemorySummary(memoryLayout))
-                                        appendLine("\nDisassembly")
+                                        appendLine(uiText("assembly.memory"))
+                                        appendLine(result.renderMemorySummary(memoryLayout, StudioStrings.system))
+                                        appendLine(uiText("assembly.disassembly"))
                                         appendLine(result.renderDisassembly().trimEnd())
-                                        appendLine("\nListing")
+                                        appendLine(uiText("assembly.listing"))
                                         appendLine(result.renderListing().trimEnd())
                                         appendLine()
                                     }
                                     if (previewSources.isNotEmpty()) {
-                                        appendLine("Symbol Map")
+                                        appendLine(uiText("assembly.symbolMap"))
                                         append(previewSources.renderMap())
                                     }
                                 } }
@@ -2011,14 +1974,12 @@ private fun FrameWindowScope.App(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Machine")
+                    Text(uiText("main.machine"))
                     Box {
                         Button(onClick = { machineMenuExpanded = true }) {
                             val displayedMachine = runner?.machineId ?: selectedMachineId
                             Text(
-                                displayedMachine.displayName() +
-                                    if (displayedMachine in installedRomMachines) " ▾"
-                                    else " — ROM not registered ▾",
+                                uiText(if (displayedMachine in installedRomMachines) "main.machineSelected" else "main.machineMissing", displayedMachine.displayName()),
                             )
                         }
                         DropdownMenu(
@@ -2031,7 +1992,7 @@ private fun FrameWindowScope.App(
                                     text = {
                                         Text(
                                             if (installed) definition.displayName
-                                            else "${definition.displayName} — ROM not registered",
+                                            else uiText("main.machineUnregistered", definition.displayName),
                                         )
                                     },
                                     enabled = installed,
@@ -2042,7 +2003,7 @@ private fun FrameWindowScope.App(
                                 )
                             }
                             DropdownMenuItem(
-                                text = { Text("Manage ROMs…") },
+                                text = { Text(uiText("rom.manage")) },
                                 onClick = {
                                     machineMenuExpanded = false
                                     showRomManager = true
@@ -2050,20 +2011,20 @@ private fun FrameWindowScope.App(
                             )
                         }
                     }
-                    Text("ROM: ${if (runner?.machineId in installedRomMachines) "registered" else loadedRomName ?: "not loaded"}")
-                    projectWorkspace?.let { Text("Open project: ${it.definition.name}") }
+                    Text(uiText("main.romStatus", if (runner?.machineId in installedRomMachines) uiText("main.registered") else loadedRomName ?: uiText("main.notLoaded")))
+                    projectWorkspace?.let { Text(uiText("main.openProject", it.definition.name)) }
                     Spacer(modifier = Modifier.weight(1f))
                     Button(
                         enabled = runner != null && runnerState != RunnerState.FAULTED,
                         onClick = {
                             if (runnerState == RunnerState.RUNNING) pauseEmulator() else runEmulator()
                         },
-                    ) { Text(if (runnerState == RunnerState.RUNNING) "Pause" else "Run") }
-                    Button(enabled = runner != null, onClick = ::resetEmulator) { Text("Reset") }
+                    ) { Text(if (runnerState == RunnerState.RUNNING) uiText("emulator.pause") else uiText("emulator.run")) }
+                    Button(enabled = runner != null, onClick = ::resetEmulator) { Text(uiText("emulator.reset")) }
                     Button(
                         enabled = runner != null && runnerState == RunnerState.PAUSED,
                         onClick = ::stepEmulator,
-                    ) { Text("Step") }
+                    ) { Text(uiText("emulator.step")) }
                     val activeDefinition = MachineCatalog.require(runner?.machineId ?: selectedMachineId)
                     val showModeButtons = activeDefinition.id.value in setOf(
                         "pc-1245", "pc-1250", "pc-1251", "pc-1255", "pc-1260", "pc-1261",
@@ -2109,7 +2070,7 @@ private fun FrameWindowScope.App(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             SelectionContainer {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("Project", style = MaterialTheme.typography.titleMedium)
+                                    Text(uiText("menu.project"), style = MaterialTheme.typography.titleMedium)
                                     projectWorkspace?.let { workspace ->
                                         Text(workspace.definition.name, style = MaterialTheme.typography.titleSmall)
                                         Text(
@@ -2119,11 +2080,11 @@ private fun FrameWindowScope.App(
                                         )
                                         if (changedProjectSources.isNotEmpty()) {
                                             Text(
-                                                "Changed: ${changedProjectSources.joinToString()}",
+                                                uiText("main.changedSources", changedProjectSources.joinToString()),
                                                 style = MaterialTheme.typography.labelMedium,
                                             )
                                         }
-                                    } ?: Text("No project is open.")
+                                    } ?: Text(uiText("project.empty"))
                                 }
                             }
                             projectWorkspace?.let { workspace ->
@@ -2131,15 +2092,15 @@ private fun FrameWindowScope.App(
                                     enabled = runner != null && runnerState != RunnerState.FAULTED,
                                     onClick = ::buildProject,
                                     modifier = Modifier.fillMaxWidth(),
-                                ) { Text("Build & Load", maxLines = 1, softWrap = false) }
+                                ) { Text(uiText("project.buildLoad")) }
                                 Button(
                                     onClick = ::updateProject,
                                     modifier = Modifier.fillMaxWidth(),
-                                ) { Text("Update", maxLines = 1, softWrap = false) }
+                                ) { Text(uiText("main.updateProject")) }
                                 Button(
                                     onClick = { showAssemblyWorkspace = true },
                                     modifier = Modifier.fillMaxWidth(),
-                                ) { Text("Assembly Workspace", maxLines = 1, softWrap = false) }
+                                ) { Text(uiText("assembly.title")) }
                             }
                             }
                             if (projectWorkspace != null) {
@@ -2156,12 +2117,12 @@ private fun FrameWindowScope.App(
                                         onSelected = { selectedProjectSourcePath = it },
                                         onEdit = { openExternalSource(it) },
                                         onCreateWav = { file ->
-                                            wavToolInput = WavToolInput(file, "Project: ${workspace.definition.name}", workspace.definition.machineId, System.nanoTime())
+                                            wavToolInput = WavToolInput(file, uiText("project.programLabel" , (workspace.definition.name)), workspace.definition.machineId, System.nanoTime())
                                             showWavTool = true
                                         },
                                         modifier = Modifier.weight(1f),
                                     )
-                                } ?: Text("Project files are loading…")
+                                } ?: Text(uiText("main.projectFilesLoading"))
                             }
                         }
                     }
@@ -2210,9 +2171,9 @@ private fun FrameWindowScope.App(
                         )
                         loadedProgramLabel?.let { label ->
                             Text(
-                                label + if (loadedProjectManifest != null &&
+                                if (loadedProjectManifest != null &&
                                     loadedProjectManifest != projectWorkspace?.manifestFile?.absolutePath)
-                                    "（現在のプロジェクト外）" else "",
+                                    uiText("main.outsideProject", label) else label,
                                 modifier = Modifier.fillMaxWidth(),
                                 style = MaterialTheme.typography.bodySmall,
                                 maxLines = 1,
@@ -2238,11 +2199,11 @@ private fun FrameWindowScope.App(
                         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                             Text(message)
                             Text(buildString {
-                                append("${runnerState.name}  •  $executedCycles cycles")
+                                append(uiText("main.status", runnerState.uiLabel(), executedCycles.toString()))
                                 if (requestedToneHz != 0) append("  •  $requestedToneHz Hz")
                                 projectWorkspace?.let {
                                     append("  •  ${projectRuntimeStatus.displayName}")
-                                    if (changedProjectSources.isNotEmpty()) append("  •  Source changed")
+                                    if (changedProjectSources.isNotEmpty()) append(uiText("main.sourceChanged"))
                                 }
                                 debuggerStopReason?.let { append("  •  ${it.displayName()}") }
                             }, style = MaterialTheme.typography.labelMedium)
@@ -2256,51 +2217,28 @@ private fun FrameWindowScope.App(
         if (showRomManager) {
             AlertDialog(
                 onDismissRequest = { showRomManager = false },
-                title = { Text("ROM Library") },
+                title = { Text(uiText("rom.libraryTitle")) },
                 text = {
                     StudioScrollableColumn(
                         modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text("Registered ROMs are copied into the application data folder and remain available when the original files are moved or deleted.")
+                        Text(uiText("rom.libraryHelp"))
                         com.digihori.pgp.desktop.rom.DesktopRomRegistrationCatalog.definitions
                             .forEach { definition ->
                             val installed = definition.id in installedRomMachines
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Column {
-                                    Text(
-                                        com.digihori.pgp.desktop.rom.DesktopRomRegistrationCatalog.label(definition.id),
-                                    )
-                                    val metadata = romLibrary.metadata(definition.id)
-                                    Text(
-                                        if (installed) {
-                                            "Registered and verified" +
-                                                (metadata?.let { " — ${it.sourceName}" } ?: "")
-                                        } else {
-                                            "ROM not registered"
-                                        },
-                                    )
-                                }
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    TextButton(onClick = { chooseAndImportRom(definition.id) }) {
-                                        Text(if (installed) "Replace…" else "Register…")
-                                    }
-                                    if (installed) {
-                                        TextButton(onClick = { pendingRomRemoval = definition.id }) {
-                                            Text("Remove")
-                                        }
-                                    }
-                                }
-                            }
+                            com.digihori.pgp.desktop.rom.RomLibraryRow(
+                                machineId = definition.id,
+                                installed = installed,
+                                sourceName = romLibrary.metadata(definition.id)?.sourceName,
+                                onRegister = { chooseAndImportRom(definition.id) },
+                                onRemove = { pendingRomRemoval = definition.id },
+                            )
                         }
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { showRomManager = false }) { Text("Close") }
+                    TextButton(onClick = { showRomManager = false }) { Text(uiText("common.close")) }
                 },
             )
         }
@@ -2310,18 +2248,18 @@ private fun FrameWindowScope.App(
                 onDismissRequest = { pendingRomRemoval = null },
                 title = {
                     Text(
-                        "Remove ${com.digihori.pgp.desktop.rom.DesktopRomRegistrationCatalog.label(machineId)} ROM?",
+                        uiText("rom.removeConfirm", com.digihori.pgp.desktop.rom.DesktopRomRegistrationCatalog.label(machineId, StudioStrings.system)),
                     )
                 },
-                text = { Text("The application-managed copy will be deleted. The original ROM file is not changed.") },
+                text = { Text(uiText("rom.removeHelp")) },
                 confirmButton = {
                     TextButton(onClick = {
                         pendingRomRemoval = null
                         removeStoredRom(machineId)
-                    }) { Text("Remove") }
+                    }) { Text(uiText("rom.removeAction")) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { pendingRomRemoval = null }) { Text("Cancel") }
+                    TextButton(onClick = { pendingRomRemoval = null }) { Text(uiText("common.cancel")) }
                 },
             )
         }
@@ -2329,16 +2267,16 @@ private fun FrameWindowScope.App(
         if (showRenameProjectDialog) {
             AlertDialog(
                 onDismissRequest = { showRenameProjectDialog = false },
-                title = { Text("Rename Project") },
+                title = { Text(uiText("project.renameTitle")) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
                             value = renamedProjectName,
                             onValueChange = { renamedProjectName = it; renameProjectError = null },
-                            label = { Text("Project name") },
+                            label = { Text(uiText("project.name")) },
                             singleLine = true,
                         )
-                        Text("Folder: ${DesktopProjectWorkspaceCreator.folderName(renamedProjectName)}")
+                        Text(uiText("project.folderLabel", (DesktopProjectWorkspaceCreator.folderName(renamedProjectName))))
                         renameProjectError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     }
                 },
@@ -2351,18 +2289,18 @@ private fun FrameWindowScope.App(
                                 projectChangeTracker = DesktopProjectChangeTracker(updated)
                                 projectTree = DesktopProjectTreeScanner.scan(updated)
                                 if (loadedProjectManifest == workspace.manifestFile.absolutePath) {
-                                    loadedProgramLabel = "Project: ${updated.definition.name}"
+                                    loadedProgramLabel = uiText("project.renamedProgramLabel" , (updated.definition.name))
                                     loadedProjectManifest = updated.manifestFile.absolutePath
                                 }
                                 showRenameProjectDialog = false
-                                message = "Renamed project to ${updated.definition.name}."
+                                message = uiText("project.renamed" , (updated.definition.name))
                             },
-                            onFailure = { renameProjectError = it.message },
+                            onFailure = { renameProjectError = StudioStrings.system.projectOperationError(it.message.orEmpty()) },
                         )
-                    }) { Text("Rename") }
+                    }) { Text(uiText("project.renameAction")) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showRenameProjectDialog = false }) { Text("Cancel") }
+                    TextButton(onClick = { showRenameProjectDialog = false }) { Text(uiText("common.cancel")) }
                 },
             )
         }
@@ -2370,57 +2308,45 @@ private fun FrameWindowScope.App(
         if (showCreateProjectDialog) {
             AlertDialog(
                 onDismissRequest = { showCreateProjectDialog = false },
-                title = { Text("Create Pokecom GO Studio Project") },
+                title = { Text(uiText("project.createTitle")) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Machine: ${selectedMachineId.displayName()}")
+                        Text(uiText("project.machineLabel" , (selectedMachineId.displayName())))
                         OutlinedTextField(
                             value = newProjectName,
                             onValueChange = {
                                 newProjectName = it
                                 newProjectError = null
                             },
-                            label = { Text("Project name") },
+                            label = { Text(uiText("project.name")) },
                             singleLine = true,
                         )
-                        Text("Starter sources")
-                        DesktopProjectStarter.entries.forEach { starter ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(
-                                    checked = starter in newProjectStarters,
-                                    onCheckedChange = { checked ->
-                                        newProjectStarters = if (checked) {
-                                            newProjectStarters + starter
-                                        } else {
-                                            newProjectStarters - starter
-                                        }
-                                        newProjectError = null
-                                    },
-                                )
-                                Text(starter.displayName)
-                            }
-                        }
-                        Text("Existing files will not be overwritten.")
+                        Text(uiText("project.starters"))
+                        com.digihori.pgp.desktop.project.ProjectStarterOptions(
+                            selected = newProjectStarters,
+                            onSelected = { newProjectStarters = it; newProjectError = null },
+                        )
+                        Text(uiText("project.noOverwrite"))
                         newProjectError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     }
                 },
                 confirmButton = {
                     TextButton(onClick = {
                         if (newProjectName.isBlank()) {
-                            newProjectError = "Project name must not be blank."
+                            newProjectError = uiText("project.blankName")
                             return@TextButton
                         }
                         if (newProjectStarters.isEmpty()) {
-                            newProjectError = "Select at least one starter source."
+                            newProjectError = uiText("project.noStarters")
                             return@TextButton
                         }
                         newProjectError = null
                         showCreateProjectDialog = false
                         requestProjectParentSelection = true
-                    }) { Text("Create in Folder…") }
+                    }) { Text(uiText("project.createFolder")) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showCreateProjectDialog = false }) { Text("Cancel") }
+                    TextButton(onClick = { showCreateProjectDialog = false }) { Text(uiText("common.cancel")) }
                 },
             )
         }
@@ -2428,33 +2354,24 @@ private fun FrameWindowScope.App(
         if (showSaveMemoryDumpDialog) {
             AlertDialog(
                 onDismissRequest = { showSaveMemoryDumpDialog = false },
-                title = { Text("Save PGP Memory Dump") },
+                title = { Text(uiText("memory.saveTitle")) },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Enter an inclusive 16-bit hexadecimal address range.")
-                        OutlinedTextField(
-                            value = dumpStartAddress,
-                            onValueChange = { dumpStartAddress = it },
-                            label = { Text("Start address") },
-                            singleLine = true,
-                        )
-                        OutlinedTextField(
-                            value = dumpEndAddress,
-                            onValueChange = { dumpEndAddress = it },
-                            label = { Text("End address") },
-                            singleLine = true,
-                        )
-                        dumpRangeError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    }
+                    com.digihori.pgp.desktop.machine.MemoryDumpRangeFields(
+                        start = dumpStartAddress,
+                        end = dumpEndAddress,
+                        onStart = { dumpStartAddress = it },
+                        onEnd = { dumpEndAddress = it },
+                        error = dumpRangeError,
+                    )
                 },
                 confirmButton = {
                     TextButton(onClick = {
                         val start = parseHexAddress(dumpStartAddress)
                         val end = parseHexAddress(dumpEndAddress)
                         when {
-                            start == null -> dumpRangeError = "Start address must be 0000..FFFF."
-                            end == null -> dumpRangeError = "End address must be 0000..FFFF."
-                            end < start -> dumpRangeError = "End address must not be less than start address."
+                            start == null -> dumpRangeError = uiText("memory.invalidStart")
+                            end == null -> dumpRangeError = uiText("memory.invalidEnd")
+                            end < start -> dumpRangeError = uiText("memory.reversedRange")
                             else -> {
                                 val activeRunner = runner ?: return@TextButton
                                 showSaveMemoryDumpDialog = false
@@ -2464,18 +2381,17 @@ private fun FrameWindowScope.App(
                                 val snapshot = activeRunner.memorySnapshot(start, end - start + 1)
                                 runCatching { destination.writeBytes(DesktopMemoryDumpWriter.write(snapshot)) }
                                     .onSuccess {
-                                        message = "Saved ${snapshot.size} bytes " +
-                                            "(0x${start.hex(4)}..0x${end.hex(4)}) to ${destination.name}."
+                                        message = uiText("memory.saved", (snapshot.size).toString(), (start.hex(4)), (end.hex(4)), (destination.name).toString())
                                     }
                                     .onFailure {
-                                        message = "Could not save memory dump: ${it.message ?: it::class.simpleName}"
+                                        message = uiText("memory.saveFailed", (it.message ?: it::class.simpleName).toString())
                                     }
                             }
                         }
-                    }) { Text("Save") }
+                    }) { Text(uiText("common.save")) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showSaveMemoryDumpDialog = false }) { Text("Cancel") }
+                    TextButton(onClick = { showSaveMemoryDumpDialog = false }) { Text(uiText("common.cancel")) }
                 },
             )
         }
@@ -2483,20 +2399,20 @@ private fun FrameWindowScope.App(
         if (showSaveDisassemblyDialog) {
             AlertDialog(
                 onDismissRequest = { showSaveDisassemblyDialog = false },
-                title = { Text("Save Disassembly") },
+                title = { Text(uiText("debug.saveDisassembly")) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Enter an inclusive 16-bit hexadecimal address range.")
+                        Text(uiText("memory.rangeHelp"))
                         OutlinedTextField(
                             value = disassemblyStartAddress,
                             onValueChange = { disassemblyStartAddress = it },
-                            label = { Text("Start address") },
+                            label = { Text(uiText("memory.start")) },
                             singleLine = true,
                         )
                         OutlinedTextField(
                             value = disassemblyEndAddress,
                             onValueChange = { disassemblyEndAddress = it },
-                            label = { Text("End address") },
+                            label = { Text(uiText("memory.end")) },
                             singleLine = true,
                         )
                         disassemblyRangeError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -2507,9 +2423,9 @@ private fun FrameWindowScope.App(
                         val start = parseHexAddress(disassemblyStartAddress)
                         val end = parseHexAddress(disassemblyEndAddress)
                         when {
-                            start == null -> disassemblyRangeError = "Start address must be 0000..FFFF."
-                            end == null -> disassemblyRangeError = "End address must be 0000..FFFF."
-                            end < start -> disassemblyRangeError = "End address must not be less than start address."
+                            start == null -> disassemblyRangeError = uiText("memory.invalidStart")
+                            end == null -> disassemblyRangeError = uiText("memory.invalidEnd")
+                            end < start -> disassemblyRangeError = uiText("memory.reversedRange")
                             else -> {
                                 val activeRunner = runner ?: return@TextButton
                                 showSaveDisassemblyDialog = false
@@ -2522,17 +2438,16 @@ private fun FrameWindowScope.App(
                                     destination.writeText(source)
                                     source.lineSequence().count() - 1
                                 }.onSuccess { instructionCount ->
-                                    message = "Saved $instructionCount disassembly lines " +
-                                        "(0x${start.hex(4)}..0x${end.hex(4)}) to ${destination.name}."
+                                    message = uiText("debug.disassemblySaved", (instructionCount).toString(), (start.hex(4)), (end.hex(4)), (destination.name).toString())
                                 }.onFailure {
-                                    message = "Could not save disassembly: ${it.message ?: it::class.simpleName}"
+                                    message = uiText("debug.disassemblySaveFailed", (it.message ?: it::class.simpleName).toString())
                                 }
                             }
                         }
-                    }) { Text("Save") }
+                    }) { Text(uiText("common.save")) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showSaveDisassemblyDialog = false }) { Text("Cancel") }
+                    TextButton(onClick = { showSaveDisassemblyDialog = false }) { Text(uiText("common.cancel")) }
                 },
             )
         }
@@ -2540,20 +2455,20 @@ private fun FrameWindowScope.App(
         if (showSaveCheckpointDialog) {
             AlertDialog(
                 onDismissRequest = { showSaveCheckpointDialog = false },
-                title = { Text("Save Debug Checkpoint") },
+                title = { Text(uiText("debug.checkpointTitle")) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Select the inclusive memory range to include (maximum 4096 bytes).")
+                        Text(uiText("debug.checkpointRange"))
                         OutlinedTextField(
                             value = checkpointStartAddress,
                             onValueChange = { checkpointStartAddress = it },
-                            label = { Text("Start address") },
+                            label = { Text(uiText("memory.start")) },
                             singleLine = true,
                         )
                         OutlinedTextField(
                             value = checkpointEndAddress,
                             onValueChange = { checkpointEndAddress = it },
-                            label = { Text("End address") },
+                            label = { Text(uiText("memory.end")) },
                             singleLine = true,
                         )
                         checkpointRangeError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -2564,10 +2479,10 @@ private fun FrameWindowScope.App(
                         val start = parseHexAddress(checkpointStartAddress)
                         val end = parseHexAddress(checkpointEndAddress)
                         when {
-                            start == null || end == null -> checkpointRangeError = "Addresses must be 0000..FFFF."
-                            end < start -> checkpointRangeError = "End address must not be less than start address."
+                            start == null || end == null -> checkpointRangeError = uiText("debug.invalidAddresses")
+                            end < start -> checkpointRangeError = uiText("memory.reversedRange")
                             end - start + 1 > DesktopEmulatorRunner.MAX_MEMORY_WATCH_BYTES ->
-                                checkpointRangeError = "A checkpoint range may contain at most 4096 bytes."
+                                checkpointRangeError = uiText("debug.checkpointLimit")
                             else -> {
                                 val activeRunner = runner ?: return@TextButton
                                 activeRunner.pause()
@@ -2584,10 +2499,10 @@ private fun FrameWindowScope.App(
                                         cpu = cpuSnapshot,
                                         memory = activeRunner.memorySnapshot(start, end - start + 1),
                                         trace = activeRunner.instructionTrace(),
-                                        stopReason = activeRunner.stopReason?.displayName(),
+                                        stopReason = activeRunner.stopReason?.checkpointDescription(),
                                     )
                                 }.getOrElse {
-                                    checkpointRangeError = "Could not capture checkpoint: ${it.message ?: it::class.simpleName}"
+                                    checkpointRangeError = uiText("debug.checkpointCaptureFailed", (it.message ?: it::class.simpleName).toString())
                                     return@TextButton
                                 }
                                 showSaveCheckpointDialog = false
@@ -2595,16 +2510,16 @@ private fun FrameWindowScope.App(
                                     selectCheckpointDestination(ownerWindow)
                                 } ?: return@TextButton
                                 runCatching { destination.writeBytes(checkpointBytes) }
-                                    .onSuccess { message = "Saved debug checkpoint to ${destination.name}." }
+                                    .onSuccess { message = uiText("debug.checkpointSaved", (destination.name).toString()) }
                                     .onFailure {
-                                        message = "Could not save debug checkpoint: ${it.message ?: it::class.simpleName}"
+                                        message = uiText("debug.checkpointSaveFailed", (it.message ?: it::class.simpleName).toString())
                                     }
                             }
                         }
-                    }) { Text("Save") }
+                    }) { Text(uiText("common.save")) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showSaveCheckpointDialog = false }) { Text("Cancel") }
+                    TextButton(onClick = { showSaveCheckpointDialog = false }) { Text(uiText("common.cancel")) }
                 },
             )
         }
@@ -2612,66 +2527,36 @@ private fun FrameWindowScope.App(
         if (showDebugContextDialog) {
             AlertDialog(
                 onDismissRequest = { showDebugContextDialog = false },
-                title = { Text("Export AI Debug Context") },
+                title = { Text(uiText("debug.contextTitle")) },
                 text = {
                     Column(
-                        modifier = Modifier.widthIn(min = 520.dp, max = 760.dp),
+                        modifier = Modifier.widthIn(max = 760.dp).verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text("Only the explicit non-ROM memory range below is included. The running session is never paused automatically.")
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = debugContextMemoryStart,
-                                onValueChange = { debugContextMemoryStart = it; debugContextPreview = null },
-                                label = { Text("Memory start") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                            )
-                            OutlinedTextField(
-                                value = debugContextMemoryEnd,
-                                onValueChange = { debugContextMemoryEnd = it; debugContextPreview = null },
-                                label = { Text("Memory end") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                        Text("Leave both memory fields empty to omit memory bytes.")
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = debugContextDisassemblyCount,
-                                onValueChange = { debugContextDisassemblyCount = it; debugContextPreview = null },
-                                label = { Text("Disassembly instructions") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                            )
-                            OutlinedTextField(
-                                value = debugContextTraceLimit,
-                                onValueChange = { debugContextTraceLimit = it; debugContextPreview = null },
-                                label = { Text("Trace entries") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = debugContextAccessHistoryLimit,
-                                onValueChange = { debugContextAccessHistoryLimit = it; debugContextPreview = null },
-                                label = { Text("Memory access entries") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                            )
-                            OutlinedTextField(
-                                value = debugContextBankHistoryLimit,
-                                onValueChange = { debugContextBankHistoryLimit = it; debugContextPreview = null },
-                                label = { Text("Bank history entries") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
+                        Text(uiText("debug.contextHelp"))
+                        DebugContextFieldPair(
+                            first = debugContextMemoryStart, second = debugContextMemoryEnd,
+                            onFirstChange = { debugContextMemoryStart = it; debugContextPreview = null },
+                            onSecondChange = { debugContextMemoryEnd = it; debugContextPreview = null },
+                            firstLabelKey = "debug.memoryStart", secondLabelKey = "debug.memoryEnd",
+                        )
+                        Text(uiText("debug.omitMemory"))
+                        DebugContextFieldPair(
+                            first = debugContextDisassemblyCount, second = debugContextTraceLimit,
+                            onFirstChange = { debugContextDisassemblyCount = it; debugContextPreview = null },
+                            onSecondChange = { debugContextTraceLimit = it; debugContextPreview = null },
+                            firstLabelKey = "debug.disassemblyCount", secondLabelKey = "debug.traceEntries",
+                        )
+                        DebugContextFieldPair(
+                            first = debugContextAccessHistoryLimit, second = debugContextBankHistoryLimit,
+                            onFirstChange = { debugContextAccessHistoryLimit = it; debugContextPreview = null },
+                            onSecondChange = { debugContextBankHistoryLimit = it; debugContextPreview = null },
+                            firstLabelKey = "debug.accessEntries", secondLabelKey = "debug.bankEntries",
+                        )
                         debugContextError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                         debugContextPreview?.let { preview ->
                             val previewScrollState = rememberScrollState()
-                            Text("Preview (${preview.size} bytes)")
+                            Text(uiText("debug.previewSize", (preview.size).toString()))
                             Surface(
                                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                                 modifier = Modifier.fillMaxWidth().height(300.dp),
@@ -2703,14 +2588,14 @@ private fun FrameWindowScope.App(
                             val memoryRange = when {
                                 memoryStart.isEmpty() && memoryEnd.isEmpty() -> null
                                 memoryStart.isEmpty() || memoryEnd.isEmpty() -> {
-                                    debugContextError = "Enter both memory addresses or leave both empty."
+                                    debugContextError = uiText("debug.bothAddresses")
                                     return@TextButton
                                 }
                                 else -> {
                                     val start = parseHexAddress(memoryStart)
                                     val end = parseHexAddress(memoryEnd)
                                     if (start == null || end == null || end < start) {
-                                        debugContextError = "Memory addresses must be an increasing range from 0000 to FFFF."
+                                        debugContextError = uiText("debug.memoryOrder")
                                         return@TextButton
                                     }
                                     DebugMemoryRangeRequest(start, end - start + 1)
@@ -2721,13 +2606,13 @@ private fun FrameWindowScope.App(
                             val bankLimit = debugContextBankHistoryLimit.toIntOrNull()
                             val traceLimit = debugContextTraceLimit.toIntOrNull()
                             if (disassemblyCount == null || accessLimit == null || bankLimit == null || traceLimit == null) {
-                                debugContextError = "Instruction and history limits must be decimal integers."
+                                debugContextError = uiText("debug.integerLimits")
                                 return@TextButton
                             }
                             val activeCpu = cpu
                             val service = debugContextService
                             if (activeCpu == null || service == null) {
-                                debugContextError = "No active emulator session is available."
+                                debugContextError = uiText("debug.noSession")
                                 return@TextButton
                             }
                             when (val result = service.capture(
@@ -2749,7 +2634,7 @@ private fun FrameWindowScope.App(
                                     debugContextPreview = null
                                 }
                             }
-                        }) { Text("Preview") }
+                        }) { Text(uiText("debug.preview")) }
                     } else {
                         TextButton(onClick = {
                             val bytes = debugContextPreview ?: return@TextButton
@@ -2759,16 +2644,16 @@ private fun FrameWindowScope.App(
                             runCatching { destination.writeBytes(bytes) }
                                 .onSuccess {
                                     showDebugContextDialog = false
-                                    message = "Saved AI Debug Context to ${destination.name}."
+                                    message = uiText("debug.contextSaved", (destination.name).toString())
                                 }
                                 .onFailure {
-                                    debugContextError = "Could not save Debug Context: ${it.message ?: it::class.simpleName}"
+                                    debugContextError = uiText("debug.contextSaveFailed", (it.message ?: it::class.simpleName).toString())
                                 }
-                        }) { Text("Save JSON") }
+                        }) { Text(uiText("debug.saveJson")) }
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showDebugContextDialog = false }) { Text("Close") }
+                    TextButton(onClick = { showDebugContextDialog = false }) { Text(uiText("common.close")) }
                 },
             )
         }
@@ -2776,10 +2661,10 @@ private fun FrameWindowScope.App(
         errorDialogMessage?.let { error ->
             AlertDialog(
                 onDismissRequest = { errorDialogMessage = null },
-                title = { Text("ROM Error") },
+                title = { Text(uiText("common.errorTitle")) },
                 text = { Text(error) },
                 confirmButton = {
-                    TextButton(onClick = { errorDialogMessage = null }) { Text("OK") }
+                    TextButton(onClick = { errorDialogMessage = null }) { Text(uiText("common.ok")) }
                 },
             )
         }
@@ -2787,7 +2672,7 @@ private fun FrameWindowScope.App(
 }
 
 @Composable
-private fun CpuRegisterPanel(snapshot: CpuSnapshot?, changedFields: Set<CpuField>) {
+internal fun CpuRegisterPanel(snapshot: CpuSnapshot?, changedFields: Set<CpuField>, strings: StudioStrings = StudioStrings.system) {
     val ram = snapshot?.copyInternalRam()
     fun register(index: Int): String = ram?.getOrNull(index)?.toInt()?.and(0xff)?.hex(2) ?: "--"
     val lines = if (snapshot == null) {
@@ -2813,10 +2698,12 @@ private fun CpuRegisterPanel(snapshot: CpuSnapshot?, changedFields: Set<CpuField
 
     Column(horizontalAlignment = Alignment.Start) {
         Text("CPU", style = MaterialTheme.typography.labelLarge)
-        lines.forEach { Text(it, fontFamily = FontFamily.Monospace) }
+        Column(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+            lines.forEach { Text(it, fontFamily = FontFamily.Monospace, softWrap = false) }
+        }
         if (changedFields.isNotEmpty()) {
             Text(
-                "Changed: ${changedFields.joinToString { it.displayName }}",
+                strings.text("debug.cpuChanged", changedFields.joinToString { it.uiLabel(strings) }),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -2825,11 +2712,12 @@ private fun CpuRegisterPanel(snapshot: CpuSnapshot?, changedFields: Set<CpuField
 }
 
 @Composable
-private fun DisassemblyPanel(
+internal fun DisassemblyPanel(
     runner: DesktopEmulatorRunner?,
     snapshot: CpuSnapshot?,
     keyboardInput: DesktopKeyboardInput,
     onSaveRange: () -> Unit,
+    strings: StudioStrings = StudioStrings.system,
 ) {
     var customStartAddress by remember(runner) { mutableStateOf<Int?>(null) }
     var addressText by remember(runner) { mutableStateOf("") }
@@ -2847,10 +2735,10 @@ private fun DisassemblyPanel(
         modifier = Modifier.fillMaxWidth().widthIn(max = 900.dp),
         horizontalAlignment = Alignment.Start,
     ) {
-        Text("Disassembly", style = MaterialTheme.typography.labelLarge)
-        Row(
+        Text(strings.text("debug.disassembly"), style = MaterialTheme.typography.labelLarge)
+        FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             OutlinedTextField(
                 value = addressText,
@@ -2858,9 +2746,10 @@ private fun DisassemblyPanel(
                     addressText = it
                     addressError = false
                 },
-                label = { Text("Address (hex)") },
+                label = { Text(strings.text("debug.addressHex")) },
                 placeholder = { Text(startAddress?.hex(4).orEmpty()) },
                 isError = addressError,
+                supportingText = { if (addressError) Text(strings.text("debug.addressError")) },
                 singleLine = true,
                 modifier = Modifier
                     .widthIn(max = 180.dp)
@@ -2869,7 +2758,7 @@ private fun DisassemblyPanel(
             Button(onClick = {
                 val address = parseHexAddress(addressText)
                 if (address == null) addressError = true else customStartAddress = address
-            }) { Text("Go") }
+            }) { Text(strings.text("debug.go")) }
             Button(
                 enabled = customStartAddress != null,
                 onClick = {
@@ -2877,15 +2766,16 @@ private fun DisassemblyPanel(
                     addressText = ""
                     addressError = false
                 },
-            ) { Text("Follow PC") }
+            ) { Text(strings.text("debug.followPc")) }
             Button(
                 enabled = runner != null,
                 onClick = onSaveRange,
-            ) { Text("Save range…") }
+            ) { Text(strings.text("debug.saveRange")) }
         }
         if (lines.isEmpty()) {
-            Text("No CPU state.", fontFamily = FontFamily.Monospace)
+            Text(strings.text("debug.noCpu"), fontFamily = FontFamily.Monospace)
         } else {
+            Column(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
             lines.forEachIndexed { index, line ->
                 val marker = if (index == 0) ">" else " "
                 val address = line.instruction.address
@@ -2894,6 +2784,7 @@ private fun DisassemblyPanel(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     TextButton(
+                        modifier = Modifier.semantics { contentDescription = strings.text(if (address in breakpoints) "debug.breakpointRemove" else "debug.breakpointAdd", address.hex(4)) },
                         onClick = {
                             runner?.toggleBreakpoint(address)
                             breakpoints = runner?.breakpoints().orEmpty()
@@ -2902,7 +2793,8 @@ private fun DisassemblyPanel(
                     TextButton(
                         enabled = runner != null && runner.state != RunnerState.FAULTED,
                         onClick = { runner?.runToAddress(address) },
-                    ) { Text("Run to") }
+                        modifier = Modifier.semantics { contentDescription = strings.text("debug.runToAddress", address.hex(4)) },
+                    ) { Text(strings.text("debug.runTo")) }
                     Text(
                         "$marker${address.hex(4)}  " +
                             "${line.byteText.padEnd(DISASSEMBLY_BYTE_COLUMN_WIDTH)}  ${line.instructionText}",
@@ -2911,16 +2803,18 @@ private fun DisassemblyPanel(
                     )
                 }
             }
+            }
         }
     }
 }
 
 @Composable
-private fun MemoryViewPanel(
+internal fun MemoryViewPanel(
     runner: DesktopEmulatorRunner?,
     keyboardInput: DesktopKeyboardInput,
     startAddress: Int,
     onStartAddressChange: (Int) -> Unit,
+    strings: StudioStrings = StudioStrings.system,
 ) {
     var addressText by remember(runner) { mutableStateOf(startAddress.hex(4)) }
     var addressError by remember(runner) { mutableStateOf(false) }
@@ -2943,10 +2837,10 @@ private fun MemoryViewPanel(
         modifier = Modifier.fillMaxWidth().widthIn(max = 900.dp),
         horizontalAlignment = Alignment.Start,
     ) {
-        Text("Memory", style = MaterialTheme.typography.labelLarge)
-        Row(
+        Text(strings.text("debug.memory"), style = MaterialTheme.typography.labelLarge)
+        FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             OutlinedTextField(
                 value = addressText,
@@ -2954,8 +2848,9 @@ private fun MemoryViewPanel(
                     addressText = it
                     addressError = false
                 },
-                label = { Text("Start address (hex)") },
+                label = { Text(strings.text("debug.startHex")) },
                 isError = addressError,
+                supportingText = { if (addressError) Text(strings.text("debug.addressError")) },
                 singleLine = true,
                 modifier = Modifier
                     .widthIn(max = 180.dp)
@@ -2969,42 +2864,45 @@ private fun MemoryViewPanel(
                     onStartAddressChange(address)
                     refreshRevision++
                 }
-            }) { Text("Go") }
+            }) { Text(strings.text("debug.go")) }
             Button(
                 enabled = runner != null,
                 onClick = {
                     onStartAddressChange((startAddress - MEMORY_VIEW_PAGE_SIZE) and 0xffff)
                 },
-            ) { Text("Previous") }
+            ) { Text(strings.text("debug.previous")) }
             Button(
                 enabled = runner != null,
                 onClick = {
                     onStartAddressChange((startAddress + MEMORY_VIEW_PAGE_SIZE) and 0xffff)
                 },
-            ) { Text("Next") }
+            ) { Text(strings.text("debug.next")) }
             Button(
                 enabled = runner != null,
                 onClick = { refreshRevision++ },
-            ) { Text("Refresh") }
+            ) { Text(strings.text("debug.refresh")) }
         }
         if (lines.isEmpty()) {
-            Text("No memory available.", fontFamily = FontFamily.Monospace)
+            Text(strings.text("debug.noMemory"), fontFamily = FontFamily.Monospace)
         } else {
+            Column(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
             lines.forEach { line ->
                 Text(
                     "${line.address.hex(4)}: ${line.hexText}  |${line.asciiText}|",
                     fontFamily = FontFamily.Monospace,
                 )
             }
+            }
         }
     }
 }
 
 @Composable
-private fun InstructionTracePanel(
+internal fun InstructionTracePanel(
     runner: DesktopEmulatorRunner?,
     executionRevision: Long,
     keyboardInput: DesktopKeyboardInput,
+    strings: StudioStrings = StudioStrings.system,
 ) {
     var enabled by remember(runner) { mutableStateOf(runner?.isInstructionTraceEnabled() == true) }
     var localRevision by remember(runner) { mutableStateOf(0) }
@@ -3020,11 +2918,11 @@ private fun InstructionTracePanel(
         modifier = Modifier.fillMaxWidth().widthIn(max = 900.dp),
         horizontalAlignment = Alignment.Start,
     ) {
-        Row(
+        FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Instruction trace", style = MaterialTheme.typography.labelLarge)
+            Text(strings.text("debug.trace"), style = MaterialTheme.typography.labelLarge)
             Button(
                 enabled = runner != null,
                 onClick = {
@@ -3032,22 +2930,23 @@ private fun InstructionTracePanel(
                     runner?.setInstructionTraceEnabled(enabled)
                     localRevision++
                 },
-            ) { Text(if (enabled) "Disable" else "Enable") }
+            ) { Text(if (enabled) strings.text("debug.disable") else strings.text("debug.enable")) }
             Button(
                 enabled = runner != null && entries.isNotEmpty(),
                 onClick = {
                     runner?.clearInstructionTrace()
                     localRevision++
                 },
-            ) { Text("Clear") }
+            ) { Text(strings.text("common.clear")) }
             OutlinedTextField(
                 value = capacityText,
                 onValueChange = {
                     capacityText = it.filter(Char::isDigit)
                     capacityError = false
                 },
-                label = { Text("Capacity") },
+                label = { Text(strings.text("debug.capacity")) },
                 isError = capacityError,
+                supportingText = { if (capacityError) Text(strings.text("debug.capacityError", DesktopEmulatorRunner.MIN_INSTRUCTION_TRACE_CAPACITY.toString(), DesktopEmulatorRunner.MAX_INSTRUCTION_TRACE_CAPACITY.toString())) },
                 singleLine = true,
                 modifier = Modifier.width(120.dp).onFocusChanged { keyboardInput.setEnabled(!it.isFocused) },
             )
@@ -3065,17 +2964,16 @@ private fun InstructionTracePanel(
                         localRevision++
                     }
                 },
-            ) { Text("Apply") }
+            ) { Text(strings.text("common.apply")) }
             Text(
-                "${runner?.instructionTrace()?.size ?: 0}/" +
-                    "${runner?.instructionTraceCapacity() ?: DesktopEmulatorRunner.DEFAULT_INSTRUCTION_TRACE_CAPACITY} " +
-                    "instructions",
+                strings.text("debug.traceCount", (runner?.instructionTrace()?.size ?: 0).toString(), (runner?.instructionTraceCapacity() ?: DesktopEmulatorRunner.DEFAULT_INSTRUCTION_TRACE_CAPACITY).toString()),
             )
         }
         when {
-            !enabled && entries.isEmpty() -> Text("Tracing is disabled.", fontFamily = FontFamily.Monospace)
-            entries.isEmpty() -> Text("No instructions recorded yet.", fontFamily = FontFamily.Monospace)
-            else -> entries.forEach { entry ->
+            !enabled && entries.isEmpty() -> Text(strings.text("debug.traceDisabled"), fontFamily = FontFamily.Monospace)
+            entries.isEmpty() -> Text(strings.text("debug.traceEmpty"), fontFamily = FontFamily.Monospace)
+            else -> Column(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                entries.forEach { entry ->
                 val instruction = entry.instruction
                 val bytes = instruction.bytes.joinToString(" ") { it.hex(2) }
                 Text(
@@ -3090,14 +2988,16 @@ private fun InstructionTracePanel(
                     fontFamily = FontFamily.Monospace,
                 )
             }
+            }
         }
     }
 }
 
 @Composable
-private fun MemoryWatchPanel(
+internal fun MemoryWatchPanel(
     runner: DesktopEmulatorRunner?,
     keyboardInput: DesktopKeyboardInput,
+    strings: StudioStrings = StudioStrings.system,
 ) {
     var startText by remember(runner) { mutableStateOf("C000") }
     var endText by remember(runner) { mutableStateOf("C0FF") }
@@ -3109,10 +3009,10 @@ private fun MemoryWatchPanel(
         modifier = Modifier.fillMaxWidth().widthIn(max = 900.dp),
         horizontalAlignment = Alignment.Start,
     ) {
-        Text("Memory change watch", style = MaterialTheme.typography.labelLarge)
-        Row(
+        Text(strings.text("debug.watchChanges"), style = MaterialTheme.typography.labelLarge)
+        FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             OutlinedTextField(
                 value = startText,
@@ -3120,7 +3020,7 @@ private fun MemoryWatchPanel(
                     startText = it
                     error = null
                 },
-                label = { Text("Start (hex)") },
+                label = { Text(strings.text("debug.watchStart")) },
                 singleLine = true,
                 modifier = Modifier.widthIn(max = 150.dp)
                     .onFocusChanged { keyboardInput.setEnabled(!it.isFocused) },
@@ -3131,7 +3031,7 @@ private fun MemoryWatchPanel(
                     endText = it
                     error = null
                 },
-                label = { Text("End (hex)") },
+                label = { Text(strings.text("debug.watchEnd")) },
                 singleLine = true,
                 modifier = Modifier.widthIn(max = 150.dp)
                     .onFocusChanged { keyboardInput.setEnabled(!it.isFocused) },
@@ -3142,10 +3042,10 @@ private fun MemoryWatchPanel(
                     val start = parseHexAddress(startText)
                     val end = parseHexAddress(endText)
                     when {
-                        start == null || end == null -> error = "Addresses must be 0000..FFFF."
-                        end < start -> error = "End address must not be less than start address."
+                        start == null || end == null -> error = strings.text("debug.invalidAddresses")
+                        end < start -> error = strings.text("memory.reversedRange")
                         end - start + 1 > DesktopEmulatorRunner.MAX_MEMORY_WATCH_BYTES ->
-                            error = "A watched range may contain at most 4096 bytes."
+                            error = strings.text("debug.watchLimit")
                         else -> {
                             runner?.setMemoryWatch(start, end)
                             activeRange = start..end
@@ -3153,23 +3053,23 @@ private fun MemoryWatchPanel(
                         }
                     }
                 },
-            ) { Text("Watch") }
+            ) { Text(strings.text("debug.watch")) }
             Button(
                 enabled = runner != null && activeRange != null,
                 onClick = {
                     runner?.clearMemoryWatch()
                     activeRange = null
                 },
-            ) { Text("Clear") }
+            ) { Text(strings.text("common.clear")) }
         }
-        activeRange?.let { Text("Watching 0x${it.first.hex(4)}..0x${it.last.hex(4)}") }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        activeRange?.let { Text(strings.text("debug.watching", (it.first.hex(4)), (it.last.hex(4)))) }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             fun setAccessWatch(reads: Boolean, writes: Boolean) {
                 val start = parseHexAddress(startText)
                 val end = parseHexAddress(endText)
                 when {
-                    start == null || end == null -> error = "Addresses must be 0000..FFFF."
-                    end < start -> error = "End address must not be less than start address."
+                    start == null || end == null -> error = strings.text("debug.invalidAddresses")
+                    end < start -> error = strings.text("memory.reversedRange")
                     else -> {
                         runner?.setMemoryAccessWatch(start, end, reads, writes)
                         activeAccessRange = start..end
@@ -3177,45 +3077,46 @@ private fun MemoryWatchPanel(
                     }
                 }
             }
-            Button(enabled = runner != null, onClick = { setAccessWatch(true, false) }) { Text("Watch Read") }
-            Button(enabled = runner != null, onClick = { setAccessWatch(false, true) }) { Text("Watch Write") }
-            Button(enabled = runner != null, onClick = { setAccessWatch(true, true) }) { Text("Watch R/W") }
+            Button(enabled = runner != null, onClick = { setAccessWatch(true, false) }) { Text(strings.text("debug.watchRead")) }
+            Button(enabled = runner != null, onClick = { setAccessWatch(false, true) }) { Text(strings.text("debug.watchWrite")) }
+            Button(enabled = runner != null, onClick = { setAccessWatch(true, true) }) { Text(strings.text("debug.watchRw")) }
             Button(
                 enabled = runner != null && activeAccessRange != null,
                 onClick = {
                     runner?.clearMemoryAccessWatch()
                     activeAccessRange = null
                 },
-            ) { Text("Clear R/W") }
+            ) { Text(strings.text("debug.clearRw")) }
         }
-        activeAccessRange?.let { Text("Watching CPU access at 0x${it.first.hex(4)}..0x${it.last.hex(4)}") }
+        activeAccessRange?.let { Text(strings.text("debug.watchAccessRange", (it.first.hex(4)), (it.last.hex(4)))) }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Text(
-            "Stops when a value changes; read access and same-value writes are not detected.",
+            strings.text("debug.watchHelp"),
             style = MaterialTheme.typography.labelMedium,
         )
     }
 }
 
 @Composable
-private fun MemoryMapPanel(
+internal fun MemoryMapPanel(
     regions: List<MachineMemoryRegion>,
     onSelect: (MachineMemoryRegion) -> Unit,
+    strings: StudioStrings = StudioStrings.system,
 ) {
     val regionsById = regions.associateBy(MachineMemoryRegion::id)
     Column(
         modifier = Modifier.fillMaxWidth().widthIn(max = 900.dp),
         horizontalAlignment = Alignment.Start,
     ) {
-        Text("Memory map", style = MaterialTheme.typography.labelLarge)
+        Text(strings.text("debug.map"), style = MaterialTheme.typography.labelLarge)
         regions.forEach { region ->
             TextButton(onClick = { onSelect(region) }) {
                 val mirrorTarget = region.mirrorsRegionId?.let { id ->
-                    regionsById[id]?.displayName?.let { " → $it" }
+                    regionsById[id]?.let { " → ${strings.memoryRegionLabel(it)}" }
                 }.orEmpty()
                 Text(
                     "${region.startAddress.hex(4)}–${region.endAddressInclusive.hex(4)}  " +
-                        "${region.displayName} [${region.kind.displayName}]$mirrorTarget",
+                        "${strings.memoryRegionLabel(region)} [${strings.text(if (region.kind == MachineMemoryRegionKind.MIRROR) "debug.mirrorKind" else "debug.kind.${region.kind.name}")}]$mirrorTarget",
                     fontFamily = FontFamily.Monospace,
                 )
             }
@@ -3223,54 +3124,38 @@ private fun MemoryMapPanel(
     }
 }
 
-private val MachineMemoryRegionKind.displayName: String
-    get() = when (this) {
-        MachineMemoryRegionKind.ROM -> "ROM"
-        MachineMemoryRegionKind.RAM -> "RAM"
-        MachineMemoryRegionKind.DISPLAY -> "VRAM"
-        MachineMemoryRegionKind.MIRROR -> "mirror"
-    }
+internal fun DebuggerStopReason.checkpointDescription(): String =
+    displayName(StudioStrings(StudioLanguage.ENGLISH))
 
-private val CpuField.displayName: String
-    get() = when (this) {
-        CpuField.CURRENT_PC -> "CURRENT_PC"
-        CpuField.OPCODE -> "OP"
-        CpuField.CARRY -> "C"
-        CpuField.ZERO -> "Z"
-        CpuField.CONTROL -> "CTRL"
-        CpuField.INTERNAL_RAM -> "Internal RAM"
-        else -> name
-    }
-
-private fun DebuggerStopReason.displayName(): String = when (this) {
-    DebuggerStopReason.Reset -> "Reset"
-    DebuggerStopReason.UserPause -> "Paused by user"
-    DebuggerStopReason.StepComplete -> "Step complete"
-    is DebuggerStopReason.Breakpoint -> "Breakpoint at 0x${address.hex(4)}"
-    is DebuggerStopReason.RunToAddress -> "Run to address reached at 0x${address.hex(4)}"
+internal fun DebuggerStopReason.displayName(strings: StudioStrings = StudioStrings.system): String = when (this) {
+    DebuggerStopReason.Reset -> strings.text("emulator.reset")
+    DebuggerStopReason.UserPause -> strings.text("main.userPause")
+    DebuggerStopReason.StepComplete -> strings.text("main.stepComplete")
+    is DebuggerStopReason.Breakpoint -> strings.text("debug.stop.breakpoint", address.hex(4))
+    is DebuggerStopReason.RunToAddress -> strings.text("debug.stop.runToReached", address.hex(4))
     is DebuggerStopReason.MemoryChanged -> {
         val preview = changes.take(4).joinToString { change ->
             "${change.address.hex(4)}:${change.before.hex(2)}→${change.after.hex(2)}"
         }
-        val remaining = if (changes.size > 4) " (+${changes.size - 4} more)" else ""
-        "Memory changed after 0x${instructionAddress.hex(4)}: $preview$remaining"
+        val remaining = if (changes.size > 4) strings.text("debug.stop.more", (changes.size - 4).toString()) else ""
+        strings.text("debug.stop.memoryChanged", instructionAddress.hex(4), preview, remaining)
     }
     is DebuggerStopReason.MemoryAccessed -> {
         val preview = accesses.take(4).joinToString { access ->
             val kind = if (access.kind == MemoryAccessKind.READ) "R" else "W"
             "$kind:${access.address.hex(4)}=${access.value.hex(2)}"
         }
-        val remaining = if (accesses.size > 4) " (+${accesses.size - 4} more)" else ""
-        "Memory access by 0x${instructionAddress.hex(4)}: $preview$remaining"
+        val remaining = if (accesses.size > 4) strings.text("debug.stop.moreAccess", (accesses.size - 4).toString()) else ""
+        strings.text("debug.stop.memoryAccessed", instructionAddress.hex(4), preview, remaining)
     }
-    is DebuggerStopReason.Fault -> "Fault: ${fault.message()}"
+    is DebuggerStopReason.Fault -> strings.text("main.fault", fault.message(strings))
 }
 
-private fun DebugContextError.displayMessage(): String = when (this) {
-    DebugContextError.SessionRunning -> "Pause the emulator before capturing a Debug Context."
-    is DebugContextError.InvalidRequest -> message
+internal fun DebugContextError.displayMessage(strings: StudioStrings = StudioStrings.system): String = when (this) {
+    DebugContextError.SessionRunning -> strings.text("debug.contextPause")
+    is DebugContextError.InvalidRequest -> strings.debugContextRequestError(message)
     is DebugContextError.RomBytesNotAllowed ->
-        "ROM bytes are not included automatically. Select a RAM or display-memory range instead."
+        strings.text("debug.contextNoRom")
 }
 
 @Composable
@@ -3456,20 +3341,21 @@ private fun PocketKeyboardRows(runner: DesktopEmulatorRunner?, rows: List<List<c
     }
 }
 @Composable
-private fun HostKeyInputModeSelector(
+internal fun HostKeyInputModeSelector(
     mode: HostKeyInputMode,
     onModeSelected: (HostKeyInputMode) -> Unit,
+    strings: StudioStrings = StudioStrings.system,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().widthIn(max = 1_100.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("Host input", style = MaterialTheme.typography.labelMedium)
-        HostKeyInputModeButton("Logical", mode == HostKeyInputMode.LOGICAL) {
+        Text(strings.text("main.hostInput"), style = MaterialTheme.typography.labelMedium)
+        HostKeyInputModeButton(strings.text("main.logical"), mode == HostKeyInputMode.LOGICAL) {
             onModeSelected(HostKeyInputMode.LOGICAL)
         }
-        HostKeyInputModeButton("Physical", mode == HostKeyInputMode.PHYSICAL) {
+        HostKeyInputModeButton(strings.text("main.physical"), mode == HostKeyInputMode.PHYSICAL) {
             onModeSelected(HostKeyInputMode.PHYSICAL)
         }
     }
@@ -3483,7 +3369,7 @@ private fun HostKeyInputModeButton(
 ) {
     TextButton(
         onClick = onClick,
-        modifier = Modifier.background(
+        modifier = Modifier.semantics { this.selected = selected }.background(
             if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
             MaterialTheme.shapes.small,
         ),
@@ -3503,6 +3389,7 @@ private fun PocketLcdPanel(snapshot: DisplaySnapshot?, machineId: MachineId) {
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = 1_000.dp)
+                .semantics { contentDescription = uiText("main.lcdDescription", machineId.displayName()) }
                 .aspectRatio(panelAspectRatio),
         ) {
             drawRect(componentColors.lcdBackground)
@@ -3569,19 +3456,19 @@ private fun PocketLcdPanel(snapshot: DisplaySnapshot?, machineId: MachineId) {
 }
 
 private fun selectRomFile(owner: Frame, machineId: MachineId): File? {
-    return selectFile(owner, "Open ${machineId.displayName()} ROM", "${machineId.value}.pgrom")
+    return selectFile(owner, uiText("rom.selectFile", machineId.displayName()), "${machineId.value}.pgrom")
 }
 
 private fun selectBasicFile(owner: Frame, title: String): File? = selectFile(owner, title, "*.bas")
 
 private fun selectProjectDirectory(owner: Frame): File? = selectDirectory(
     owner,
-    "Choose Pokecom GO Studio Project Folder",
+    uiText("project.chooseFolder"),
 )
 
 private fun selectProjectParentDirectory(owner: Frame): File? = selectDirectory(
     owner,
-    "Choose Folder for New Pokecom GO Studio Project",
+    uiText("project.chooseParent"),
 )
 
 private fun selectDirectory(owner: Frame, title: String): File? {
@@ -3619,41 +3506,41 @@ private fun selectMacDirectory(owner: Frame, title: String): File? {
     }
 }
 
-private fun selectMemoryDumpFile(owner: Frame): File? = selectFile(owner, "Load PGP Memory Dump", "*.dmp")
+private fun selectMemoryDumpFile(owner: Frame): File? = selectFile(owner, uiText("memory.loadTitle"), "*.dmp")
 
-private fun selectAssemblyFile(owner: Frame): File? = selectFile(owner, "Assemble SC61860 source", "*.asm")
+private fun selectAssemblyFile(owner: Frame): File? = selectFile(owner, uiText("quick.openTitle"), "*.asm")
 
 private fun selectMemoryDumpDestination(owner: Frame): File? = selectFile(
     owner = owner,
-    title = "Save PGP Memory Dump",
+    title = uiText("memory.saveTitle"),
     suggestedFile = "memory.dmp",
     mode = FileDialog.SAVE,
 )
 
 private fun selectDisassemblyDestination(owner: Frame): File? = selectFile(
     owner = owner,
-    title = "Save SC61860 Disassembly",
+    title = uiText("debug.selectDisassembly"),
     suggestedFile = "disassembly.asm",
     mode = FileDialog.SAVE,
 )
 
 private fun selectAssembledDumpDestination(owner: Frame): File? = selectFile(
     owner = owner,
-    title = "Save assembled PGP Memory Dump",
+    title = uiText("quick.saveTitle"),
     suggestedFile = "program.dmp",
     mode = FileDialog.SAVE,
 )
 
 private fun selectCheckpointDestination(owner: Frame): File? = selectFile(
     owner = owner,
-    title = "Save Pokecom GO Studio Debug Checkpoint",
+    title = uiText("debug.selectCheckpoint"),
     suggestedFile = "checkpoint.pgpdebug.json",
     mode = FileDialog.SAVE,
 )
 
 private fun selectDebugContextDestination(owner: Frame): File? = selectFile(
     owner = owner,
-    title = "Save Pokecom GO Studio AI Debug Context",
+    title = uiText("debug.selectContext"),
     suggestedFile = "debug-context.pgpdebug.json",
     mode = FileDialog.SAVE,
 )
@@ -3662,7 +3549,7 @@ private fun copyToClipboard(text: String) {
     Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(text), null)
 }
 
-private fun codexMcpConfiguration(info: DesktopMcpServerInfo): String = """
+internal fun codexMcpConfiguration(info: DesktopMcpServerInfo): String = """
     [mcp_servers.pokecom_go_studio]
     url = "${info.url}"
     http_headers_helper = "${tomlEscape(info.headerHelperCommand)}"
@@ -3676,7 +3563,7 @@ private fun tomlEscape(value: String): String = value
 
 private fun selectBasicSaveFile(owner: Frame): File? = selectFile(
     owner = owner,
-    title = "Save BASIC source",
+    title = uiText("basic.saveTitle"),
     suggestedFile = "program.bas",
     mode = FileDialog.SAVE,
 )
@@ -3771,11 +3658,11 @@ private fun HelpLink(label: String, url: String, onMessage: (String) -> Unit) {
 }
 
 private fun openDocumentationUrl(url: String): String? = runCatching {
-    check(Desktop.isDesktopSupported()) { "Opening web links is not supported on this system." }
+    check(Desktop.isDesktopSupported()) { uiText("help.unsupported") }
     val desktop = Desktop.getDesktop()
-    check(desktop.isSupported(Desktop.Action.BROWSE)) { "No web browser is available." }
+    check(desktop.isSupported(Desktop.Action.BROWSE)) { uiText("help.noBrowser") }
     desktop.browse(URI(url))
-}.exceptionOrNull()?.let { "Could not open documentation: ${it.message ?: it::class.simpleName}" }
+}.exceptionOrNull()?.let { uiText("help.failed" , it.message ?: it::class.simpleName) }
 
 private data class ProjectTreeDisplayFile(val path: String, val file: File, val supportsDescription: Boolean)
 
@@ -3838,17 +3725,17 @@ private fun ProjectTreePanel(
     ) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Project files", style = MaterialTheme.typography.titleMedium)
+            Text(uiText("project.files"), style = MaterialTheme.typography.titleMedium)
             OutlinedButton(
                 onClick = { selected?.let { onEdit(it.file) } },
                 enabled = selected?.let { it.supportsDescription && it.file.isFile } == true,
-            ) { Text("Edit") }
+            ) { Text(uiText("project.edit")) }
         }
         OutlinedButton(
             onClick = { selected?.let { onCreateWav(it.file) } },
             enabled = selected?.let { it.file.isFile && it.file.extension.lowercase() in setOf("bas", "dmp") } == true,
             modifier = Modifier.align(Alignment.End),
-        ) { Text("Create WAV…") }
+        ) { Text(uiText("project.wav")) }
         val verticalState = rememberScrollState()
         val horizontalState = rememberScrollState()
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
@@ -3859,8 +3746,8 @@ private fun ProjectTreePanel(
                     .horizontalScroll(horizontalState)
                     .padding(end = 12.dp, bottom = 12.dp),
             ) {
-                ProjectTreeGroup("Tracked", tracked, selectedPath, onSelected)
-                ProjectTreeGroup("Untracked", untracked, selectedPath, onSelected)
+                ProjectTreeGroup(uiText("project.tracked"), tracked, selectedPath, onSelected)
+                ProjectTreeGroup(uiText("project.untracked"), untracked, selectedPath, onSelected)
             }
             VerticalScrollbar(
                 adapter = rememberScrollbarAdapter(verticalState),
@@ -3883,14 +3770,14 @@ private fun ProjectTreePanel(
             modifier = Modifier.fillMaxWidth().height(effectiveInformationHeight),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text("Source information", style = MaterialTheme.typography.titleSmall)
+            Text(uiText("project.sourceInformation"), style = MaterialTheme.typography.titleSmall)
             val descriptionScrollState = rememberScrollState()
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 Text(
                     when {
-                        selected == null -> "Select a source file."
-                        !selected.supportsDescription -> "Source information is not available for this file type."
-                        description.isBlank() -> "No leading # description."
+                        selected == null -> uiText("project.selectSource")
+                        !selected.supportsDescription -> uiText("project.noInformationType")
+                        description.isBlank() -> uiText("project.noDescription")
                         else -> description
                     },
                     modifier = Modifier.fillMaxWidth().verticalScroll(descriptionScrollState).padding(end = 12.dp),
@@ -3913,7 +3800,7 @@ private fun ProjectTreeGroup(
     selectedPath: String?,
     onSelected: (String) -> Unit,
 ) {
-    Text("$name (${files.size})")
+    Text(uiText("project.groupCount", name, files.size.toString()))
     files.forEach { source ->
         Text(
             "  ${source.path}",
@@ -3922,6 +3809,10 @@ private fun ProjectTreeGroup(
                     if (source.path == selectedPath) MaterialTheme.colorScheme.secondaryContainer
                     else Color.Transparent,
                 )
+                .semantics {
+                    contentDescription = uiText("project.selectPath", source.path)
+                    selected = source.path == selectedPath
+                }
                 .clickable { onSelected(source.path) }
                 .padding(vertical = 2.dp, horizontal = 3.dp),
             fontFamily = FontFamily.Monospace,
@@ -3933,14 +3824,14 @@ private fun ProjectTreeGroup(
 }
 
 @Composable
-private fun AssemblyOutputField(content: String) {
+internal fun AssemblyOutputField(content: String, strings: StudioStrings = StudioStrings.system) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically) {
-        Text("Assembly result", style = MaterialTheme.typography.titleMedium)
-        TextButton(onClick = { copyToClipboard(content) }) { Text("Copy all") }
+        Text(strings.text("assembly.result"), style = MaterialTheme.typography.titleMedium)
+        TextButton(onClick = { copyToClipboard(content) }) { Text(strings.text("common.copyAll")) }
     }
     val lines = remember(content) { content.ifBlank {
-        "No assembly result yet. Select Assemble to preview the result."
+        strings.text("assembly.noResult")
     }.lines() }
     val verticalState = rememberLazyListState()
     val horizontalState = rememberScrollState()
@@ -3988,159 +3879,131 @@ private fun AssemblyOutputField(content: String) {
 private fun AssemblyPreviewSection(title: String, content: String) {
     Text(title, style = MaterialTheme.typography.titleSmall)
     Text(
-        content.ifBlank { "(empty)" },
+        content.ifBlank { uiText("common.empty") },
         modifier = Modifier.fillMaxWidth().widthIn(max = 1100.dp),
         fontFamily = FontFamily.Monospace,
     )
 }
 
-private fun DesktopBasicLoadError.message(machineName: String): String = when (this) {
-    DesktopBasicLoadError.InvalidUtf8 -> "BASIC source is not valid UTF-8."
+internal fun DesktopBasicLoadError.message(machineName: String, strings: StudioStrings = StudioStrings.system): String = when (this) {
+    DesktopBasicLoadError.InvalidUtf8 -> strings.text("project.error.basicUtf8")
     is DesktopBasicLoadError.Parse ->
-        "BASIC text error at ${error.line}:${error.column}: ${error.message}"
+        strings.text("project.error.basicParse", (error.line).toString(), (error.column).toString(), strings.transferDetail(error.message))
     is DesktopBasicLoadError.UnsupportedRomInput -> {
         val detail = when (val value = error.unsupported) {
-            is Pc1245RomInputUnsupported.Character -> "character '${value.value}'"
-            is Pc1245RomInputUnsupported.SpecialSymbol -> "symbol ${value.value}"
-            is Pc1245RomInputUnsupported.RawByte -> "raw byte 0x${value.value.hex(2)}"
+            is Pc1245RomInputUnsupported.Character -> strings.text("basic.unsupportedCharacter", value.value.toString())
+            is Pc1245RomInputUnsupported.SpecialSymbol -> strings.text("basic.unsupportedSymbol", value.value.toString())
+            is Pc1245RomInputUnsupported.RawByte -> strings.text("basic.unsupportedByte", value.value.hex(2))
         }
-        "$machineName ROM input does not support $detail at ${error.line}:${error.column}."
+        strings.text("basic.unsupportedInput", machineName, detail, error.line.toString(), error.column.toString())
     }
     is DesktopBasicLoadError.UnsupportedMachine ->
-        "BASIC loading is not available for $machineName yet."
+        strings.text("basic.unsupportedMachine", machineName)
 }
 
-private fun CoreFault.message(): String = when (this) {
+private fun CoreFault.message(strings: StudioStrings = StudioStrings.system): String = when (this) {
     is CoreFault.UnsupportedOpcode ->
-        "Emulation stopped: unsupported opcode 0x${opcode.hex(2)} at PC=0x${address.hex(4)}."
+        strings.text("main.unsupportedOpcode", opcode.hex(2), address.hex(4))
 }
 
-private fun DesktopBasicProgramCompileError.message(machineName: String): String = when (this) {
-    DesktopBasicProgramCompileError.InvalidUtf8 -> "BASIC source is not valid UTF-8."
+internal fun DesktopBasicProgramCompileError.message(machineName: String, strings: StudioStrings = StudioStrings.system): String = when (this) {
+    DesktopBasicProgramCompileError.InvalidUtf8 -> strings.text("project.error.basicUtf8")
     is DesktopBasicProgramCompileError.Parse ->
-        "BASIC text error at ${error.line}:${error.column}: ${error.message}"
+        strings.text("project.error.basicParse", (error.line).toString(), (error.column).toString(), strings.transferDetail(error.message))
     is DesktopBasicProgramCompileError.Tokenize ->
-        "$machineName OLD BASIC error at ${error.line}:${error.column}: ${error.message}"
+        strings.text("project.error.oldBasic", (machineName), (error.line).toString(), (error.column).toString(), strings.transferDetail(error.message))
     is DesktopBasicProgramCompileError.S1Tokenize ->
-        "$machineName S1 BASIC error at ${error.line}:${error.column}: ${error.message}"
+        strings.text("project.error.s1Basic", (machineName), (error.line).toString(), (error.column).toString(), strings.transferDetail(error.message))
     is DesktopBasicProgramCompileError.S2Tokenize ->
-        "$machineName S2 BASIC error at ${error.line}:${error.column}: ${error.message}"
+        strings.text("project.error.s2Basic", (machineName), (error.line).toString(), (error.column).toString(), strings.transferDetail(error.message))
     is DesktopBasicProgramCompileError.UnsupportedMachine ->
-        "BASIC compilation is not available for $machineName yet."
+        strings.text("project.error.basicUnsupported", (machineName))
 }
 
-private fun BasicProgramMemoryError.message(): String = when (this) {
+internal fun BasicProgramMemoryError.message(strings: StudioStrings = StudioStrings.system): String = when (this) {
     is BasicProgramMemoryError.InvalidPointer ->
-        "Invalid BASIC memory pointers: start=0x${startAddress.hex(4)}, end=0x${endAddress.hex(4)}."
+        strings.text("project.error.basicPointer", (startAddress.hex(4)), (endAddress.hex(4)))
     is BasicProgramMemoryError.ProgramTooLarge ->
-        "BASIC program is too large: $size bytes (capacity $capacity bytes)."
+        strings.text("project.error.basicCapacity", (size).toString(), (capacity).toString())
     is BasicProgramMemoryError.InvalidProgram ->
-        "Invalid BASIC program at byte $offset: $reason"
+        strings.text("project.error.basicInvalid", (offset).toString(), strings.transferDetail(reason))
     is BasicProgramMemoryError.UnsupportedMachine ->
-        "BASIC program memory access is not implemented for ${machineId.value}."
+        strings.text("project.error.basicMemoryUnsupported", (machineId.value))
 }
 
-private fun DesktopMemoryDumpLoadError.message(): String = when (this) {
-    DesktopMemoryDumpLoadError.InvalidUtf8 -> "Memory dump is not valid UTF-8."
+internal fun DesktopMemoryDumpLoadError.message(strings: StudioStrings = StudioStrings.system): String = when (this) {
+    DesktopMemoryDumpLoadError.InvalidUtf8 -> strings.text("project.error.dumpUtf8")
     is DesktopMemoryDumpLoadError.Parse -> when (val detail = error) {
-        PgpMemoryDumpError.Empty -> "Memory dump contains no data."
+        PgpMemoryDumpError.Empty -> strings.text("project.error.emptyDump")
         is PgpMemoryDumpError.Syntax ->
-            "Memory dump error at ${detail.line}:${detail.column}: ${detail.message}"
+            strings.text("project.error.dumpSyntax", (detail.line).toString(), (detail.column).toString(), strings.transferDetail(detail.message))
         is PgpMemoryDumpError.AddressOverflow ->
-            "Memory dump line ${detail.line} exceeds address 0xFFFF."
+            strings.text("project.error.dumpOverflow", (detail.line).toString())
         is PgpMemoryDumpError.Overlap ->
-            "Memory dump line ${detail.line} overlaps line ${detail.previousLine} at 0x${detail.address.hex(4)}."
+            strings.text("project.error.dumpOverlap", (detail.line).toString(), (detail.previousLine).toString(), (detail.address.hex(4)))
     }
 }
 
-private fun DesktopProjectOpenError.message(): String = when (this) {
-    is DesktopProjectOpenError.CouldNotReadManifest -> "Could not read project: $message"
-    DesktopProjectOpenError.InvalidUtf8 -> "Project manifest is not valid UTF-8."
-    is DesktopProjectOpenError.InvalidManifest -> errors.joinToString("; ") { it.message() }
+internal fun DesktopProjectOpenError.message(strings: StudioStrings = StudioStrings.system): String = when (this) {
+    is DesktopProjectOpenError.CouldNotReadManifest -> strings.text("project.error.read", (message))
+    DesktopProjectOpenError.InvalidUtf8 -> strings.text("project.error.utf8")
+    is DesktopProjectOpenError.InvalidManifest -> errors.joinToString("; ") { it.message(strings) }
 }
 
-private fun DesktopProjectCreateError.message(): String = when (this) {
-    is DesktopProjectCreateError.DestinationExists -> "Project folder already exists: $path"
-    is DesktopProjectCreateError.CouldNotCreate -> "Could not create project: $message"
+internal fun DesktopProjectCreateError.message(strings: StudioStrings = StudioStrings.system): String = when (this) {
+    is DesktopProjectCreateError.DestinationExists -> strings.text("project.error.exists", (path))
+    is DesktopProjectCreateError.CouldNotCreate -> strings.text("project.error.create", (message))
 }
 
-private fun ProjectManifestError.message(): String = when (this) {
-    is ProjectManifestError.InvalidJson -> "Invalid project JSON: $message"
-    is ProjectManifestError.UnsupportedFormat -> "Unsupported project format: $actual"
-    is ProjectManifestError.UnsupportedVersion -> "Unsupported project version: $actual"
-    ProjectManifestError.BlankName -> "Project name must not be blank."
-    is ProjectManifestError.UnsupportedMachine -> "Unsupported project machine: $actual"
-    is ProjectManifestError.InvalidSourceId -> "Invalid source id at index $sourceIndex: $actual"
-    is ProjectManifestError.DuplicateSourceId -> "Duplicate source id: $id"
-    is ProjectManifestError.InvalidSourcePath -> "Invalid path for source '$sourceId': $actual"
-    is ProjectManifestError.DuplicateSourcePath -> "Duplicate source path: $path"
-    is ProjectManifestError.InvalidLoadAddress -> "Invalid load address for source '$sourceId': $actual"
-    is ProjectManifestError.MissingLoadAddress -> "Raw binary source '$sourceId' needs loadAddress."
-    is ProjectManifestError.UnexpectedLoadAddress -> "Source '$sourceId' must not specify loadAddress."
+internal fun ProjectManifestError.message(strings: StudioStrings = StudioStrings.system): String = when (this) {
+    is ProjectManifestError.InvalidJson -> strings.text("project.error.json", (message))
+    is ProjectManifestError.UnsupportedFormat -> strings.text("project.error.format", (actual))
+    is ProjectManifestError.UnsupportedVersion -> strings.text("project.error.version", (actual).toString())
+    ProjectManifestError.BlankName -> strings.text("project.blankName")
+    is ProjectManifestError.UnsupportedMachine -> strings.text("project.error.machine", (actual))
+    is ProjectManifestError.InvalidSourceId -> strings.text("project.error.sourceId", (sourceIndex).toString(), (actual))
+    is ProjectManifestError.DuplicateSourceId -> strings.text("project.error.duplicateId", (id))
+    is ProjectManifestError.InvalidSourcePath -> strings.text("project.error.sourcePath", (sourceId), (actual))
+    is ProjectManifestError.DuplicateSourcePath -> strings.text("project.error.duplicatePath", (path))
+    is ProjectManifestError.InvalidLoadAddress -> strings.text("project.error.loadAddress", (sourceId), (actual))
+    is ProjectManifestError.MissingLoadAddress -> strings.text("project.error.missingAddress", (sourceId))
+    is ProjectManifestError.UnexpectedLoadAddress -> strings.text("project.error.unexpectedAddress", (sourceId))
 }
 
 private fun ProjectSourceType.displayName(): String = when (this) {
     ProjectSourceType.BASIC -> "BASIC"
-    ProjectSourceType.MEMORY_DUMP -> "memory dump"
-    ProjectSourceType.RAW_BINARY -> "raw binary"
-    ProjectSourceType.ASSEMBLY -> "assembly"
+    ProjectSourceType.MEMORY_DUMP -> uiText("project.sourceType.MEMORY_DUMP")
+    ProjectSourceType.RAW_BINARY -> uiText("project.sourceType.RAW_BINARY")
+    ProjectSourceType.ASSEMBLY -> uiText("project.sourceType.ASSEMBLY")
 }
 
-private fun DesktopProjectBuildError.message(machineName: String): String = when (this) {
+internal fun DesktopProjectBuildError.message(machineName: String, strings: StudioStrings = StudioStrings.system): String = when (this) {
     is DesktopProjectBuildError.MultipleBasicSources ->
-        "A project currently supports one BASIC program; found: ${sourceIds.joinToString()}."
-    is DesktopProjectBuildError.CouldNotReadSource -> "Could not read project source '$sourceId': $message"
-    is DesktopProjectBuildError.BasicCompile -> "Source '$sourceId': ${error.message(machineName)}"
-    is DesktopProjectBuildError.MemoryDumpParse -> "Source '$sourceId': ${error.message()}"
-    is DesktopProjectBuildError.EmptyRawBinary -> "Raw binary source '$sourceId' is empty."
+        strings.text("project.error.multipleBasic", (sourceIds.joinToString()))
+    is DesktopProjectBuildError.CouldNotReadSource -> strings.text("project.error.readSource", (sourceId), (message))
+    is DesktopProjectBuildError.BasicCompile -> strings.text("project.error.basicSource", (sourceId), (error.message(machineName, strings)))
+    is DesktopProjectBuildError.MemoryDumpParse -> strings.text("project.error.sourceDetail", (sourceId), (error.message(strings)))
+    is DesktopProjectBuildError.EmptyRawBinary -> strings.text("project.error.emptyBinary", (sourceId))
     is DesktopProjectBuildError.InvalidRawBinaryRange ->
-        "Source '$sourceId' does not fit in memory at 0x${startAddress.hex(4)} ($size bytes)."
+        strings.text("project.error.binaryRange", (sourceId), (startAddress.hex(4)), (size).toString())
     is DesktopProjectBuildError.MemoryOverlap ->
-        "Source '$sourceId' overlaps '$previousSourceId' at 0x${address.hex(4)}."
-    is DesktopProjectBuildError.Placement -> "Source '$sourceId': ${error.message()}"
-    is DesktopProjectBuildError.BasicPlacement -> error.message()
+        strings.text("project.error.overlap", (sourceId), (previousSourceId), (address.hex(4)))
+    is DesktopProjectBuildError.Placement -> strings.text("project.error.sourceDetail", (sourceId), (error.message(strings)))
+    is DesktopProjectBuildError.BasicPlacement -> error.message(strings)
     is DesktopProjectBuildError.Assembly ->
-        "Assembly source '$sourceId', line $line: $message"
+        strings.text("project.error.assemblySource", sourceId, line.toString(), strings.projectOperationError(message))
 }
 
-private fun MemoryImageLoadError.message(): String = when (this) {
+internal fun MemoryImageLoadError.message(strings: StudioStrings = StudioStrings.system): String = when (this) {
     is MemoryImageLoadError.ReadOnlyAddress ->
-        "Source line $sourceLine writes read-only or unmapped address 0x${address.hex(4)}."
+        strings.text("project.error.readOnly", (sourceLine).toString(), (address.hex(4)))
     is MemoryImageLoadError.MirrorOverlap ->
-        "Source line $sourceLine: 0x${address.hex(4)} and 0x${previousAddress.hex(4)} write the same physical address 0x${physicalAddress.hex(4)}."
+        strings.text("project.error.mirrorOverlap", (sourceLine).toString(), (address.hex(4)), (previousAddress.hex(4)), (physicalAddress.hex(4)))
     is MemoryImageLoadError.BasicOverlap ->
-        "Source line $sourceLine: 0x${address.hex(4)} overlaps BASIC text, pointer updates or old-text clearing."
+        strings.text("project.error.basicOverlap", (sourceLine).toString(), (address.hex(4)))
 }
 
-private fun DesktopRomLoadError.message(): String = when (this) {
-    is DesktopRomLoadError.InvalidRom -> when (val reason = error) {
-        is com.digihori.pgp.core.emulator.machine.pc1245.RomImportError.UnsupportedMachine ->
-            "Unsupported ROM machine: ${reason.machineId.value}."
-        is com.digihori.pgp.core.emulator.machine.pc1245.RomImportError.InvalidImageSize ->
-            "Invalid ROM size: ${reason.actual} bytes (expected ${reason.expected.joinToString(" or ")})."
-        is com.digihori.pgp.core.emulator.machine.pc1245.RomImportError.InvalidComponentSize ->
-            "Invalid ${reason.componentId.value} ROM size: ${reason.actual} bytes " +
-                "(expected ${reason.expected})."
-    }
-    is DesktopRomLoadError.InvalidPackage -> "Invalid .pgrom package: ${error.message()}"
-    is DesktopRomLoadError.SessionCreation -> "Could not create emulator session: $error"
-}
-
-private fun com.digihori.pgp.desktop.rom.DesktopRomPackageError.message(): String = when (this) {
-    is com.digihori.pgp.desktop.rom.DesktopRomPackageError.PackageTooLarge ->
-        "package is too large ($actual bytes; maximum $maximum)"
-    is com.digihori.pgp.desktop.rom.DesktopRomPackageError.TooManyEntries ->
-        "package has more than $maximum entries"
-    is com.digihori.pgp.desktop.rom.DesktopRomPackageError.EntryTooLarge ->
-        "$path exceeds $maximum bytes"
-    is com.digihori.pgp.desktop.rom.DesktopRomPackageError.UnsafePath -> "unsafe path: $path"
-    is com.digihori.pgp.desktop.rom.DesktopRomPackageError.DuplicateEntry -> "duplicate entry: $path"
-    is com.digihori.pgp.desktop.rom.DesktopRomPackageError.InvalidZip -> reason
-    com.digihori.pgp.desktop.rom.DesktopRomPackageError.MissingManifest -> "manifest.json is missing"
-    is com.digihori.pgp.desktop.rom.DesktopRomPackageError.InvalidManifest -> reason
-    is com.digihori.pgp.desktop.rom.DesktopRomPackageError.Validation ->
-        errors.joinToString { it.toString() }
-}
+private fun DesktopRomLoadError.message(): String = StudioStrings.system.romLoadError(this)
 
 private const val FRAME_DELAY_MILLISECONDS: Long = 16L
 private const val PROJECT_SCAN_DELAY_MILLISECONDS: Long = 500L
@@ -4175,7 +4038,7 @@ private fun Int.hex(width: Int): String = (this and if (width == 2) 0xff else 0x
     .uppercase()
     .padStart(width, '0')
 
-private fun parseHexAddress(value: String): Int? {
+internal fun parseHexAddress(value: String): Int? {
     val normalized = value.trim().removePrefix("0x").removePrefix("0X")
     if (normalized.isEmpty() || normalized.length > 4) return null
     return normalized.toIntOrNull(16)?.takeIf { it in 0..0xffff }
@@ -4185,11 +4048,8 @@ private fun Boolean.bit(): Int = if (this) 1 else 0
 
 private fun MachineId.displayName(): String = MachineCatalog.find(this)?.displayName ?: value.uppercase()
 
-private enum class ProjectRuntimeStatus(val displayName: String) {
-    NOT_BUILT("not built"),
-    BUILT_NOT_LOADED("built; latest build not loaded"),
-    NOT_LOADED("project not loaded"),
-    UP_TO_DATE("up to date"),
-    SOURCE_CHANGED("source changed"),
-    BUILD_FAILED("build failed"),
+private enum class ProjectRuntimeStatus {
+    NOT_BUILT, BUILT_NOT_LOADED, NOT_LOADED, UP_TO_DATE, SOURCE_CHANGED, BUILD_FAILED;
+
+    val displayName: String get() = uiText("project.state.$name")
 }

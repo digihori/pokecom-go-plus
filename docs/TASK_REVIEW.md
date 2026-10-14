@@ -52,7 +52,7 @@ MSIは公開0.4のUpgradeCodeを固定しpackageVersionを1.3.1へ更新。更�
 | B5 | Quick Assemble結果表示 | DMP保存に加え、機械語・Listing・Symbol Map・診断を確認する画面 |
 | B6 | プロジェクト機種互換範囲 | BASIC単独の機種非限定化、現在機種への変換、混在プロジェクトの互換グループ、旧Manifest互換 |
 | B7 | 外部エディタ設定の仕上げ | ユーザー指定により現在の対応を一旦完了とする。代表的エディタの検出・Test起動等は将来の拡張候補 |
-| B8 | Studio日本語/英語UI | 文言をリソース化しOS言語に追従。設定、Debugger、Project、ROM管理、MCPの状態/エラーも対象 |
+| B8 | Studio日本語/英語UI | 2026-10-14ユーザーによる一通りの確認を受領し今回分を完了。対象画面・共有UI・エラー表示、OS追従と設定の言語上書き（再起動反映）を実装。36 tests、日英870 key、保存互換性、全体build／Core tests成功。確認OS・個別操作の内訳は未指定。Windows／Linux個別結果・OS設定変更試験・独立描画の欠けは後続確認（[最終検証](STUDIO_LOCALIZATION_VERIFICATION.md)、[棚卸し](STUDIO_LOCALIZATION_INVENTORY.md)、[進捗](STUDIO_LOCALIZATION_PLAN.md)） |
 
 ## M: Studio/Coreの機種対応（優先順位を独立して検討）
 

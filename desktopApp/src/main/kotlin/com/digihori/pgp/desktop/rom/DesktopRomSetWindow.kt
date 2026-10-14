@@ -1,5 +1,10 @@
 package com.digihori.pgp.desktop.rom
 
+import com.digihori.pgp.desktop.localization.uiText
+import com.digihori.pgp.desktop.localization.StudioStrings
+import com.digihori.pgp.desktop.localization.romSetCreationError
+import com.digihori.pgp.desktop.localization.romSetInputIssue
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -7,6 +12,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import com.digihori.pgp.core.api.MachineCatalog
 import com.digihori.pgp.core.api.MachineFamily
@@ -23,7 +30,7 @@ import kotlinx.coroutines.withContext
 @Composable
 internal fun DesktopRomSetWindow(initialMachineId: MachineId, onClose: () -> Unit, onRegister: (File, MachineId) -> Boolean) {
     var busy by remember { mutableStateOf(false) }
-    StudioWindow(id = "create-rom-set", title = "Create ROM Set", onCloseRequest = { if (!busy) onClose() }) {
+    StudioWindow(id = "create-rom-set", title = uiText("romSet.title"), onCloseRequest = { if (!busy) onClose() }) {
         var machineId by remember { mutableStateOf(initialMachineId) }
         var internal by remember { mutableStateOf<File?>(null) }
         var external by remember { mutableStateOf<File?>(null) }
@@ -48,7 +55,7 @@ internal fun DesktopRomSetWindow(initialMachineId: MachineId, onClose: () -> Uni
                 val result = withContext(Dispatchers.IO) {
                     runCatching { DesktopRomSetCreator.create(selectedMachine, selectedInternal, selectedExternal, selectedDestination, overwrite) }
                 }
-                result.onSuccess { created = it }.onFailure { error = it.message ?: "Could not create the ROM set." }
+                result.onSuccess { created = it }.onFailure { error = StudioStrings.system.romSetCreationError(it) }
                 busy = false
             }
         }
@@ -56,10 +63,10 @@ internal fun DesktopRomSetWindow(initialMachineId: MachineId, onClose: () -> Uni
             Surface(Modifier.fillMaxSize()) {
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("Create ROM Set", style = MaterialTheme.typography.headlineSmall)
-                    Text("Select the ROM dumps and destination below, then press Create. Original ROM files are kept. The .pgrom package includes a manifest and SHA-256 checksums.")
+                    Text(uiText("romSet.title"), style = MaterialTheme.typography.headlineSmall)
+                    Text(uiText("romSet.help"))
                     Box {
-                        OutlinedButton(enabled = !busy, onClick = { machineMenu = true }) { Text("Machine: ${definition.displayName} ▾") }
+                        OutlinedButton(enabled = !busy, onClick = { machineMenu = true }) { Text(uiText("romSet.machine" , definition.displayName)) }
                         DropdownMenu(expanded = machineMenu, onDismissRequest = { machineMenu = false }) {
                             MachineCatalog.definitions.forEach { machine ->
                                 DropdownMenuItem(text = { Text(machine.displayName) }, onClick = {
@@ -72,44 +79,44 @@ internal fun DesktopRomSetWindow(initialMachineId: MachineId, onClose: () -> Uni
                             }
                         }
                     }
-                    RomFileField("Internal ROM — 8 KiB (8192 bytes)", internal, !busy,
-                        internal?.let { DesktopRomSetCreator.inputError(it, 8192) }) {
-                        chooseRomSetFile(window, "Select internal ROM", "internal.bin")?.let { internal = it; changed() }
+                    RomFileField(uiText("romSet.internal"), internal, !busy,
+                        internal?.let { DesktopRomSetCreator.inputIssue(it, 8192)?.let(StudioStrings.system::romSetInputIssue) }) {
+                        chooseRomSetFile(window, uiText("romSet.selectInternal"), "internal.bin")?.let { internal = it; changed() }
                     }
                     val banking = definition.memoryBanking as? com.digihori.pgp.core.api.MachineMemoryBanking.Banked
                     val banked = banking != null
-                    RomFileField(if (banked) "External ROM — ${externalSize / 1024} KiB (${banking.bankCount} banks × 16 KiB)" else "External ROM — ${externalSize / 1024} KiB ($externalSize bytes)",
-                        external, !busy, external?.let { DesktopRomSetCreator.inputError(it, externalSize) }) {
-                        chooseRomSetFile(window, "Select external ROM", if (banked) "${machineId.value.replace("-", "").removeSuffix("u")}bank.bin" else "external.bin")?.let { external = it; changed() }
+                    RomFileField(if (banked) uiText("romSet.externalBanked" , (externalSize / 1024).toString(), banking.bankCount.toString()) else uiText("romSet.external" , (externalSize / 1024).toString(), externalSize.toString()),
+                        external, !busy, external?.let { DesktopRomSetCreator.inputIssue(it, externalSize)?.let(StudioStrings.system::romSetInputIssue) }) {
+                        chooseRomSetFile(window, uiText("romSet.selectExternal"), if (banked) "${machineId.value.replace("-", "").removeSuffix("u")}bank.bin" else "external.bin")?.let { external = it; changed() }
                     }
-                    if (banked) Text("Choose a combined bank file containing bank 0 through bank ${banking.bankCount - 1} in order.", style = MaterialTheme.typography.bodySmall)
-                    RomFileField("Destination folder and file name (.pgrom)", destination, !busy) {
-                        chooseRomSetFile(window, "Save ROM Set", destination?.name ?: "${machineId.value}.pgrom", FileDialog.SAVE,
+                    if (banked) Text(uiText("romSet.bankHelp" , (banking.bankCount - 1).toString()), style = MaterialTheme.typography.bodySmall)
+                    RomFileField(uiText("romSet.destination"), destination, !busy) {
+                        chooseRomSetFile(window, uiText("romSet.save"), destination?.name ?: "${machineId.value}.pgrom", FileDialog.SAVE,
                             destination?.parentFile)?.let { destination = DesktopRomSetCreator.destination(it); changed() }
                     }
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    created?.let { Text("Created: ${it.absolutePath}", color = MaterialTheme.colorScheme.primary) }
+                    created?.let { Text(uiText("romSet.created" , it.absolutePath), color = MaterialTheme.colorScheme.primary) }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                         Button(enabled = !busy && created == null && destination != null &&
                             DesktopRomSetCreator.inputError(internal, 8192) == null &&
                             DesktopRomSetCreator.inputError(external, externalSize) == null,
                             onClick = { if (destination?.exists() == true) overwriteConfirmation = true else create(false) }) {
-                            Text(if (busy) "Creating…" else "Create")
+                            Text(if (busy) uiText("romSet.creating") else uiText("romSet.create"))
                         }
                         created?.let { file ->
-                            OutlinedButton(onClick = { if (onRegister(file, machineId)) onClose() else error = "Registration failed. See the Studio error message." }) {
-                                Text("Register in ROM Library")
+                            OutlinedButton(onClick = { if (onRegister(file, machineId)) onClose() else error = uiText("romSet.registrationFailed") }) {
+                                Text(uiText("romSet.register"))
                             }
                         }
-                        TextButton(enabled = !busy, onClick = onClose) { Text("Close") }
+                        TextButton(enabled = !busy, onClick = onClose) { Text(uiText("romSet.close")) }
                     }
                 }
                 if (overwriteConfirmation) AlertDialog(
                     onDismissRequest = { overwriteConfirmation = false },
-                    title = { Text("Replace existing ROM set?") },
+                    title = { Text(uiText("romSet.replaceConfirm")) },
                     text = { Text(destination?.absolutePath.orEmpty()) },
-                    confirmButton = { TextButton(onClick = { overwriteConfirmation = false; create(true) }) { Text("Replace") } },
-                    dismissButton = { TextButton(onClick = { overwriteConfirmation = false }) { Text("Cancel") } },
+                    confirmButton = { TextButton(onClick = { overwriteConfirmation = false; create(true) }) { Text(uiText("romSet.replace")) } },
+                    dismissButton = { TextButton(onClick = { overwriteConfirmation = false }) { Text(uiText("romSet.cancel")) } },
                 )
             }
         }
@@ -117,16 +124,19 @@ internal fun DesktopRomSetWindow(initialMachineId: MachineId, onClose: () -> Uni
 }
 
 @Composable
-private fun RomFileField(label: String, file: File?, enabled: Boolean, error: String? = null, onSelect: () -> Unit) {
+internal fun RomFileField(label: String, file: File?, enabled: Boolean, error: String? = null, strings: StudioStrings = StudioStrings.system, onSelect: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(label, style = MaterialTheme.typography.titleSmall)
-        OutlinedButton(onClick = onSelect, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(onClick = onSelect, enabled = enabled, modifier = Modifier.fillMaxWidth().semantics {
+            contentDescription = strings.text("romSet.fileDescription", label, file?.absolutePath ?: strings.text("romSet.select"))
+        }) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(file?.absolutePath ?: "Select…", modifier = Modifier.weight(1f))
-                Text("Browse…")
+                Text(file?.absolutePath ?: strings.text("romSet.select"), modifier = Modifier.weight(1f))
+                Spacer(Modifier.width(12.dp))
+                Text(strings.text("romSet.browse"))
             }
         }
-        if (file != null) Text(error ?: "Selected", color = if (error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+        if (file != null) Text(error ?: strings.text("romSet.selected"), color = if (error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.bodySmall)
     }
 }

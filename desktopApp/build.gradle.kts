@@ -76,3 +76,10 @@ compose.desktop {
         }
     }
 }
+
+// Isolated visual verification; never starts Studio preferences, ROM library, or SDL.
+tasks.register<JavaExec>("localizationPreview") {
+    dependsOn(tasks.named("testClasses"))
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("com.digihori.pgp.desktop.localization.LocalizationPreviewKt")
+}

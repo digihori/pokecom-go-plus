@@ -2,10 +2,20 @@ package com.digihori.pgp.desktop.window
 
 import com.digihori.pgp.desktop.input.HostKeyInputMode
 import java.util.prefs.Preferences
+import com.digihori.pgp.desktop.localization.StudioLanguagePreference
+import com.digihori.pgp.desktop.localization.StudioLanguagePreferences
 import com.digihori.pgp.desktop.runner.DesktopExecutionSpeed
 
 internal object DesktopUiPreferences {
     private val preferences = Preferences.userRoot().node("com/digihori/pgp/desktop/ui")
+
+    fun languagePreference(): StudioLanguagePreference = runCatching {
+        StudioLanguagePreferences(preferences).load()
+    }.getOrDefault(StudioLanguagePreference.OS_DEFAULT)
+
+    fun saveLanguagePreference(value: StudioLanguagePreference) {
+        StudioLanguagePreferences(preferences).save(value)
+    }
 
     fun executionSpeed(): DesktopExecutionSpeed = runCatching {
         DesktopExecutionSpeed.valueOf(preferences.get("executionSpeed", DesktopExecutionSpeed.LEVEL_3.name))

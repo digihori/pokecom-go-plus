@@ -159,12 +159,14 @@ SC61860 Assembler強化、Studio統合WAV Toolと波形解析を含む。
   - [ ] Playerでも同じROMライブラリモデルを実装する
   - [ ] ROMデータをプロジェクト、ログ、バックアップ、同期対象へ意図せず含めない保存方針を定義する
 - [ ] Studio設定と最近使ったプログラムファイル
-- [ ] Studio UIをシステム言語設定に応じてローカライズする
-  - [ ] UI文言をリソースへ分離し、日本語と英語を切り替えられるようにする
-  - [ ] 初期言語はOSのシステム言語から選び、未対応言語では英語へフォールバックする
-  - [ ] AI / MCP Server、Debugger、Project、ROM管理を含む説明、操作、状態、エラー文言を対象にする
-  - [ ] MCP tool名、JSON field、schema ID、設定key、URL、file path等の外部仕様上の識別子は翻訳しない
-  - [ ] 将来、システム言語とは別にStudio設定から表示言語を上書きできる余地を残す
+- [x] Studio UIをシステム言語設定に応じてローカライズする（2026-10-14ユーザー受入れ済み）
+  - 2026-10-14: Studio対象画面の日英文言移行・再起動反映の言語設定・自動検証を完了。ユーザーによる一通りの確認を受領。OS／個別操作の内訳は未指定で、OS設定変更試験・Windows／Linux個別結果・独立画像の描画欠けは後続確認として記録。[最終検証](STUDIO_LOCALIZATION_VERIFICATION.md)。[進捗](STUDIO_LOCALIZATION_PLAN.md)、[棚卸し・用語表](STUDIO_LOCALIZATION_INVENTORY.md)。
+  - [x] StudioのUI文言をリソースへ分離し、起動時に日本語／英語を選択する（実行中切替UIは今回対象外）
+  - [x] 初期言語はDesktopでOS由来の表示Localeから選び、未対応言語では英語へフォールバックする（実OS設定変更試験は未実施）
+  - [x] AI / MCP Server、Debugger、Project、ROM管理を含む説明、操作、状態、エラー文言を日英へ移行する
+  - [x] MCP tool名、JSON field、schema ID、設定key、URL、file path等の外部仕様上の識別子を維持する
+  - [ ] 本番Mac／Windows／Linuxの実表示・操作とOS言語設定変更試験を確認する
+  - [x] ユーザー追加指示により、設定でOSの設定に従う／日本語／Englishを保存し、アプリ再起動後に反映する（実行中切替は対象外）
 - [x] StudioへFile／Project／Program／Emulator／Debugメニューバーを追加する
 - [x] メイン画面をLCD、機種別キーボード、Run／Pause／Reset／Step、動作モード中心に整理する
 - [x] 機種選択ボタン群をコンボボックスへ置き換える

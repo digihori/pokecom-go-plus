@@ -1,5 +1,7 @@
 package com.digihori.pgp.desktop.rom
 
+import com.digihori.pgp.desktop.localization.StudioStrings
+import com.digihori.pgp.desktop.localization.StudioLanguage
 import com.digihori.pgp.core.api.MachineCatalog
 import com.digihori.pgp.core.api.MachineDefinition
 import com.digihori.pgp.core.api.MachineFamily
@@ -16,10 +18,10 @@ internal object DesktopRomRegistrationCatalog {
         }
     }
 
-    fun label(id: MachineId): String = when (MachineCatalog.require(id).family) {
-        MachineFamily.PC_1251 -> "PC-1250 / PC-1251 / PC-1255 family"
-        MachineFamily.PC_1261 -> "PC-1261 family"
-        MachineFamily.PC_1401 -> "PC-1401 family"
+    fun label(id: MachineId, strings: StudioStrings = StudioStrings(StudioLanguage.ENGLISH)): String = when (MachineCatalog.require(id).family) {
+        MachineFamily.PC_1251 -> strings.text("rom.family", "PC-1250 / PC-1251 / PC-1255")
+        MachineFamily.PC_1261 -> strings.text("rom.family", "PC-1261")
+        MachineFamily.PC_1401 -> strings.text("rom.family", "PC-1401")
         else -> MachineCatalog.require(id).displayName
     }
 }
