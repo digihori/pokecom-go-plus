@@ -458,7 +458,7 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
 2026-10-12にPC-1245 Androidの今回の範囲を完了し、ユーザーが動作確認済み。
 2026-10-15にホーム・メニュー・情報画面の整理、Physical外部キーボード、PC-1401 Androidの予定範囲を完了し、ユーザーが今回の区切りを承認した。
 [検証区分と未確認事項](ANDROID_PC1401_PROGRESS.md)を保持する。PC-1245 iOSの残作業とPC-1350 Androidは後続。1401／1350のiOSは今回に含めない。
-WAV、Project、Debugger、音声出力、セーブステート、ゲームパッド接続時の表示自動切替は後続。
+WAV、Project、Debugger、iOS音声出力、セーブステート、ゲームパッド接続時の表示自動切替は後続。
 公開の判断・version更新・配布物検証は開発完了とは別に行う。操作は[Playerガイド](PLAYER_PROGRAM_IO.md)を参照。
 
 - [x] Android PlayerアプリのPC-1245対応（2026-10-12、ユーザー動作確認済み）
@@ -504,7 +504,10 @@ WAV、Project、Debugger、音声出力、セーブステート、ゲームパ�
 - [x] RUN／PRO／RSV、Reset、Pause
   - [x] Androidの画面フレームで共有Runnerを駆動し、Run／Pause／ResetとLCD更新を接続する
   - [x] 機種定義の対応範囲に従ってRUN／PRO／RSV動作モードを切り替える
-- [ ] Android AudioTrack／iOS音声APIへのPCM接続
+- [x] Android AudioTrackへのPCM接続とサウンドON／OFF（実装・自動テスト、ユーザー再生成功報告あり。環境・機種は未特定、機種別の実機確認は後続）
+- [x] Android CPU速度の固定5段階と音声再生レートの連動（無制限は未実装）
+  - [音声・速度対応記録](PLAYER_AUDIO_SPEED_PROGRESS.md)に実装・自動検証・エミュレータ・実機を分離
+- [ ] iOS音声APIへのPCM接続・速度設定UI
 - [ ] セーブステートとモバイルライフサイクル
 - [x] ゲームパッドのキー割当（Studio／Android、単一設定。接続による表示自動切替は後続）
 - [x] Android Physical外部キーボード入力、フォーカス復帰、SHIFT単独、機種別の最小保持・解放間隔

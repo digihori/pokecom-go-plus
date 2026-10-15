@@ -116,6 +116,7 @@ internal fun PlayerApp(
     onOperatingModeChange: (OperatingMode) -> Unit,
     romImportEnabled: Boolean,
     onControllerSettings: () -> Unit = {},
+    onPlaybackSettings: (String) -> Unit = {},
     onLoadProgram: () -> Unit = {},
     onSaveProgram: () -> Unit = {},
     onMenuVisibilityChange: (Boolean) -> Unit = {},
@@ -174,6 +175,7 @@ internal fun PlayerApp(
                         onMenuVisibilityChange = onMenuVisibilityChange,
                         onManageRom = onManageRom,
                         onControllerSettings = onControllerSettings,
+                        onPlaybackSettings = onPlaybackSettings,
                         onInformation = onInformation,
                         homeMenu = true,
                         modifier = Modifier.fillMaxSize(),
@@ -420,6 +422,7 @@ private fun PlayerMenu(
     onOperatingModeChange: (OperatingMode) -> Unit,
     modifier: Modifier = Modifier,
     onControllerSettings: () -> Unit = {},
+    onPlaybackSettings: (String) -> Unit = {},
     onLoadProgram: () -> Unit = {},
     onSaveProgram: () -> Unit = {},
     onMenuVisibilityChange: (Boolean) -> Unit = {},
@@ -517,6 +520,8 @@ private fun PlayerMenu(
                         when (section) {
                             "設定" -> {
                                 MenuEntry("ROM管理") { close(); onManageRom() }
+                                MenuEntry("CPU速度") { close(); onPlaybackSettings("speed") }
+                                MenuEntry("サウンド") { close(); onPlaybackSettings("sound") }
                                 MenuEntry("コントローラ設定") { close(); onControllerSettings() }
                             }
                             "エミュレータ操作" -> {

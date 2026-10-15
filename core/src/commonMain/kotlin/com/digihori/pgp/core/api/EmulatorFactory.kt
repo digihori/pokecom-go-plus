@@ -142,7 +142,7 @@ private class Pc1261EmulatorSession(private val machine: Pc1261Machine) : Emulat
         )
     }
     override fun audioSnapshot() = AudioSnapshot(machine.buzzerState.frequencyHz, machine.buzzerState.revision)
-    override fun drainAudioSamples() = AudioPcmSnapshot(Pc1245Buzzer.SAMPLE_RATE, machine.buzzerState.drainPcm())
+    override fun drainAudioSamples() = machine.buzzerState.drainAudioSnapshot()
     override fun loadBasicProgram(program: ByteArray) = machine.loadBasicProgram(program).toLoadResult()
     override fun basicProgramSnapshot() = machine.basicProgram().toSnapshotResult()
     override fun loadMemoryImage(image: com.digihori.pgp.core.source.machine.AddressedMemoryImage): MemoryImageLoadResult {
@@ -192,7 +192,7 @@ private class Pc1401EmulatorSession(private val machine: Pc1401Machine) : Emulat
     }
     override fun displaySnapshot(): DisplaySnapshot = machine.displayState.snapshot()
     override fun audioSnapshot() = AudioSnapshot(machine.buzzerState.frequencyHz, machine.buzzerState.revision)
-    override fun drainAudioSamples() = AudioPcmSnapshot(Pc1245Buzzer.SAMPLE_RATE, machine.buzzerState.drainPcm())
+    override fun drainAudioSamples() = machine.buzzerState.drainAudioSnapshot()
     override fun loadBasicProgram(program: ByteArray) = machine.loadBasicProgram(program).toLoadResult()
     override fun basicProgramSnapshot() = machine.basicProgram().toSnapshotResult()
     override fun loadMemoryImage(image: com.digihori.pgp.core.source.machine.AddressedMemoryImage): MemoryImageLoadResult {
@@ -242,7 +242,7 @@ private class Pc14xxEmulatorSession(private val machine: Pc14xxMachine) : Emulat
     }
     override fun displaySnapshot(): DisplaySnapshot = machine.displayState.snapshot()
     override fun audioSnapshot() = AudioSnapshot(machine.buzzerState.frequencyHz, machine.buzzerState.revision)
-    override fun drainAudioSamples() = AudioPcmSnapshot(Pc1245Buzzer.SAMPLE_RATE, machine.buzzerState.drainPcm())
+    override fun drainAudioSamples() = machine.buzzerState.drainAudioSnapshot()
     override fun loadBasicProgram(program: ByteArray) = machine.loadBasicProgram(program).toLoadResult()
     override fun basicProgramSnapshot() = machine.basicProgram().toSnapshotResult()
     override fun loadMemoryImage(image: com.digihori.pgp.core.source.machine.AddressedMemoryImage): MemoryImageLoadResult {
@@ -315,7 +315,7 @@ private class Pc1360EmulatorSession(
         )
     }
     override fun audioSnapshot(): AudioSnapshot = AudioSnapshot(machine.buzzerState.frequencyHz, machine.buzzerState.revision)
-    override fun drainAudioSamples(): AudioPcmSnapshot = AudioPcmSnapshot(Pc1245Buzzer.SAMPLE_RATE, machine.buzzerState.drainPcm())
+    override fun drainAudioSamples(): AudioPcmSnapshot = machine.buzzerState.drainAudioSnapshot()
     override fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult = machine.loadBasicProgram(program).toLoadResult()
     override fun basicProgramSnapshot(): BasicProgramSnapshotResult = machine.basicProgram().toSnapshotResult()
     override fun loadMemoryImage(image: com.digihori.pgp.core.source.machine.AddressedMemoryImage): MemoryImageLoadResult {
@@ -399,7 +399,7 @@ private class Pc1350EmulatorSession(
     }
     override fun audioSnapshot(): AudioSnapshot = AudioSnapshot(machine.buzzerState.frequencyHz, machine.buzzerState.revision)
     override fun drainAudioSamples(): AudioPcmSnapshot =
-        AudioPcmSnapshot(Pc1245Buzzer.SAMPLE_RATE, machine.buzzerState.drainPcm())
+        machine.buzzerState.drainAudioSnapshot()
     override fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult =
         machine.loadBasicProgram(program).toLoadResult()
     override fun basicProgramSnapshot(): BasicProgramSnapshotResult =
@@ -503,10 +503,7 @@ private class Pc1251EmulatorSession(
         machine.buzzerState.frequencyHz,
         machine.buzzerState.revision,
     )
-    override fun drainAudioSamples(): AudioPcmSnapshot = AudioPcmSnapshot(
-        Pc1245Buzzer.SAMPLE_RATE,
-        machine.buzzerState.drainPcm(),
-    )
+    override fun drainAudioSamples(): AudioPcmSnapshot = machine.buzzerState.drainAudioSnapshot()
     override fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult =
         machine.loadBasicProgram(program).toLoadResult()
     override fun basicProgramSnapshot(): BasicProgramSnapshotResult =
@@ -649,10 +646,7 @@ private class Pc1245EmulatorSession(
         revision = machine.buzzerState.revision,
     )
 
-    override fun drainAudioSamples(): AudioPcmSnapshot = AudioPcmSnapshot(
-        sampleRate = Pc1245Buzzer.SAMPLE_RATE,
-        samples = machine.buzzerState.drainPcm(),
-    )
+    override fun drainAudioSamples(): AudioPcmSnapshot = machine.buzzerState.drainAudioSnapshot()
 
     override fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult =
         when (val result = machine.loadBasicProgram(program)) {
@@ -740,4 +734,10 @@ private fun Pc1245BasicMemoryResult.toSnapshotResult(): BasicProgramSnapshotResu
     is Pc1245BasicMemoryResult.TooLarge -> error("Program extraction cannot exceed capacity")
     is Pc1245BasicMemoryResult.InvalidProgram ->
         BasicProgramSnapshotResult.Failure(BasicProgramMemoryError.InvalidProgram(offset, reason))
+}
+
+/** Keep omitted silent PCM and its elapsed frame count in the same drain operation. */
+private fun Pc1245Buzzer.drainAudioSnapshot(): AudioPcmSnapshot {
+    val samples = drainPcm()
+    return AudioPcmSnapshot(Pc1245Buzzer.SAMPLE_RATE, samples, lastDrainFrameCount)
 }

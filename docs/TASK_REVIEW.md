@@ -100,7 +100,7 @@ Android/iOS Playerへの機種追加（B3）とは別の作業として扱う。
 | D3 | その他機種・仕様差 | PC-1402用ROMのBASIC実行照合、PC-1460/1470Uの実機／最大容量照合、機種固有BASIC、PC-1245/1250ミラー実機照合。PC-1360バンクは実装済み |
 | D4 | S1/S2 WAV | 信号・BASIC/Binary codec、checksum、実機往復。Playerを優先して後回し、当面pcwavを案内 |
 | D5 | WAV Analyzer追加 | 全信号形式、候補比較、ON/OFF/W0/W1/leader/byte境界overlay、原channel、段階間選択、個別export、実録音fixture。OLD波形/zoom/pan/cursor等は実装済み |
-| D6 | Player音声・Save State | Android/iOS PCM接続、完全状態の保存復元とライフサイクル。現在のCheckpoint出力とは別 |
+| D6 | Player音声・速度・Save State | Android音声出力／速度5段階を実装。ユーザーから再生成功報告あり（環境・機種未特定）。[検証区分と実機の残作業](PLAYER_AUDIO_SPEED_PROGRESS.md)。iOS接続、無制限、完全状態の保存復元は後続。現在のCheckpoint出力とは別 |
 | D7 | Player後続UI・入力 | パッド接続時の表示自動切替、追加機種のRUN/PRO/RSV表示。AndroidのPhysical外付けキーボードは今回実装済み |
 | D8 | iOS実機・最低OS・配布 | Developer登録/署名、端末操作、Files共有受取り、実パッド、iOS 16確認。Simulator完了と別。iPadは現在対象外 |
 | D9 | ROM管理の拡張 | Import Wizard、bank slot一括割当、機種拡大時のPlayer Library、ROMをバックアップ/同期へ含めない方針 |

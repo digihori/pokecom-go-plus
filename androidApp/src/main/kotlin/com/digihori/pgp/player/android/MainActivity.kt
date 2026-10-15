@@ -40,6 +40,8 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.digihori.pgp.core.api.PocketKey
 import com.digihori.pgp.core.api.OperatingMode
+import com.digihori.pgp.player.PlayerExecutionSpeed
+import com.digihori.pgp.player.android.audio.AndroidPlayerAudio
 import com.digihori.pgp.player.PlayerDisplayFrame
 import com.digihori.pgp.player.PlayerKeyboard
 import com.digihori.pgp.player.PlayerRunState
@@ -68,6 +70,12 @@ class MainActivity : ComponentActivity() {
     private var showHome by mutableStateOf(true)
     private var showPlayerMenu by mutableStateOf(false)
     private var showControllerSettings by mutableStateOf(false)
+    private var playbackSettings: String? by mutableStateOf(null)
+    private var soundEnabled by mutableStateOf(true)
+    private var executionSpeed by mutableStateOf(PlayerExecutionSpeed.NORMAL)
+    private var audioStatus: String? by mutableStateOf(null)
+    private lateinit var audio: AndroidPlayerAudio
+    private val playbackPreferences by lazy { getSharedPreferences("player-playback", MODE_PRIVATE) }
     private var hostResumed by mutableStateOf(false)
     private var pendingInitialRun = false
     private var windowHasFocus by mutableStateOf(false)
@@ -84,6 +92,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         configureSystemBars()
+        volumeControlStream = android.media.AudioManager.STREAM_MUSIC
+        soundEnabled = runCatching { playbackPreferences.getBoolean("sound", true) }.getOrDefault(true)
+        executionSpeed = PlayerExecutionSpeed.fromId(runCatching { playbackPreferences.getString("speed", null) }.getOrNull())
+        audio = AndroidPlayerAudio(this) { status ->
+            if (status != null && status != audioStatus) android.widget.Toast.makeText(this, status, android.widget.Toast.LENGTH_LONG).show()
+            audioStatus = status
+        }
+        audio.setEnabled(soundEnabled)
         gamepad = AndroidGamepadController(this,
             press = { button, key -> hostKeys.press("gamepad:${button.name}", key) },
             release = { button, _ -> hostKeys.release("gamepad:${button.name}") },
@@ -104,7 +120,7 @@ class MainActivity : ComponentActivity() {
             val playerInputFocus = remember { FocusRequester() }
             val focusManager = LocalFocusManager.current
             val playerOwnsFocus = !showHome && screenState is PlayerScreenState.Emulator &&
-                !showPlayerMenu && !showControllerSettings && informationSection == null &&
+                !showPlayerMenu && !showControllerSettings && playbackSettings == null && informationSection == null &&
                 programIo.dialog == null && romManager.state == null
             LaunchedEffect(playerOwnsFocus, hostResumed, windowHasFocus,
                 (screenState as? PlayerScreenState.Emulator)?.runState) {
@@ -114,6 +130,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             BackHandler(enabled = !showHome) { returnHome() }
+            BackHandler(enabled = playbackSettings != null) { playbackSettings = null; updateGamepadContext() }
             BackHandler(enabled = showControllerSettings) { closeControllerSettings() }
             Box(Modifier.fillMaxSize().focusRequester(playerInputFocus)
                 .onFocusChanged { playerHasInputFocus = it.isFocused }
@@ -149,6 +166,11 @@ class MainActivity : ComponentActivity() {
                     onTogglePresentationMode = ::togglePresentationMode,
                     onOperatingModeChange = ::setOperatingMode,
                     romImportEnabled = screenState != PlayerScreenState.Loading,
+                    onPlaybackSettings = { section ->
+                        playbackSettings = section
+                        releaseAllKeys()
+                        updateGamepadContext()
+                    },
                     onControllerSettings = {
                         showControllerSettings = true
                         releaseAllKeys()
@@ -162,6 +184,21 @@ class MainActivity : ComponentActivity() {
                         informationSection = null
                         updateGamepadContext()
                     }
+                }
+                playbackSettings?.let { section ->
+                    PlayerPlaybackSettings(section, soundEnabled, executionSpeed, audioStatus,
+                        onSound = { enabled ->
+                            soundEnabled = enabled
+                            playbackPreferences.edit().putBoolean("sound", enabled).apply()
+                            audio.setEnabled(enabled)
+                        },
+                        onSpeed = { speed ->
+                            executionSpeed = speed
+                            playbackPreferences.edit().putString("speed", speed.id).apply()
+                            playerSession?.runner?.setSpeed(speed, System.nanoTime())
+                            audio.stop()
+                        },
+                        onBack = { playbackSettings = null; updateGamepadContext() })
                 }
                 if (showControllerSettings) {
                     MaterialTheme {
@@ -286,7 +323,7 @@ class MainActivity : ComponentActivity() {
     private fun updateGamepadContext() {
         if (::physicalKeyboard.isInitialized) physicalKeyboard.input.configure(
             hostResumed && windowHasFocus && !showHome && !showPlayerMenu &&
-                !showControllerSettings && informationSection == null &&
+                !showControllerSettings && playbackSettings == null && informationSection == null &&
                 (!::programIo.isInitialized || programIo.dialog == null) &&
                 (!::romManager.isInitialized || romManager.state == null) &&
                 playerSession?.runner?.state == PlayerRunState.RUNNING,
@@ -302,7 +339,7 @@ class MainActivity : ComponentActivity() {
         if (::gamepad.isInitialized) gamepad.configure(
             playerSession?.machineId,
             hostResumed && windowHasFocus && playerSession?.runner?.state == PlayerRunState.RUNNING,
-            showHome || showPlayerMenu || showControllerSettings || informationSection != null ||
+            showHome || showPlayerMenu || showControllerSettings || playbackSettings != null || informationSection != null ||
                 (::programIo.isInitialized && programIo.dialog != null) ||
                 (::romManager.isInitialized && romManager.state != null),
         )
@@ -316,6 +353,7 @@ class MainActivity : ComponentActivity() {
         releaseAllKeys()
         if (::gamepad.isInitialized) gamepad.close()
         if (::physicalKeyboard.isInitialized) physicalKeyboard.close()
+        if (::audio.isInitialized) audio.close()
         ioExecutor.shutdownNow()
         super.onDestroy()
     }
@@ -370,9 +408,11 @@ class MainActivity : ComponentActivity() {
         runOnUiThread {
             if (!isDestroyed) {
                 stopFrameLoop()
+                audio.stop()
                 releaseAllKeys()
                 entryPolicy.newSession()
                 presentationMode = PresentationMode.FULL_DEVICE
+                session.runner.setSpeed(executionSpeed, System.nanoTime())
                 playerSession = session
                 keyboard = session.keyboard()
                 if (session.machineId.value == "pc-1245") session.setOperatingMode(OperatingMode.RUN)
@@ -421,6 +461,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun pauseEmulator() {
+        if (::audio.isInitialized) audio.stop()
         pendingInitialRun = false
         startRequested = false
         stopFrameLoop()
@@ -432,6 +473,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun resetEmulator() {
+        audio.stop()
         startRequested = false
         stopFrameLoop()
         releaseAllKeys()
@@ -463,10 +505,14 @@ class MainActivity : ComponentActivity() {
             pendingInitialRun = false
             startRequested = false
             session.runner.run(frameTimeNanoseconds)
+            audio.start()
         }
         if (session.runner.state == PlayerRunState.RUNNING) {
             val tick = session.runner.tick(frameTimeNanoseconds)
             physicalKeyboard.input.advanceCycles(tick.runResult?.executedCycles ?: 0L)
+            if (session.runner.state == PlayerRunState.RUNNING) {
+                tick.audio?.let { audio.play(it, tick.speed.playbackRate(it.sampleRate)) }
+            } else audio.stop()
         }
         refreshSession(session)
         if (session.runner.state == PlayerRunState.RUNNING) postFrame()

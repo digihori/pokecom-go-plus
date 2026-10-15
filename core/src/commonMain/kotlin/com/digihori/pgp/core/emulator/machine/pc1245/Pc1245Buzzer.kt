@@ -37,8 +37,12 @@ internal class Pc1245Buzzer(private val clockHz: Double = 192_000.0) {
         elapsedCycles += cycles
     }
 
+    var lastDrainFrameCount: Int = 0
+        private set
+
     fun drainPcm(): ShortArray {
         val sampleCount = ((elapsedCycles - renderedCycles) / cyclesPerSample).toInt()
+        lastDrainFrameCount = max(0, sampleCount)
         if (sampleCount <= 0) return ShortArray(0)
         val output = ShortArray(sampleCount)
         var eventIndex = 0
@@ -78,6 +82,7 @@ internal class Pc1245Buzzer(private val clockHz: Double = 192_000.0) {
 
     fun reset() {
         if (mode != MODE_LOW) revision++
+        lastDrainFrameCount = 0
         mode = MODE_LOW
         frequencyHz = 0
         elapsedCycles = 0

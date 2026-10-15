@@ -85,7 +85,7 @@ JDK 21の全体build・Coreテストに加え、共有PlayerとAndroidの単体�
 これは全Android端末・全document providerの網羅検証を意味しない。Technical Preview 0.4として2026-10-12に公開済み。配布物・署名・version・
 プライバシー仮表示の扱いは[0.4 Release Notes](RELEASE_NOTES_0.4.0-alpha.1.md)に記載している。
 次はPC-1245 iOS、続いてPC-1401／1350 Androidを予定する。
-音声出力・セーブステートは対象外。外部キーボードのPhysical入力は2026-10-15のレビュー対応で追加した。
+セーブステートは対象外。Androidの音声出力とCPU速度5段階はホームの「設定」から変更できる。機器別の検証状況は[音声・速度対応記録](PLAYER_AUDIO_SPEED_PROGRESS.md)を参照。外部キーボードのPhysical入力は2026-10-15のレビュー対応で追加した。
 
 
 ## Androidホーム分離・ステップ1（2026-10-15）

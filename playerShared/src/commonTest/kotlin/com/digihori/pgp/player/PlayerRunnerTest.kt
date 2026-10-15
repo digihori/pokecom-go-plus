@@ -47,6 +47,49 @@ class PlayerRunnerTest {
         assertEquals(PlayerRunState.PAUSED, runner.state)
     }
 
+    @Test
+    fun fixedSpeedsAreIndependentOfFrameRateAndKeepAudioRateAligned() {
+        for (speed in PlayerExecutionSpeed.entries) for (hz in listOf(30, 60, 120)) {
+            val runner = runner()
+            runner.setSpeed(speed, 0)
+            runner.run(0)
+            var cycles = 0L
+            var frames = 0
+            var executed = 0L
+            repeat(hz) { index ->
+                val tick = runner.tick((index + 1L) * 1_000_000_000 / hz)
+                cycles += tick.budget.cycles
+                frames += tick.audio?.frameCount ?: 0
+                executed += tick.runResult?.executedCycles ?: 0
+                assertEquals(speed, tick.speed)
+            }
+            assertEquals(192_000L * speed.numerator / speed.denominator, cycles)
+            val rate = speed.playbackRate(22_050)
+            // Instructions finish atomically: actual cycles can exceed a tick's budget slightly.
+            kotlin.test.assertTrue(kotlin.math.abs(executed - cycles) <= hz * 4L)
+            kotlin.test.assertTrue(kotlin.math.abs(executed * 22_050 / 192_000 - frames) <= 1,
+                "speed=$speed hz=$hz targetRate=$rate frames=$frames executed=$executed")
+        }
+    }
+
+    @Test
+    fun speedChangeDoesNotApplyNewRatioToPastTimeOrResumePausedCpu() {
+        val runner = runner()
+        runner.run(0)
+        runner.tick(10_000_000)
+        runner.setSpeed(PlayerExecutionSpeed.FASTEST, 20_000_000)
+        assertEquals(2304L, runner.tick(30_000_000).budget.cycles)
+        runner.pause()
+        runner.setSpeed(PlayerExecutionSpeed.SLOWEST, 100_000_000)
+        assertEquals(PlayerRunState.PAUSED, runner.state)
+        runner.reset()
+        assertEquals(PlayerExecutionSpeed.SLOWEST, runner.speed)
+        runner.run(1_000_000_000)
+        assertEquals(1536L, runner.tick(1_010_000_000).budget.cycles)
+        assertEquals(PlayerExecutionSpeed.NORMAL, PlayerExecutionSpeed.fromId("invalid"))
+        assertEquals(PlayerExecutionSpeed.NORMAL, PlayerExecutionSpeed.fromId(null))
+    }
+
     private fun runner(): PlayerRunner {
         val internal = ByteArray(Pc1245RomDefinition.INTERNAL_SIZE) { 0x4d.toByte() }
         val external = ByteArray(Pc1245RomDefinition.EXTERNAL_SIZE) { 0x4d.toByte() }

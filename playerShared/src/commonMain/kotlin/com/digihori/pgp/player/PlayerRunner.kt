@@ -1,5 +1,6 @@
 package com.digihori.pgp.player
 
+import com.digihori.pgp.core.api.AudioPcmSnapshot
 import com.digihori.pgp.core.api.EmulatorSession
 import com.digihori.pgp.core.api.ExecutionStatus
 import com.digihori.pgp.core.api.MachineCatalog
@@ -16,9 +17,13 @@ public enum class PlayerRunState {
 public data class PlayerTick(
     public val budget: CycleBudget,
     public val runResult: RunResult?,
+    /** Consumed on the session thread on every executed tick, even if the host is muted. */
+    public val audio: AudioPcmSnapshot? = null,
+    public val speed: PlayerExecutionSpeed = PlayerExecutionSpeed.NORMAL,
 ) {
     public companion object {
-        public fun idle(): PlayerTick = PlayerTick(CycleBudget(0, 0, 0), null)
+        public fun idle(speed: PlayerExecutionSpeed = PlayerExecutionSpeed.NORMAL): PlayerTick =
+            PlayerTick(CycleBudget(0, 0, 0), null, speed = speed)
     }
 }
 
@@ -41,6 +46,19 @@ public class PlayerRunner(
 
     public var executionStatus: ExecutionStatus = ExecutionStatus.Ready
         private set
+
+    public var speed: PlayerExecutionSpeed = PlayerExecutionSpeed.NORMAL
+        private set
+
+    /** Change at a supplied host-time boundary; never reset RAM or resume a paused CPU. */
+    public fun setSpeed(value: PlayerExecutionSpeed, nowNanoseconds: Long) {
+        require(nowNanoseconds >= 0)
+        if (speed == value) return
+        previousTimeNanoseconds?.let { require(nowNanoseconds >= it) }
+        speed = value
+        planner.reset()
+        if (state == PlayerRunState.RUNNING) previousTimeNanoseconds = nowNanoseconds
+    }
 
     private var previousTimeNanoseconds: Long? = null
 
@@ -68,13 +86,13 @@ public class PlayerRunner(
 
     public fun tick(nowNanoseconds: Long): PlayerTick {
         require(nowNanoseconds >= 0) { "Monotonic time must not be negative" }
-        if (state != PlayerRunState.RUNNING) return PlayerTick.idle()
+        if (state != PlayerRunState.RUNNING) return PlayerTick.idle(speed)
         val previous = checkNotNull(previousTimeNanoseconds)
         require(nowNanoseconds >= previous) { "Monotonic clock moved backwards" }
         previousTimeNanoseconds = nowNanoseconds
 
-        val budget = planner.plan(nowNanoseconds - previous)
-        if (budget.cycles == 0L) return PlayerTick(budget, null)
+        val budget = planner.plan(nowNanoseconds - previous, speed.ratio)
+        if (budget.cycles == 0L) return PlayerTick(budget, null, speed = speed)
         val result = session.runCycles(budget.cycles)
         executionStatus = result.status
         if (result.status is ExecutionStatus.Faulted) {
@@ -82,6 +100,6 @@ public class PlayerRunner(
             previousTimeNanoseconds = null
             planner.reset()
         }
-        return PlayerTick(budget, result)
+        return PlayerTick(budget, result, session.drainAudioSamples(), speed)
     }
 }

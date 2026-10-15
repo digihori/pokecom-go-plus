@@ -209,7 +209,7 @@ public class DisplaySnapshot internal constructor(
 }
 
 public data class AudioSnapshot(
-    /** Zero means that no tone is currently requested. */
+    /** Zero means no built-in oscillator is selected; direct output can still produce PCM. */
     public val frequencyHz: Int,
     public val revision: Long,
 )
@@ -217,7 +217,13 @@ public data class AudioSnapshot(
 public class AudioPcmSnapshot(
     public val sampleRate: Int,
     samples: ShortArray,
+    /** Elapsed PCM frames, including silence omitted from [samples]. */
+    public val frameCount: Int = samples.size,
 ) {
+    init {
+        require(sampleRate > 0)
+        require(frameCount >= 0 && (samples.isEmpty() || samples.size == frameCount))
+    }
     private val content: ShortArray = samples.copyOf()
     public val sampleCount: Int get() = content.size
     public fun copySamples(): ShortArray = content.copyOf()
