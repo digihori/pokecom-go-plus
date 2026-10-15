@@ -1,5 +1,6 @@
 package com.digihori.pgp.player.android
 
+import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
@@ -12,7 +13,7 @@ import java.util.concurrent.Executor
 internal sealed interface RomManagerState {
     data class ListRoms(val entries: List<PlayerRomEntry>) : RomManagerState
     data class Busy(val text: String) : RomManagerState
-    data class Confirm(val text: String, val action: () -> Unit) : RomManagerState
+    data class Confirm(val text: String, val action: () -> Unit, val onCancel: () -> Unit) : RomManagerState
     data class Message(val text: String) : RomManagerState
 }
 
@@ -27,19 +28,36 @@ internal class AndroidRomManager(
 ) {
     var state: RomManagerState? by mutableStateOf(null)
         private set
+    var entries: List<PlayerRomEntry>? by mutableStateOf(null)
+        private set
     private val library = AndroidRomLibrary(activity.filesDir)
     private var generation = 0
-    private var expectedMachine: MachineId? = null
+    private val restoredPicker = activity.savedStateRegistry.consumeRestoredStateForKey("rom-picker-machine")
+    private var expectedMachine = restoredPicker?.getString("machine")?.let(::MachineId) ?: MachineId("pc-1245")
+    private var pickerFromHome = restoredPicker?.getBoolean("fromHome") ?: false
+
+    init {
+        activity.savedStateRegistry.registerSavedStateProvider("rom-picker-machine") {
+            Bundle().apply {
+                putString("machine", expectedMachine.value)
+                putBoolean("fromHome", pickerFromHome)
+            }
+        }
+    }
     private val picker = activity.registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) { dismiss(); return@registerForActivityResult }
+        if (uri == null) {
+            if (pickerFromHome) dismiss() else open()
+            return@registerForActivityResult
+        }
+        val cancel = if (pickerFromHome) ::dismiss else ::open
         val expected = expectedMachine
-        work("ROMを検証しています…", { AndroidRomImporter(activity.contentResolver).prepare(uri) }) { outcome ->
+        work("ROMを検証しています…", { AndroidRomImporter(activity.contentResolver).prepare(uri, expected) }) { outcome ->
             when (outcome) {
                 is RomImportOutcome.Failure -> show(RomManagerState.Message("ROMを取り込めませんでした（${outcome.kind}）。現在のROMは保持しています。"))
                 is RomImportOutcome.Success -> {
                     val prepared = outcome.prepared
                     val id = prepared.romSet.machineId
-                    if (PlayerMachineCatalog.definitions.none { it.id == id } || (expected != null && expected != id)) {
+                    if (PlayerMachineCatalog.definitions.none { it.id == id } || expected != id) {
                         show(RomManagerState.Message("選択したROMの機種は現在のPlayer対象と一致しません。"))
                         return@work
                     }
@@ -47,7 +65,7 @@ internal class AndroidRomManager(
                         val commit = { install(prepared) }
                         if (replacing || session() != null) {
                             show(RomManagerState.Confirm(
-                                "${MachineCatalog.require(id).displayName}のROMを${if (replacing) "置換" else "登録"}します。現在のRAMとロード済みプログラムは失われます。", commit,
+                                "${MachineCatalog.require(id).displayName}のROMを${if (replacing) "置換" else "登録"}します。現在のRAMとロード済みプログラムは失われます。", commit, cancel,
                             ))
                         } else commit()
                     }
@@ -64,10 +82,12 @@ internal class AndroidRomManager(
             show(RomManagerState.ListRoms(it))
         }
     }
-    fun importRom(machineId: MachineId? = null) {
+    fun importRom(machineId: MachineId, fromHome: Boolean = false) {
+        require(PlayerMachineCatalog.definitions.any { it.id == machineId })
         pause()
         generation++
         expectedMachine = machineId
+        pickerFromHome = fromHome
         show(RomManagerState.Busy("ROMファイルを選択してください"))
         runCatching { picker.launch(arrayOf("*/*")) }.onFailure { show(RomManagerState.Message("ファイル選択を開けませんでした。")) }
     }
@@ -79,24 +99,33 @@ internal class AndroidRomManager(
         }
     }
 
-    fun use(machineId: MachineId) {
-        show(RomManagerState.Confirm("${MachineCatalog.require(machineId).displayName}の新しいSessionを開始します。現在のRAMとプログラムは失われます。") {
+    fun use(machineId: MachineId, fromHome: Boolean = false, onReady: () -> Unit = {}) {
+        require(PlayerMachineCatalog.definitions.any { it.id == machineId })
+        if (session()?.machineId == machineId) { onReady(); return }
+        pause()
+        val start = {
             work("ROMを読み込んでいます…", {
                 val created = createStoredSession(machineId)
                 library.select(machineId)
                 created
-            }) { publishSession(it); dismiss() }
-        })
+            }) { publishSession(it); dismiss(); onReady() }
+        }
+        if (session() == null) { start(); return }
+        show(RomManagerState.Confirm(
+            "${MachineCatalog.require(machineId).displayName}へ切り替えます。現在の${MachineCatalog.require(session()!!.machineId).displayName}のRAMとロード済みプログラムは失われます。",
+            start,
+            if (fromHome) ::dismiss else ::open,
+        ))
     }
 
     fun delete(machineId: MachineId) {
         val active = session()?.machineId == machineId
-        show(RomManagerState.Confirm("${MachineCatalog.require(machineId).displayName}の保存済みROMを削除します。${if (active) "現在のSessionとRAMも破棄します。" else ""}") {
+        show(RomManagerState.Confirm("${MachineCatalog.require(machineId).displayName}の保存済みROMを削除します。${if (active) "現在のSessionとRAMも破棄します。" else ""}", action = {
             work("ROMを削除しています…", { library.delete(machineId) }) {
                 if (active) publishState(PlayerScreenState.RomMissing)
                 open()
             }
-        })
+        }, onCancel = ::open))
     }
 
     fun restore() {
@@ -124,8 +153,10 @@ internal class AndroidRomManager(
         if (!initial) show(RomManagerState.Busy(text))
         executor.execute {
             val result = runCatching(operation)
+            val listing = runCatching { library.entries(PlayerMachineCatalog.definitions.map { it.id }) }
             activity.runOnUiThread {
                 if (activity.isDestroyed || ticket != generation) return@runOnUiThread
+                listing.getOrNull()?.let { entries = it }
                 result.fold(onSuccess = complete, onFailure = {
                     if (initial) publishState(PlayerScreenState.Failure(PlayerFailureKind.ROM_VALIDATION))
                     show(RomManagerState.Message(it.message ?: "ROM操作に失敗しました。"))

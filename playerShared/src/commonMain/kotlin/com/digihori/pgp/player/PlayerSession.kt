@@ -32,7 +32,9 @@ public class PlayerSession internal constructor(
     public val machineId: MachineId get() = coreSession.machineId
     public val supportedOperatingModes: Set<OperatingMode> =
         MachineCatalog.require(machineId).supportedOperatingModes
-    private var requestedOperatingMode: OperatingMode = OperatingMode.RUN
+    private val initialOperatingMode = if (machineId == MachineId("pc-1401"))
+        OperatingMode.CALCULATOR else OperatingMode.RUN
+    private var requestedOperatingMode: OperatingMode = initialOperatingMode
     public val operatingMode: OperatingMode
         get() = coreSession.currentOperatingMode() ?: requestedOperatingMode
 
@@ -53,7 +55,7 @@ public class PlayerSession internal constructor(
 
     public fun reset() {
         runner.reset()
-        requestedOperatingMode = OperatingMode.RUN
+        requestedOperatingMode = initialOperatingMode
     }
 
     public fun screenState(

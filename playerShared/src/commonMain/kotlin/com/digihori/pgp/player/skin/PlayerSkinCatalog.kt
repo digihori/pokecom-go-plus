@@ -8,9 +8,11 @@ import com.digihori.pgp.core.rom.MachineId
 /** Platform-neutral skin geometry. Image resources remain owned by each platform application. */
 public object PlayerSkinCatalog {
     public const val PC1245_SKIN_ID: String = "pc1245-default"
+    public const val PC1401_SKIN_ID: String = "pc1401-default"
 
     public fun forMachine(machineId: MachineId): SkinDefinition? = when (machineId) {
         Pc1245RomDefinition.MACHINE_ID -> pc1245
+        MachineId("pc-1401") -> Pc1401Skin.definition
         else -> null
     }
 

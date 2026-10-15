@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.union
@@ -68,6 +69,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.input.pointer.pointerInput
@@ -76,9 +78,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.digihori.pgp.core.rom.MachineId
+import com.digihori.pgp.core.api.MachineFamily
+import com.digihori.pgp.core.api.MachineCatalog
 import com.digihori.pgp.core.api.DisplaySymbol
 import com.digihori.pgp.core.api.PocketKey
 import com.digihori.pgp.core.api.OperatingMode
+import com.digihori.pgp.player.PlayerRomEntry
+import com.digihori.pgp.player.PlayerMachineCatalog
 import com.digihori.pgp.player.PlayerDisplayFrame
 import com.digihori.pgp.player.PlayerFailureKind
 import com.digihori.pgp.player.PlayerRunState
@@ -91,6 +97,9 @@ import com.digihori.pgp.player.skin.SkinDefinition
 import com.digihori.pgp.player.skin.SkinLayoutEngine
 import com.digihori.pgp.player.skin.SkinLayoutRequest
 import com.digihori.pgp.player.skin.SkinSize
+
+// Shared with the ROM-free debug geometry probe.
+internal val PlayerTitleBarHeight = 56.dp
 
 @Composable
 internal fun PlayerApp(
@@ -112,16 +121,23 @@ internal fun PlayerApp(
     onMenuVisibilityChange: (Boolean) -> Unit = {},
     onManageRom: () -> Unit = {},
     onInformation: (String) -> Unit = {},
+    showHome: Boolean = false,
+    onPlay: (MachineId) -> Unit = {},
+    homeRomEntries: List<PlayerRomEntry>? = null,
+    onImportMachineRom: (MachineId) -> Unit = {},
+    onHome: () -> Unit = {},
 ) {
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.displayCutout)),
+                    .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.displayCutout).union(WindowInsets.statusBars)),
                 contentAlignment = Alignment.Center,
             ) {
-                when (screenState) {
+                if (showHome) {
+                    PlayerHomeScreen(screenState, homeRomEntries, onPlay, onImportMachineRom, romImportEnabled)
+                } else when (screenState) {
                     PlayerScreenState.RomMissing -> RomMissingScreen(onImportRom, romImportEnabled)
                     PlayerScreenState.Loading -> LoadingScreen()
                     is PlayerScreenState.Failure -> FailureScreen(screenState.kind, onImportRom, romImportEnabled)
@@ -140,23 +156,77 @@ internal fun PlayerApp(
                         onReset,
                         onTogglePresentationMode,
                         onOperatingModeChange,
-                        onControllerSettings = onControllerSettings,
                         onLoadProgram = onLoadProgram,
                         onSaveProgram = onSaveProgram,
                         onMenuVisibilityChange = onMenuVisibilityChange,
-            onManageRom = onManageRom,
-                        onInformation = onInformation,
+                        onHome = onHome,
                     )
                 }
-                if (screenState !is PlayerScreenState.Emulator) {
-                    Column(Modifier.align(Alignment.TopEnd)) {
-                        TextButton(onClick = onManageRom) { Text("機種・ROM") }
-                        TextButton(onClick = { onInformation("バージョン") }) { Text("情報") }
-                        TextButton(onClick = onControllerSettings) { Text("コントローラー設定") }
+                if (showHome || screenState !is PlayerScreenState.Emulator) {
+                    PlayerMenu(
+                        runState = PlayerRunState.PAUSED,
+                        presentationMode = PresentationMode.FULL_DEVICE,
+                        operatingMode = OperatingMode.RUN,
+                        supportedOperatingModes = emptySet(),
+                        showPresentationMode = false,
+                        onRun = {}, onPause = {}, onReset = {},
+                        onTogglePresentationMode = {}, onOperatingModeChange = {},
+                        onMenuVisibilityChange = onMenuVisibilityChange,
+                        onManageRom = onManageRom,
+                        onControllerSettings = onControllerSettings,
+                        onInformation = onInformation,
+                        homeMenu = true,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlayerHomeScreen(
+    state: PlayerScreenState,
+    entries: List<PlayerRomEntry>?,
+    onPlay: (MachineId) -> Unit,
+    onImportRom: (MachineId) -> Unit,
+    importEnabled: Boolean,
+) {
+    Column(
+        Modifier.fillMaxSize().padding(top = 80.dp, start = 24.dp, end = 24.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text("機種を選択")
+        PlayerMachineCatalog.definitions.forEach { machine ->
+            val entry = entries?.find { it.machineId == machine.id }
+            Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp) {
+                Row(Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text(machine.displayName + if (state is PlayerScreenState.Emulator &&
+                            state.machineId == machine.id) "（選択中）" else "",
+                            style = MaterialTheme.typography.titleMedium)
+                        Text(when {
+                            entries == null -> "ROMを確認しています…"
+                            entry?.installed == true -> "登録済み"
+                            else -> "ROM未登録"
+                        })
+                    }
+                    if (entry?.installed == true) {
+                        Button(onClick = { onPlay(machine.id) }) { Text("プレイ") }
+                    } else {
+                        Button(onClick = { onImportRom(machine.id) }, enabled = entries != null && importEnabled) {
+                            Text("ROMを登録")
+                        }
                     }
                 }
             }
         }
+        if (state is PlayerScreenState.Failure) Text("選択中のROMを復元できませんでした。ROM管理で確認するか、別の機種を選択してください。")
+        Text("Playerとホームを同じ機種で往復する場合はRAMを維持します。実行中なら自動再開し、明示停止は維持します。")
+        Text("別の機種へ切り替える場合は、確認後に起動し直します。RAMとロード済みプログラムは引き継ぎません。")
     }
 }
 
@@ -243,14 +313,14 @@ private fun EmulatorScreen(
     onReset: () -> Unit,
     onTogglePresentationMode: () -> Unit,
     onOperatingModeChange: (OperatingMode) -> Unit,
-    onControllerSettings: () -> Unit = {},
     onLoadProgram: () -> Unit = {},
     onSaveProgram: () -> Unit = {},
     onMenuVisibilityChange: (Boolean) -> Unit = {},
-    onManageRom: () -> Unit = {},
-    onInformation: (String) -> Unit = {},
+    onHome: () -> Unit = {},
 ) {
     val skin = PlayerSkinCatalog.forMachine(machineId)
+    val quickModes = machineId == MachineId("pc-1245") &&
+        supportedOperatingModes == setOf(OperatingMode.RUN, OperatingMode.PROGRAM)
     Box(modifier = Modifier.fillMaxSize()) {
         if (displayFrame == null) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -263,35 +333,19 @@ private fun EmulatorScreen(
                 keyboard = keyboard,
                 onKeyPress = onKeyPress,
                 onKeyRelease = onKeyRelease,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().padding(top = PlayerTitleBarHeight),
             )
         } else {
             if (keyboard == null) {
-                LcdDisplay(displayFrame, modifier = Modifier.fillMaxSize())
+                LcdDisplay(displayFrame, modifier = Modifier.fillMaxSize().padding(top = PlayerTitleBarHeight))
             } else {
-                Column(modifier = Modifier.fillMaxSize().padding(top = 48.dp, start = 8.dp, end = 8.dp)
+                Column(modifier = Modifier.fillMaxSize().padding(top = PlayerTitleBarHeight + 8.dp, start = 8.dp, end = 8.dp)
                     .verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     LcdDisplay(displayFrame, modifier = Modifier.fillMaxWidth().height(100.dp))
                     keyboard.functionPanel?.let { SoftwareKeyboard(it, onKeyPress, onKeyRelease) }
                     SoftwareKeyboard(keyboard, onKeyPress, onKeyRelease)
                 }
             }
-        }
-        Surface(
-            modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
-            color = Color(0xFFE8E8E8),
-            shape = RoundedCornerShape(12.dp),
-        ) {
-            Text(
-                text = when (runState) {
-                    PlayerRunState.RUNNING -> "● RUNNING"
-                    PlayerRunState.PAUSED -> "Ⅱ PAUSED"
-                    PlayerRunState.FAULTED -> "! FAULTED"
-                },
-                color = if (runState == PlayerRunState.RUNNING) Color(0xFF205B35) else Color(0xFF263238),
-                style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            )
         }
         PlayerMenu(
             runState = runState,
@@ -304,13 +358,50 @@ private fun EmulatorScreen(
             onReset = onReset,
             onTogglePresentationMode = onTogglePresentationMode,
             onOperatingModeChange = onOperatingModeChange,
-            onControllerSettings = onControllerSettings,
             onLoadProgram = onLoadProgram,
             onSaveProgram = onSaveProgram,
-                        onMenuVisibilityChange = onMenuVisibilityChange,
-            onManageRom = onManageRom,
-                        onInformation = onInformation,
-            modifier = Modifier.fillMaxSize().padding(8.dp),
+            onMenuVisibilityChange = onMenuVisibilityChange,
+            onHome = onHome,
+            quickModes = quickModes,
+            showOperatingModes = MachineCatalog.require(machineId).family in setOf(
+                MachineFamily.PC_1245, MachineFamily.PC_1251, MachineFamily.PC_1261),
+            machineTitle = MachineCatalog.require(machineId).displayName,
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+}
+
+@Composable
+private fun PlayerRunStatus(
+    runState: PlayerRunState,
+    onRun: () -> Unit,
+    onPause: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier
+            .focusProperties { canFocus = false }
+            .clickable(enabled = runState != PlayerRunState.FAULTED, role = Role.Button) {
+                if (runState == PlayerRunState.RUNNING) onPause() else onRun()
+            }.semantics {
+                contentDescription = when (runState) {
+                    PlayerRunState.RUNNING -> "CPU実行中、タップでPAUSE"
+                    PlayerRunState.PAUSED -> "CPU停止中、タップでRUN"
+                    PlayerRunState.FAULTED -> "CPUエラー停止、メニューからResetしてください"
+                }
+            },
+        color = Color(0xFFE8E8E8),
+        shape = RoundedCornerShape(12.dp),
+    ) {
+        Text(
+            text = when (runState) {
+                PlayerRunState.RUNNING -> "● RUNNING"
+                PlayerRunState.PAUSED -> "Ⅱ PAUSED"
+                PlayerRunState.FAULTED -> "! FAULTED"
+            },
+            color = if (runState == PlayerRunState.RUNNING) Color(0xFF205B35) else Color(0xFF263238),
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
         )
     }
 }
@@ -334,6 +425,11 @@ private fun PlayerMenu(
     onMenuVisibilityChange: (Boolean) -> Unit = {},
     onManageRom: () -> Unit = {},
     onInformation: (String) -> Unit = {},
+    onHome: () -> Unit = {},
+    homeMenu: Boolean = false,
+    quickModes: Boolean = false,
+    showOperatingModes: Boolean = false,
+    machineTitle: String? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var section by remember { mutableStateOf<String?>(null) }
@@ -341,9 +437,56 @@ private fun PlayerMenu(
     BackHandler(enabled = expanded) { if (section != null) section = null else close() }
     val menuDescription = stringResource(R.string.player_menu_description)
     BoxWithConstraints(modifier = modifier) {
+        if (homeMenu) {
+            Surface(Modifier.fillMaxWidth().heightIn(min = 56.dp), tonalElevation = 3.dp) {
+                Text(
+                    "Pokecom GO Player",
+                    style = MaterialTheme.typography.titleLarge,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(start = 16.dp, end = 64.dp, top = 14.dp, bottom = 14.dp),
+                )
+            }
+        }
+        if (machineTitle != null) {
+            Surface(Modifier.fillMaxWidth().height(PlayerTitleBarHeight), tonalElevation = 3.dp) {
+                Row(
+                    Modifier.fillMaxSize().padding(start = 16.dp, end = if (quickModes) 128.dp else 72.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(machineTitle, style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f))
+                    PlayerRunStatus(runState, onRun, onPause)
+                    Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+        if (quickModes) {
+            Surface(
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 4.dp, end = 64.dp),
+                shape = CircleShape,
+                color = Color(0xFF1B5E20),
+            ) {
+                TextButton(
+                    onClick = {
+                        onOperatingModeChange(if (operatingMode == OperatingMode.RUN)
+                            OperatingMode.PROGRAM else OperatingMode.RUN)
+                    },
+                    enabled = !expanded,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                    modifier = Modifier.size(48.dp).focusProperties { canFocus = false }
+                        .semantics { contentDescription = "動作モード ${operatingMode.shortLabel()}、タップで${if (operatingMode == OperatingMode.RUN) "PRO" else "RUN"}へ切替" },
+                ) {
+                    Text(operatingMode.shortLabel(), color = Color.White, maxLines = 1)
+                }
+            }
+        }
         IconButton(
             onClick = { expanded = true; onMenuVisibilityChange(true) },
-            modifier = Modifier.align(Alignment.TopEnd).size(48.dp).background(Color(0xFFE8E8E8), CircleShape)
+            modifier = Modifier.align(Alignment.TopEnd).focusProperties { canFocus = homeMenu }
+                .padding(top = 4.dp, end = 8.dp)
+                .size(48.dp).then(if (homeMenu) Modifier else Modifier.background(Color(0xFFE8E8E8), CircleShape))
                 .semantics { contentDescription = menuDescription },
         ) {
             Text(stringResource(R.string.player_menu_symbol), fontSize = 28.sp, color = Color(0xFF263238))
@@ -358,31 +501,37 @@ private fun PlayerMenu(
             ) {
                 Column(Modifier.verticalScroll(rememberScrollState()).padding(8.dp)) {
                     if (section == null) {
-                        MenuEntry("実行操作  ›") { section = "実行操作" }
-                        MenuEntry("プログラム  ›") { section = "プログラム" }
-                        MenuEntry("動作モード  ›") { section = "動作モード" }
-                        if (showPresentationMode) MenuEntry("表示  ›") { section = "表示" }
-                        MenuEntry("機種・ROM") { close(); onManageRom() }
-                        MenuEntry("情報  ›") { section = "情報" }
-                        MenuEntry("コントローラー設定") { close(); onControllerSettings() }
-                        MenuEntry("閉じる") { close() }
+                        if (homeMenu) {
+                            MenuEntry("設定  ›") { section = "設定" }
+                            MenuEntry("ヘルプ・情報  ›") { section = "ヘルプ・情報" }
+                        } else {
+                            MenuEntry("エミュレータ操作  ›") { section = "エミュレータ操作" }
+                            MenuEntry("プログラム  ›") { section = "プログラム" }
+                            if (showOperatingModes) MenuEntry("動作モード  ›") { section = "動作モード" }
+                            if (showPresentationMode) MenuEntry("表示  ›") { section = "表示" }
+                            MenuEntry("ホームへ戻る") { close(); onHome() }
+                        }
                     } else {
                         MenuEntry("‹ 戻る") { section = null }
                         Text(section.orEmpty(), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(12.dp))
                         when (section) {
-                            "実行操作" -> {
+                            "設定" -> {
+                                MenuEntry("ROM管理") { close(); onManageRom() }
+                                MenuEntry("コントローラ設定") { close(); onControllerSettings() }
+                            }
+                            "エミュレータ操作" -> {
                                 MenuEntry(stringResource(R.string.run_emulator), runState == PlayerRunState.PAUSED) { close(); onRun() }
                                 MenuEntry(stringResource(R.string.pause_emulator), runState == PlayerRunState.RUNNING) { close(); onPause() }
                                 MenuEntry(stringResource(R.string.reset_emulator)) { close(); onReset() }
                             }
                             "プログラム" -> {
                                 MenuEntry("ロード") { close(); onLoadProgram() }
-                                MenuEntry("保存・共有") { close(); onSaveProgram() }
+                                MenuEntry("セーブ") { close(); onSaveProgram() }
                             }
-                            "情報" -> listOf("バージョン", "プライバシーポリシー", "Studio案内").forEach { label ->
+                            "ヘルプ・情報" -> listOf("Playerとは", "Studioについて", "プライバシーポリシー", "バージョン・ライセンス").forEach { label ->
                                 MenuEntry(label) { close(); onInformation(label) }
                             }
-                            "動作モード" -> OperatingMode.entries.filter { it in supportedOperatingModes }.forEach { mode ->
+                            "動作モード" -> if (showOperatingModes) OperatingMode.entries.filter { it in supportedOperatingModes }.forEach { mode ->
                                 MenuEntry("${if (mode == operatingMode) "✓ " else ""}${mode.shortLabel()}", mode != operatingMode) { close(); onOperatingModeChange(mode) }
                             }
                             "表示" -> MenuEntry(stringResource(if (presentationMode == PresentationMode.CONTROLLER_DISPLAY)
@@ -427,8 +576,14 @@ private fun SkinnedDevice(
         PresentationMode.LANDSCAPE -> skin.landscapeRegion
         PresentationMode.CONTROLLER_DISPLAY -> skin.controllerDisplayRegion
     }
-    val skinImage = ImageBitmap.imageResource(R.drawable.skin_pc1245)
-    val skinDescription = stringResource(R.string.pc1245_skin_content_description)
+    val imageResource = when (skin.id) {
+        PlayerSkinCatalog.PC1245_SKIN_ID -> R.drawable.skin_pc1245
+        PlayerSkinCatalog.PC1401_SKIN_ID -> R.drawable.skin_pc1401
+        else -> error("No Android image for skin ${skin.id}")
+    }
+    val skinImage = ImageBitmap.imageResource(imageResource)
+    val skinDescription = if (skin.id == PlayerSkinCatalog.PC1245_SKIN_ID)
+        stringResource(R.string.pc1245_skin_content_description) else "PC-1401"
     BoxWithConstraints(modifier = modifier) {
         val placement = SkinLayoutEngine.calculate(
             skin,
@@ -466,7 +621,8 @@ private fun SkinnedDevice(
                     text = region.symbol.lcdLabel(),
                     color = if (displayFrame.enabled && region.symbol in displayFrame.symbols)
                         Color(0xFF26352C) else Color(0x1F26352C),
-                    alignEnd = region.symbol == DisplaySymbol.SHIFT,
+                    alignEnd = region.symbol == DisplaySymbol.SHIFT && skin.id != PlayerSkinCatalog.PC1401_SKIN_ID,
+                    bold = skin.id == PlayerSkinCatalog.PC1401_SKIN_ID,
                     modifier = Modifier.offset(placement.screenX(bounds.x).dp, placement.screenY(bounds.y).dp)
                         .width((bounds.width * placement.scale).dp).height((bounds.height * placement.scale).dp),
                 )
@@ -491,7 +647,8 @@ private fun SkinnedDevice(
                     .height((lcd.height * placement.scale).dp),
             )
             val keyCaps = remember(keyboard) {
-                keyboard?.rows?.flatten()?.associateBy(PlayerKeyCap::key).orEmpty()
+                (keyboard?.rows.orEmpty().flatten() +
+                    keyboard?.functionPanel?.rows.orEmpty().flatten()).associateBy(PlayerKeyCap::key)
             }
             skin.keyRegions.forEach { keyRegion ->
                 val bounds = keyRegion.bounds
@@ -551,10 +708,11 @@ private fun SkinnedDevice(
 
 /** Fits measured glyphs in skin coordinates, independent of the host font-size setting. */
 @Composable
-private fun SkinLcdLabel(text: String, color: Color, modifier: Modifier, alignEnd: Boolean = false) {
+private fun SkinLcdLabel(text: String, color: Color, modifier: Modifier, alignEnd: Boolean = false, bold: Boolean = false) {
     val measurer = rememberTextMeasurer()
-    val layout = remember(measurer, text) {
-        measurer.measure(text, style = TextStyle(fontSize = 20.sp, lineHeight = 24.sp),
+    val layout = remember(measurer, text, bold) {
+        measurer.measure(text, style = TextStyle(fontSize = 20.sp, lineHeight = 24.sp,
+                fontWeight = if (bold) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal),
             density = Density(1f, 1f), softWrap = false, maxLines = 1)
     }
     Canvas(modifier.semantics { contentDescription = text }) {

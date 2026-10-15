@@ -6,6 +6,18 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ApplePlayerFacadeTest {
+    @Test fun android1401TargetDoesNotEnableIosPackageImport() {
+        val result = ApplePlayerFactory.preparePackage(
+            com.digihori.pgp.core.rom.RomPackageManifest(
+                format = com.digihori.pgp.core.rom.RomPackageValidator.FORMAT,
+                formatVersion = com.digihori.pgp.core.rom.RomPackageValidator.VERSION,
+                machineId = "pc-1401", components = emptyList(),
+            ), emptyList(),
+        )
+        kotlin.test.assertNull(result.player)
+        assertTrue(kotlin.test.assertNotNull(result.errorMessage).contains("PC-1245のみ"))
+    }
+
     @Test fun probeRunsAndResetClearsInputAndMode() {
         val player = ApplePlayerFactory.structuralProbe()
         player.setProgramMode(true)

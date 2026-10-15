@@ -72,7 +72,10 @@ Androidの十字キーはKeyEventとHAT軸の双方を想定し、同一方向�
 
 ## 設定画面
 
-Studio: Settings→Controller。Player: 3点メニュー→コントローラー設定。
+Studio: Settings→Controller。
+Android Playerの現在の入口はホームの「設定」→「コントローラ設定」。現在の機種のキーを選べるが、
+割当は全機種共通の1セットとし、機種にない割当は保持したまま送出を抑止する。
+PC-1401の検証区分は[Android対応記録](ANDROID_PC1401_PROGRESS.md)を参照する。
 操作順、文言、設定データ、図の位置関係を揃える。
 StudioとAndroidはどちらもComposeだが、現在のplayerSharedにはCompose依存がないので、
 hostInputに共通モデル、controllerUiにStudio／Androidの共通Compose画面を置く。

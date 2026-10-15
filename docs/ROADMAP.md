@@ -456,8 +456,9 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
 ## Phase 7: Pokecom GO Player
 
 2026-10-12にPC-1245 Androidの今回の範囲を完了し、ユーザーが動作確認済み。
-次の開発順序はPC-1245 iOS、その後PC-1401／PC-1350 Android。1401／1350のiOSはこの区切りに含めない。
-WAV、Project、Debugger、音声出力、セーブステート、外付けキーボード、ゲームパッド接続時の表示自動切替は後続。
+2026-10-15にホーム・メニュー・情報画面の整理、Physical外部キーボード、PC-1401 Androidの予定範囲を完了し、ユーザーが今回の区切りを承認した。
+[検証区分と未確認事項](ANDROID_PC1401_PROGRESS.md)を保持する。PC-1245 iOSの残作業とPC-1350 Androidは後続。1401／1350のiOSは今回に含めない。
+WAV、Project、Debugger、音声出力、セーブステート、ゲームパッド接続時の表示自動切替は後続。
 公開の判断・version更新・配布物検証は開発完了とは別に行う。操作は[Playerガイド](PLAYER_PROGRAM_IO.md)を参照。
 
 - [x] Android PlayerアプリのPC-1245対応（2026-10-12、ユーザー動作確認済み）
@@ -474,6 +475,13 @@ WAV、Project、Debugger、音声出力、セーブステート、外付けキ�
   - [x] スキンキーの押下中ハイライトと解放時フェードアニメーションを追加する
   - [x] 実行画面をスクロールしないスキン固定表示とし、実行・表示・動作モード操作をオーバーフローメニューへ集約する
   - [x] ステータスバーを隠し、ジェスチャーナビでは全面表示、旧3ボタンナビでは操作領域を避けてスキンを最大化する
+- [x] Android PlayerアプリのPC-1401対応（2026-10-15、今回の予定範囲を完了）
+  - [x] 機種選択、ROM登録・復元・置換・削除、Session切替
+  - [x] スキン・LCDシンボル・76キー、CAL／BASICによるモード切替、実行・停止・Reset
+  - [x] S1 BASIC／DMPのロード・セーブ、CPU再開とキャンセル・明示PAUSE時の復帰
+  - [x] 共有ゲームパッド割当・入力所有権・背景／切断時の解放（実機基本動作ユーザー確認済み）
+  - [x] Android 9・3ボタン実機のステータスバー余白を修正し、メニュー・背景復帰を確認
+  - 機器・接続方式の網羅検証と残る実機確認は[対応記録](ANDROID_PC1401_PROGRESS.md)に分けて記録
 - [ ] iOS Playerアプリ
   - [x] iPhone専用・最低iOS 16のSwiftUI/UIKit host、Apple framework/Facade、Simulator合成プログラムによる接続確認
   - [x] CADisplayLinkによる共有Runner駆動、Run/Pause/Reset、非active停止・入力解放・通常復帰PAUSED
@@ -481,7 +489,7 @@ WAV、Project、Debugger、音声出力、セーブステート、外付けキ�
   - [x] PC-1245 ROM登録・atomic保存・起動時復元・置換・削除・成功後CPU自動実行（Simulator実ROM/計算入力確認）
   - [ ] 階層メニュー（機種/ROM・情報は暫定導線あり）・bas/dmp入出力・ゲームパッド（実機/署名はDeveloper登録後）
 - [x] Studioとのbas/dmpファイル受け渡し（PC-1245 Android）
-  - [x] 共有変換・停止中Session検証／適用・保存データ生成とAndroidのpicker／共有を接続
+  - [x] 共有変換・停止中Session検証／適用・保存データ生成とAndroidのファイル選択／保存を接続（他アプリへの共有機能は削除）
 - [x] `.pgrom`選択と前回ROMの自動復元
 - [x] 初回取込み後のROMをPlayerのアプリ専用領域へ保存し、機種切替後も機種別ROMライブラリから再利用する
 - [x] Playerから保存済みROMの置換と明示削除を行えるようにする（Android、synthetic storage test／ユーザー動作確認済み）
@@ -499,16 +507,17 @@ WAV、Project、Debugger、音声出力、セーブステート、外付けキ�
 - [ ] Android AudioTrack／iOS音声APIへのPCM接続
 - [ ] セーブステートとモバイルライフサイクル
 - [x] ゲームパッドのキー割当（Studio／Android、単一設定。接続による表示自動切替は後続）
+- [x] Android Physical外部キーボード入力、フォーカス復帰、SHIFT単独、機種別の最小保持・解放間隔
 - [ ] PlayerモバイルUIの仕上げ
   - [x] 実行画面を横向き専用にし、縦持ちには追従せず、左右180度反転した横向きには追従する（Androidは`sensorLandscape`相当）
   - [x] 3点メニューを薄いグレーの円形背景と十分なアイコン／タッチサイズで表示し、スキン上でも視認・操作しやすくする
   - [x] 16桁ドット表示に加えてSHIFT、DEF等の機種別LCDステータスをスキン内へ合成する
   - [x] PC-1245のRUN／PROをスキン内に明示する（Android、ユーザー動作確認済み）
   - [ ] PC-1251／1261系のRUN／PRO／RSVは実機のハードスイッチ状態であっても、PlayerではLCDステータスとして明示する
-  - [x] 3点メニューへバージョン情報、プライバシーポリシー、Pokecom GO Studioへの案内を追加する（後二つは仮文言。2026-10-13ユーザー指示で整理を先延ばし）
+  - [x] ホームの設定／ヘルプ・情報へ導線を整理し、Playerとは／Studioについて／バージョン・ライセンス／プライバシー原文案を静的同梱する（原文案の公開方針確定は別）
   - [x] 3点メニューからbas/dmpプログラムをロード／セーブできるようにする（Android、ユーザー動作確認済み。Playerの実行用入出力とし、Project機能とは分離する）
-    - [x] bas/dmp拡張子の自動判定、確認なしのRAMロードとAndroidの保存／共有を実装する（docs/PLAYER_PROGRAM_IO.md、iOS hostは後続）
-  - [x] 機種・ROM画面、機種別Library、Session再生成、表示モード維持を実装する（現在の選択対象は1245のみ）
+    - [x] bas/dmp拡張子の自動判定、確認なしのRAMロードとAndroidのファイル保存を実装する（docs/PLAYER_PROGRAM_IO.md、iOS hostは後続）
+  - [x] ホームの画面ボタンで機種選択、設定配下のROM管理、機種別Library、Session再生成を実装する（選択対象はPC-1245／PC-1401）
 
 Pokecom GO Playerはエミュレータの実行に特化し、Pokecom GO Studioが提供するデバッガ、
 アセンブラ、ディスアセンブラ、メモリ編集等の開発機能は実装しない。機能範囲は既存の

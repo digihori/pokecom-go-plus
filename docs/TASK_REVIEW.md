@@ -48,7 +48,7 @@ Technical Preview 0.5の公開作業は[チェックリスト](RELEASE_CHECKLIST
 |---|---|---|
 | B1 | PC-1245 iOSプログラム入出力 | bas/dmpロード、BASIC/RAM保存・共有、階層メニュー整理。成功後CPU再開のAndroidとの統一も設計に含む |
 | B2 | iOSゲームパッド | GameController接続、共有入力、選択・割当・保存、切断/背景時の解放、実パッド確認 |
-| B3 | Android PlayerのPC-1401/1350 | Core実装を再利用し、スキン・LCD・キー・ROM管理・入出力を接続。既存方針はPC-1245 iOSの後。両機種のiOSは別検討 |
+| B3 | Android PlayerのPC-1350 | PC-1401は2026-10-15に予定した6段階を完了し、ユーザーが今回の区切りを承認。[検証区分](ANDROID_PC1401_PROGRESS.md)を保持。PC-1350は未着手、両機種のiOSは別検討 |
 | B4 | Desktop物理キー入力モード | 現在の文字/論理入力と、押下/解放を直接送る入力を切替。SHIFT、同時押し、repeat、focus喪失を扱う。A2との関連を確認 |
 | B5 | Quick Assemble結果表示 | DMP保存に加え、機械語・Listing・Symbol Map・診断を確認する画面 |
 | B6 | プロジェクト機種互換範囲 | BASIC単独の機種非限定化、現在機種への変換、混在プロジェクトの互換グループ、旧Manifest互換 |
@@ -99,10 +99,10 @@ Android/iOS Playerへの機種追加（B3）とは別の作業として扱う。
 | D4 | S1/S2 WAV | 信号・BASIC/Binary codec、checksum、実機往復。Playerを優先して後回し、当面pcwavを案内 |
 | D5 | WAV Analyzer追加 | 全信号形式、候補比較、ON/OFF/W0/W1/leader/byte境界overlay、原channel、段階間選択、個別export、実録音fixture。OLD波形/zoom/pan/cursor等は実装済み |
 | D6 | Player音声・Save State | Android/iOS PCM接続、完全状態の保存復元とライフサイクル。現在のCheckpoint出力とは別 |
-| D7 | Player後続UI・入力 | パッド接続時の表示自動切替、追加機種のRUN/PRO/RSV表示、外付けキーボード |
+| D7 | Player後続UI・入力 | パッド接続時の表示自動切替、追加機種のRUN/PRO/RSV表示。AndroidのPhysical外付けキーボードは今回実装済み |
 | D8 | iOS実機・最低OS・配布 | Developer登録/署名、端末操作、Files共有受取り、実パッド、iOS 16確認。Simulator完了と別。iPadは現在対象外 |
 | D9 | ROM管理の拡張 | Import Wizard、bank slot一括割当、機種拡大時のPlayer Library、ROMをバックアップ/同期へ含めない方針 |
-| D10 | 設定・公開運用 | 最近使ったプログラム、次期Previewの差分・版数・配布物検証。Playerのプライバシー/Studio案内の仮文言は2026-10-13ユーザー指示で先延ばし |
+| D10 | 設定・公開運用 | 最近使ったプログラム、次期Previewの差分・版数・配布物検証。PlayerのStudio説明と情報画面は静的同梱へ整理済み。プライバシー原文案の公開方針・適用開始は別途判断 |
 | D11 | 低優先度機能 | PC-1251のユーザー登録予約語ショートカット、その他実需要を確認してから着手するもの |
 
 ## ロードマップの記録整理

@@ -2,16 +2,25 @@ package com.digihori.pgp.player.android
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.os.Build
 import android.content.res.Configuration
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.Window
+import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.digihori.pgp.controller.ui.ControllerSettings
@@ -50,12 +59,18 @@ class MainActivity : ComponentActivity() {
         release = { key -> playerSession?.releaseKey(key) ?: InputResult.UnsupportedKey(key) },
     )
     private lateinit var programIo: AndroidProgramIo
+    private var playerHasInputFocus = false
+    private var previousWindowCallback: Window.Callback? = null
+    private var playerWindowCallback: Window.Callback? = null
+    private lateinit var physicalKeyboard: AndroidPhysicalKeyboard
     private lateinit var gamepad: AndroidGamepadController
-    private var showPlayerMenu = false
+    private val entryPolicy = PlayerEntryPolicy()
+    private var showHome by mutableStateOf(true)
+    private var showPlayerMenu by mutableStateOf(false)
     private var showControllerSettings by mutableStateOf(false)
-    private var hostResumed = false
+    private var hostResumed by mutableStateOf(false)
     private var pendingInitialRun = false
-    private var windowHasFocus = false
+    private var windowHasFocus by mutableStateOf(false)
     private var startRequested = false
     private var framePosted = false
     private val choreographer: Choreographer by lazy { Choreographer.getInstance() }
@@ -74,6 +89,11 @@ class MainActivity : ComponentActivity() {
             release = { button, _ -> hostKeys.release("gamepad:${button.name}") },
         )
         gamepad.start()
+        physicalKeyboard = AndroidPhysicalKeyboard(this,
+            press = { owner, key -> hostKeys.press(owner, key) },
+            release = { owner -> hostKeys.release(owner) },
+        )
+        physicalKeyboard.start()
         programIo = AndroidProgramIo(this, ioExecutor, { playerSession }, ::pauseEmulator,
             { playerSession?.let(::refreshSession) }, ::requestAutomaticRun, ::updateGamepadContext)
         romManager = AndroidRomManager(this, ioExecutor, { playerSession }, ::pauseEmulator,
@@ -81,13 +101,33 @@ class MainActivity : ComponentActivity() {
         val packageInfo = packageManager.getPackageInfo(packageName, 0)
         playerVersion = "${packageInfo.versionName} (${androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(packageInfo)})"
         setContent {
+            val playerInputFocus = remember { FocusRequester() }
+            val focusManager = LocalFocusManager.current
+            val playerOwnsFocus = !showHome && screenState is PlayerScreenState.Emulator &&
+                !showPlayerMenu && !showControllerSettings && informationSection == null &&
+                programIo.dialog == null && romManager.state == null
+            LaunchedEffect(playerOwnsFocus, hostResumed, windowHasFocus,
+                (screenState as? PlayerScreenState.Emulator)?.runState) {
+                if (playerOwnsFocus && hostResumed && windowHasFocus) {
+                    focusManager.clearFocus(force = true)
+                    playerInputFocus.requestFocus()
+                }
+            }
+            BackHandler(enabled = !showHome) { returnHome() }
             BackHandler(enabled = showControllerSettings) { closeControllerSettings() }
-            Box(Modifier.fillMaxSize().onPreviewKeyEvent { gamepad.onKey(it.nativeKeyEvent) }) {
+            Box(Modifier.fillMaxSize().focusRequester(playerInputFocus)
+                .onFocusChanged { playerHasInputFocus = it.isFocused }
+                .focusable(enabled = playerOwnsFocus)) {
                 PlayerApp(
                     screenState = screenState,
+                    showHome = showHome,
+                    onPlay = ::openPlayer,
+                    onHome = ::returnHome,
                     displayFrame = displayFrame,
                     keyboard = keyboard,
-                    onImportRom = { romManager.importRom() },
+                    onImportRom = { romManager.importRom(playerSession?.machineId ?: com.digihori.pgp.core.rom.MachineId("pc-1245"), fromHome = showHome) },
+                    homeRomEntries = romManager.entries,
+                    onImportMachineRom = { romManager.importRom(it, fromHome = true) },
                     onManageRom = romManager::open,
                     onInformation = { section ->
                         releaseAllKeys()
@@ -131,6 +171,9 @@ class MainActivity : ComponentActivity() {
                                 androidx.compose.material3.TextButton(onClick = ::closeControllerSettings) {
                                     androidx.compose.material3.Text("戻る")
                                 }
+                                androidx.compose.material3.Text("対象キー：${(playerSession?.machineId
+                                    ?: MachineCatalog.defaultDefinition.id).value.uppercase()}")
+                                androidx.compose.material3.Text("割当は全機種で共通です。この機種にないキーの割当は保持されますが、入力されません。")
                                 ControllerSettings(
                                     settings = gamepad.settings,
                                     devices = gamepad.devices,
@@ -149,6 +192,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        installPlayerKeyDispatch()
         romManager.restore()
     }
 
@@ -166,14 +210,72 @@ class MainActivity : ComponentActivity() {
         updateGamepadContext()
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean =
-        if (::gamepad.isInitialized && gamepad.onKey(event)) true else super.onKeyDown(keyCode, event)
+    private fun handlePlayerKey(event: KeyEvent): Boolean {
+        val actualFocus = window.decorView.hasWindowFocus()
+        if (windowHasFocus != actualFocus) {
+            windowHasFocus = actualFocus
+            if (!actualFocus) releaseAllKeys()
+            updateGamepadContext()
+        }
+        if (::gamepad.isInitialized && gamepad.onKey(event)) return true
+        return ::physicalKeyboard.isInitialized && physicalKeyboard.onKey(event)
+    }
 
-    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean =
-        if (::gamepad.isInitialized && gamepad.onKey(event)) true else super.onKeyUp(keyCode, event)
+    /** Dispatch before Compose/native focus handling; text fields keep their normal input while modal. */
+    private fun installPlayerKeyDispatch() {
+        val previous = window.callback ?: return
+        val callback = object : Window.Callback by previous {
+            override fun dispatchKeyEvent(event: KeyEvent): Boolean =
+                handlePlayerKey(event) || previous.dispatchKeyEvent(event)
+        }
+        previousWindowCallback = previous
+        playerWindowCallback = callback
+        window.callback = callback
+    }
+
+    /** Debug-only on-demand state; no key values, ROM data, logging, or persistence. */
+    override fun dump(prefix: String, fd: java.io.FileDescriptor?, writer: java.io.PrintWriter,
+                      args: Array<out String>?) {
+        if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0 &&
+            args?.contains("--player-input") == true) {
+            writer.println("${prefix}Player input: resumed=$hostResumed focus=$windowHasFocus " +
+                "actualFocus=${window.decorView.hasWindowFocus()} home=$showHome menu=$showPlayerMenu " +
+                "programModal=${programIo.dialog != null} romModal=${romManager.state != null} " +
+                "controller=$showControllerSettings information=${informationSection != null} " +
+                "run=${playerSession?.runner?.state} framePosted=$framePosted " +
+                "callbackInstalled=${window.callback === playerWindowCallback} inputFocus=$playerHasInputFocus")
+            writer.println("${prefix}machine=${playerSession?.machineId?.value} mode=${playerSession?.operatingMode} " +
+                "lcdSymbols=${displayFrame?.symbols?.joinToString { it.name }} heldKeys=${PocketKey.entries.count(hostKeys::isHeld)}")
+            writer.println("${prefix}${physicalKeyboard.diagnosticState()}")
+            return
+        }
+        super.dump(prefix, fd, writer, args)
+    }
 
     override fun onGenericMotionEvent(event: MotionEvent): Boolean =
         if (::gamepad.isInitialized && gamepad.onMotion(event)) true else super.onGenericMotionEvent(event)
+
+    private fun openPlayer(machineId: com.digihori.pgp.core.rom.MachineId) {
+        if (playerSession?.machineId != machineId) {
+            romManager.use(machineId, fromHome = true) { enterPlayer() }
+        } else enterPlayer()
+    }
+
+    private fun enterPlayer() {
+        if (playerSession == null) return
+        pauseEmulator()
+        showHome = false
+        if (entryPolicy.shouldRun) requestAutomaticRun()
+        updateGamepadContext()
+    }
+
+    private fun returnHome() {
+        playerSession?.let { entryPolicy.leavingPlayer(it.runner.state, startRequested || pendingInitialRun) }
+        pauseEmulator()
+        showPlayerMenu = false
+        showHome = true
+        updateGamepadContext()
+    }
 
     private fun closeControllerSettings() {
         showControllerSettings = false
@@ -182,19 +284,38 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun updateGamepadContext() {
+        if (::physicalKeyboard.isInitialized) physicalKeyboard.input.configure(
+            hostResumed && windowHasFocus && !showHome && !showPlayerMenu &&
+                !showControllerSettings && informationSection == null &&
+                (!::programIo.isInitialized || programIo.dialog == null) &&
+                (!::romManager.isInitialized || romManager.state == null) &&
+                playerSession?.runner?.state == PlayerRunState.RUNNING,
+            keyboard?.let { it.rows.flatten().map { cap -> cap.key }.toSet() +
+                it.functionPanel?.rows?.flatten().orEmpty().map { cap -> cap.key } }.orEmpty(),
+            minimumHoldCycles = playerSession?.machineId?.let { id ->
+                MachineCatalog.require(id).automaticKeyHoldCycles
+            } ?: 0L,
+            minimumGapCycles = playerSession?.machineId?.let { id ->
+                MachineCatalog.require(id).automaticKeyGapCycles
+            } ?: 0L,
+        )
         if (::gamepad.isInitialized) gamepad.configure(
             playerSession?.machineId,
-            windowHasFocus && playerSession?.runner?.state == PlayerRunState.RUNNING,
-            showPlayerMenu || showControllerSettings || informationSection != null ||
+            hostResumed && windowHasFocus && playerSession?.runner?.state == PlayerRunState.RUNNING,
+            showHome || showPlayerMenu || showControllerSettings || informationSection != null ||
                 (::programIo.isInitialized && programIo.dialog != null) ||
                 (::romManager.isInitialized && romManager.state != null),
         )
     }
 
     override fun onDestroy() {
+        if (window.callback === playerWindowCallback) window.callback = previousWindowCallback
+        playerWindowCallback = null
+        previousWindowCallback = null
         stopFrameLoop()
         releaseAllKeys()
         if (::gamepad.isInitialized) gamepad.close()
+        if (::physicalKeyboard.isInitialized) physicalKeyboard.close()
         ioExecutor.shutdownNow()
         super.onDestroy()
     }
@@ -202,7 +323,9 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         hostResumed = true
+        configureSystemBars()
         if (pendingInitialRun) runEmulator()
+        updateGamepadContext()
     }
 
     override fun onPause() {
@@ -215,6 +338,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun configureSystemBars() {
+        // On legacy window-insets implementations, the view flag alone can leave a status-bar
+        // inset on OEM devices. Keep the window fullscreen as well; API 30+ uses the controller.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            @Suppress("DEPRECATION")
+            window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        }
         val controller = WindowCompat.getInsetsController(window, window.decorView)
         controller.systemBarsBehavior =
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -242,16 +371,19 @@ class MainActivity : ComponentActivity() {
             if (!isDestroyed) {
                 stopFrameLoop()
                 releaseAllKeys()
+                entryPolicy.newSession()
+                presentationMode = PresentationMode.FULL_DEVICE
                 playerSession = session
                 keyboard = session.keyboard()
-                session.setOperatingMode(OperatingMode.RUN)
+                if (session.machineId.value == "pc-1245") session.setOperatingMode(OperatingMode.RUN)
                 refreshSession(session)
-                requestAutomaticRun()
+                if (!showHome) requestAutomaticRun()
             }
         }
     }
 
     private fun requestAutomaticRun() {
+        if (showHome) return
         pendingInitialRun = true
         if (hostResumed) runEmulator()
     }
@@ -260,6 +392,7 @@ class MainActivity : ComponentActivity() {
         pauseEmulator()
         pendingInitialRun = false
         playerSession = null
+        showHome = true
         displayFrame = null
         keyboard = null
         screenState = state
@@ -275,13 +408,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun releaseAllKeys() {
+        if (::physicalKeyboard.isInitialized) physicalKeyboard.input.reset()
         if (::gamepad.isInitialized) gamepad.reset()
         hostKeys.releaseAll()
     }
 
     private fun runEmulator() {
         val session = playerSession ?: return
-        if (!hostResumed || session.runner.state != PlayerRunState.PAUSED || startRequested) return
+        if (showHome || !hostResumed || session.runner.state != PlayerRunState.PAUSED || startRequested) return
         startRequested = true
         postFrame()
     }
@@ -331,7 +465,8 @@ class MainActivity : ComponentActivity() {
             session.runner.run(frameTimeNanoseconds)
         }
         if (session.runner.state == PlayerRunState.RUNNING) {
-            session.runner.tick(frameTimeNanoseconds)
+            val tick = session.runner.tick(frameTimeNanoseconds)
+            physicalKeyboard.input.advanceCycles(tick.runResult?.executedCycles ?: 0L)
         }
         refreshSession(session)
         if (session.runner.state == PlayerRunState.RUNNING) postFrame()

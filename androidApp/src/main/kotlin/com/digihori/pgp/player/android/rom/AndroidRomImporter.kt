@@ -3,9 +3,7 @@ package com.digihori.pgp.player.android.rom
 import android.content.ContentResolver
 import android.net.Uri
 import android.provider.OpenableColumns
-import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245FlatRomImporter
-import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
-import com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult
+import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.rom.RomSet
 import com.digihori.pgp.player.PlayerFailureKind
 import com.digihori.pgp.player.PlayerSession
@@ -16,7 +14,7 @@ import java.io.ByteArrayOutputStream
 internal class AndroidRomImporter(
     private val contentResolver: ContentResolver,
 ) {
-    fun prepare(uri: Uri): RomImportOutcome {
+    fun prepare(uri: Uri, machineId: MachineId): RomImportOutcome {
         val bytes = try {
             contentResolver.openInputStream(uri)?.use { input ->
                 val output = ByteArrayOutputStream()
@@ -37,23 +35,13 @@ internal class AndroidRomImporter(
             return RomImportOutcome.Failure(PlayerFailureKind.ROM_READ)
         }
 
-        val romSet = parse(bytes) ?: return RomImportOutcome.Failure(PlayerFailureKind.ROM_VALIDATION)
+        val romSet = PlayerRomDecoder.decode(bytes, machineId) ?: return RomImportOutcome.Failure(PlayerFailureKind.ROM_VALIDATION)
         val created = PlayerSessionFactory.create(romSet)
         if (created !is PlayerSessionCreationResult.Success) {
             return RomImportOutcome.Failure(PlayerFailureKind.SESSION_CREATION)
         }
         val canonicalPackage = AndroidRomPackage.write(romSet)
         return RomImportOutcome.Success(PreparedAndroidRom(canonicalPackage, romSet, created.session, displayName(uri)))
-    }
-
-    private fun parse(bytes: ByteArray): RomSet? {
-        if (bytes.size >= 4 && bytes[0] == 'P'.code.toByte() && bytes[1] == 'K'.code.toByte()) {
-            return (AndroidRomPackage.read(bytes) as? RomPackageReadResult.Success)?.romSet
-        }
-        if (bytes.size in Pc1245RomDefinition.SUPPORTED_LEGACY_IMAGE_SIZES) {
-            return (Pc1245FlatRomImporter.importImage(bytes) as? RomImportResult.Success)?.romSet
-        }
-        return (AndroidRomPackage.read(bytes) as? RomPackageReadResult.Success)?.romSet
     }
 
     private fun displayName(uri: Uri): String? = runCatching {

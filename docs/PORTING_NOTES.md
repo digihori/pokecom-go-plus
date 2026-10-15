@@ -2297,3 +2297,29 @@ JDK 21の全体build / Core回帰成功。ツリー内ファイル名変更は�
 - 初回の全体buildは作成中skinの大文字resource名で停止したが、その後の実行では小文字名の既存skinがあり成功。作成中skinはこちらでは変更せず、全てcommit対象外。
 - ローカルROM検証、合成配置／scan検証、ユーザーによる表示確認を区別する。ROM・ROM由来fixture・提供画像はGitへ追加しない。
 - Playerの新機種追加・仮文言整理、RAM拡張、他Assembler等は別の後続項目。packageVersionは1.3.1を維持。
+
+## Android Player PC-1401：LCDシンボルとPhysical入力
+
+- LCDの配置は利用者提示のPC-1401配置図を参照し、共有スキンの座標へ反映した。
+  上段のBUSY／DEF、SHIFT／HYP、DE・G・RAD、( )・M・Eと、下段のCAL／RUN／PRO、STAT／PRINTを分離する。
+  提供画像やROM由来のフォント・fixtureはGitへ追加しない。
+- 状態は既存CoreのLCD snapshotをそのまま使用し、PC-1401の本体CAL／BASICキーで切り替える。
+  ホスト側の動作モードメニューを追加せず、非同期モード要求を完了表示へ置き換える処理も追加しない。
+- 短いPhysical入力は既存MachineDefinitionのPC-1401押下40,000／解放20,000 cyclesへ接続した。
+  PC-1245の11,520／19,200 cycles、HostKeyStateの所有権、背景移行・停止時の解放を再利用する。
+- F2／F3をCAL／BASICへ対応づけ、テンキーの括弧も直接対応づける。文字変換やIME入力は追加しない。
+- 検証範囲は `docs/ANDROID_PC1401_PROGRESS.md` へ記録する。実ROMのエミュレータ確認と実機確認を区別する。
+
+### Android PC-1401：ゲームパッド接続の検証（2026-10-15）
+
+- 既存の`hostInput`の`GamepadKeys`／`GamepadInput`／`HostKeyState`と、Androidの
+  `AndroidGamepadController`を再利用する。機種別プロファイルは追加せず、共通割当を保持し、
+  現在の機種にないキーだけ送出を抑止する。設定画面で対象機種とこの方針を明示する。
+- Androidの受信条件にActivityがresumedであることを明示する。CoreへのOS API追加や
+  iOSのゲームパッド機能追加、Studioの設定変更は行わない。
+- Debug限定の`GamepadProbeActivity`は生成したNOPW命令列のみでSessionを作り、
+  ROM Libraryを読み込まない。設定は専用の`gamepad-probe-`名前空間に限定する。
+  Releaseの画面・manifestには含めない。
+- 仮想機器の検証にはAndroid標準の[uinput](https://android.googlesource.com/platform/frameworks/base/+/HEAD/cmds/uinput/README.md)
+  を使う。機器は検証終了時に切断し、USB／Bluetoothの実機確認とは区別する。
+  外部参照プロジェクトやuinputへのビルド依存は追加しない。

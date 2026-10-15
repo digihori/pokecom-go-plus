@@ -26,7 +26,7 @@ PC-1261／1350／1401を実装し、PC-1360は実ROM起動、16KiB×8 ROMバン�
 macOSでは実ROMの起動、物理／画面キーボード入力、BASICと
 マシン語の入出力、LCD表示、サウンド出力まで動作確認済みです。WindowsではROM起動、キー入力、BASICと
 サウンド、Linux x86_64ではROM起動、基本操作、サウンド、tar.gz／DEB配布物を手動確認しています。
-Pokecom GO PlayerのPC-1245 Android版は、LCD／スキン入力、bas／dmp入出力、ROM管理、横向き・ノッチ対応、ゲームパッド割当に対応し、2026-10-12にユーザー動作確認済みです。iOSとAndroidの1401／1350は後続です。
+Pokecom GO PlayerのPC-1245 Android版は、LCD／スキン入力、bas／dmp入出力、ROM管理、横向き・ノッチ対応、ゲームパッド割当に対応し、2026-10-12にユーザー動作確認済みです。PC-1401 Androidも今回の対応範囲を完了し、2026-10-15にユーザーが区切りを確認しました。検証範囲と残る機器別確認は[対応記録](docs/ANDROID_PC1401_PROGRESS.md)を参照してください。iOSとAndroidの1350は後続です。
 
 現在利用できる主な機能は次のとおりです。
 
@@ -73,7 +73,7 @@ Assembly WorkspaceのAssembleは結果確認、Buildはファイル生成、Buil
 - Windows
 - Linux
 
-実行機能へ特化したPokecom GO PlayerはPC-1245 Android版の今回の開発範囲を完了しています。
+実行機能へ特化したPokecom GO PlayerはPC-1245／PC-1401 Android版の今回の開発範囲を完了しています。
 iOSは後続対象です。Playerにはデバッガ、アセンブラ、逆アセンブラなどの開発機能を搭載しません。
 
 ## リポジトリ構成
@@ -85,7 +85,7 @@ pokecom-go-plus/
 ├── controllerUi/  Studio／Android共通のコントローラー設定画面
 ├── playerShared/  Android／iOS Playerで共有する実行・表示モデル
 ├── desktopApp/    Pokecom GO Studio（現在のCompose Desktop実装）
-├── androidApp/    Pokecom GO Player（PC-1245 Android）
+├── androidApp/    Pokecom GO Player（PC-1245／PC-1401 Android）
 ├── docs/          構想・設計・移植記録・ロードマップ
 ├── local-data/    ローカルROM等（Git管理外）
 └── test-data/     再配布可能なテストデータ
@@ -153,7 +153,7 @@ Linuxでは次を実行する。
 Windows／LinuxともCIによるビルドと自動テストは実施しているが、画面操作、音声、ファイル選択を含む
 手動スモークテストは公開前の確認項目である。
 
-### PC-1245 Android Player
+### Android Player（PC-1245／PC-1401）
 
 Android SDK 36とJDK 21を設定した環境でdebug APKを生成する。
 
@@ -162,19 +162,21 @@ Android SDK 36とJDK 21を設定した環境でdebug APKを生成する。
 ```
 
 生成先は`androidApp/build/outputs/apk/debug/androidApp-debug.apk`。
-`.pgrom`／PC-1245 legacy ROMを取り込み、機種別のアプリ専用領域へ保存する。
-取込み・復元・Reset後はCPUを自動実行する。ROMは同梱しない。
+`.pgrom`／選択機種のlegacy ROMを取り込み、機種別のアプリ専用領域へ保存する。
+PC-1401はホーム・ROM管理・Session切替・本体操作・BASIC／DMP入出力・ゲームパッドへの接続を完了。[機種別の検証範囲と未確認事項](docs/ANDROID_PC1401_PROGRESS.md)を参照。
+起動時はホームへROMを復元し、初回プレイとReset後はCPUを自動実行する。ROMは同梱しない。
 
 - スキン上の52キー、16桁LCDとSHIFT／DEF等、RUN／PRO、常時実行状態表示
 - 両方向の横向き、ノッチ・ナビゲーション領域回避、手動Controller Display
 - 画面内の階層メニュー、ROM取込み・置換・削除、ゲームパッド割当
-- `.bas`／`.dmp`の拡張子自動判定ロード、BASIC全体／指定RAM範囲の保存・共有
-- dmpロード成功後はCPUを自動再開。BASICロード、失敗・キャンセル後はPAUSED
-- バージョン情報、プライバシーポリシー／Studio案内の仮表示
+- `.bas`／`.dmp`の拡張子自動判定ロード、BASIC全体／指定RAM範囲のセーブ
+- BASIC／dmpロード成功後はCPUを自動再開。失敗・キャンセル後はPAUSED
+- ホームの設定／ヘルプ・情報、Playerとは／Studioについて／バージョン・ライセンス、プライバシー原文案の同梱表示
+- 外部キーボードのPhysical入力、左上状態表示のRun/Pause切替
 
-現在の選択対象は1245のみ。Project、Assembler、Debugger、WAV、音声出力、セーブステートは搭載しない。
+現在の選択対象はPC-1245／PC-1401。Project、Assembler、Debugger、WAV、音声出力、セーブステートは搭載しない。
 操作と制限は[Android Playerガイド](docs/PLAYER_PROGRAM_IO.md)を参照。
-今回の動作はユーザー確認済み。Technical Preview 0.4の公開状況は[公開チェックリスト](docs/RELEASE_CHECKLIST_0.4.0-alpha.1.md)を参照。
+PC-1245の0.4時点の動作はユーザー確認済み。現在の追加変更の検証範囲は上記ガイド、Technical Preview 0.4の公開状況は[公開チェックリスト](docs/RELEASE_CHECKLIST_0.4.0-alpha.1.md)を参照。
 
 ### BASICテキストの読み込み
 
@@ -307,7 +309,7 @@ Desktopアプリを起動する場合：
   Windowsでは、サウンドを使用したプログラムの終了後もクリックノイズが鳴り続けることがある。
   オーディオラインの終了判定と無音バッファ処理は今後の改善項目である。
 - PC-1245／1250の`0xb000..0xbfff`周辺のミラー仕様は再確認が必要である。
-- PlayerはPC-1245 Androidに対応する。iOS、1401／1350のAndroidスキン、音声出力、セーブステートは後続。プライバシーポリシーとStudio案内は仮表示である。
+- PlayerはPC-1245／PC-1401 Androidに対応する。[検証範囲と機器別の未確認事項](docs/ANDROID_PC1401_PROGRESS.md)は別途記録する。iOS、PC-1350 Android、音声出力、セーブステートは後続。情報画面は静的同梱。プライバシーポリシーは公開前の原文案である。
 
 公開版に向けた確認状況は[Technical Preview公開チェックリスト](docs/PUBLIC_RELEASE_CHECKLIST.md)を参照する。
 
