@@ -13,6 +13,21 @@ private final class ManualFrames: PlayerFrameDriver {
 
 @MainActor
 final class PlayerHostTests: XCTestCase {
+    func testRunDoesNotScheduleFramesBeforeSceneActivation() {
+        let frames = ManualFrames()
+        let host = PlayerHost.structuralProbe(frames: frames)
+        host.run()
+        XCTAssertNil(frames.callback)
+        XCTAssertEqual(host.status.runState, "PAUSED")
+        host.setActive(true)
+        host.run()
+        frames.send(0)
+        XCTAssertEqual(host.status.runState, "RUNNING")
+        frames.send(10_000_000)
+        XCTAssertGreaterThan(host.status.executedCycles, 0)
+        XCTAssertTrue(host.lcd?.symbols.contains(.shift) == true)
+    }
+
     func testOrdinaryResumeStaysPausedAndReleasesInput() {
         let frames = ManualFrames()
         let host = PlayerHost.structuralProbe(frames: frames)

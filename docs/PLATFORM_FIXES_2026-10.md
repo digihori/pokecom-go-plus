@@ -148,3 +148,46 @@ Windowsの新MSI生成／COM検査スクリプト／実際の更新、SMB／Robo
 実測結果は未記録。実ROM／実機BRK照合、iOS 16 runtime、hosted CIは未検証。
 既存の未コミット文書・同期スクリプトを保護し、作成中スキン3枚は変更・stageしていない。
 commit／pushは行っていない。
+
+## 2026-10-16: Player音声・速度追加後のCI安定化
+
+対象は[commit 244b13dのCI](https://github.com/digihori/pokecom-go-plus/actions/runs/38794988137)。
+Android・macOS・Linuxは成功し、WindowsとiPhone Simulatorで次の失敗が発生した。
+PC-1350対応、Player音声の仕様変更、Studioデバッグ機能追加は含めない。
+
+### Windows
+
+`DesktopExternalAssemblerTest.capturesBothStreamsAndPreservesNonzeroExitCode`で、
+PowerShellを使うテスト用プロセスが15秒の制限に達し、`TimedOut`になった。
+標準出力／標準エラー・日本語パス・終了コード・作業ディレクトリを検証するテストであり、
+意図したタイムアウトのテストではない。CI負荷やcold起動に余裕を持たせるため、
+このWindows fixtureのみ60秒へ変更し、`-NoLogo`を追加した。
+次回失敗時は結果に含まれる出力ログもassertionへ残す。
+
+製品の実行タイムアウト、別の1秒タイムアウト検証、キャンセル検証、既存のassertionは維持する。
+PowerShellが制限時間に達した詳細な環境要因はログからは確定していない。
+Windows固有パスの検証はGitHub hosted Windows jobで行う。
+
+### iPhone Simulator
+
+Controller DisplayのUIテストで初回Run後にRUNNINGへ移行せず、続くSHIFT点灯も失敗した。
+同じCIの共有Native・Swift単体テストと、後続のRun／Pause／Reset UIテストは成功した。
+修正前のローカルSimulatorでは全テストが成功し、CIの初回失敗は再現していない。
+
+準備完了の待機不足を避けるため、次を明示する。
+
+- 初回起動の向きを揃え、UIKitの回転完了と横長の画面、Runのenabled／hittableを待つ。
+- Runボタンはsceneが非アクティブな間も無効にする。Host側の既存の実行条件と一致させる。
+- RUNNING表示と実際の命令実行を区別し、SHIFTが点灯してからPauseする。
+- 非アクティブ時にはフレームを開始せず、有効化後のRunで実行できることをSwift単体テストへ追加。
+
+失敗したタップの自動再試行やassertionの削除は行わない。
+
+### 検証
+
+- JDK 21の全体`build`とCore `desktopTest`が成功。
+- Desktop 312件（既存のskip 1件を含む）、Core 436件が失敗なし。
+- `iosApp/test-simulator.sh`が成功。Swift単体10件、UI 2件が成功。
+- macOSでの検証とWindows hosted runnerでの検証は区別する。
+  hostedの再確認結果は[CI実行履歴](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)を参照。
+- Core・Androidの変更、ROM／ROM由来fixtureの追加、実設定の変更、packageVersion・公開済みタグの変更なし。

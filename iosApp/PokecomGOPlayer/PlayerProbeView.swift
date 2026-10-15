@@ -24,7 +24,7 @@ struct PlayerProbeView: View {
                         .disabled(host.isBusy)
                     Button(action: host.run) { Image(systemName: "play.fill").frame(minWidth: 28, minHeight: 28) }
                         .accessibilityLabel("Run").accessibilityIdentifier("run")
-                        .disabled(!host.hasSession || host.status.runState != "PAUSED")
+                        .disabled(!host.isActive || !host.hasSession || host.status.runState != "PAUSED")
                     Button(action: host.pause) { Image(systemName: "pause.fill").frame(minWidth: 28, minHeight: 28) }
                         .accessibilityLabel("Pause").accessibilityIdentifier("pause")
                     Button(action: host.reset) { Image(systemName: "arrow.counterclockwise").frame(minWidth: 28, minHeight: 28) }

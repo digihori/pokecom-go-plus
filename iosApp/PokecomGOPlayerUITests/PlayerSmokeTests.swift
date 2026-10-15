@@ -2,9 +2,7 @@ import XCTest
 
 final class PlayerSmokeTests: XCTestCase {
     func testRunPauseResetRotationAndBackgroundReturn() {
-        let app = XCUIApplication()
-        app.launchArguments = ["--structural-probe"]
-        app.launch()
+        let app = launchStructuralProbe()
         XCTAssertTrue(app.buttons["run"].waitForExistence(timeout: 10))
         XCTAssertEqual(app.staticTexts["runState"].label, "PAUSED")
         app.buttons["run"].tap()
@@ -45,13 +43,16 @@ final class PlayerSmokeTests: XCTestCase {
     }
 
     func testControllerDisplayKeepsLcdAndAvoidsNotchInBothDirections() {
-        let app = XCUIApplication()
-        app.launchArguments = ["--structural-probe"]
-        app.launch()
+        let app = launchStructuralProbe()
         XCTAssertTrue(app.buttons["presentation"].waitForExistence(timeout: 10))
         XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'key_' ")).count, 52)
         app.buttons["run"].tap()
         waitFor("RUNNING", in: app)
+        // RUNNING can precede the first nonzero cycle budget. Wait for the probe program
+        // to initialize the display before pausing, independently of CI frame delivery speed.
+        let lit = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "点灯"),
+            object: app.staticTexts["symbol_SHIFT"])
+        XCTAssertEqual(XCTWaiter.wait(for: [lit], timeout: 10), .completed)
         app.buttons["pause"].tap()
         waitFor("PAUSED", in: app)
         XCTAssertEqual(app.staticTexts["symbol_SHIFT"].value as? String, "点灯")
@@ -73,6 +74,24 @@ final class PlayerSmokeTests: XCTestCase {
                 XCTAssertEqual(app.buttons["key_ENTER"].value as? String, "解放")
             }
         }
+    }
+
+    private func launchStructuralProbe() -> XCUIApplication {
+        // Cold CI simulators start in portrait. Element existence alone does not mean that
+        // UIKit has finished rotation or that the scene accepts Run yet. Do not retry taps.
+        XCUIDevice.shared.orientation = .landscapeLeft
+        let app = XCUIApplication()
+        app.launchArguments = ["--structural-probe"]
+        app.launch()
+        XCTAssertTrue(app.buttons["run"].waitForExistence(timeout: 10))
+        rotateAndSettle(.landscapeLeft)
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            app.frame.width > app.frame.height && app.buttons["run"].isEnabled &&
+                app.buttons["run"].isHittable
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed,
+            "Player must be active and settled in landscape before the first Run tap")
+        return app
     }
 
     private func waitFor(_ state: String, in app: XCUIApplication) {

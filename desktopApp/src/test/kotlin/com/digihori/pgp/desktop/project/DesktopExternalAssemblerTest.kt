@@ -37,9 +37,13 @@ class DesktopExternalAssemblerTest {
                     [IO.File]::WriteAllText([IO.Path]::Combine([Environment]::CurrentDirectory, "cwd marker.txt"), "ok")
                     exit 2
                 """.trimIndent()) }
-                DesktopAssemblerSettings(true, "powershell.exe", "-NoProfile -NonInteractive -File \"${script.absolutePath}\" {source}", 15)
+                // Allow cold PowerShell startup on a loaded Windows CI host.
+                // This is the stream/argv test, not the separate one-second timeout test.
+                DesktopAssemblerSettings(true, "powershell.exe", "-NoLogo -NoProfile -NonInteractive -File \"${script.absolutePath}\" {source}", 60)
             } else settings("exit")
-            val result = assertIs<DesktopExternalAssemblerRunResult.Exited>(DesktopExternalAssemblerRunner.run(configured, source), "Fixture process did not exit")
+            val completed = DesktopExternalAssemblerRunner.run(configured, source)
+            val result = assertIs<DesktopExternalAssemblerRunResult.Exited>(completed,
+                "Fixture process did not exit: $completed")
             assertEquals(2, result.code, "Fixture exit code; log=${result.log}")
             assertTrue(result.log.contains("stdout"), "Missing stdout; log=${result.log}")
             assertTrue(result.log.contains("stderr"), "Missing stderr; log=${result.log}")
