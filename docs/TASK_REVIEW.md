@@ -76,6 +76,8 @@ Android/iOS Playerへの機種追加（B3）とは別の作業として扱う。
 
 ## C: 開発支援・解析の拡張
 
+2026-10-15ユーザー方針: デバッグ強化は0.5で一旦終了。残りは[記録](DEBUGGER_FOLLOW_UP.md)として保持し、対象指定後に再開する。
+
 | ID | 項目 | 残作業・現在の状態 |
 |---|---|---|
 | C1 | Debuggerとソースの連携 | Assembly Listing、Symbol/Source Map、ソース行表示を接続 |

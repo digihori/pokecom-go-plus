@@ -524,3 +524,5 @@ Pokecom GO Playerはエミュレータの実行に特化し、Pokecom GO Studio�
 Pokecom GOを基準とする。
 
 2026-10-14: Technical Preview 0.5を公開。[公開記録](RELEASE_CHECKLIST_0.5.0-alpha.1.md)。
+
+2026-10-15: ユーザー方針によりデバッグ強化は0.5で一旦終了。未実装候補と依存条件は[残作業記録](DEBUGGER_FOLLOW_UP.md)へ整理。実装着手は別の指示後。

@@ -239,7 +239,9 @@ PC-1360K解析ではDisassembly、Memory、Access History、Bank Historyの同�
 
 ## 13. 今後の課題
 
-実装順と完了状態は[ROADMAP.md](ROADMAP.md#phase-5-開発支援機能)を正とする。主な候補は次のとおり。
+2026-10-15のユーザー方針により、今回の強化は0.5で一区切りとする。
+残作業・再開時の前提は[フォローアップ記録](DEBUGGER_FOLLOW_UP.md)にまとめた。
+以下は将来候補であり実装依頼ではない。完了状態は[ROADMAP.md](ROADMAP.md#phase-5-開発支援機能)を正とする。主な候補は次のとおり。
 
 - 条件付きBreakpoint
 - Symbol／Source Mapとソース行表示
@@ -248,8 +250,6 @@ PC-1360K解析ではDisassembly、Memory、Access History、Bank Historyの同�
 - Checkpoint間および実機Checkpointとの差分表示
 - PC-1360Kの漢字ROM／work RAM観測
 - Assembly Workspace、Listing、Symbol Mapとの連携
-- AIが解析できるversion付きDebug Contextの出力
-- localhost MCP経由の読み取り専用Debuggerツール
 - AIが提案したBreakpoint、Watch、Step、Continueの承認付き実行
 
 機種固有の観測点を追加する場合も、Debugger UIからMemory Bus内部へ直接アクセスせず、Core SessionのSnapshotまたは
