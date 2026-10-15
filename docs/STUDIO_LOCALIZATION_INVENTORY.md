@@ -18,7 +18,7 @@
 | Debugger / Breakpoint / Watch | デバッガー／ブレークポイント／監視 |
 | Run / Pause / Step / Reset | 実行／一時停止／ステップ実行／リセット |
 | Character Editor / WAV Tool | ドットエディター／WAVツール |
-| Logical / Physical input | 論理入力／物理入力 |
+| Logical / Physical input | Logical／Physical（英語表記を維持） |
 | Memory / Trace | メモリ／トレース |
 | Controller / Unassigned | コントローラー／未割当 |
 
@@ -79,7 +79,7 @@ Coreの型付きエラー・codeは保持する。未構造化のreasonを列挙
 | Fit / Zoom / Pan | 全体表示／拡大・縮小／表示範囲を移動 | 波形操作の意味が分かる表記 |
 | MCP server / Loopback / Read-only | MCPサーバー／ループバック／読み取り専用 | MCP、localhost、127.0.0.1等の値は維持 |
 | Bearer token / Credential file | Bearerトークン／認証情報ファイル | 表示の説明だけ翻訳。認証ヘッダー・トークン・パスは維持 |
-| Logical / Physical | 論理入力／物理入力 | UIラベルを翻訳。設定のenum・保存値は維持 |
+| Logical / Physical | Logical／Physical | 2026-10-15のユーザー方針で英語表記を維持。「ホスト入力」は日本語。メイン画面へ説明を追加しない。設定のenum・保存値は維持 |
 | PC-1261 family / PC-1401 family | PC-1261ファミリー／PC-1401ファミリー | familyは説明語。機種名、系列の登録・共用方針は維持 |
 | Standard / Unlimited | 標準／無制限 | 速度設定の表示だけ翻訳。ratio・保存値は維持 |
 | Character Editor | ドットエディター | ユーザー指定の表記を採用。フォーマットIDは維持 |
