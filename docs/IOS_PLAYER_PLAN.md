@@ -8,6 +8,78 @@
 ユーザーの追加指示により、7〜8は実ROM動作を優先し、その他のメニュー処理は暫定。
 bas/dmp入出力、ゲームパッドと階層メニューの完成は次の段階。
 
+
+## Android相当の品質へ揃える後続案（2026-10-16）
+
+**状態: 調査・提案の記録のみ。ユーザー指示により実装はまだ開始しない。**
+以下は従来の承認済み範囲とは別の将来案であり、実装着手の承認を意味しない。
+まずPC-1245の品質を揃え、PC-1401／PC-1350等の機種追加は別工程とする案。
+
+### 対応範囲
+
+- ホームとPlayerを分離し、設定・ヘルプをホーム、本体操作・プログラム操作をPlayerへ配置。
+  初回入場の自動実行、明示Pauseの維持、通常背景復帰の停止をAndroidの方針へ揃える。
+- 状態表示のRun／Pauseトグル、独立RUN／PRO、メニューのReset・動作モードを整理。
+- 既存ROM登録／置換／削除／復元を再利用し、新ホームと失敗・取消・再起動時の動作を検証。
+- BASIC／DMPは既存共有Playerの検証・配置・保存処理をSwiftへ接続。
+  ロード成功後はCPU再開（BASICのRUNコマンドは自動入力しない）。
+  セーブは開始前の実行意図へ戻し、明示Pauseは維持。他アプリへの共有機能は追加しない案。
+- サウンド出力、共通ON／OFF、CPU速度0.8／0.9／1.0／1.1／1.2倍と設定保存。
+- GameControllerを共有入力所有権・単一パッド選択・割当・解放規則へ接続。
+- 外部キーボードはPhysical入力を基本とし、単独SHIFT、モーダル・フォーカス・背景・切断を検証。
+- Playerとは／Studioについて／プライバシー／バージョン・ライセンスの仮表示を置換。
+  本文はビルド時同梱を基本とし、iOS固有の保存・クラウド利用について調整。
+- 両横向き、ノッチ・ホームインジケータ、文字サイズ、複数指、最低対象OSと実機を検証。
+
+### ファイルピッカーの方針案
+
+iOS標準UIDocumentPickerViewControllerから、端末内・iCloud Drive・対応する他社File Providerへ
+アクセスできる。iCloudを必須とはしない。「このiPhone内」とiCloud Driveを基本検証対象、
+Google Driveを追加の実機検証対象とする案。
+Google Driveは利用者がDriveアプリを設定し、「ファイル」アプリの場所として有効にする必要がある。
+表示・認証・取得可否はアカウント、ネットワーク、プロバイダーの状態にも依存する。
+専用Google SDK、Player独自のログイン、独自クラウド同期は追加しない案。
+
+現行ROMピッカーは既に標準APIのコピー読込みを使用し、security scopeの開始・終了も実装済み。
+これを再利用し、次の品質を補う。
+
+- 未取得クラウドファイルの待機・失敗・取消・復帰で画面を固めず、旧Sessionを保護する。
+- pgrom／bas／dmpの選択可否と内容検証、保存先選択・再ロードを実際のproviderで確認。
+- ROMは検証後にアプリ内Libraryへ保存し、以後は元のクラウドURLへ依存しない。
+- オフラインの取得済み／未取得を区別し、保存完了とクラウド同期完了を同一視しない。
+- プライバシー説明ではPlayer自身の通信と、利用者が選択したクラウドproviderの通信を区別する。
+
+### サウンドの方針案・未決事項
+
+共有RunnerはPCMを生成するが、現行ApplePlayerFacade.tickは実行cycle数だけを取り出し、
+PCMをSwiftへ公開していない。FacadeからPCM・速度を渡し、Swift側の
+AVAudioEngine／AVAudioPlayerNodeへ接続する案。
+無音時間の保持、蓄積・音切れ・停止後の鳴り残りを検証し、Pause・Reset・ホーム・背景で停止・破棄。
+音声割込み、出力先変更、ヘッドホン切断、復帰を扱う。CPU倍率に音高・テンポも追従させる。
+
+**未決:** 消音モードに従うか、他アプリ音声との共存方針。
+消音モードに従い、その旨を設定に表示する案を提示した段階であり、ユーザー決定ではない。
+背景再生は追加しない案。実機の聴感確認とSimulator／PCM経路確認を分ける。
+
+### 着手時の推奨順序（未着手）
+
+1. 標準ピッカーの実機調査：端末内・iCloud Drive・Google Drive、取得待ち・取消。
+2. BASIC／DMPのロード・セーブ・再ロード。
+3. サウンドとCPU速度：合成PCMから実ROMのBEEP、実機確認へ。
+4. ホーム・階層メニュー・案内画面。
+5. ゲームパッドとPhysical外部キーボード。
+6. 実機受入れと文書整理。署名・配布は別途の指示とする。
+
+共有CoreへOS／UI／filesystem／時刻／thread APIを追加せず、型付きエラーを維持する。
+Android回帰、共有Native、Swift host／UI、自動検証と実機の区分を記録する。
+
+出典:
+- [Apple: ファイルアプリで他社製のクラウドアプリを使う](https://support.apple.com/ja-jp/102238)
+- [Apple: Providing access to directories](https://developer.apple.com/documentation/uikit/providing-access-to-directories)
+- [Apple: UIDocumentPickerViewController](https://developer.apple.com/documentation/uikit/uidocumentpickerviewcontroller)
+- [Apple: AVAudioPlayerNode](https://developer.apple.com/documentation/avfaudio/avaudioplayernode)
+- [Apple: AVAudioSession](https://developer.apple.com/documentation/avfaudio/avaudiosession)
+
 ## 承認済みの今回の目標
 
 ユーザーはSwiftUI/UIKit host、iPhone専用、最低iOS 16、iPad対象外を承認した。

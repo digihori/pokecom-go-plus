@@ -47,7 +47,7 @@ Technical Preview 0.5の公開作業は[チェックリスト](RELEASE_CHECKLIST
 
 | ID | 項目 | 残作業・現在の状態 |
 |---|---|---|
-| B1 | PC-1245 iOSプログラム入出力 | bas/dmpロード、BASIC/RAM保存・共有、階層メニュー整理。成功後CPU再開のAndroidとの統一も設計に含む |
+| B1 | PC-1245 iOS品質向上 | [後続案](IOS_PLAYER_PLAN.md)を2026-10-16に記録。標準Files経由のiCloud／Google Drive、bas/dmpロード・セーブ、サウンド・CPU速度、ホーム整理・Physical入力。ユーザー指示により未着手。消音モード方針も未決 |
 | B2 | iOSゲームパッド | GameController接続、共有入力、選択・割当・保存、切断/背景時の解放、実パッド確認 |
 | B3 | Android Playerの機器別追加検証 | PC-1401は2026-10-15に予定した6段階を完了し、ユーザーが今回の区切りを承認。[検証区分](ANDROID_PC1401_PROGRESS.md)を保持。PC-1350も2026-10-16にユーザーが一通りの動作とLCD改善を確認し、今回の対応を一区切りとした。[段階別検証と機器別の未確認事項](ANDROID_PC1350_PROGRESS.md)を保持。両機種のiOSは別検討 |
 | B4 | Desktop物理キー入力モード | 現在の文字/論理入力と、押下/解放を直接送る入力を切替。SHIFT、同時押し、repeat、focus喪失を扱う。A2との関連を確認 |
