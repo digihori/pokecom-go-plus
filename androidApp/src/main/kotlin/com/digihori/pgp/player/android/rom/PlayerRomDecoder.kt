@@ -3,6 +3,7 @@ package com.digihori.pgp.player.android.rom
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245FlatRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult
 import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401FlatRomImporter
+import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350FlatRomImporter
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.rom.RomSet
 import com.digihori.pgp.player.PlayerMachineCatalog
@@ -17,6 +18,7 @@ internal object PlayerRomDecoder {
             val imported = when (machineId.value) {
                 "pc-1245" -> Pc1245FlatRomImporter.importImage(bytes)
                 "pc-1401" -> Pc1401FlatRomImporter.importImage(bytes)
+                "pc-1350" -> Pc1350FlatRomImporter.importImage(bytes)
                 else -> return null
             }
             (imported as? RomImportResult.Success)?.romSet

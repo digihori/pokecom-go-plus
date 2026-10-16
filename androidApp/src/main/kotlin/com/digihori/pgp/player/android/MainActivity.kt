@@ -50,7 +50,8 @@ import com.digihori.pgp.player.PlayerScreenState
 import com.digihori.pgp.player.PresentationMode
 import java.util.concurrent.Executors
 
-class MainActivity : ComponentActivity() {
+// Open only to let debug hosts reuse this flow with isolated storage/preferences.
+open class MainActivity : ComponentActivity() {
     private var screenState: PlayerScreenState by mutableStateOf(PlayerScreenState.Loading)
     private var playerSession: PlayerSession? = null
     private var displayFrame: PlayerDisplayFrame? by mutableStateOf(null)
@@ -283,6 +284,7 @@ class MainActivity : ComponentActivity() {
                 "callbackInstalled=${window.callback === playerWindowCallback} inputFocus=$playerHasInputFocus")
             writer.println("${prefix}machine=${playerSession?.machineId?.value} mode=${playerSession?.operatingMode} " +
                 "lcdSymbols=${displayFrame?.symbols?.joinToString { it.name }} heldKeys=${PocketKey.entries.count(hostKeys::isHeld)}")
+            writer.println("${prefix}playback speed=${playerSession?.runner?.speed?.id} savedSpeed=${executionSpeed.id} sound=$soundEnabled audioStatus=$audioStatus")
             writer.println("${prefix}${physicalKeyboard.diagnosticState()}")
             return
         }
@@ -329,6 +331,7 @@ class MainActivity : ComponentActivity() {
                 playerSession?.runner?.state == PlayerRunState.RUNNING,
             keyboard?.let { it.rows.flatten().map { cap -> cap.key }.toSet() +
                 it.functionPanel?.rows?.flatten().orEmpty().map { cap -> cap.key } }.orEmpty(),
+            pc1350 = playerSession?.machineId?.value == "pc-1350",
             minimumHoldCycles = playerSession?.machineId?.let { id ->
                 MachineCatalog.require(id).automaticKeyHoldCycles
             } ?: 0L,
@@ -439,12 +442,12 @@ class MainActivity : ComponentActivity() {
         updateGamepadContext()
     }
 
-    private fun pressKey(key: PocketKey) {
-        hostKeys.press("screen:${key.name}", key)
+    private fun pressKey(id: String, key: PocketKey) {
+        hostKeys.press("screen:$id", key)
     }
 
-    private fun releaseKey(key: PocketKey) {
-        hostKeys.release("screen:${key.name}")
+    private fun releaseKey(id: String) {
+        hostKeys.release("screen:$id")
     }
 
     private fun releaseAllKeys() {

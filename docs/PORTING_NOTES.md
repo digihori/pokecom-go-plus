@@ -2323,3 +2323,60 @@ JDK 21の全体build / Core回帰成功。ツリー内ファイル名変更は�
 - 仮想機器の検証にはAndroid標準の[uinput](https://android.googlesource.com/platform/frameworks/base/+/HEAD/cmds/uinput/README.md)
   を使う。機器は検証終了時に切断し、USB／Bluetoothの実機確認とは区別する。
   外部参照プロジェクトやuinputへのビルド依存は追加しない。
+
+### Android PC-1350 Player: 共有基盤（2026-10-16）
+
+- 既存CoreのPC-1350 Factory／キーマトリクス／150×32 Display Snapshotをそのまま使用。
+  `desktopApp/.../input/Pc1245KeyboardLayout.kt`の`Pc1350KeyboardLayout`から論理キーと
+  主キー／SHIFT凡例を共有Playerへ移し、ラベルは既存`skin_pc1350.png`へ合わせた。
+  外部参照プロジェクトのコード・ビルド依存、CoreへのOS APIは追加しない。
+- 既存1429×603画像を確認して初期スキン座標を定義。画像ファイル自体は変更しない。
+  SHIFTが2か所あるため、共通モデルで論理キーと物理IDを分離した。
+  PC-1245／PC-1401はデフォルトのキー名IDを維持する。
+- 合成命令列と既存HostKeyStateによる検証のみ。実ROM・Android画面でのタッチ一致・実機の
+  受入れ結果ではない。ホーム選択とROM decoderはまだ有効化しない。
+  詳細と後続作業は[PC-1350対応記録](ANDROID_PC1350_PROGRESS.md)を参照。
+
+
+### Android PC-1350 Player: ホーム・ROM接続（2026-10-16）
+
+- PC-1350を明示的なホーム選択対象へ追加し、既存Coreの64 KiB Flat ROM importerへ接続。
+  pgrom検証とAndroidのROM管理・Session／実行意図の扱いは既存実装を再利用した。
+- 既存Android画像の読込みを追加。キー入力・LCD配置の仕上げや機種別入出力は後続。
+- 3機種の保存保護・置換失敗のrollback・Session切替を合成データで検証。
+  Debug限定で製品MainActivityを継承し、filesDir／設定を分離した同じ導線を確認した。
+  詳細と未確認事項は[手順2の対応記録](ANDROID_PC1350_PROGRESS.md#手順2-ホームrom管理session切替)を参照。
+
+
+### Android PC-1350 input wiring (step 3)
+
+The Android skin and software keyboard now pass shared physical cap IDs to
+HostKeyState. SHIFT_LEFT and SHIFT_RIGHT share the Core SHIFT key but retain
+independent screen owners. Existing machine IDs remain unchanged.
+The existing Window keyboard dispatcher, lifecycle release logic and runner
+are reused. Only PC-1350 overrides F2 (MODE), F3 (KANA), Insert and Delete;
+its scan timing comes from MachineCatalog. No desktop dependency or Core
+platform API was added. See ANDROID_PC1350_PROGRESS.md for automated,
+emulator and pending physical-device checks.
+
+
+### Android PC-1350 program I/O verification (step 5)
+
+Reused the existing shared PlayerProgramIo, Android document adapters, Core S1
+codec and PC-1350 memory planner without adding machine-specific host logic.
+Added seven ROM-free shared integration tests for S1/kana round trips,
+configured BASIC pointers and capacity, atomic RAM-only dump loading,
+inclusive dump export/reload, and typed rejection while running.
+The isolated Android host also exercised local firmware with original BASIC
+and DMP samples. No firmware-derived fixture was added. See
+ANDROID_PC1350_PROGRESS.md for automated, emulator and pending device checks.
+
+
+### Android PC-1350 playback and gamepad verification (step 6)
+
+Reused the shared input owners, gamepad key catalogue, 256,000-cycle runner
+and PCM path. Added PC-1350 gamepad/runner regression tests and included the
+machine in existing oscillator/direct-output audio tests. Debug-only probes
+exercise generated Core PCM through Android audio and virtual gamepad input
+with isolated settings. No Core platform API, ROM fixture or iOS feature was
+added. Device acceptance remains separate in ANDROID_PC1350_PROGRESS.md.

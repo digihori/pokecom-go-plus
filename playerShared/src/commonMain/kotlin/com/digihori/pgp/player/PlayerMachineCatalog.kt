@@ -2,16 +2,17 @@ package com.digihori.pgp.player
 
 import com.digihori.pgp.core.api.MachineCatalog
 import com.digihori.pgp.core.api.MachineDefinition
+import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.player.skin.PlayerSkinCatalog
 
 /** Explicit Player integration targets; a skin alone does not enable a machine. */
 public object PlayerMachineCatalog {
     public val definitions: List<MachineDefinition>
-        get() = MachineCatalog.definitions.filter {
-            it.id.value in enabledMachineIds && PlayerSkinCatalog.forMachine(it.id) != null
-        }
+        get() = enabledMachineIds.map { MachineCatalog.require(MachineId(it)) }
+            .filter { PlayerSkinCatalog.forMachine(it.id) != null }
 
-    private val enabledMachineIds = setOf("pc-1245", "pc-1401")
+    // Keep the existing home order stable when adding a new integration target.
+    private val enabledMachineIds = listOf("pc-1245", "pc-1401", "pc-1350")
 }
 
 /** Portable library listing; file paths and persistence stay in each host. */

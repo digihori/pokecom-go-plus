@@ -215,4 +215,53 @@ class PhysicalKeyboardStateTest {
         assertFalse("NUM_7" in events)
     }
 
+    @Test fun pc1350MappingAndModeTapUseMachineTiming() {
+        assertEquals(PocketKey.MODE, physicalPocketKey(KeyEvent.KEYCODE_F2, true))
+        assertEquals(PocketKey.KANA, physicalPocketKey(KeyEvent.KEYCODE_F3, true))
+        assertEquals(PocketKey.INSERT, physicalPocketKey(KeyEvent.KEYCODE_INSERT, true))
+        assertEquals(PocketKey.DELETE, physicalPocketKey(KeyEvent.KEYCODE_FORWARD_DEL, true))
+        assertEquals(PocketKey.CLEAR, physicalPocketKey(KeyEvent.KEYCODE_DEL, true))
+        val definition = com.digihori.pgp.core.api.MachineCatalog.require(
+            com.digihori.pgp.core.rom.MachineId("pc-1350"))
+        val events = mutableListOf<String>()
+        val keyboard = PhysicalKeyboardState({ _, key -> events += key.name }, { events += "up" })
+        keyboard.configure(true, setOf(PocketKey.MODE, PocketKey.KANA),
+            definition.automaticKeyHoldCycles, definition.automaticKeyGapCycles, pc1350 = true)
+        keyboard.handle(1, KeyEvent.KEYCODE_F2, true)
+        keyboard.handle(1, KeyEvent.KEYCODE_F2, false)
+        keyboard.handle(1, KeyEvent.KEYCODE_F3, true)
+        keyboard.handle(1, KeyEvent.KEYCODE_F3, false)
+        keyboard.advanceCycles(15_359)
+        assertEquals(listOf("MODE"), events)
+        keyboard.advanceCycles(1)
+        keyboard.advanceCycles(25_599)
+        assertEquals(listOf("MODE", "up"), events)
+        keyboard.advanceCycles(1)
+        assertEquals(listOf("MODE", "up", "KANA"), events)
+        keyboard.configure(false, setOf(PocketKey.MODE, PocketKey.KANA), pc1350 = true)
+        keyboard.advanceCycles(100_000)
+        assertEquals(listOf("MODE", "up", "KANA", "up"), events)
+    }
+
+    @Test fun pc1350TouchShiftOwnersAndPhysicalShiftReleaseIndependently() {
+        val releases = mutableListOf<PocketKey>()
+        val keys = HostKeyState({ InputResult.Accepted }, { releases += it; InputResult.Accepted })
+        val keyboard = PhysicalKeyboardState({ owner, key -> keys.press(owner, key) }, { keys.release(it) })
+        keyboard.configure(true, setOf(PocketKey.SHIFT), pc1350 = true)
+        keys.press("screen:SHIFT_LEFT", PocketKey.SHIFT)
+        keys.press("screen:SHIFT_RIGHT", PocketKey.SHIFT)
+        keyboard.handle(1, KeyEvent.KEYCODE_SHIFT_LEFT, true)
+        keys.release("screen:SHIFT_LEFT")
+        assertTrue(keys.isHeld(PocketKey.SHIFT))
+        keys.release("screen:SHIFT_RIGHT")
+        assertTrue(keys.isHeld(PocketKey.SHIFT))
+        keyboard.handle(1, KeyEvent.KEYCODE_SHIFT_LEFT, false)
+        assertEquals(listOf(PocketKey.SHIFT), releases)
+        keys.press("screen:SHIFT_RIGHT", PocketKey.SHIFT)
+        keys.releaseAll()
+        keys.release("screen:SHIFT_RIGHT") // cancellation after host reset is harmless
+        assertFalse(keys.isHeld(PocketKey.SHIFT))
+        assertEquals(2, releases.size)
+    }
+
 }

@@ -31,12 +31,14 @@ internal class PhysicalKeyboardState(
             "held=${held.size} queued=${waiting.size} blocked=${blocked.size} gap=$gapRemaining"
     private var receiving = false
     private var allowed = emptySet<PocketKey>()
+    private var pc1350 = false
 
     fun configure(receiving: Boolean, allowed: Set<PocketKey>, minimumHoldCycles: Long = 0,
-                  minimumGapCycles: Long = 0) {
+                  minimumGapCycles: Long = 0, pc1350: Boolean = false) {
         require(minimumHoldCycles >= 0 && minimumGapCycles >= 0)
-        if (this.receiving != receiving || this.allowed != allowed ||
+        if (this.pc1350 != pc1350 || this.receiving != receiving || this.allowed != allowed ||
             this.minimumHoldCycles != minimumHoldCycles || this.minimumGapCycles != minimumGapCycles) reset()
+        this.pc1350 = pc1350
         this.receiving = receiving
         this.allowed = allowed
         this.minimumHoldCycles = minimumHoldCycles
@@ -45,7 +47,7 @@ internal class PhysicalKeyboardState(
 
     fun handle(device: Int, code: Int, down: Boolean, repeat: Int = 0): Boolean {
         val token = device to code
-        val key = physicalPocketKey(code) ?: return false
+        val key = physicalPocketKey(code, pc1350) ?: return false
         if (down) downEvents++ else upEvents++
         if (!down) {
             blocked.remove(token)
@@ -144,7 +146,15 @@ internal class AndroidPhysicalKeyboard(context: Context, press: (String, PocketK
     override fun onInputDeviceRemoved(deviceId: Int) { input.reset(deviceId) }
 }
 
-internal fun physicalPocketKey(code: Int): PocketKey? = when (code) {
+internal fun physicalPocketKey(code: Int, pc1350: Boolean = false): PocketKey? = when {
+    pc1350 && code == KeyEvent.KEYCODE_F2 -> PocketKey.MODE
+    pc1350 && code == KeyEvent.KEYCODE_F3 -> PocketKey.KANA
+    pc1350 && code == KeyEvent.KEYCODE_INSERT -> PocketKey.INSERT
+    pc1350 && code == KeyEvent.KEYCODE_FORWARD_DEL -> PocketKey.DELETE
+    else -> defaultPhysicalPocketKey(code)
+}
+
+private fun defaultPhysicalPocketKey(code: Int): PocketKey? = when (code) {
     in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z -> PocketKey.valueOf(('A' + code - KeyEvent.KEYCODE_A).toString())
     in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 -> PocketKey.valueOf("NUM_${code - KeyEvent.KEYCODE_0}")
     in KeyEvent.KEYCODE_NUMPAD_0..KeyEvent.KEYCODE_NUMPAD_9 -> PocketKey.valueOf("NUM_${code - KeyEvent.KEYCODE_NUMPAD_0}")

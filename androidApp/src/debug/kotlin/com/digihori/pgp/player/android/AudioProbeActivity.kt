@@ -7,6 +7,11 @@ import android.os.Looper
 import android.media.AudioManager
 import android.widget.*
 import com.digihori.pgp.core.api.AudioPcmSnapshot
+import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350ComponentRomImporter
+import com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult
+import com.digihori.pgp.player.PlayerRunner
+import com.digihori.pgp.player.PlayerSessionFactory
+import com.digihori.pgp.player.PlayerSessionCreationResult
 import com.digihori.pgp.player.PlayerExecutionSpeed
 import com.digihori.pgp.player.android.audio.AndroidPlayerAudio
 import kotlin.math.sin
@@ -25,6 +30,7 @@ class AudioProbeActivity : Activity() {
     private var frames = 0L
     private var packets = 0
     private var status: String? = null
+    private var coreRunner: PlayerRunner? = null
     private val tick = object : Runnable {
         override fun run() {
             if (!producing) return
@@ -35,14 +41,17 @@ class AudioProbeActivity : Activity() {
                 if (frame % 8820 in 2205 until 6615) 0
                 else (sin(frame * 2.0 * Math.PI * toneHz / 22050) * 6000).toInt().toShort()
             }
-            audio.play(AudioPcmSnapshot(22050,
-                if (samples.all { it == 0.toShort() }) shortArrayOf() else samples, count), speed.playbackRate(22050))
-            frames += count
+            val source = coreRunner
+            val pcm = if (source != null) source.tick(System.nanoTime()).audio
+                ?: AudioPcmSnapshot(22050, shortArrayOf(), 0)
+            else AudioPcmSnapshot(22050, if (samples.all { it == 0.toShort() }) shortArrayOf() else samples, count)
+            audio.play(pcm, speed.playbackRate(pcm.sampleRate))
+            frames += pcm.frameCount
             packets++
             label.text = "${speed.id}x ${toneHz}Hz packets=$packets frames=$frames ${status.orEmpty()}"
-            // Schedule using an absolute deadline so host callback overhead does not drift.
+            // Synthetic PCM uses an absolute deadline; Core consumes elapsed monotonic host time.
             val elapsed = frames * 1000 * speed.denominator / (22050 * speed.numerator)
-            handler.postAtTime(this, startedAt + elapsed)
+            handler.postAtTime(this, if (coreRunner == null) startedAt + elapsed else android.os.SystemClock.uptimeMillis() + 10)
         }
     }
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,12 +78,27 @@ class AudioProbeActivity : Activity() {
         frames = 0
         packets = 0
         startedAt = android.os.SystemClock.uptimeMillis()
+        if (intent.getBooleanExtra("pc1350", false)) {
+            val internal = ByteArray(0x2000) { 0x4d }
+            // Original LIP/LIA/EXAM/OUTC oscillator command, not firmware-derived.
+            byteArrayOf(0x12, 0x5f, 0x02, if (hz == 4000) 0x30 else 0x20, 0xdb.toByte(), 0xdf.toByte()).copyInto(internal)
+            val rom = (Pc1350ComponentRomImporter.importImages(
+                internal, ByteArray(0x8000) { 0x4d }) as RomImportResult.Success).romSet
+            coreRunner = (PlayerSessionFactory.create(rom)
+                as PlayerSessionCreationResult.Success).session.runner.apply {
+                val now = System.nanoTime()
+                setSpeed(value, now)
+                run(now)
+            }
+        }
         producing = true
         audio.start()
         handler.post(tick)
     }
     private fun stop() {
         producing = false
+        coreRunner?.pause()
+        coreRunner = null
         handler.removeCallbacks(tick)
         audio.stop()
         label.text = "PCM probe: stopped"
@@ -82,6 +106,6 @@ class AudioProbeActivity : Activity() {
     override fun onPause() { stop(); super.onPause() }
     override fun onDestroy() { audio.close(); super.onDestroy() }
     override fun dump(prefix: String, fd: FileDescriptor?, writer: PrintWriter, args: Array<out String>?) {
-        writer.println("${prefix}PCM probe producing=$producing speed=${speed.id} rate=${speed.playbackRate(22050)} packets=$packets frames=$frames status=$status")
+        writer.println("${prefix}PCM probe machine=${coreRunner?.machineId?.value} producing=$producing speed=${speed.id} rate=${speed.playbackRate(22050)} packets=$packets frames=$frames status=$status")
     }
 }

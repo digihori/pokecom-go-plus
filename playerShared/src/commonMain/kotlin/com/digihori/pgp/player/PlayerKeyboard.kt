@@ -12,6 +12,8 @@ public data class PlayerKeyCap(
     public val basicLabel: String? = null,
     public val column: Int,
     public val columnSpan: Int = 1,
+    /** Physical key identity; two keycaps may feed the same logical key. */
+    public val id: String = key.name,
 )
 
 public data class PlayerKeyboard(
@@ -22,7 +24,11 @@ public data class PlayerKeyboard(
     init {
         require(columnCount > 0)
         require(rows.isNotEmpty())
+        require(rows.flatten().map { it.id }.distinct().size == rows.flatten().size) {
+            "Physical keycap IDs must be unique"
+        }
         rows.flatten().forEach { cap ->
+            require(cap.id.isNotBlank())
             require(cap.primaryLabel.isNotBlank())
             require(cap.column >= 0 && cap.columnSpan > 0)
             require(cap.column + cap.columnSpan <= columnCount)
@@ -39,10 +45,10 @@ public object PlayerKeyboardCatalog {
     public fun forMachine(machineId: MachineId): PlayerKeyboard? =
         when (MachineCatalog.require(machineId).keyboardLayout) {
             MachineKeyboardLayout.PC_1401 -> Pc1401KeyboardLayout.keyboard
+            MachineKeyboardLayout.PC_1350 -> Pc1350KeyboardLayout.keyboard
             MachineKeyboardLayout.PC_1245 -> pc1245
             MachineKeyboardLayout.PC_1251,
             MachineKeyboardLayout.PC_1261,
-            MachineKeyboardLayout.PC_1350,
             MachineKeyboardLayout.PC_1360,
             MachineKeyboardLayout.PC_1450,
             MachineKeyboardLayout.PC_1460,

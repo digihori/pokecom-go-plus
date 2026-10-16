@@ -54,7 +54,8 @@ class Pc1401SkinProbeActivity : ComponentActivity() {
                         runState = if (running) PlayerRunState.RUNNING else PlayerRunState.PAUSED),
                     displayFrame = session.displayFrame(), keyboard = session.keyboard(),
                     onImportRom = {}, romImportEnabled = false,
-                    onKeyPress = { pressed += it }, onKeyRelease = { released += it },
+                    onKeyPress = { _, key -> pressed += key },
+                    onKeyRelease = { released += PocketKey.valueOf(it) },
                     onRun = { running = true }, onPause = { running = false }, onReset = {},
                     onTogglePresentationMode = {
                         mode = if (mode == PresentationMode.FULL_DEVICE)

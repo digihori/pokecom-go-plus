@@ -107,8 +107,8 @@ internal fun PlayerApp(
     displayFrame: PlayerDisplayFrame?,
     keyboard: PlayerKeyboard?,
     onImportRom: () -> Unit,
-    onKeyPress: (PocketKey) -> Unit,
-    onKeyRelease: (PocketKey) -> Unit,
+    onKeyPress: (String, PocketKey) -> Unit,
+    onKeyRelease: (String) -> Unit,
     onRun: () -> Unit,
     onPause: () -> Unit,
     onReset: () -> Unit,
@@ -308,8 +308,8 @@ private fun EmulatorScreen(
     supportedOperatingModes: Set<OperatingMode>,
     displayFrame: PlayerDisplayFrame?,
     keyboard: PlayerKeyboard?,
-    onKeyPress: (PocketKey) -> Unit,
-    onKeyRelease: (PocketKey) -> Unit,
+    onKeyPress: (String, PocketKey) -> Unit,
+    onKeyRelease: (String) -> Unit,
     onRun: () -> Unit,
     onPause: () -> Unit,
     onReset: () -> Unit,
@@ -571,8 +571,8 @@ private fun SkinnedDevice(
     presentationMode: PresentationMode,
     displayFrame: PlayerDisplayFrame,
     keyboard: PlayerKeyboard?,
-    onKeyPress: (PocketKey) -> Unit,
-    onKeyRelease: (PocketKey) -> Unit,
+    onKeyPress: (String, PocketKey) -> Unit,
+    onKeyRelease: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val source = when (presentationMode) {
@@ -584,11 +584,16 @@ private fun SkinnedDevice(
     val imageResource = when (skin.id) {
         PlayerSkinCatalog.PC1245_SKIN_ID -> R.drawable.skin_pc1245
         PlayerSkinCatalog.PC1401_SKIN_ID -> R.drawable.skin_pc1401
+        PlayerSkinCatalog.PC1350_SKIN_ID -> R.drawable.skin_pc1350
         else -> error("No Android image for skin ${skin.id}")
     }
     val skinImage = ImageBitmap.imageResource(imageResource)
-    val skinDescription = if (skin.id == PlayerSkinCatalog.PC1245_SKIN_ID)
-        stringResource(R.string.pc1245_skin_content_description) else "PC-1401"
+    val skinDescription = when (skin.id) {
+        PlayerSkinCatalog.PC1245_SKIN_ID -> stringResource(R.string.pc1245_skin_content_description)
+        PlayerSkinCatalog.PC1401_SKIN_ID -> "PC-1401"
+        PlayerSkinCatalog.PC1350_SKIN_ID -> "PC-1350"
+        else -> skin.id
+    }
     BoxWithConstraints(modifier = modifier) {
         val placement = SkinLayoutEngine.calculate(
             skin,
@@ -623,11 +628,15 @@ private fun SkinnedDevice(
             skin.statusRegions.forEach { region ->
                 val bounds = region.bounds
                 SkinLcdLabel(
-                    text = region.symbol.lcdLabel(),
+                    text = if (skin.id == PlayerSkinCatalog.PC1350_SKIN_ID) when (region.symbol) {
+                        DisplaySymbol.KANA -> "カナ"
+                        DisplaySymbol.SMALL -> "SML"
+                        else -> region.symbol.lcdLabel()
+                    } else region.symbol.lcdLabel(),
                     color = if (displayFrame.enabled && region.symbol in displayFrame.symbols)
                         Color(0xFF26352C) else Color(0x1F26352C),
-                    alignEnd = region.symbol == DisplaySymbol.SHIFT && skin.id != PlayerSkinCatalog.PC1401_SKIN_ID,
-                    bold = skin.id == PlayerSkinCatalog.PC1401_SKIN_ID,
+                    alignEnd = region.symbol == DisplaySymbol.SHIFT && skin.id == PlayerSkinCatalog.PC1245_SKIN_ID,
+                    bold = skin.id == PlayerSkinCatalog.PC1401_SKIN_ID || skin.id == PlayerSkinCatalog.PC1350_SKIN_ID,
                     modifier = Modifier.offset(placement.screenX(bounds.x).dp, placement.screenY(bounds.y).dp)
                         .width((bounds.width * placement.scale).dp).height((bounds.height * placement.scale).dp),
                 )
@@ -653,7 +662,7 @@ private fun SkinnedDevice(
             )
             val keyCaps = remember(keyboard) {
                 (keyboard?.rows.orEmpty().flatten() +
-                    keyboard?.functionPanel?.rows.orEmpty().flatten()).associateBy(PlayerKeyCap::key)
+                    keyboard?.functionPanel?.rows.orEmpty().flatten()).associateBy(PlayerKeyCap::id)
             }
             skin.keyRegions.forEach { keyRegion ->
                 val bounds = keyRegion.bounds
@@ -661,13 +670,13 @@ private fun SkinnedDevice(
                     bounds.right > source.x && bounds.x < source.right &&
                     bounds.bottom > source.y && bounds.y < source.bottom
                 ) {
-                    val cap = keyCaps[keyRegion.key]
+                    val cap = keyCaps[keyRegion.id]
                     val accessibilityLabel = remember(cap, keyRegion.key) {
                         cap?.let {
                             listOfNotNull(it.primaryLabel, it.shiftedLabel, it.basicLabel).joinToString(", ")
                         } ?: keyRegion.key.name
                     }
-                    var pressed by remember(keyRegion.key) { mutableStateOf(false) }
+                    var pressed by remember(keyRegion.id) { mutableStateOf(false) }
                     val pressOverlayAlpha by animateFloatAsState(
                         targetValue = if (pressed) 0.28f else 0f,
                         animationSpec = tween(durationMillis = if (pressed) 35 else 120),
@@ -686,20 +695,20 @@ private fun SkinnedDevice(
                                 contentDescription = accessibilityLabel
                                 role = Role.Button
                                 onClick {
-                                    onKeyPress(keyRegion.key)
-                                    onKeyRelease(keyRegion.key)
+                                    onKeyPress(keyRegion.id, keyRegion.key)
+                                    onKeyRelease(keyRegion.id)
                                     true
                                 }
                             }
-                            .pointerInput(keyRegion.key) {
+                            .pointerInput(skin.id, keyRegion.id) {
                                 awaitEachGesture {
                                     awaitFirstDown(requireUnconsumed = false)
                                     pressed = true
-                                    onKeyPress(keyRegion.key)
+                                    onKeyPress(keyRegion.id, keyRegion.key)
                                     try {
                                         waitForUpOrCancellation()
                                     } finally {
-                                        onKeyRelease(keyRegion.key)
+                                        onKeyRelease(keyRegion.id)
                                         pressed = false
                                     }
                                 }
@@ -733,8 +742,8 @@ private fun SkinLcdLabel(text: String, color: Color, modifier: Modifier, alignEn
 @Composable
 private fun SoftwareKeyboard(
     keyboard: PlayerKeyboard,
-    onKeyPress: (PocketKey) -> Unit,
-    onKeyRelease: (PocketKey) -> Unit,
+    onKeyPress: (String, PocketKey) -> Unit,
+    onKeyRelease: (String) -> Unit,
 ) {
     val scrollState = rememberScrollState()
     val cellPitch = 48.dp
@@ -769,8 +778,8 @@ private fun SoftwareKeyboard(
 private fun KeyCap(
     cap: PlayerKeyCap,
     modifier: Modifier,
-    onKeyPress: (PocketKey) -> Unit,
-    onKeyRelease: (PocketKey) -> Unit,
+    onKeyPress: (String, PocketKey) -> Unit,
+    onKeyRelease: (String) -> Unit,
 ) {
     val accessibilityLabel = remember(cap) {
         listOfNotNull(cap.primaryLabel, cap.shiftedLabel, cap.basicLabel).joinToString(", ")
@@ -785,19 +794,19 @@ private fun KeyCap(
                 contentDescription = accessibilityLabel
                 role = Role.Button
                 onClick {
-                    onKeyPress(cap.key)
-                    onKeyRelease(cap.key)
+                    onKeyPress(cap.id, cap.key)
+                    onKeyRelease(cap.id)
                     true
                 }
             }
-            .pointerInput(cap.key) {
+            .pointerInput(cap.id) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
-                    onKeyPress(cap.key)
+                    onKeyPress(cap.id, cap.key)
                     try {
                         waitForUpOrCancellation()
                     } finally {
-                        onKeyRelease(cap.key)
+                        onKeyRelease(cap.id)
                     }
                 }
             },
@@ -839,8 +848,9 @@ private fun LcdDisplay(
             ) {
                 val cellWidth = size.width / frame.logicalColumns
                 val cellHeight = size.height / frame.logicalRows
-                val dotWidth = cellWidth * 0.80f
-                val dotHeight = cellHeight * 0.80f
+                // Keep the grid pitch fixed; a smaller gap improves legibility on phone displays.
+                val dotWidth = cellWidth * 0.88f
+                val dotHeight = cellHeight * 0.88f
                 val offsetX = (cellWidth - dotWidth) / 2f
                 val offsetY = (cellHeight - dotHeight) / 2f
                 val active = Color(0xFF26352C)
@@ -901,13 +911,13 @@ private fun PlayerFailureKind.messageResource(): Int = when (this) {
 @Preview(showBackground = true)
 @Composable
 private fun RomMissingPreview() {
-    PlayerApp(PlayerScreenState.RomMissing, null, null, {}, {}, {}, {}, {}, {}, {}, {}, true)
+    PlayerApp(PlayerScreenState.RomMissing, null, null, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, true)
 }
 
 @Preview(showBackground = true, widthDp = 800, heightDp = 400)
 @Composable
 private fun RomMissingLandscapePreview() {
-    PlayerApp(PlayerScreenState.RomMissing, null, null, {}, {}, {}, {}, {}, {}, {}, {}, false)
+    PlayerApp(PlayerScreenState.RomMissing, null, null, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, false)
 }
 
 @Preview(showBackground = true)
@@ -924,7 +934,7 @@ private fun EmulatorPlaceholderPreview() {
         displayFrame = null,
         keyboard = null,
         onImportRom = {},
-        onKeyPress = {},
+        onKeyPress = { _, _ -> },
         onKeyRelease = {},
         onRun = {},
         onPause = {},

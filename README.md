@@ -26,7 +26,7 @@ PC-1261／1350／1401を実装し、PC-1360は実ROM起動、16KiB×8 ROMバン�
 macOSでは実ROMの起動、物理／画面キーボード入力、BASICと
 マシン語の入出力、LCD表示、サウンド出力まで動作確認済みです。WindowsではROM起動、キー入力、BASICと
 サウンド、Linux x86_64ではROM起動、基本操作、サウンド、tar.gz／DEB配布物を手動確認しています。
-Pokecom GO PlayerのPC-1245 Android版は、LCD／スキン入力、bas／dmp入出力、ROM管理、横向き・ノッチ対応、ゲームパッド割当に対応し、2026-10-12にユーザー動作確認済みです。PC-1401 Androidも今回の対応範囲を完了し、2026-10-15にユーザーが区切りを確認しました。検証範囲と残る機器別確認は[対応記録](docs/ANDROID_PC1401_PROGRESS.md)を参照してください。iOSとAndroidの1350は後続です。
+Pokecom GO PlayerのPC-1245 Android版は、LCD／スキン入力、bas／dmp入出力、ROM管理、横向き・ノッチ対応、ゲームパッド割当に対応し、2026-10-12にユーザー動作確認済みです。PC-1401 Androidも今回の対応範囲を完了し、2026-10-15にユーザーが区切りを確認しました。検証範囲と残る機器別確認は[対応記録](docs/ANDROID_PC1401_PROGRESS.md)を参照してください。iOSは後続です。PC-1350 Androidは[2026-10-16に今回の対応範囲をユーザー確認済み](docs/ANDROID_PC1350_PROGRESS.md)です。
 
 現在利用できる主な機能は次のとおりです。
 
@@ -174,7 +174,7 @@ PC-1401はホーム・ROM管理・Session切替・本体操作・BASIC／DMP入�
 - ホームの設定／ヘルプ・情報、Playerとは／Studioについて／バージョン・ライセンス、プライバシー原文案の同梱表示
 - 外部キーボードのPhysical入力、左上状態表示のRun/Pause切替
 
-現在の選択対象はPC-1245／PC-1401。Project、Assembler、Debugger、WAV、セーブステートは搭載しない。AndroidにはサウンドON／OFFとCPU速度5段階を追加。実機の音質などの未確認事項は[音声・速度対応記録](docs/PLAYER_AUDIO_SPEED_PROGRESS.md)を参照。
+現在の選択対象はPC-1245／PC-1401／PC-1350。Project、Assembler、Debugger、WAV、セーブステートは搭載しない。AndroidにはサウンドON／OFFとCPU速度5段階を追加。実機の音質などの未確認事項は[音声・速度対応記録](docs/PLAYER_AUDIO_SPEED_PROGRESS.md)を参照。
 操作と制限は[Android Playerガイド](docs/PLAYER_PROGRAM_IO.md)を参照。
 PC-1245の0.4時点の動作はユーザー確認済み。現在の追加変更の検証範囲は上記ガイド、Technical Preview 0.4の公開状況は[公開チェックリスト](docs/RELEASE_CHECKLIST_0.4.0-alpha.1.md)を参照。
 
@@ -309,7 +309,7 @@ Desktopアプリを起動する場合：
   Windowsでは、サウンドを使用したプログラムの終了後もクリックノイズが鳴り続けることがある。
   オーディオラインの終了判定と無音バッファ処理は今後の改善項目である。
 - PC-1245／1250の`0xb000..0xbfff`周辺のミラー仕様は再確認が必要である。
-- PlayerはPC-1245／PC-1401 Androidに対応する。[検証範囲と機器別の未確認事項](docs/ANDROID_PC1401_PROGRESS.md)は別途記録する。iOS、PC-1350 Android、セーブステートは後続。Android音声出力・CPU速度は[対応記録](docs/PLAYER_AUDIO_SPEED_PROGRESS.md)の検証範囲を参照。情報画面は静的同梱。プライバシーポリシーは公開前の原文案である。
+- PlayerはPC-1245／PC-1401／PC-1350 Androidに対応する。[検証範囲と機器別の未確認事項](docs/ANDROID_PC1401_PROGRESS.md)は別途記録する。PC-1350 Androidは[2026-10-16に今回の対応範囲をユーザー確認済み](docs/ANDROID_PC1350_PROGRESS.md)。iOSとセーブステートは後続。Android音声出力・CPU速度は[対応記録](docs/PLAYER_AUDIO_SPEED_PROGRESS.md)の検証範囲を参照。情報画面は静的同梱。プライバシーポリシーは公開前の原文案である。
 
 公開版に向けた確認状況は[Technical Preview公開チェックリスト](docs/PUBLIC_RELEASE_CHECKLIST.md)を参照する。
 
@@ -329,7 +329,7 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 - [AI連携構想](docs/AI_INTEGRATION.md)
 - [SC61860機種世代](docs/MACHINE_FAMILIES.md)
 - [PC-1245機種定義](docs/machines/PC-1245.md)
-- [PC-1350次期機種定義](docs/machines/PC-1350.md)
+- [PC-1350機種定義](docs/machines/PC-1350.md)
 - [PC-1360次期機種定義](docs/machines/PC-1360.md)
 - [PGP ROMパッケージ形式](docs/ROM_PACKAGE.md)
 - [Golden Test Data形式](docs/GOLDEN_TEST_DATA.md)

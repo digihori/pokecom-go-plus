@@ -4,13 +4,14 @@ import com.digihori.pgp.core.api.CreateSessionResult
 import com.digihori.pgp.core.api.EmulatorFactory
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350RomDefinition
 import com.digihori.pgp.core.rom.*
 import kotlin.test.*
 
 class PlayerAudioTest {
     @Test
-    fun bothMachinesDeliverOscillatorsAndConsumeEachTick() {
-        for (model in listOf("pc-1245", "pc-1401")) for (control in listOf(0x20, 0x30)) {
+    fun allSupportedMachinesDeliverOscillatorsAndConsumeEachTick() {
+        for (model in listOf("pc-1245", "pc-1401", "pc-1350")) for (control in listOf(0x20, 0x30)) {
             val runner = runner(model, control)
             runner.run(0)
             val audio = assertNotNull(runner.tick(10_000_000).audio)
@@ -35,7 +36,7 @@ class PlayerAudioTest {
     }
 
     @Test
-    fun directOutputProducesAudioWithoutAnOscillatorOnBothMachines() {
+    fun directOutputProducesAudioWithoutAnOscillatorOnAllSupportedMachines() {
         val program = buildList<Byte> {
             addAll(listOf(0x12, 0x5f, 0x02, 0x50, 0xdb, 0xdf).map(Int::toByte))
             repeat(48) { add(0x4d) }
@@ -43,7 +44,7 @@ class PlayerAudioTest {
             repeat(48) { add(0x4d) }
             addAll(listOf(0x79, 0x00, 0x00).map(Int::toByte))
         }.toByteArray()
-        for (model in listOf("pc-1245", "pc-1401")) {
+        for (model in listOf("pc-1245", "pc-1401", "pc-1350")) {
             val runner = runner(model, 0, program)
             runner.run(0)
             val samples = assertNotNull(runner.tick(10_000_000).audio).copySamples()
@@ -54,7 +55,7 @@ class PlayerAudioTest {
 
     @Test
     fun silentFramesRetainDurationAndSnapshotsAreImmutable() {
-        for (model in listOf("pc-1245", "pc-1401")) {
+        for (model in listOf("pc-1245", "pc-1401", "pc-1350")) {
             val runner = runner(model, 0)
             runner.run(0)
             val silent = assertNotNull(runner.tick(10_000_000).audio)
@@ -70,13 +71,14 @@ class PlayerAudioTest {
 
     private fun runner(model: String, control: Int, program: ByteArray? = null): PlayerRunner {
         val is1401 = model == "pc-1401"
-        val internal = ByteArray(if (is1401) Pc1401RomDefinition.INTERNAL_SIZE else Pc1245RomDefinition.INTERNAL_SIZE) { 0x4d }
+        val is1350 = model == "pc-1350"
+        val internal = ByteArray(if (is1350) Pc1350RomDefinition.INTERNAL_SIZE else if (is1401) Pc1401RomDefinition.INTERNAL_SIZE else Pc1245RomDefinition.INTERNAL_SIZE) { 0x4d }
         // Independently authored: LIP 5f; LIA control; EXAM; OUTC; NOPW padding.
         (program ?: byteArrayOf(0x12, 0x5f, 0x02, control.toByte(), 0xdb.toByte(), 0xdf.toByte())).copyInto(internal)
-        val external = ByteArray(if (is1401) Pc1401RomDefinition.EXTERNAL_SIZE else Pc1245RomDefinition.EXTERNAL_SIZE) { 0x4d }
+        val external = ByteArray(if (is1350) Pc1350RomDefinition.EXTERNAL_SIZE else if (is1401) Pc1401RomDefinition.EXTERNAL_SIZE else Pc1245RomDefinition.EXTERNAL_SIZE) { 0x4d }
         val rom = RomSet(MachineId(model), listOf(
-            RomComponent(if (is1401) Pc1401RomDefinition.INTERNAL_ID else Pc1245RomDefinition.INTERNAL_ID, RomRole.INTERNAL, internal),
-            RomComponent(if (is1401) Pc1401RomDefinition.EXTERNAL_ID else Pc1245RomDefinition.EXTERNAL_ID, RomRole.EXTERNAL, external),
+            RomComponent(if (is1350) Pc1350RomDefinition.INTERNAL_ID else if (is1401) Pc1401RomDefinition.INTERNAL_ID else Pc1245RomDefinition.INTERNAL_ID, RomRole.INTERNAL, internal),
+            RomComponent(if (is1350) Pc1350RomDefinition.EXTERNAL_ID else if (is1401) Pc1401RomDefinition.EXTERNAL_ID else Pc1245RomDefinition.EXTERNAL_ID, RomRole.EXTERNAL, external),
         ))
         return PlayerRunner(assertIs<CreateSessionResult.Success>(EmulatorFactory.create(rom.machineId, rom)).session)
     }

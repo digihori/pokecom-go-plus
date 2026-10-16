@@ -457,7 +457,7 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
 
 2026-10-12にPC-1245 Androidの今回の範囲を完了し、ユーザーが動作確認済み。
 2026-10-15にホーム・メニュー・情報画面の整理、Physical外部キーボード、PC-1401 Androidの予定範囲を完了し、ユーザーが今回の区切りを承認した。
-[検証区分と未確認事項](ANDROID_PC1401_PROGRESS.md)を保持する。PC-1245 iOSの残作業とPC-1350 Androidは後続。1401／1350のiOSは今回に含めない。
+[検証区分と未確認事項](ANDROID_PC1401_PROGRESS.md)を保持する。PC-1350も2026-10-16にユーザーが一通りの動作とLCD改善を確認し、今回の対応を一区切りとした。[段階別検証と機器別の未確認事項](ANDROID_PC1350_PROGRESS.md)を保持する。PC-1245 iOSの残作業は後続。1401／1350のiOSは今回に含めない。
 WAV、Project、Debugger、iOS音声出力、セーブステート、ゲームパッド接続時の表示自動切替は後続。
 公開の判断・version更新・配布物検証は開発完了とは別に行う。操作は[Playerガイド](PLAYER_PROGRAM_IO.md)を参照。
 

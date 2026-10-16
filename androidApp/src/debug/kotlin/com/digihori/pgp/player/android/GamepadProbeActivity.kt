@@ -17,6 +17,7 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245ComponentRomImporter
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult
 import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401ComponentRomImporter
+import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350ComponentRomImporter
 import com.digihori.pgp.input.*
 import com.digihori.pgp.player.*
 import java.io.FileDescriptor
@@ -41,6 +42,7 @@ class GamepadProbeActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (intent.getBooleanExtra("pc1350", false)) player = session1350()
         // The production adapter is exercised unchanged. Its writes go only to the probe namespace.
         val isolated = object : ContextWrapper(this) {
             override fun getSharedPreferences(name: String, mode: Int) =
@@ -53,8 +55,8 @@ class GamepadProbeActivity : Activity() {
             GamepadButton.UP to PocketKey.UP, GamepadButton.DOWN to PocketKey.DOWN,
             GamepadButton.LEFT to PocketKey.LEFT, GamepadButton.RIGHT to PocketKey.RIGHT,
             GamepadButton.SOUTH to PocketKey.NUM_4, GamepadButton.WEST to PocketKey.NUM_4,
-            GamepadButton.EAST to PocketKey.ENTER, GamepadButton.NORTH to PocketKey.BASIC,
-            GamepadButton.L1 to PocketKey.SHIFT, GamepadButton.R1 to PocketKey.CAL,
+            GamepadButton.EAST to PocketKey.ENTER, GamepadButton.NORTH to if (player.machineId.value == "pc-1350") PocketKey.MODE else PocketKey.BASIC,
+            GamepadButton.L1 to PocketKey.SHIFT, GamepadButton.R1 to if (player.machineId.value == "pc-1350") PocketKey.KANA else PocketKey.CAL,
         )))
         pad.start()
         val layout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -75,6 +77,7 @@ class GamepadProbeActivity : Activity() {
         for ((label, is1245) in listOf("PC-1245" to true, "PC-1401" to false)) {
             action(label) { pad.reset(); owners.releaseAll(); player = session(is1245) }
         }
+        action("PC-1350") { pad.reset(); owners.releaseAll(); player = session1350() }
         setContentView(layout)
         ViewCompat.requestApplyInsets(layout)
     }
@@ -105,6 +108,12 @@ class GamepadProbeActivity : Activity() {
             return
         }
         super.dump(prefix, fd, writer, args)
+    }
+
+    private fun session1350(): PlayerSession {
+        val rom = (Pc1350ComponentRomImporter.importImages(ByteArray(0x2000) { 0x4d },
+            ByteArray(0x8000) { 0x4d }) as RomImportResult.Success).romSet
+        return (PlayerSessionFactory.create(rom) as PlayerSessionCreationResult.Success).session
     }
 
     private fun session(is1245: Boolean): PlayerSession {

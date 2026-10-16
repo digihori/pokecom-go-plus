@@ -1,12 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <!-- Production home/ROM flow with synthetic programs and isolated app data. -->
+        <activity android:name=".PlayerRomProbeActivity"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
+            android:exported="true" />
         <!-- Synthetic PCM only, no ROM or persisted user settings. -->
         <activity android:name=".AudioProbeActivity"
             android:screenOrientation="sensorLandscape"
             android:exported="true" />
         <activity android:name=".GamepadProbeActivity"
             android:screenOrientation="sensorLandscape"
+            android:exported="true" />
+        <activity android:name=".Pc1350SkinProbeActivity"
+            android:screenOrientation="sensorLandscape"
+            android:exported="true" />
+        <activity android:name=".PlayerInputProbeActivity"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
             android:exported="true" />
         <!-- ROM-free geometry probe, excluded from release builds and normal navigation. -->
         <activity android:name=".Pc1401SkinProbeActivity"

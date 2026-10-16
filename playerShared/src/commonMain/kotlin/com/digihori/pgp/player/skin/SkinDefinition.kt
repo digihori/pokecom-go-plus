@@ -47,6 +47,8 @@ public data class SkinRect(
 public data class SkinKeyRegion(
     public val key: PocketKey,
     public val bounds: SkinRect,
+    /** Stable region identity, distinct from the logical key (e.g. the two PC-1350 SHIFTs). */
+    public val id: String = key.name,
 )
 
 public data class SkinStatusRegion(
@@ -85,10 +87,11 @@ public data class SkinDefinition(
                 "Skin regions must fit inside the design canvas"
             }
         }
-        require(keyRegions.map(SkinKeyRegion::key).distinct().size == keyRegions.size) {
-            "A skin must define at most one region for each key"
+        require(keyRegions.map(SkinKeyRegion::id).distinct().size == keyRegions.size) {
+            "A skin must define a unique ID for each physical key region"
         }
         keyRegions.forEach { keyRegion ->
+            require(keyRegion.id.isNotBlank()) { "Skin key region ID must not be blank" }
             require(keyRegion.bounds.x >= 0f && keyRegion.bounds.y >= 0f) {
                 "Skin key regions must start inside the design canvas"
             }
