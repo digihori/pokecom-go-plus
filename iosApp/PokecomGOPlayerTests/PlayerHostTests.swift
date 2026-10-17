@@ -720,8 +720,14 @@ final class PlayerPlaybackHostTests: XCTestCase {
     func testLiveSimulatorAudioNodeConsumesSyntheticPCM() throws {
         for rate in [17640, 19845, 22050, 24255, 26460] {
             let completed = expectation(description: "device output consumed PCM at \(rate) Hz")
-            let samples: [Int16] = (0..<(rate / 20)).map {
-                Int16(sin(Double($0) * 2 * .pi * 440 / Double(rate)) * 4096)
+            let frameCount = rate / 20
+            let angularStep: Double = 2.0 * Double.pi * 440.0 / Double(rate)
+            var samples: [Int16] = []
+            samples.reserveCapacity(frameCount)
+            for frame in 0..<frameCount {
+                let phase: Double = Double(frame) * angularStep
+                let amplitude: Double = sin(phase) * 4096.0
+                samples.append(Int16(amplitude))
             }
             let sink = try EnginePCMSink(rate: rate)
             XCTAssertEqual(AVAudioSession.sharedInstance().category, .ambient)

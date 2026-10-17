@@ -191,3 +191,26 @@ Controller DisplayのUIテストで初回Run後にRUNNINGへ移行せず、続�
 - macOSでの検証とWindows hosted runnerでの検証は区別する。
   hostedの再確認結果は[CI実行履歴](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)を参照。
 - Core・Androidの変更、ROM／ROM由来fixtureの追加、実設定の変更、packageVersion・公開済みタグの変更なし。
+
+## 2026-10-18: iOS音声テストのSwift型推論エラー
+
+[commit d75cd7fのCI](https://github.com/digihori/pokecom-go-plus/actions/runs/39023958891)は、
+Xcode 16.4／iOS 18.5 SimulatorのSwiftテストコンパイルで失敗した。
+共有Native tests・frameworkリンクと、他プラットフォームのjobは成功している。
+
+`PlayerPlaybackHostTests.testLiveSimulatorAudioNodeConsumesSyntheticPCM`の
+合成PCM生成式が、`the compiler is unable to type-check this expression in reasonable time`
+となった。波形生成を明示的なDoubleの中間値とループへ分割し、型推論の負荷を減らした。
+5種類のサンプルレート、440 Hz、振幅4096、約50 msのフレーム数と音声送出の検証は維持する。
+製品コード、CIのXcode選択、コンパイラの時間制限は変更していない。
+
+手元のXcodeは26.6であり、Xcode 16.4での修正確認はhosted CIの再実行が必要。
+Simulatorの合成PCM送出確認と、実機・実ROMのBEEP・聴感確認は区別する。
+
+修正後のローカル検証は以下のとおり。
+
+- JDK 21の全体`build :core:desktopTest`成功（578 tasks、14実行、564 up-to-date）。
+  Coreは作業ツリーの別件変更も含む453件、失敗なし（今回の実行ではup-to-date）。
+- Xcode 26.6／iOS 26.5の使い捨てSimulatorでSwift単体33件成功。
+  上記の5レートの合成PCM送出テストも成功。UIテストは今回は実行していない。
+- `git diff --check`成功。別件のPC-1360系変更は保持した。
