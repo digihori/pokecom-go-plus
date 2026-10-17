@@ -214,3 +214,28 @@ Simulatorの合成PCM送出確認と、実機・実ROMのBEEP・聴感確認は�
 - Xcode 26.6／iOS 26.5の使い捨てSimulatorでSwift単体33件成功。
   上記の5レートの合成PCM送出テストも成功。UIテストは今回は実行していない。
 - `git diff --check`成功。別件のPC-1360系変更は保持した。
+
+### 同日の後続CI: メニュー操作とロードピッカー
+
+[commit 4cdd64bのCI](https://github.com/digihori/pokecom-go-plus/actions/runs/39076676650)で、
+Xcode 16.4のコンパイルとSwift単体33件が成功し、前述の型推論エラーの解消を確認した。
+UIテストは6件中4件が失敗した。他プラットフォームと共有Nativeのjob／stepは成功した。
+
+- 3件はホームの`homeMenu`に対し、AXのhit pointが`{-1, -1}`となりタップできなかった。
+  ホームのツールバーメニューを`UIButton`／`UIMenu`で構成し、Player側と同じUIKitの
+  メニュー方式へ揃える。設定・情報の階層、順序、busy時の無効化は維持する。
+- 1件はロードパネルのみ表示され、選択対象のファイルが見つからなかった。
+  親パネルと子ピッカーを同時に表示要求せず、UIKitの`viewDidAppear`後に初回の
+  ピッカーを開く。取消後に自動で開き直さず、明示的な「ファイルを選択」で再度開ける。
+  表示待機・取消・閉じた後・セーブパネルでの非表示をSwift単体テストへ追加する。
+- UIテストのピッカー取消は、iOS 26固有の座標操作を以前のOSへ適用せず、
+  以前のOSでは標準のCancel／キャンセルボタンを使う。
+
+UIテストの削除、タップの再試行追加、CIのOS／Xcode変更は行わない。
+iOS 18.5の失敗ログと、手元のiOS 26.5での修正後の検証結果は区別する。
+
+修正後はXcode 26.6／iOS 26.5の使い捨てSimulatorで`iosApp/test-simulator.sh`が成功。
+Swift単体34件、UI 6件が失敗なし。CIで失敗した4つのUIケースもすべて成功した。
+JDK 21の全体`build :core:desktopTest`も成功（578 tasks、16実行、562 up-to-date）。
+Coreの結果は別件変更を含む453件、失敗なし（今回up-to-date）。`git diff --check`成功。
+iOS 18.5／Xcode 16.4の修正後確認はhosted CI、iOS 16・実機の受入れは別途必要。

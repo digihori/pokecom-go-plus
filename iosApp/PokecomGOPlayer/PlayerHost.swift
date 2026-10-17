@@ -538,7 +538,12 @@ final class PlayerHost: ObservableObject {
         programMessage = save ? "BASIC全体またはRAM範囲をセーブします。" : "bas／dmpを選択してください。"
         programIssue = nil
         programPanelOpen = true
-        if !save { awaitingProgramSelection = true; programPickerPresented = true }
+        if !save { awaitingProgramSelection = true }
+    }
+
+    func programPanelDidAppear() {
+        guard programPanelOpen, !programSaving, awaitingProgramSelection, !programPickerPresented else { return }
+        programPickerPresented = true
     }
 
     func chooseProgramFile() {

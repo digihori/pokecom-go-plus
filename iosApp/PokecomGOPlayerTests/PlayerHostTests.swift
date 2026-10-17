@@ -427,6 +427,30 @@ final class PlayerHostTests: XCTestCase {
         XCTAssertFalse(host.pendingAutomaticStart)
     }
 
+    func testProgramPickerWaitsForParentPresentationAndDoesNotReopenAfterCancel() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let host = try programHost(root, frames: ManualFrames())
+        host.setActive(true)
+        host.openProgram(save: false)
+        XCTAssertTrue(host.programPanelOpen)
+        XCTAssertFalse(host.programPickerPresented)
+        host.programPanelDidAppear()
+        XCTAssertTrue(host.programPickerPresented)
+        host.cancelProgramPicker()
+        host.programPanelDidAppear()
+        XCTAssertFalse(host.programPickerPresented)
+        host.chooseProgramFile()
+        XCTAssertTrue(host.programPickerPresented)
+        host.closeProgram()
+        host.programPanelDidAppear()
+        XCTAssertFalse(host.programPickerPresented)
+        host.openProgram(save: true)
+        host.programPanelDidAppear()
+        XCTAssertFalse(host.programPickerPresented)
+        host.closeProgram()
+    }
+
     func testSaveCancelFailureAndBackgroundResumeRules() throws {
         let frames = ManualFrames(), root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

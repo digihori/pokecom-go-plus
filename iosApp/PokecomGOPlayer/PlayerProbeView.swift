@@ -66,21 +66,10 @@ struct PlayerProbeView: View {
             }
             .navigationTitle("Pokecom GO Player").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    Menu("設定") {
-                        Button("ROM管理", action: host.openRomPanel)
-                        Button("CPU速度") { playbackPanel = "CPU速度" }
-                        Button("サウンド") { playbackPanel = "サウンド" }
-                        Button("コントローラ設定") { controllerPanel = true }
-                    }
-                    Menu("ヘルプ・情報") {
-                        ForEach(["Playerとは", "Studioについて", "プライバシーポリシー", "バージョン・ライセンス"], id: \.self) { title in
-                            Button(title) { information = title }
-                        }
-                    }
-                } label: { Image(systemName: "ellipsis").frame(minWidth: 44, minHeight: 44) }
-                    .accessibilityLabel("メニュー").accessibilityIdentifier("homeMenu")
-                    .disabled(host.isBusy)
+                HomeNativeMenu(isBusy: host.isBusy, openRom: host.openRomPanel,
+                    openPlayback: { playbackPanel = $0 }, openController: { controllerPanel = true },
+                    openInformation: { information = $0 })
+                    .frame(width: 44, height: 44)
             } }
         }
     }
@@ -230,6 +219,7 @@ private struct ProgramPanel: View {
                 .navigationTitle(host.programSaving ? "セーブ" : "ロード").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる", action: host.closeProgram) } }
         }
+        .background(PanelAppearance { host.programPanelDidAppear() }.frame(width: 0, height: 0))
         .sheet(isPresented: $host.programPickerPresented, onDismiss: host.programPickerDidDismiss) {
             PlayerDocumentPicker(onSelect: host.importProgram, onCancel: host.cancelProgramPicker)
         }
@@ -636,5 +626,54 @@ final class PlayerSkinView: UIView {
         for touch in touches {
             if let owner = touchOwners.removeValue(forKey: ObjectIdentifier(touch)) { router.end(owner: owner) }
         }
+    }
+}
+
+// UIKit reports completion of the parent sheet's presentation before opening its picker.
+private struct PanelAppearance: UIViewControllerRepresentable {
+    let appeared: () -> Void
+    func makeUIViewController(context: Context) -> Controller { Controller(appeared: appeared) }
+    func updateUIViewController(_ controller: Controller, context: Context) {}
+    final class Controller: UIViewController {
+        private let appeared: () -> Void
+        private var delivered = false
+        init(appeared: @escaping () -> Void) { self.appeared = appeared; super.init(nibName: nil, bundle: nil) }
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            guard !delivered else { return }
+            delivered = true
+            appeared()
+        }
+    }
+}
+
+private struct HomeNativeMenu: UIViewRepresentable {
+    let isBusy: Bool
+    let openRom: () -> Void
+    let openPlayback: (String) -> Void
+    let openController: () -> Void
+    let openInformation: (String) -> Void
+    func makeUIView(context: Context) -> UIButton {
+        let button = UIButton(type: .system)
+        button.setImage(UIImage(systemName: "ellipsis"), for: .normal)
+        button.accessibilityLabel = "メニュー"
+        button.accessibilityIdentifier = "homeMenu"
+        button.showsMenuAsPrimaryAction = true
+        return button
+    }
+    func updateUIView(_ button: UIButton, context: Context) {
+        button.isEnabled = !isBusy
+        func action(_ title: String, _ perform: @escaping () -> Void) -> UIAction {
+            UIAction(title: title) { _ in perform() }
+        }
+        button.menu = UIMenu(children: [
+            UIMenu(title: "設定", children: [action("ROM管理", openRom),
+                action("CPU速度") { openPlayback("CPU速度") }, action("サウンド") { openPlayback("サウンド") },
+                action("コントローラ設定", openController)]),
+            UIMenu(title: "ヘルプ・情報", children:
+                ["Playerとは", "Studioについて", "プライバシーポリシー", "バージョン・ライセンス"].map { title in
+                    action(title) { openInformation(title) }
+                })])
     }
 }

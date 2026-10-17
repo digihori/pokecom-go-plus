@@ -237,6 +237,12 @@ final class PlayerSmokeTests: XCTestCase {
         if replace.waitForExistence(timeout: 2) { replace.tap() }
     }
     private func cancelPicker(_ app: XCUIApplication) {
+        if #unavailable(iOS 26) {
+            let cancel = app.buttons.matching(NSPredicate(format: "label IN %@", ["Cancel", "キャンセル"])).firstMatch
+            XCTAssertTrue(cancel.waitForExistence(timeout: 10), app.debugDescription)
+            cancel.tap()
+            return
+        }
         // Fixtures always start in this app's local Documents (set by the native picker).
         // iOS 26 File Provider exposes duplicate/stale Cancel AX nodes, even reporting
         // visible native buttons as non-hittable. The captured picker screenshots show
