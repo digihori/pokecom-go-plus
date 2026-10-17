@@ -1,17 +1,74 @@
 # PC-1245 iOS Player 調査・設計案
 
-2026-10-12。調査時の記録と承認済み設計。実装項目1〜6と8のROM管理を完了。7は暫定メニュー/情報導線。
+## 現在の状態（2026-10-17）
 
-実装と操作は [iosApp README](../iosApp/README.md)、検証・出典は
-[PORTING_NOTES](PORTING_NOTES.md) の「iOS host and shared bridge — implementation items 1–4」を参照。
-実ROMの登録・保存・復元・置換・削除からCPU/LCD/キー入力まで接続済み。
-ユーザーの追加指示により、7〜8は実ROM動作を優先し、その他のメニュー処理は暫定。
-bas/dmp入出力、ゲームパッドと階層メニューの完成は次の段階。
+PC-1245・iPhoneに限定した品質向上の手順1〜4を実装し、合成データ・Simulatorで可能な検証を完了。
+現在の操作・検証一覧・残る受入れは[iosApp README](../iosApp/README.md)を参照する。
+実機、実provider、実ROMの音声/入力、聴感、最低OSでの実行は未確認で、第5段階の実機受入れは未完了。
+PC-1401/PC-1350等のiOS追加は別工程。packageVersionは1.3.1を維持する。
 
+- [手順1: ファイルピッカー](IOS_PICKER_STEP1.md)
+- [手順2: ホーム・階層メニュー・BASIC/DMP](IOS_PLAYER_STEP2.md)
+- [手順3: サウンド・CPU速度](IOS_PLAYER_STEP3.md)
+- [手順4: ゲームパッド・Physical入力](IOS_PLAYER_STEP4.md)
 
-## Android相当の品質へ揃える後続案（2026-10-16）
+PC-1245はユーザー選択により現行Androidと同じRUN/PROのみで、RSVは表示しない。
+音声は「消音モードに従い、他アプリ音声と共存」（ambient）に確定。背景再生は追加しない。
+以下は段階ごとの記録。各段階の「後続」「未決」「未着手」はその時点の状態であり、上記の現在状態を優先する。
 
-**状態: 調査・提案の記録のみ。ユーザー指示により実装はまだ開始しない。**
+## 今回の品質向上・手順4（2026-10-17）
+
+ユーザーの第4段階の依頼によりGameController/Physical入力とホームの全体コントローラ設定を接続。
+共有所有権・割当・単一機器選択と、Androidから共有化したPhysicalキー保持を再利用する。
+[実装と合成/Simulator・実機の検証区分](IOS_PLAYER_STEP4.md)を参照。
+実周辺機器・実ROMと包括的な実機受入れは第5段階として残す。
+
+## 今回の品質向上・手順3（2026-10-17）
+
+ユーザーが第3段階を依頼し、共有PCM・速度設定をSwiftへ接続。
+音声方針はユーザー選択により「消音モードに従う・他アプリ音声と共存」（ambient）に確定。
+[手順3の実装と検証区分](IOS_PLAYER_STEP3.md)を参照。
+実ROMのBEEP・聴感・実機割込み/経路・最低OSは未検証。外部入力は第4段階。
+以下の各段階と未着手時点の提案は、その時点の履歴として保持する。
+
+## 今回の品質向上・手順2（2026-10-17）
+
+今回ユーザーが第2段階を依頼。ホーム・階層メニューとBASIC/DMP入出力を接続する。
+[現在の仕様・検証記録](IOS_PLAYER_STEP2.md)を参照。
+PC-1245は現行AndroidどおりRUN/PROのみとする方針をユーザーが選択し、RSVは表示しない。
+手順2終了時点では音声/速度・外部入力・実機受入れを後続とした。手順3/4の実装結果は上記を参照。
+
+## 今回の品質向上・手順1（2026-10-16）
+
+今回のユーザー依頼ではPC-1245に限定し、ファイルピッカー → ホーム・階層メニューと
+BASIC/DMP → 音声・速度 → 外部入力 → 受入れの順に、一段階ずつ進める。
+以下の「後続案」と2026-10-12の承認済み範囲は履歴として保持する。
+ユーザーは現在実機を用意していないため、手順1はSimulatorで可能な範囲を確認し、
+実機provider検証は未実施として残す。実機・署名の準備を後続全体の着手条件にはしない。
+
+- 標準pickerは `forOpeningContentTypes: [.data], asCopy: true` を維持。
+  独自拡張子を狭いUTType登録で除外せず、選択後にROM内容・機種を検証する。
+  bas/dmpがROM pickerで選べても、プログラムとして適用する機能ではない。
+- security scopeは専用I/O queueで読込み中だけ保持し、成功・失敗の両方で終了する。
+  読込みは32MiB上限。検証・新Session生成はMainActor、atomic保存はI/O queue、
+  保存成功後のSession公開はMainActorという既存境界を維持する。
+- 選択後の読込み待機に取消を追加。取消で世代を無効化し、後着の成功・失敗を適用しない。
+  待機中もMainActorは背景往復・取消を処理でき、取消・失敗では既存Sessionと保存ROMを保持して停止する。
+  既に開始したFileHandle/provider処理自体の強制中断は保証しない。
+  直列I/O queueのため、再取込みの読込みは先行処理の終了後になる。
+- pickerがコピーを返す前のprovider内取得待ちは、アプリ内の読込み取消とは別。
+  その待機・取消・認証・ネットワーク復旧は実providerでの確認が必要。
+- ROMは取り込んだ内容をアプリ内Libraryへ保存し、復元は元URLへ依存しない。
+  将来のBASIC/DMP保存でpickerが成功してもクラウド同期完了とは表示しない。
+  Player独自の通信・ログイン・同期やGoogle SDKは追加しない。
+  Files/providerの取得・同期通信は利用者側providerの処理として説明する。
+
+検証結果と残る実機項目は [手順1検証記録](IOS_PICKER_STEP1.md) に分ける。
+ホーム、BASIC/DMPの内容適用・セーブ、音声、入力機器の実装は本手順に含めない。
+
+## 過去の提案: Android相当の品質へ揃える後続案（2026-10-16）
+
+**2026-10-16時点: 調査・提案のみ。** 後に依頼された手順1〜4の実装・決定は上記を参照。
 以下は従来の承認済み範囲とは別の将来案であり、実装着手の承認を意味しない。
 まずPC-1245の品質を揃え、PC-1401／PC-1350等の機種追加は別工程とする案。
 
@@ -80,14 +137,24 @@ Android回帰、共有Native、Swift host／UI、自動検証と実機の区分�
 - [Apple: AVAudioPlayerNode](https://developer.apple.com/documentation/avfaudio/avaudioplayernode)
 - [Apple: AVAudioSession](https://developer.apple.com/documentation/avfaudio/avaudiosession)
 
-## 承認済みの今回の目標
+## 2026-10-12の調査・実装記録
+
+2026-10-12。調査時の記録と承認済み設計。実装項目1〜6と8のROM管理を完了。7は暫定メニュー/情報導線。
+
+実装と操作は [iosApp README](../iosApp/README.md)、検証・出典は
+[PORTING_NOTES](PORTING_NOTES.md) の「iOS host and shared bridge — implementation items 1–4」を参照。
+実ROMの登録・保存・復元・置換・削除からCPU/LCD/キー入力まで接続済み。
+ユーザーの追加指示により、7〜8は実ROM動作を優先し、その他のメニュー処理は暫定。
+bas/dmp入出力、ゲームパッドと階層メニューの完成は次の段階。
+
+### 当時の承認済み目標
 
 ユーザーはSwiftUI/UIKit host、iPhone専用、最低iOS 16、iPad対象外を承認した。
 実機を所有しておらずDeveloper登録は後日のため、今回の完了目標はSimulatorによる構造確認。
 Team設定・実機・配布検証は今回の完了条件に含めない。将来の端末候補はSE3またはiPhone 12。
 現状環境と調査結果は以下に調査時点の記録として残す。
 
-## 実装順序と現在の状態
+### 実装順序と現在の状態
 
 2026-10-12時点。ユーザーは1〜4、5〜6、7〜8の順に実装を承認し、
 7〜8では実ROM起動を優先して他のメニューは暫定とした。現在はiPhone開発を一区切りとする。
@@ -116,7 +183,7 @@ Team設定・実機・配布検証は今回の完了条件に含めない。将�
 Run/Pause/Reset、両横向きと背景復帰PAUSEDを確認する。
 最低OS設定が16でも、runtime 26.5のみでの成功をiOS 16動作確認とは扱わない。
 
-## 現状と検証
+### 現状と検証
 
 - 開始時はmain、HEAD `36ddcc93ba8e44cdbdef091e9aef2816d8f3b4ee`、作業ツリーはクリーン。
 - AGENTS.md、ROADMAP Phase 7、PORTING_NOTES、ARCHITECTURE、PLAYER_PROGRAM_IO、BASIC_TEXT_FORMAT、MACHINE_CODE_FORMATS、0.4 release notes、共有Player/テスト、Android host/テスト/manifest/skin、Gradle、hostInput/controllerUiを確認。
@@ -131,7 +198,7 @@ Run/Pause/Reset、両横向きと背景復帰PAUSEDを確認する。
 
 文書の将来構想・過去の未検証記録を今回の追加依頼と扱わない。最新ユーザー依頼を優先する。過去PORTING_NOTESのDMP BASIC保護、ロード形式選択/確認、Reset PAUSEDは後続記録と現行実装で更新済み。0.4のBASICロードPAUSEDは公開時仕様として保持し、次の修正で新仕様に変更する。
 
-## 推奨構成
+### 推奨構成
 
 **SwiftUI画面・階層メニュー + UIKit描画/タッチ/picker bridge + KMP共有ロジック**を第一案とする。Android動作を基準とし、Android画面全体のCompose共通化は今回の前提にしない。UI共有必須ならCompose iOS構成とPlayerApp抽出を別途設計する。
 
@@ -147,9 +214,9 @@ playerSharedから単一static frameworkを作り、必要なCore/hostInput依�
 
 最低OS設定は**iOS 16以上**、iPhone専用・iPad対象外で確定した。iOS 16そのものの動作は未検証。将来iPadを追加する場合はwindow/orientation条件を別途検討し、deprecatedのUIRequiresFullScreenだけで横向きを保証しない。開発用Bundle IDは `com.digihori.pgp.player.ios`、配布用確定とTeam設定はDeveloper登録後に行う。
 
-## 操作案
+### 操作案
 
-### ROM
+#### ROM
 
 - 未登録画面から取込み。機種/ROMはPC-1245のみ表示。
 - pgrom / legacy 32・64KiBをpickerでコピー取込み。外部URL/bookmarkに恒久依存しない。
@@ -159,7 +226,7 @@ playerSharedから単一static frameworkを作り、必要なCore/hostInput依�
 - 置換/Session切替はRAM消失確認。削除確認、使用中ならSession破棄・未登録画面、別機種へ自動切替しない。
 - 登録/復元/置換/切替/Reset成功はRUNモード・CPU自動実行、表示選択を維持。
 
-### 表示・入力・lifecycle
+#### 表示・入力・lifecycle
 
 - Androidと同じ階層（実行、プログラム、動作モード、表示、機種/ROM、情報、ゲームパッド）。画面内パネルとバージョン表示、情報は既存placeholder。
 - 通常/Controller Displayは手動切替。host assetは1206×616。LCD (70,104,760,70)、panel (55,60,787,158)、上方symbol配置、80/20ドットを共有定義に従って描画。
@@ -171,7 +238,7 @@ playerSharedから単一static frameworkを作り、必要なCore/hostInput依�
 - ROM/Reset/load成功の自動開始要求はactiveの最初のframeで消費。未消費要求のみ背景を越えて保持。picker復帰だけでは再開しない。
 - 非同期結果にはSession identity/操作generationを付け、置換・削除後の古い結果を適用しない。終了後の未完了操作は復元しない。sceneごとの重複Session生成を避ける。
 
-### bas/dmp
+#### bas/dmp
 
 - ロード形式選択なし、拡張子判定、2MiB制限、厳密UTF-8。providerが独自拡張子を分類しない場合も選択可能にし、選択後検証。
 - pause/解放 → copied bytesを共有parser → 所有threadでSession再確認 → 全体検証/apply。上書き確認なし。RAM限定、C000/BASIC重複を許可、失敗は途中変更なし。
@@ -179,7 +246,7 @@ playerSharedから単一static frameworkを作り、必要なCore/hostInput依�
 - 保存はBASIC全体、または開始～終了両端含むRAMダンプを選択（ロード形式選択とは別操作）。snapshotから固有temporary fileを作りexport picker(asCopy) / UIActivityViewControllerへ。iPadならpopover anchor指定。共有内容を後の操作で上書きしない。保存/共有後PAUSED。
 - security scoped URLはhostで必要期間だけ使用。共有先受取り完了は実機確認。
 
-## 実装順序・完了条件
+### 実装順序・完了条件
 
 | 段階 | 範囲 | 完了条件 |
 |---|---|---|
@@ -195,7 +262,7 @@ Simulator完了: notchありiPhoneと別サイズ、左右回転、文字サイ�
 
 実機完了: Team/Bundle IDで署名・install、ユーザーROM起動、両横向きnotch/home indicator、複数指/長押し/cancel、lock/背景/復帰/Reset、Files実利用provider、再ロード/save/share受取り内容、実pad接続/切断/割当。iPadを対象とするならwindow/sceneも検証。未実施を明記しSimulator成功を実機完了としない。
 
-## 後続で確認する事項
+### 後続で確認する事項
 
 実機端末/OS、署名Team、配布用Bundle IDはDeveloper登録後に確認する。
 今回の構造確認はTeam空欄・署名なしのSimulatorで進める。private key/証明書を文書/Gitへ追加しない。
@@ -204,7 +271,7 @@ Simulator完了: notchありiPhoneと別サイズ、左右回転、文字サイ�
 
 他機種、WAV、Project、debugger、audio、save stateは今回対象外。Linux PC-1251音階確認をPC-1245速度不具合へ読み替えず、timing値を変更しない。
 
-## 出典
+### 出典
 
 第一資料は上記リポジトリ文書/現行実装。外部プロジェクトのコードコピーなし。ROM/ROM由来fixture追加なし。
 

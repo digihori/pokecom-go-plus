@@ -15,4 +15,12 @@ if [ "$pgp_java_version" != "21" ]; then
     exit 1
 fi
 cd "$SRCROOT/.."
+# Static information is copied from this checkout; no runtime/network fetch.
+pgp_information_dir="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/PlayerInformation"
+mkdir -p "$pgp_information_dir/licenses"
+for pgp_document in PLAYER_HELP_IOS.md PLAYER_PRIVACY_POLICY_IOS.md PLAYER_STUDIO_GUIDE.md; do
+    cp "docs/$pgp_document" "$pgp_information_dir/$pgp_document"
+done
+cp LICENSE THIRD_PARTY_NOTICES.md "$pgp_information_dir/"
+cp docs/licenses/*.txt "$pgp_information_dir/licenses/"
 exec ./gradlew --gradle-user-home .gradle-local :playerShared:embedAndSignAppleFrameworkForXcode

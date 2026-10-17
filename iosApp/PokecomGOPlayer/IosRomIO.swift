@@ -246,3 +246,43 @@ final class IosRomStore: Sendable {
         if FileManager.default.fileExists(atPath: recordURL.path) { try FileManager.default.removeItem(at: recordURL) }
     }
 }
+
+// File errors stay typed until the presentation layer formats them.
+enum ProgramFileError: Error { case unsupportedExtension, tooLarge, invalidAddress, staleSession }
+enum ProgramIssue {
+    case file(ProgramFileError)
+    case shared(PlayerProgramError)
+    case io(String)
+}
+struct ReadProgram {
+    let name: String
+    let bytes: Data
+    let basic: Bool
+}
+enum IosProgramFiles {
+    static let maximumBytes = 2 * 1024 * 1024
+    static func read(_ url: URL) throws -> ReadProgram {
+        let basic: Bool
+        switch url.pathExtension.lowercased() {
+        case "bas": basic = true
+        case "dmp": basic = false
+        default: throw ProgramFileError.unsupportedExtension
+        }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        var bytes = Data()
+        while let chunk = try handle.read(upToCount: 65_536), !chunk.isEmpty {
+            guard chunk.count <= maximumBytes - bytes.count else { throw ProgramFileError.tooLarge }
+            bytes.append(chunk)
+        }
+        return ReadProgram(name: url.lastPathComponent, bytes: bytes, basic: basic)
+    }
+    static func address(_ text: String) -> Int32? {
+        var value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.lowercased().hasPrefix("0x") { value = String(value.dropFirst(2)) }
+        guard (1...4).contains(value.count), value.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { return nil }
+        return Int32(value, radix: 16)
+    }
+}

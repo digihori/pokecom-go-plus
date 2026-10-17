@@ -47,8 +47,8 @@ Technical Preview 0.5の公開作業は[チェックリスト](RELEASE_CHECKLIST
 
 | ID | 項目 | 残作業・現在の状態 |
 |---|---|---|
-| B1 | PC-1245 iOS品質向上 | [後続案](IOS_PLAYER_PLAN.md)を2026-10-16に記録。標準Files経由のiCloud／Google Drive、bas/dmpロード・セーブ、サウンド・CPU速度、ホーム整理・Physical入力。ユーザー指示により未着手。消音モード方針も未決 |
-| B2 | iOSゲームパッド | GameController接続、共有入力、選択・割当・保存、切断/背景時の解放、実パッド確認 |
+| B1 | PC-1245 iOS品質向上 | [後続案](IOS_PLAYER_PLAN.md)を2026-10-16に記録。標準Files経由のiCloud／Google Drive、bas/dmpロード・セーブ、サウンド・CPU速度、ホーム整理・Physical入力。[手順1](IOS_PICKER_STEP1.md)のSimulator範囲を完了し、[手順2](IOS_PLAYER_STEP2.md)でホーム・階層メニュー・静的案内・共有BASIC/DMPを接続。[手順3](IOS_PLAYER_STEP3.md)でPCM出力・速度5段階・設定保存を接続。消音に従い他アプリ音声と共存する方針をユーザーが選択。実機/実provider・実ROM音声・聴感は未確認。[手順4](IOS_PLAYER_STEP4.md)でGameController・Physical入力・全体コントローラ設定を接続。実周辺機器を含む受入れは第5段階 |
+| B2 | iOSゲームパッド | [手順4](IOS_PLAYER_STEP4.md)で共有入力・GameController・選択/割当/保存/解放を接続し合成検証。実パッド・接続方式ごとの受入れは未確認 |
 | B3 | Android Playerの機器別追加検証 | PC-1401は2026-10-15に予定した6段階を完了し、ユーザーが今回の区切りを承認。[検証区分](ANDROID_PC1401_PROGRESS.md)を保持。PC-1350も2026-10-16にユーザーが一通りの動作とLCD改善を確認し、今回の対応を一区切りとした。[段階別検証と機器別の未確認事項](ANDROID_PC1350_PROGRESS.md)を保持。両機種のiOSは別検討 |
 | B4 | Desktop物理キー入力モード | 現在の文字/論理入力と、押下/解放を直接送る入力を切替。SHIFT、同時押し、repeat、focus喪失を扱う。A2との関連を確認 |
 | B5 | Quick Assemble結果表示 | DMP保存に加え、機械語・Listing・Symbol Map・診断を確認する画面 |
@@ -101,7 +101,7 @@ Android/iOS Playerへの機種追加（B3）とは別の作業として扱う。
 | D3 | その他機種・仕様差 | PC-1402用ROMのBASIC実行照合、PC-1460/1470Uの実機／最大容量照合、機種固有BASIC、PC-1245/1250ミラー実機照合。PC-1360バンクは実装済み |
 | D4 | S1/S2 WAV | 信号・BASIC/Binary codec、checksum、実機往復。Playerを優先して後回し、当面pcwavを案内 |
 | D5 | WAV Analyzer追加 | 全信号形式、候補比較、ON/OFF/W0/W1/leader/byte境界overlay、原channel、段階間選択、個別export、実録音fixture。OLD波形/zoom/pan/cursor等は実装済み |
-| D6 | Player音声・速度・Save State | Android音声出力／速度5段階を実装。ユーザーから再生成功報告あり（環境・機種未特定）。[検証区分と実機の残作業](PLAYER_AUDIO_SPEED_PROGRESS.md)。iOS接続、無制限、完全状態の保存復元は後続。現在のCheckpoint出力とは別 |
+| D6 | Player音声・速度・Save State | Android音声出力／速度5段階を実装。ユーザーから再生成功報告あり（環境・機種未特定）。[検証区分と実機の残作業](PLAYER_AUDIO_SPEED_PROGRESS.md)。iOS接続は[手順3](IOS_PLAYER_STEP3.md)で実装・合成検証。iOS実機音声、無制限、完全状態の保存復元は後続。現在のCheckpoint出力とは別 |
 | D7 | Player後続UI・入力 | パッド接続時の表示自動切替、追加機種のRUN/PRO/RSV表示。AndroidのPhysical外付けキーボードは今回実装済み |
 | D8 | iOS実機・最低OS・配布 | Developer登録/署名、端末操作、Files共有受取り、実パッド、iOS 16確認。Simulator完了と別。iPadは現在対象外 |
 | D9 | ROM管理の拡張 | Import Wizard、bank slot一括割当、機種拡大時のPlayer Library、ROMをバックアップ/同期へ含めない方針 |
@@ -113,13 +113,13 @@ Android/iOS Playerへの機種追加（B3）とは別の作業として扱う。
 新規実装として数えず、状態・文言を整理したい項目:
 
 - Public化、3 OS配布、tagによる公開自動化は公開チェックリストで完了。現行版の手動確認だけを残作業とする。
-- ゲームパッドはStudio/Androidで実装済み。iOS、OS/device別検証、表示自動切替を残作業とする。
+- ゲームパッドはStudio/Android/PC-1245 iOSで実装済み。iOSの合成検証と、実周辺機器・OS/device別受入れ・表示自動切替の未対応を区別する。
 - 外部エディタ設定保存と診断行移動は実装済み。Phase 3/5の未チェック項目と重複を整理する。
 - Assembly WorkspaceでSource/Assembly/Build/Load状態は表示済み。Project全体のBuild/Update分離は追加の差分を定義する。
 - PC-1350の実装、資産由来確認は完了記録と未チェックの親項目を照合する。
 - 外部Assembler調査欄の「INCLUDE未確認」「Build連携は後続」等の段階別記述を現在の状態と区別する。
 - Debugger Core、AI schema、ROM Library等の大きな親項目は、完了した基盤と残る具体的機能へ分解する。
-- GAMEPAD_DESIGNの「iOSアプリ未実装」は、iOS host実装済み/パッド未実装へ更新する。
+- GAMEPAD_DESIGNは手順4の現在状態を追記し、2026-10-11の「iOS未実装」等を当時の記録として区別した。実周辺機器の受入れ記録を後続で追加する。
 - WAV Analyzerの波形表示等の未チェック項目は、OLDで実装済みの範囲と全形式への拡張を分ける。
 
 参照: [ROADMAP](ROADMAP.md)、[外部Assembler](EXTERNAL_ASSEMBLER.md)、[iOS計画](IOS_PLAYER_PLAN.md)、

@@ -9,7 +9,10 @@ struct PokecomGOPlayerApp: App {
         WindowGroup {
             PlayerProbeView(host: host)
                 .onAppear { host.setActive(scenePhase == .active) }
-                .onChange(of: scenePhase) { phase in host.setActive(phase == .active) }
+                .onChange(of: scenePhase) { phase in
+                    if phase == .background { host.enterBackground() }
+                    else { host.setActive(phase == .active) }
+                }
         }
     }
 }

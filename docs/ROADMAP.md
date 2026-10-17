@@ -458,7 +458,8 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
 2026-10-12にPC-1245 Androidの今回の範囲を完了し、ユーザーが動作確認済み。
 2026-10-15にホーム・メニュー・情報画面の整理、Physical外部キーボード、PC-1401 Androidの予定範囲を完了し、ユーザーが今回の区切りを承認した。
 [検証区分と未確認事項](ANDROID_PC1401_PROGRESS.md)を保持する。PC-1350も2026-10-16にユーザーが一通りの動作とLCD改善を確認し、今回の対応を一区切りとした。[段階別検証と機器別の未確認事項](ANDROID_PC1350_PROGRESS.md)を保持する。PC-1245 iOSの残作業は後続。1401／1350のiOSは今回に含めない。
-WAV、Project、Debugger、iOS音声出力、セーブステート、ゲームパッド接続時の表示自動切替は後続。
+iOS PC-1245の音声・速度設定は[手順3](IOS_PLAYER_STEP3.md)で合成/Simulator接続を検証し、実機・実ROM音声の受入れを残す。
+WAV、Project、Debugger、セーブステート、ゲームパッド接続時の表示自動切替は後続。
 公開の判断・version更新・配布物検証は開発完了とは別に行う。操作は[Playerガイド](PLAYER_PROGRAM_IO.md)を参照。
 
 - [x] Android PlayerアプリのPC-1245対応（2026-10-12、ユーザー動作確認済み）
@@ -483,11 +484,15 @@ WAV、Project、Debugger、iOS音声出力、セーブステート、ゲーム�
   - [x] Android 9・3ボタン実機のステータスバー余白を修正し、メニュー・背景復帰を確認
   - 機器・接続方式の網羅検証と残る実機確認は[対応記録](ANDROID_PC1401_PROGRESS.md)に分けて記録
 - [ ] iOS Playerアプリ
+  - PC-1245品質向上の今回の手順1: [標準ピッカーのSimulator検証と実機の残項目](IOS_PICKER_STEP1.md)。後続のホーム・入出力・音声・入力とは分ける。
   - [x] iPhone専用・最低iOS 16のSwiftUI/UIKit host、Apple framework/Facade、Simulator合成プログラムによる接続確認
   - [x] CADisplayLinkによる共有Runner駆動、Run/Pause/Reset、非active停止・入力解放・通常復帰PAUSED
   - [x] PC-1245スキン/LCDシンボル/RUN・PRO表示/52タッチキー、通常・Controller Display、両横向きsafe area（Simulator確認）
   - [x] PC-1245 ROM登録・atomic保存・起動時復元・置換・削除・成功後CPU自動実行（Simulator実ROM/計算入力確認）
-  - [ ] 階層メニュー（機種/ROM・情報は暫定導線あり）・bas/dmp入出力・ゲームパッド（実機/署名はDeveloper登録後）
+  - [x] ホーム/階層メニュー、静的情報本文、共有BASIC/DMPロード・セーブ接続（[手順2](IOS_PLAYER_STEP2.md)、Simulator/合成検証と実機未確認を区別）
+  - [x] PC-1245のPCM出力・サウンド/CPU速度設定（[手順3](IOS_PLAYER_STEP3.md)、合成・Simulator検証。実機・実ROM音声・聴感は未確認）
+  - [x] PC-1245 GameController・Physical外部キーボード、全体コントローラ設定（[手順4](IOS_PLAYER_STEP4.md)。合成/Simulatorと実周辺機器を区別）
+  - [ ] PC-1245 iPhone実機の包括的受入れ、実ROM・実周辺機器・最低OSの検証（第5段階）
 - [x] Studioとのbas/dmpファイル受け渡し（PC-1245 Android）
   - [x] 共有変換・停止中Session検証／適用・保存データ生成とAndroidのファイル選択／保存を接続（他アプリへの共有機能は削除）
 - [x] `.pgrom`選択と前回ROMの自動復元
@@ -507,9 +512,9 @@ WAV、Project、Debugger、iOS音声出力、セーブステート、ゲーム�
 - [x] Android AudioTrackへのPCM接続とサウンドON／OFF（実装・自動テスト、ユーザー再生成功報告あり。環境・機種は未特定、機種別の実機確認は後続）
 - [x] Android CPU速度の固定5段階と音声再生レートの連動（無制限は未実装）
   - [音声・速度対応記録](PLAYER_AUDIO_SPEED_PROGRESS.md)に実装・自動検証・エミュレータ・実機を分離
-- [ ] iOS音声APIへのPCM接続・速度設定UI
+- [x] iOS音声APIへのPCM接続・速度設定UI（[手順3](IOS_PLAYER_STEP3.md)。実機と実ROM BEEPの受入れは別）
 - [ ] セーブステートとモバイルライフサイクル
-- [x] ゲームパッドのキー割当（Studio／Android、単一設定。接続による表示自動切替は後続）
+- [x] ゲームパッドのキー割当（Studio／Android／PC-1245 iOS、単一設定。iOSは[合成検証](IOS_PLAYER_STEP4.md)。接続による表示自動切替は後続）
 - [x] Android Physical外部キーボード入力、フォーカス復帰、SHIFT単独、機種別の最小保持・解放間隔
 - [ ] PlayerモバイルUIの仕上げ
   - [x] 実行画面を横向き専用にし、縦持ちには追従せず、左右180度反転した横向きには追従する（Androidは`sensorLandscape`相当）
@@ -519,7 +524,7 @@ WAV、Project、Debugger、iOS音声出力、セーブステート、ゲーム�
   - [ ] PC-1251／1261系のRUN／PRO／RSVは実機のハードスイッチ状態であっても、PlayerではLCDステータスとして明示する
   - [x] ホームの設定／ヘルプ・情報へ導線を整理し、Playerとは／Studioについて／バージョン・ライセンス／プライバシー原文案を静的同梱する（原文案の公開方針確定は別）
   - [x] 3点メニューからbas/dmpプログラムをロード／セーブできるようにする（Android、ユーザー動作確認済み。Playerの実行用入出力とし、Project機能とは分離する）
-    - [x] bas/dmp拡張子の自動判定、確認なしのRAMロードとAndroidのファイル保存を実装する（docs/PLAYER_PROGRAM_IO.md、iOS hostは後続）
+    - [x] bas/dmp拡張子の自動判定、確認なしのRAMロードとAndroidのファイル保存を実装する（docs/PLAYER_PROGRAM_IO.md、PC-1245 iOSはIOS_PLAYER_STEP2.mdで接続・合成検証済み）
   - [x] ホームの画面ボタンで機種選択、設定配下のROM管理、機種別Library、Session再生成を実装する（選択対象はPC-1245／PC-1401）
 
 Pokecom GO Playerはエミュレータの実行に特化し、Pokecom GO Studioが提供するデバッガ、

@@ -26,7 +26,11 @@ PC-1261／1350／1401を実装し、PC-1360は実ROM起動、16KiB×8 ROMバン�
 macOSでは実ROMの起動、物理／画面キーボード入力、BASICと
 マシン語の入出力、LCD表示、サウンド出力まで動作確認済みです。WindowsではROM起動、キー入力、BASICと
 サウンド、Linux x86_64ではROM起動、基本操作、サウンド、tar.gz／DEB配布物を手動確認しています。
-Pokecom GO PlayerのPC-1245 Android版は、LCD／スキン入力、bas／dmp入出力、ROM管理、横向き・ノッチ対応、ゲームパッド割当に対応し、2026-10-12にユーザー動作確認済みです。PC-1401 Androidも今回の対応範囲を完了し、2026-10-15にユーザーが区切りを確認しました。検証範囲と残る機器別確認は[対応記録](docs/ANDROID_PC1401_PROGRESS.md)を参照してください。iOSは後続です。PC-1350 Androidは[2026-10-16に今回の対応範囲をユーザー確認済み](docs/ANDROID_PC1350_PROGRESS.md)です。
+Pokecom GO PlayerのPC-1245 Android版は、LCD／スキン入力、bas／dmp入出力、ROM管理、横向き・ノッチ対応、ゲームパッド割当に対応し、2026-10-12にユーザー動作確認済みです。PC-1401 Androidも今回の対応範囲を完了し、2026-10-15にユーザーが区切りを確認しました。検証範囲と残る機器別確認は[対応記録](docs/ANDROID_PC1401_PROGRESS.md)を参照してください。PC-1401のiOS対応は別工程です。PC-1350 Androidは[2026-10-16に今回の対応範囲をユーザー確認済み](docs/ANDROID_PC1350_PROGRESS.md)です。
+
+開発中のPC-1245 iPhone版は、ホーム・ROM管理・BASIC/DMP・音声/速度・GameController/Physical入力を実装し、
+Simulatorと合成データで検証しています。実機・実provider・実ROM音声/入力・最低iOS 16の実行は未確認です。
+[現行操作と段階別の検証記録](iosApp/README.md)を参照してください。署名付きiOS配布の完了を意味しません。
 
 現在利用できる主な機能は次のとおりです。
 
@@ -73,8 +77,8 @@ Assembly WorkspaceのAssembleは結果確認、Buildはファイル生成、Buil
 - Windows
 - Linux
 
-実行機能へ特化したPokecom GO PlayerはPC-1245／PC-1401 Android版の今回の開発範囲を完了しています。
-iOSは後続対象です。Playerにはデバッガ、アセンブラ、逆アセンブラなどの開発機能を搭載しません。
+実行機能へ特化したPokecom GO PlayerはPC-1245／PC-1401／PC-1350 Android版の今回の開発範囲を完了しています。
+PC-1245 iPhone版は実装・Simulator検証を進めており、実機受入れと署名付き配布は未完了です。Playerにはデバッガ、アセンブラ、逆アセンブラなどの開発機能を搭載しません。
 
 ## リポジトリ構成
 
@@ -85,7 +89,8 @@ pokecom-go-plus/
 ├── controllerUi/  Studio／Android共通のコントローラー設定画面
 ├── playerShared/  Android／iOS Playerで共有する実行・表示モデル
 ├── desktopApp/    Pokecom GO Studio（現在のCompose Desktop実装）
-├── androidApp/    Pokecom GO Player（PC-1245／PC-1401 Android）
+├── androidApp/    Pokecom GO Player（PC-1245／PC-1401／PC-1350 Android）
+├── iosApp/        Pokecom GO Player（PC-1245 iPhone host）
 ├── docs/          構想・設計・移植記録・ロードマップ
 ├── local-data/    ローカルROM等（Git管理外）
 └── test-data/     再配布可能なテストデータ
@@ -153,7 +158,7 @@ Linuxでは次を実行する。
 Windows／LinuxともCIによるビルドと自動テストは実施しているが、画面操作、音声、ファイル選択を含む
 手動スモークテストは公開前の確認項目である。
 
-### Android Player（PC-1245／PC-1401）
+### Android Player（PC-1245／PC-1401／PC-1350）
 
 Android SDK 36とJDK 21を設定した環境でdebug APKを生成する。
 
@@ -309,7 +314,7 @@ Desktopアプリを起動する場合：
   Windowsでは、サウンドを使用したプログラムの終了後もクリックノイズが鳴り続けることがある。
   オーディオラインの終了判定と無音バッファ処理は今後の改善項目である。
 - PC-1245／1250の`0xb000..0xbfff`周辺のミラー仕様は再確認が必要である。
-- PlayerはPC-1245／PC-1401／PC-1350 Androidに対応する。[検証範囲と機器別の未確認事項](docs/ANDROID_PC1401_PROGRESS.md)は別途記録する。PC-1350 Androidは[2026-10-16に今回の対応範囲をユーザー確認済み](docs/ANDROID_PC1350_PROGRESS.md)。iOSとセーブステートは後続。Android音声出力・CPU速度は[対応記録](docs/PLAYER_AUDIO_SPEED_PROGRESS.md)の検証範囲を参照。情報画面は静的同梱。プライバシーポリシーは公開前の原文案である。
+- PlayerはPC-1245／PC-1401／PC-1350 Androidに対応する。[検証範囲と機器別の未確認事項](docs/ANDROID_PC1401_PROGRESS.md)は別途記録する。PC-1350 Androidは[2026-10-16に今回の対応範囲をユーザー確認済み](docs/ANDROID_PC1350_PROGRESS.md)。PC-1245 iOSは実装・Simulator検証済みで実機受入れを残す。他機種のiOSとセーブステートは後続。Android音声出力・CPU速度は[対応記録](docs/PLAYER_AUDIO_SPEED_PROGRESS.md)の検証範囲を参照。情報画面は静的同梱。プライバシーポリシーは公開前の原文案である。
 
 公開版に向けた確認状況は[Technical Preview公開チェックリスト](docs/PUBLIC_RELEASE_CHECKLIST.md)を参照する。
 
@@ -338,6 +343,7 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 - [WAV操作方針と実装範囲](docs/WAV_OPERATIONS.md)
 - [OLD WAV形式](docs/WAV_OLD_FORMAT.md)
 - [S1／S2 WAV仕様と作者確認](docs/WAV_S1_S2_FORMAT.md)
+- [iPhone Playerの操作・ビルド・検証状況](iosApp/README.md)
 - [ロードマップ](docs/ROADMAP.md)
 - [Technical Preview公開チェックリスト](docs/PUBLIC_RELEASE_CHECKLIST.md)
 - [Technical Preview 0.5 Release Notes](docs/RELEASE_NOTES_0.5.0-alpha.1.md)

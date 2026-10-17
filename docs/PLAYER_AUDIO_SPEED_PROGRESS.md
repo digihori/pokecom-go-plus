@@ -1,4 +1,13 @@
-# Android Player 音声・CPU速度の実装／検証記録
+# Player 音声・CPU速度の実装／検証記録
+
+## iOS PC-1245・手順3（2026-10-17）
+
+共有RunnerのPCMと速度をApple facadeへ公開し、SwiftのAVAudioEngineへ接続。
+CPU速度5段階・サウンドON/OFFをホーム設定へ追加し、設定を保存する。
+音声方針はユーザー選択でambient（消音モードに従い、他アプリ音声と共存）に確定。
+[実装・合成/Simulator検証と実機の残項目](IOS_PLAYER_STEP3.md)を参照。
+以下のAndroid対応時点の記録・件数は当時の履歴。
+
 
 更新日: 2026-10-16
 

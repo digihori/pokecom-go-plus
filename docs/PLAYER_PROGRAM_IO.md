@@ -1,4 +1,7 @@
-# Android Player プログラムのロード・保存
+# Player プログラムのロード・保存
+
+PC-1245 iOSの現在の操作は[同梱ヘルプ](PLAYER_HELP_IOS.md)、実装・合成検証と実機の残項目は[手順2](IOS_PLAYER_STEP2.md)を参照。
+以下の操作説明・機種範囲と段階別記録はAndroid版について記載する。
 
 PC-1245／PC-1401／PC-1350 Android Playerの3点メニューから操作する。対応形式はUTF-8 BASICテキスト
 `.bas`とアドレス付きPGP Memory Dump `.dmp`。bin、hex、WAV、Projectは対象外。
@@ -361,3 +364,13 @@ PC-1401のホーム選択・ROM管理・Session切替・本体操作・BASIC／D
 [BASIC／DMPを含む段階別の確認状況](ANDROID_PC1401_PROGRESS.md)を参照する。
 Playerのタイトルバーに機種名・実行状態・メニューをまとめ、PC-1245のRUN/PROは同じバー右側に配置する。
 本書の過去ステップにある「PC-1245のみ」や操作表示位置の記述は、その時点の記録である。
+
+
+## iOS PC-1245・手順2（2026-10-17）
+
+iPhone版も共有Program I/Oを使い、BASIC/DMPロードと標準ドキュメントピッカーへのセーブを接続した。
+拡張子自動判定・2MiB上限・RAM全体検証・成功後CPU再開・取消/失敗時停止の規則はAndroidと揃える。
+セーブは開始前の実行意図を同Sessionに一度だけ戻し、通常背景移行後は停止を維持する。
+他アプリへの共有は追加しない。保存完了とクラウド同期完了を区別する。
+ホーム・静的情報・自動テスト/Simulator/実機の区分は[手順2記録](IOS_PLAYER_STEP2.md)を参照。
+PC-1245のモードはユーザー確認により現行AndroidどおりRUN/PROのみ。RSVは表示しない。

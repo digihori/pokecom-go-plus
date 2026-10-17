@@ -3,92 +3,132 @@ import UIKit
 import PgpPlayer
 import UniformTypeIdentifiers
 
-/// Skin screen; the complete hierarchical menu and ROM registration follow in later stages.
 struct PlayerProbeView: View {
     @ObservedObject var host: PlayerHost
+    @State private var information: String?
+    @State private var playbackPanel: String?
+    @State private var controllerPanel = false
     var body: some View {
+        Group {
+            if host.showHome { home }
+            else { player }
+        }
+        .sheet(isPresented: Binding(get: { host.romPanelOpen }, set: { if !$0 { host.closeRomPanel() } })) { RomLibraryPanel(host: host) }
+        .sheet(isPresented: Binding(get: { host.programPanelOpen }, set: { if !$0 { host.closeProgram() } })) { ProgramPanel(host: host) }
+        .sheet(isPresented: Binding(get: { information != nil }, set: { if !$0 { information = nil } })) {
+            if let information { InformationPanel(title: information) }
+        }
+        .sheet(isPresented: Binding(get: { playbackPanel != nil }, set: { if !$0 { playbackPanel = nil } })) {
+            NavigationStack {
+                Form {
+                    if playbackPanel == "CPU速度" {
+                        Picker("CPU速度", selection: Binding(get: { host.executionSpeed }, set: host.setExecutionSpeed)) {
+                            ForEach(PlayerPlaybackPreferences.speeds, id: \.self) { Text($0 + "倍").tag($0) }
+                        }.pickerStyle(.inline).accessibilityIdentifier("cpuSpeed")
+                        Text("音高・テンポもCPU速度の倍率に追従します。")
+                    } else {
+                        Toggle("サウンド", isOn: Binding(get: { host.soundEnabled }, set: host.setSoundEnabled))
+                            .accessibilityIdentifier("soundEnabled")
+                        Text("消音モードに従い、他アプリの音声と共存します。背景では再生しません。")
+                        if !host.audioMessage.isEmpty { Text(host.audioMessage) }
+                        Button("音声を再試行") { host.setSoundEnabled(true) }
+                            .disabled(!host.soundEnabled)
+                        Text("出力先の切断・音声エラー後は、PlayerでRunするかサウンドONで再試行できます。")
+                    }
+                }.navigationTitle(playbackPanel ?? "設定").navigationBarTitleDisplayMode(.inline)
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("戻る") { playbackPanel = nil } } }
+            }
+        }
+        .sheet(isPresented: $controllerPanel) { ControllerSettingsPanel(input: host.input) }
+        .onChange(of: information) { _ in host.releaseAllKeys() }
+    }
+
+    private var home: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    Text("機種を選択").font(.headline)
+                    if !host.audioMessage.isEmpty { Text(host.audioMessage).font(.callout) }
+                    Text("PC-1245").font(.title2)
+                    Text(host.romSourceName ?? (host.hasSession ? "PC-1245 Session" : "ROM未登録"))
+                    if host.isBusy { ProgressView() }
+                    if host.hasSession {
+                        Button("プレイ", action: host.enterPlayer).buttonStyle(.borderedProminent)
+                            .accessibilityIdentifier("playPC1245").disabled(host.isBusy)
+                    } else {
+                        Button("ROMを登録", action: host.openRomPicker).buttonStyle(.borderedProminent)
+                            .accessibilityIdentifier("romImport").disabled(host.isBusy)
+                    }
+                    Text("ROMは同梱していません。登録したROMはアプリ内に保存します。RAM・CPU状態はアプリ終了後に復元しません。")
+                        .font(.callout)
+                    if !host.romMessage.isEmpty { Text(host.romMessage) }
+                }.padding().frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .navigationTitle("Pokecom GO Player").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Menu("設定") {
+                        Button("ROM管理", action: host.openRomPanel)
+                        Button("CPU速度") { playbackPanel = "CPU速度" }
+                        Button("サウンド") { playbackPanel = "サウンド" }
+                        Button("コントローラ設定") { controllerPanel = true }
+                    }
+                    Menu("ヘルプ・情報") {
+                        ForEach(["Playerとは", "Studioについて", "プライバシーポリシー", "バージョン・ライセンス"], id: \.self) { title in
+                            Button(title) { information = title }
+                        }
+                    }
+                } label: { Image(systemName: "ellipsis").frame(minWidth: 44, minHeight: 44) }
+                    .accessibilityLabel("メニュー").accessibilityIdentifier("homeMenu")
+                    .disabled(host.isBusy)
+            } }
+        }
+    }
+
+    private var player: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
-                    Text(host.status.runState).font(.caption.monospaced())
-                        .lineLimit(1).minimumScaleFactor(0.6)
-                        .accessibilityIdentifier("runState")
+                    Text("PC-1245").font(.headline)
                     Spacer(minLength: 0)
-                    Menu {
-                        Button("機種／ROM", action: host.openRomPanel)
-                        Button("バージョン情報") { showInformation = true }
-                        Button("プライバシーポリシー（準備中）") { showInformation = true }
-                        Button("Studio案内（準備中）") { showInformation = true }
-                    } label: { Image(systemName: "ellipsis").frame(minWidth: 28, minHeight: 28) }
-                        .accessibilityLabel("メニュー").accessibilityIdentifier("playerMenu")
-                        .disabled(host.isBusy)
-                    Button(action: host.run) { Image(systemName: "play.fill").frame(minWidth: 28, minHeight: 28) }
-                        .accessibilityLabel("Run").accessibilityIdentifier("run")
-                        .disabled(!host.isActive || !host.hasSession || host.status.runState != "PAUSED")
-                    Button(action: host.pause) { Image(systemName: "pause.fill").frame(minWidth: 28, minHeight: 28) }
-                        .accessibilityLabel("Pause").accessibilityIdentifier("pause")
-                    Button(action: host.reset) { Image(systemName: "arrow.counterclockwise").frame(minWidth: 28, minHeight: 28) }
-                        .accessibilityLabel("Reset").accessibilityIdentifier("reset")
-                    Button(host.status.operatingMode == "PRO" ? "RUN" : "PRO") {
-                        host.setProgramMode(host.status.operatingMode != "PRO")
-                    }.accessibilityIdentifier("pro")
-                    Button(action: host.togglePresentation) {
-                        Image(systemName: host.isControllerDisplay ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
-                            .frame(minWidth: 28, minHeight: 28)
-                    }
-                        .accessibilityLabel(host.isControllerDisplay ? "通常表示" : "Controller Display")
-                        .accessibilityIdentifier("presentation")
-                        .accessibilityValue(host.isControllerDisplay ? "Controller Display" : "通常表示")
+                    Button(action: host.toggleRunState) { Text(host.status.runState).font(.caption.monospaced()) }
+                        .frame(minWidth: 80, minHeight: 44)
+                        .accessibilityIdentifier("runState")
+                        .disabled(host.status.runState == "FAULTED")
+                    Spacer(minLength: 0)
+                    Button(host.status.operatingMode) {
+                        host.setOperatingMode(host.status.operatingMode == "RUN" ? "PRO" : "RUN")
+                    }.frame(minWidth: 44, minHeight: 44).background(Color(red: 0.1, green: 0.37, blue: 0.13))
+                        .clipShape(Circle()).accessibilityIdentifier("pro")
+                    PlayerNativeMenu(host: host).frame(width: 44, height: 44)
+                }.lineLimit(1).minimumScaleFactor(0.7).padding(.horizontal, 8).frame(minHeight: 52)
+                if !host.audioMessage.isEmpty {
+                    Text(host.audioMessage).font(.caption).padding(.horizontal, 8)
+                        .accessibilityIdentifier("audioMessage")
                 }
-                .font(.caption).buttonStyle(.bordered).lineLimit(1).minimumScaleFactor(0.7)
-                .padding(.horizontal, 8).frame(minHeight: 44)
                 if let skin = host.skin, let lcd = host.lcd {
                     PlayerSkinSurface(host: host, skin: skin, lcd: lcd)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    VStack(spacing: 16) {
-                        Text("PC-1245").font(.title2)
-                        Text(host.romMessage).multilineTextAlignment(.center)
-                        if host.isBusy { ProgressView() }
-                        Button("ROMを取り込む", action: host.openRomPicker)
-                            .buttonStyle(.borderedProminent).accessibilityIdentifier("romImport")
-                            .disabled(host.isBusy)
-                    }.padding().frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            // SwiftUI applies safe area once, including to the toolbar and native skin viewport.
             .onChange(of: geometry.size) { _ in host.releaseAllKeys() }
             .onChange(of: geometry.safeAreaInsets) { _ in host.releaseAllKeys() }
         }
-        .background(Color.black.ignoresSafeArea())
-        .foregroundStyle(.white)
-        .statusBarHidden()
-        .sheet(isPresented: $host.romPanelOpen) { RomLibraryPanel(host: host) }
-        .sheet(isPresented: $showInformation) {
-            VStack(spacing: 16) {
-                Text("Pokecom GO Player")
-                Text("\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""))")
-                Text("プライバシーポリシーとStudio案内は準備中です。")
-                Button("閉じる") { showInformation = false }
-            }.padding()
-        }
-        .onChange(of: showInformation) { open in if open { host.releaseAllKeys() } }
+        .background(PhysicalKeyboardShield(host: host).frame(width: 1, height: 1))
+        .background(Color.black.ignoresSafeArea()).foregroundStyle(.white).statusBarHidden()
         .onAppear { UIDevice.current.beginGeneratingDeviceOrientationNotifications() }
         .onDisappear {
             UIDevice.current.endGeneratingDeviceOrientationNotifications()
             host.releaseAllKeys()
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
-            host.releaseAllKeys() // 180-degree flips do not change viewport size.
-        }
+        .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in host.releaseAllKeys() }
     }
-    @State private var showInformation = false
 }
 
 private struct RomLibraryPanel: View {
     @ObservedObject var host: PlayerHost
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("PC-1245").font(.title2)
@@ -111,44 +151,182 @@ private struct RomLibraryPanel: View {
                             .accessibilityIdentifier("deleteROM").disabled(!host.hasSavedRom)
                     }
                 }.padding().disabled(host.isBusy)
+                if host.canCancelRomRead {
+                    Button("取込みをキャンセル", action: host.cancelRomRead)
+                        .accessibilityIdentifier("cancelRomRead").padding()
+                }
+            }.navigationTitle("ROM管理").navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .cancellationAction) {
+                    Button("閉じる", action: host.closeRomPanel).disabled(host.isBusy)
+                } }
+        }.interactiveDismissDisabled(host.isBusy)
+            .sheet(isPresented: $host.pickerPresented) {
+                PlayerDocumentPicker(onSelect: host.importRom, onCancel: host.cancelRomPicker)
             }
-            .navigationTitle("機種／ROM")
-            .toolbar { ToolbarItem(placement: .cancellationAction) {
-                Button("閉じる", action: host.closeRomPanel).disabled(host.isBusy)
-            } }
-        }.navigationViewStyle(.stack)
-        .interactiveDismissDisabled(host.isBusy)
-        .sheet(isPresented: $host.pickerPresented) {
-            RomDocumentPicker(onSelect: host.importRom, onCancel: host.cancelRomPicker)
-        }
     }
 }
 
-private struct RomDocumentPicker: UIViewControllerRepresentable {
+struct PlayerDocumentPicker: UIViewControllerRepresentable {
+    var exportURL: URL? = nil
     let onSelect: (URL) -> Void
     let onCancel: () -> Void
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-        // All data types remain selectable; the host validates actual contents and machine.
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.data], asCopy: true)
+        let picker: UIDocumentPickerViewController
+        if let exportURL {
+            picker = UIDocumentPickerViewController(forExporting: [exportURL], asCopy: true)
+        }
+        else {
+            picker = UIDocumentPickerViewController(forOpeningContentTypes: [.data], asCopy: true)
+            picker.directoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        }
         picker.allowsMultipleSelection = false
-        picker.directoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
         picker.delegate = context.coordinator
         return picker
     }
     func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
     final class Coordinator: NSObject, UIDocumentPickerDelegate {
-        let parent: RomDocumentPicker
-        init(parent: RomDocumentPicker) { self.parent = parent }
+        let parent: PlayerDocumentPicker
+        private var completed = false
+        init(parent: PlayerDocumentPicker) { self.parent = parent }
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            guard !completed else { return }; completed = true
             if let url = urls.first { parent.onSelect(url) } else { parent.onCancel() }
         }
-        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) { parent.onCancel() }
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            guard !completed else { return }; completed = true
+            parent.onCancel()
+        }
+    }
+}
+
+private struct ProgramPanel: View {
+    @ObservedObject var host: PlayerHost
+    @State private var basic = true
+    @State private var start = "C500"
+    @State private var end = "C5FF"
+    var body: some View {
+        NavigationStack {
+            Form {
+                if let issue = host.programIssue { Text(issue.userMessage).foregroundStyle(.red).accessibilityIdentifier("programError") }
+                else { Text(host.programMessage).accessibilityIdentifier("programMessage") }
+                if host.programBusy { ProgressView() }
+                if host.programSaving {
+                    Picker("形式", selection: $basic) {
+                        Text("BASIC").tag(true)
+                        Text("ダンプ").tag(false)
+                    }.pickerStyle(.segmented)
+                    if !basic {
+                        TextField("開始（16進数）", text: $start).accessibilityIdentifier("dumpStart")
+                        TextField("終了（16進数）", text: $end).accessibilityIdentifier("dumpEnd")
+                        Text("終了アドレスを含むRAM範囲を保存します。")
+                    }
+                    Button("ファイルへセーブ") { host.prepareProgramExport(basic: basic, start: start, end: end) }
+                        .disabled(host.programBusy).accessibilityIdentifier("exportProgram")
+                } else if !host.programBusy {
+                    Button("ファイルを選択", action: host.chooseProgramFile)
+                }
+            }.textInputAutocapitalization(.never).autocorrectionDisabled()
+                .navigationTitle(host.programSaving ? "セーブ" : "ロード").navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる", action: host.closeProgram) } }
+        }
+        .sheet(isPresented: $host.programPickerPresented, onDismiss: host.programPickerDidDismiss) {
+            PlayerDocumentPicker(onSelect: host.importProgram, onCancel: host.cancelProgramPicker)
+        }
+        .sheet(isPresented: $host.programExporterPresented, onDismiss: host.programExportDidDismiss) {
+            if let url = host.exportURL {
+                PlayerDocumentPicker(exportURL: url, onSelect: { _ in host.finishProgramExport(saved: true) },
+                                     onCancel: { host.finishProgramExport(saved: false) }).id(url)
+            }
+        }
+    }
+}
+
+private extension ProgramIssue {
+    var userMessage: String {
+        switch self {
+        case .file(let error):
+            switch error {
+            case .unsupportedExtension: return "bas／dmpファイルを選択してください。"
+            case .tooLarge: return "ファイルは2 MiBまでです。"
+            case .invalidAddress: return "開始・終了を0000〜FFFFの16進数で指定してください。"
+            case .staleSession: return "Sessionが変わりました。ファイルを選び直してください。"
+            }
+        case .shared(let error):
+            if error is PlayerProgramErrorInvalidUtf8 { return "UTF-8として読み込めません。" }
+            if error is PlayerProgramErrorNotPaused { return "CPUを停止してから操作してください。" }
+            if error is PlayerProgramErrorNonRam { return "ROM・LCDなどRAM以外の範囲は扱えません。" }
+            if error is PlayerProgramErrorInvalidRange { return "保存範囲が不正です。" }
+            if error is PlayerProgramErrorBasicCompile { return "BASICの行番号・文字・構文を確認してください。" }
+            if error is PlayerProgramErrorBasicMemory { return "BASIC管理領域または容量が不正です。必要ならポケコン側でNEWを実行してください。" }
+            if error is PlayerProgramErrorBasicDecode { return "BASICをテキストへ変換できません。管理情報・文字を確認してください。" }
+            if error is PlayerProgramErrorDumpParse { return "DMPのアドレス・16進データの書式を確認してください。" }
+            if error is PlayerProgramErrorPlacement { return "RAM範囲・容量・ミラー重複を確認してください。メモリは変更していません。" }
+            if error is PlayerProgramErrorWrongMachine { return "機種が一致しません。" }
+            return "プログラムの内容を検証できません。メモリは変更していません。"
+        case .io(let message): return "ファイルを読み込み・保存できませんでした。\n" + message
+        }
+    }
+}
+
+private struct InformationPanel: View {
+    let title: String
+    private var versionLabel: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
+        return "Pokecom GO Player \(version) (\(build))"
+    }
+    @Environment(\.dismiss) private var dismiss
+    private var files: [String] {
+        switch title {
+        case "Playerとは": return ["PLAYER_HELP_IOS.md"]
+        case "Studioについて": return ["PLAYER_STUDIO_GUIDE.md"]
+        case "プライバシーポリシー": return ["PLAYER_PRIVACY_POLICY_IOS.md"]
+        default: return ["LICENSE", "THIRD_PARTY_NOTICES.md", "licenses/HIDAPI.txt", "licenses/LWJGL.txt", "licenses/SDL.txt", "licenses/libffi.txt"]
+        }
+    }
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    if title == "バージョン・ライセンス" {
+                        Text(versionLabel)
+                    }
+                    ForEach(files, id: \.self) { file in InformationDocument(file: file) }
+                    if title == "Studioについて" {
+                        Link("GitHubでStudioを見る", destination: URL(string: "https://github.com/digihori/pokecom-go-plus")!)
+                    }
+                }.padding().frame(maxWidth: .infinity, alignment: .leading)
+            }.navigationTitle(title).navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("戻る") { dismiss() } } }
+        }
+    }
+}
+
+private struct InformationDocument: View {
+    let file: String
+    private var paragraphs: [String] {
+        let url = Bundle.main.bundleURL.appendingPathComponent("PlayerInformation/" + file)
+        let text = (try? String(contentsOf: url, encoding: .utf8)) ?? "同梱文書を読み込めません。"
+        return text.components(separatedBy: "\n\n")
+    }
+    var body: some View {
+        ForEach(Array(paragraphs.enumerated()), id: \.offset) { item in
+            if item.element.hasPrefix("#") {
+                Text(item.element.drop(while: { $0 == "#" || $0 == " " }))
+                    .font(.headline).textSelection(.enabled)
+            } else if file == "LICENSE" || file.hasSuffix(".txt") {
+                Text(verbatim: item.element).font(.system(.body, design: .monospaced)).textSelection(.enabled)
+            } else {
+                Text((try? AttributedString(markdown: item.element)) ?? AttributedString(item.element))
+                    .textSelection(.enabled)
+            }
+        }
     }
 }
 
 private struct PlayerSkinSurface: UIViewRepresentable {
-    let host: PlayerHost
+    @ObservedObject var host: PlayerHost
     let skin: SkinDefinition
     let lcd: PlayerDisplayFrame
     func makeUIView(context: Context) -> PlayerSkinView {

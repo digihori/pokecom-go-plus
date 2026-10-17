@@ -22,6 +22,34 @@ public class ApplePlayerFacade internal constructor(private val session: PlayerS
     public val skin: SkinDefinition = requireNotNull(PlayerSkinCatalog.forMachine(session.machineId))
     private val keys = HostKeyState(session::pressKey, session::releaseKey)
     private var executedCycles = 0L
+    private val gamepad = com.digihori.pgp.input.GamepadInput(
+        { button, key -> keys.press("gamepad:${button.name}", key) },
+        { button, _ -> keys.release("gamepad:${button.name}") },
+    )
+    private val keyboard = com.digihori.pgp.input.PhysicalKeyInput(
+        { owner, key -> keys.press(owner, key) }, { owner -> keys.release(owner) }, ::applePhysicalKey,
+    )
+
+    public fun configureExternalInput(receiving: Boolean, enabled: Boolean, selectedId: String?,
+                                      buttons: List<String>, keyNames: List<String>) {
+        val settings = appleGamepadSettings(enabled, buttons, keyNames)
+        val allowed = com.digihori.pgp.input.GamepadKeys.forMachine(session.machineId)
+        gamepad.configure(settings, selectedId, allowed, receiving)
+        val definition = com.digihori.pgp.core.api.MachineCatalog.require(session.machineId)
+        keyboard.configure(receiving, allowed, definition.automaticKeyHoldCycles, definition.automaticKeyGapCycles)
+    }
+    public fun updateGamepad(id: String?, buttons: List<String>) {
+        if (session.runner.state != PlayerRunState.RUNNING) gamepad.reset()
+        gamepad.update(id, buttons.mapNotNull { name ->
+            com.digihori.pgp.input.GamepadButton.entries.find { it.name == name }
+        }.toSet())
+    }
+    public fun physicalKey(code: Int, down: Boolean, repeated: Boolean): Boolean {
+        if (down && session.runner.state != PlayerRunState.RUNNING) return false
+        return keyboard.handle(1, code, down, if (repeated) 1 else 0)
+    }
+    public fun disconnectKeyboard() = keyboard.reset(1)
+
 
     public fun run(nowNanoseconds: Long) = session.runner.run(nowNanoseconds)
 
@@ -36,8 +64,18 @@ public class ApplePlayerFacade internal constructor(private val session: PlayerS
         executedCycles = 0
     }
 
-    public fun tick(nowNanoseconds: Long) {
-        executedCycles += session.runner.tick(nowNanoseconds).runResult?.executedCycles ?: 0
+    /** PCM belongs to this tick only, including omitted silent frames. */
+    public fun tick(nowNanoseconds: Long): AppleAudioPacket? {
+        val result = session.runner.tick(nowNanoseconds)
+        val cycles = result.runResult?.executedCycles ?: 0
+        executedCycles += cycles
+        keyboard.advanceCycles(cycles)
+        return result.audio?.let { AppleAudioPacket(it, result.speed.playbackRate(it.sampleRate)) }
+    }
+
+    public val speedId: String get() = session.runner.speed.id
+    public fun setSpeed(id: String, nowNanoseconds: Long) {
+        session.runner.setSpeed(PlayerExecutionSpeed.fromId(id), nowNanoseconds)
     }
 
     public fun press(keyName: String, owner: String): Boolean {
@@ -46,7 +84,32 @@ public class ApplePlayerFacade internal constructor(private val session: PlayerS
     }
 
     public fun release(owner: String) { keys.release(owner) }
-    public fun releaseAllKeys() = keys.releaseAll()
+    public fun releaseAllKeys() {
+        gamepad.reset()
+        keyboard.reset()
+        keys.releaseAll()
+    }
+
+    public fun loadProgram(input: PlayerProgramInput): PlayerProgramError? =
+        when (val result = session.loadProgram(input)) {
+            PlayerProgramApplyResult.Success -> null
+            is PlayerProgramApplyResult.Failure -> result.error
+        }
+
+    public fun exportBasic(): AppleProgramExport = AppleProgramExport.from(session.exportBasic())
+    public fun exportDump(start: Int, end: Int): AppleProgramExport =
+        AppleProgramExport.from(session.exportMemoryDump(start, end))
+
+    public fun setOperatingMode(name: String): Boolean {
+        val mode = when (name) {
+            "RUN" -> OperatingMode.RUN
+            "PRO" -> OperatingMode.PROGRAM
+            "RSV" -> OperatingMode.RESERVE
+            else -> return false
+        }
+        releaseAllKeys()
+        return session.setOperatingMode(mode)
+    }
 
     public fun setProgramMode(enabled: Boolean) {
         releaseAllKeys()
@@ -55,7 +118,11 @@ public class ApplePlayerFacade internal constructor(private val session: PlayerS
 
     public fun snapshot(): ApplePlayerSnapshot = ApplePlayerSnapshot(
         session.runner.state.name,
-        if (session.operatingMode == OperatingMode.PROGRAM) "PRO" else "RUN",
+        when (session.operatingMode) {
+            OperatingMode.PROGRAM -> "PRO"
+            OperatingMode.RESERVE -> "RSV"
+            else -> "RUN"
+        },
         executedCycles,
         keys.isHeld(PocketKey.BREAK),
         session.displayFrame(),
@@ -138,4 +205,41 @@ public class AppleRomPreparation internal constructor(
 ) {
     public fun internalBytes(): ByteArray? = rom?.component(Pc1245RomDefinition.INTERNAL_ID)?.copyBytes()
     public fun externalBytes(): ByteArray? = rom?.component(Pc1245RomDefinition.EXTERNAL_ID)?.copyBytes()
+}
+
+/** Pure PC-1245 parser boundary: no Session access, safe for a host-owned I/O queue. */
+public object AppleProgramCodec {
+    public fun parse(bytes: ByteArray, basic: Boolean): AppleProgramParse =
+        when (val result = PlayerProgramParser.parse(bytes,
+            if (basic) PlayerProgramFormat.BASIC else PlayerProgramFormat.MEMORY_DUMP,
+            Pc1245RomDefinition.MACHINE_ID)) {
+            is PlayerProgramParseResult.Success -> AppleProgramParse(result.input, null)
+            is PlayerProgramParseResult.Failure -> AppleProgramParse(null, result.error)
+        }
+}
+
+public class AppleProgramParse internal constructor(
+    public val input: PlayerProgramInput?, public val error: PlayerProgramError?,
+)
+
+public class AppleProgramExport private constructor(bytes: ByteArray?, public val error: PlayerProgramError?) {
+    private val content = bytes?.copyOf()
+    public fun copyBytes(): ByteArray? = content?.copyOf()
+    internal companion object {
+        fun from(result: PlayerProgramExportResult): AppleProgramExport = when (result) {
+            is PlayerProgramExportResult.Success -> AppleProgramExport(result.copyBytes(), null)
+            is PlayerProgramExportResult.Failure -> AppleProgramExport(null, result.error)
+        }
+    }
+}
+
+/** Immutable copy boundary; Swift copies again before sending PCM to its audio worker. */
+public class AppleAudioPacket internal constructor(
+    private val pcm: com.digihori.pgp.core.api.AudioPcmSnapshot,
+    public val playbackRate: Int,
+) {
+    public val sampleRate: Int get() = pcm.sampleRate
+    public val frameCount: Int get() = pcm.frameCount
+    public val sampleCount: Int get() = pcm.sampleCount
+    public fun copySamples(): ShortArray = pcm.copySamples()
 }

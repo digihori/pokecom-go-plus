@@ -2380,3 +2380,56 @@ machine in existing oscillator/direct-output audio tests. Debug-only probes
 exercise generated Core PCM through Android audio and virtual gamepad input
 with isolated settings. No Core platform API, ROM fixture or iOS feature was
 added. Device acceptance remains separate in ANDROID_PC1350_PROGRESS.md.
+
+
+## 2026-10-16: iOS PC-1245 picker quality — step 1
+
+- Scope: standard document picker only; home/program I/O/audio/input remain later steps.
+- Reused the existing as-copy picker, scoped bounded read, MainActor preparation, atomic Library commit.
+- Added read cancellation by generation invalidation and injectable acquisition for delayed/failing reads.
+  Cancellation discards delivery; it does not forcibly abort a provider operation.
+- Added isolated synthetic UI probe data and host tests for stale success, acquisition failure,
+  picker cancellation and restore after source deletion. No reference-project code/dependency or ROM fixture added.
+- Validation and device/provider limits: [iOS picker step 1](IOS_PICKER_STEP1.md).
+
+
+## 2026-10-17: iOS PC-1245 home and program I/O — step 2
+
+- Reused PlayerProgramParser/PlayerSession check/apply/export via typed Apple DTOs; no Core OS API added.
+- Swift host owns document access, bounded 2MiB reads, temporary export snapshots, lifecycle and execution intent.
+- Added native home/menu/information views and build-time static documentation bundling.
+- PC-1245 remains RUN/PRO only, matching current Core/Android and the user's clarification; no RSV support added.
+- [Current behavior and verification](IOS_PLAYER_STEP2.md). Audio/speed, external input and hardware acceptance remain later steps.
+
+
+## 2026-10-17: iOS PC-1245 PCM and playback speed — step 3
+
+- Reused PlayerRunner tick audio, AudioPcmSnapshot silence duration and PlayerExecutionSpeed ratios.
+- Apple facade exposes immutable PCM copies/rates; Swift owns conversion, bounded serial output,
+  AVAudioEngine, AVAudioSession, notification handling and application preferences.
+- Audio category ambient follows the user's explicit selection: respect silent mode and mix with other audio.
+- No external reference code/dependency, firmware fixture, Core platform API or background playback added.
+- Sources: [Apple ambient](https://developer.apple.com/documentation/avfaudio/avaudiosession/category-swift.struct/ambient),
+  [AVAudioPlayerNode](https://developer.apple.com/documentation/avfaudio/avaudioplayernode),
+  [manual rendering](https://developer.apple.com/documentation/avfaudio/avaudioengine/manualrenderingmode).
+- [Verification and remaining hardware/listening checks](IOS_PLAYER_STEP3.md).
+
+
+## 2026-10-17: iOS PC-1245 external input — step 4
+
+- Reused hostInput GamepadInput/Settings/Keys, SingleGamepadSelection and the existing HostKeyState.
+- Moved Android PhysicalKeyboardState timing/chord/repeat/reset logic into hostInput PhysicalKeyInput;
+  Android retains its platform keycode adapter, including existing machine-specific mappings.
+- Apple facade owns the shared dispatchers. Swift adapts GameController/GCKeyboard on main,
+  stores one global assignment set, and handles native menu, responder and key-window lifecycle.
+- No Core platform API, external reference dependency, ROM fixture, additional iOS machine or iPad support added.
+- [Implementation, Apple primary sources and verification boundaries](IOS_PLAYER_STEP4.md).
+
+
+## 2026-10-17: documentation consolidation and supplied PC-1350 skin cleanup
+
+- Consolidated current iPhone Player operation and validation in iosApp/README.md and linked the four step records.
+- Kept dated proposals and intermediate results as history; hardware/provider/real-ROM acceptance remains incomplete.
+- Included the supplied Android PC-1350 skin image cleanup, which only removes unwanted image marks.
+  Skin layout, key regions and LCD geometry are unchanged by this image update.
+- Kept packageVersion 1.3.1 and existing release tags/history unchanged. This update is not a new release.
