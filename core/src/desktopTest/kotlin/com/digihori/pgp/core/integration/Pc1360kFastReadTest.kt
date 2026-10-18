@@ -84,7 +84,10 @@ class Pc1360kFastReadTest {
             assertEquals(165, machine.readMemory(0xc215)); assertEquals(1, machine.readMemory(0x3600))
             assertEquals(0, machine.selectedRomBank); assertEquals(0, state.fo)
         }
-        assertEquals(batchBasic(bytes), File(root(), "tools/pc1360k-rom-dump/pc1360k-kanji-dump.bas").readText())
+        // Git may check out BASIC text as CRLF on Windows; compare its content as LF.
+        val publishedBasic = File(root(), "tools/pc1360k-rom-dump/pc1360k-kanji-dump.bas")
+            .readText().replace("\r\n", "\n")
+        assertEquals(batchBasic(bytes), publishedBasic)
         if (System.getenv("PGP_ANALYZE_PC1360K_FAST") == "1") {
             File(root(), "docs/analysis/pc1360k/read-fast-4k.bas").writeText(fastBasic(bytes))
             File(root(), "local-data/analysis/pc-1360k/read-fast-4k.bin").apply { parentFile.mkdirs(); writeBytes(bytes) }

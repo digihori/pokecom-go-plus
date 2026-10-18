@@ -2670,3 +2670,13 @@ Neither the reference repository nor Studio's production WAV codecs were changed
   approximately 33 minutes per page is estimated from the earlier two-page runs.
 - Historical analysis documents retain the old two-page experiment description;
   their current-source links now point to the unified tool and guide.
+
+## Normalize BASIC source line endings in cross-platform verification (2026-10-18)
+
+- Windows CI run [39109850015](https://github.com/digihori/pokecom-go-plus/actions/runs/39109850015)
+  failed at the published BASIC source comparison in `Pc1360kFastReadTest`;
+  macOS, Linux and Android checks passed.
+- Normalize CRLF to LF when comparing the checked-out BASIC with the generated
+  source. Continue comparing the entire source, including machine-code DATA.
+  Exercise the same test locally with the published file temporarily converted
+  to CRLF, then restore the original bytes. No emulator or dump behavior changes.
