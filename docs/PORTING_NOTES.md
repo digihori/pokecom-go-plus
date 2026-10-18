@@ -2737,3 +2737,12 @@ Neither the reference repository nor Studio's production WAV codecs were changed
   work and post-processing remained. The new Native toolchain cache missed on
   this run and was successfully saved afterward. Measure a cache-hit run before
   claiming the expected steady-state speedup.
+
+- Cache-hit measurement: [39125762262](https://github.com/digihori/pokecom-go-plus/actions/runs/39125762262),
+  all five jobs successful, iOS 11m17s. The Native cache hit and restored about
+  386 MiB. This is 2m54s (about 20%) shorter than the 14m11s cache-miss run,
+  but does not meet the hoped-for few-minute turnaround. The lane has a smaller
+  validation scope; Native Framework generation, Simulator preparation and Xcode
+  work still impose substantial overhead. Do not describe it as a sub-minute or
+  fully optimized iOS pipeline. System Files/UI and Native-specific tests remain
+  outside this normal lane, with the documented manual/local paths retained.
