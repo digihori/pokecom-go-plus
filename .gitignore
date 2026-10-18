@@ -43,3 +43,7 @@ xcuserdata/
 
 # Windows source sync manifest
 .pgp-sync/
+
+# Python analysis-tool caches
+__pycache__/
+*.pyc

@@ -23,12 +23,12 @@ public class MachineMemoryLayout(
     public val machineId: MachineId,
     public val pc1251MemoryMode: Pc1251FamilyMemoryMode = Pc1251FamilyMemoryMode.EXPANDED,
 ) {
-    init { require(machineId in MachineCatalog.definitions.map { it.id }) }
+    init { require(MachineCatalog.find(machineId) != null) }
 
     /** A starter location away from the initial BASIC text and its pointer words. */
     public val assemblyStartAddress: Int get() = when (machineId.value) {
         "pc-1260", "pc-1261", "pc-1350" -> 0x6000
-        "pc-1470u", "pc-1460", "pc-1360" -> 0xc000
+        "pc-1470u", "pc-1460", "pc-1360", "pc-1360k" -> 0xc000
         "pc-1450" -> 0x5000
         "pc-1401", "pc-1402" -> 0x4400
         else -> 0xc500
@@ -41,14 +41,14 @@ public class MachineMemoryLayout(
         "pc-1401", "pc-1402" -> checkNotNull(Pc1401FamilyModel.fromMachineId(machineId)).basicStart
         "pc-1450" -> 0x2030
         "pc-1350" -> 0x2030
-        "pc-1470u", "pc-1460", "pc-1360" -> 0x8030
+        "pc-1470u", "pc-1460", "pc-1360", "pc-1360k" -> 0x8030
         else -> 0x3800
     }
 
     public val basicStartPointerAddress: Int get() = when (machineId.value) {
         "pc-1260", "pc-1261" -> 0x66e1
         "pc-1350" -> 0x6f01
-        "pc-1470u", "pc-1360" -> 0xffd7
+        "pc-1470u", "pc-1360", "pc-1360k" -> 0xffd7
         "pc-1460" -> 0xff01
         "pc-1450" -> 0x5f01
         "pc-1401", "pc-1402" -> 0x46e1
@@ -107,7 +107,8 @@ public class MachineMemoryLayout(
                 address in 0x2000..0x7fff -> location(MachineMemoryKind.RAM, true, address)
                 else -> location(MachineMemoryKind.ROM, false, address)
             }
-            "pc-1360" -> when {
+            "pc-1360", "pc-1360k" -> when {
+                machineId.value == "pc-1360k" && address in 0x2000..0x27ff -> location(MachineMemoryKind.RAM, true, address)
                 isDisplayAddress(address, Pc1360Display.VRAM_BLOCK_STARTS, Pc1360Display.SYMBOL_ADDRESS) -> location(MachineMemoryKind.LCD, true, address)
                 address in 0x2000..0x3fff -> location(MachineMemoryKind.CONTROL, true, address)
                 address in 0x4000..0x7fff -> location(MachineMemoryKind.ROM, false, address)

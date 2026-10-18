@@ -1,6 +1,8 @@
 package com.digihori.pgp.core.emulator.machine.pc1360
 
 import com.digihori.pgp.core.api.BankSwitchEvent
+import com.digihori.pgp.core.emulator.cpu.Sc61860ProgramDataRead
+import com.digihori.pgp.core.rom.RomRole
 import com.digihori.pgp.core.emulator.cpu.Sc61860Bus
 import com.digihori.pgp.core.rom.RomSet
 
@@ -10,12 +12,25 @@ internal class Pc1360MemoryBus(
 ) : Sc61860Bus {
     private val memory = ByteArray(0x10000)
     private val banks: List<ByteArray>
+    private val kanjiBanks: List<ByteArray>
     private val bankEvents = mutableListOf<BankSwitchEvent>()
     var selectedBank: Int = 0
         private set
 
     init {
-        require(romSet.machineId == Pc1360RomDefinition.MACHINE_ID) { "PC-1360 ROM set has wrong machine ID" }
+        require(romSet.machineId == Pc1360RomDefinition.MACHINE_ID || romSet.machineId == Pc1360RomDefinition.PC1360K_MACHINE_ID) { "PC-1360 ROM set has wrong machine ID" }
+        val kanjiComponents = (0 until Pc1360RomDefinition.KANJI_SELECTOR_COUNT).mapNotNull { romSet.component(Pc1360RomDefinition.kanjiId(it)) }
+        require(kanjiComponents.isEmpty() || (romSet.machineId == Pc1360RomDefinition.PC1360K_MACHINE_ID && kanjiComponents.size in listOf(2, Pc1360RomDefinition.KANJI_SELECTOR_COUNT))) {
+            "PC-1360K kanji ROM requires selectors 0/1 or all four selectors on pc-1360k"
+        }
+        require(kanjiComponents.map { it.id } == (0 until kanjiComponents.size).map(Pc1360RomDefinition::kanjiId)) { "Kanji ROM selectors must start at 0 with no gaps" }
+        require(romSet.components.count { it.role == RomRole.KANJI } == kanjiComponents.size) { "Unknown kanji ROM component ID" }
+        kanjiBanks = kanjiComponents.map {
+            require(it.size == Pc1360RomDefinition.KANJI_SIZE && it.role == RomRole.KANJI) {
+                "Component ${it.id.value} must be a 65536-byte kanji ROM"
+            }
+            it.copyBytes()
+        }
         val internal = requireNotNull(romSet.component(Pc1360RomDefinition.INTERNAL_ID)) {
             "PC-1360 ROM set is missing internal"
         }
@@ -38,6 +53,15 @@ internal class Pc1360MemoryBus(
             memory[address].toInt() and 0xff
         }
     }
+
+    override fun readProgramData(programCounter: Int, dataPointer: Int): Sc61860ProgramDataRead =
+        if (kanjiBanks.isEmpty()) super.readProgramData(programCounter, dataPointer)
+        else {
+            requireAddress(dataPointer)
+            val selector = memory[0x3600].toInt() and 0xff
+            // Selectors 0..3 were captured independently; partial 0/1 sets remain valid for analysis.
+            Sc61860ProgramDataRead(dataPointer, if (selector in kanjiBanks.indices) kanjiBanks[selector][dataPointer].toInt() and 0xff else 0xff)
+        }
 
     override fun write(address: Int, value: Int) {
         requireAddress(address)

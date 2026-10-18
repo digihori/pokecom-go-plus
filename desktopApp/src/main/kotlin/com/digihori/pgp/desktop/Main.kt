@@ -531,7 +531,10 @@ private fun FrameWindowScope.App(
                 val bankImage = if (MachineCatalog.require(selectedMachineId).memoryBanking is com.digihori.pgp.core.api.MachineMemoryBanking.Banked) {
                     File(file.parentFile, "${selectedMachineId.value.replace("-", "").removeSuffix("u")}bank.bin").readBytes()
                 } else null
-                DesktopRomLoader.loadLegacyImage(selectedMachineId, bytes, configuration, bankImage)
+                val kanjiImages = if (selectedMachineId == MachineId("pc-1360k")) {
+                    DesktopRomLocator.pc1360kKanjiFiles(file.parentFile).map(File::readBytes)
+                } else emptyList()
+                DesktopRomLoader.loadLegacyImage(selectedMachineId, bytes, configuration, bankImage, kanjiImages)
             }
         }
             .getOrElse {
@@ -540,6 +543,12 @@ private fun FrameWindowScope.App(
         }
         when (result) {
             is DesktopRomLoadResult.Success -> {
+                if (MachineCatalog.find(result.session.machineId) == null) {
+                    if (reportErrors) showError(DesktopRomLoadError.SessionCreation(
+                        com.digihori.pgp.core.api.CreateSessionError.UnsupportedMachine(result.session.machineId),
+                    ).message())
+                    return false
+                }
                 val bootResult = if (startAutomatically) {
                     result.session.runCycles(AUTOMATIC_ROM_BOOT_CYCLES)
                 } else {
@@ -1147,7 +1156,7 @@ private fun FrameWindowScope.App(
     }
 
     LaunchedEffect(Unit) {
-        val previous = romHistory.lastSelection()
+        val previous = romHistory.lastSelection()?.takeIf { MachineCatalog.find(it.machineId) != null }
         if (previous != null && romLibrary.isInstalled(previous.machineId)) {
             selectedMachineId = previous.machineId
             if (loadRom(
@@ -3228,6 +3237,7 @@ private fun PocketKeyButton(
                 )
             },
     ) {
+        val stackedPrimary = '\n' in cap.primaryLabel
         val upperLabel = cap.shiftedLabel ?: cap.basicLabel.orEmpty()
         val lowerLabel = if (cap.shiftedLabel != null) cap.basicLabel.orEmpty() else ""
         if (fitLabels) {
@@ -3241,7 +3251,7 @@ private fun PocketKeyButton(
             }) {
                 fun caption(text: String, style: androidx.compose.ui.text.TextStyle, color: Color, top: Float, height: Float) {
                     if (text.isEmpty()) return
-                    val layout = measurer.measure(text, style = style, softWrap = false, maxLines = 1)
+                    val layout = measurer.measure(text, style = style.copy(textAlign = TextAlign.Center), softWrap = false, maxLines = text.count { it == '\n' } + 1)
                     val scale = minOf(1f, size.width * 0.86f / layout.size.width.coerceAtLeast(1),
                         height / layout.size.height.coerceAtLeast(1))
                     withTransform({
@@ -3251,7 +3261,7 @@ private fun PocketKeyButton(
                     }) { drawText(layout, color = color) }
                 }
                 caption(upperLabel, secondaryStyle, secondaryColor, 0f, size.height * 0.25f)
-                caption(cap.primaryLabel, primaryStyle, primaryColor, size.height * 0.25f, size.height * 0.5f)
+                caption(cap.primaryLabel, primaryStyle, primaryColor, size.height * (if (stackedPrimary) 0.1f else 0.25f), size.height * (if (stackedPrimary) 0.8f else 0.5f))
                 caption(lowerLabel, secondaryStyle, primaryColor, size.height * 0.75f, size.height * 0.25f)
             }
         } else {
@@ -3260,11 +3270,11 @@ private fun PocketKeyButton(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text(text = upperLabel, style = MaterialTheme.typography.labelSmall,
+                if (!stackedPrimary) Text(text = upperLabel, style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.secondary, maxLines = 1)
-                Text(text = cap.primaryLabel, style = MaterialTheme.typography.titleMedium,
-                    textAlign = TextAlign.Center, maxLines = 1)
-                Text(text = lowerLabel, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                Text(text = cap.primaryLabel, style = if (stackedPrimary) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleMedium,
+                    textAlign = TextAlign.Center, maxLines = if (stackedPrimary) 2 else 1)
+                if (!stackedPrimary) Text(text = lowerLabel, style = MaterialTheme.typography.labelSmall, maxLines = 1)
             }
         }
     }
@@ -3290,7 +3300,9 @@ private fun PocketSoftwareKeyboard(runner: DesktopEmulatorRunner?, layout: Machi
         MachineKeyboardLayout.PC_1251 -> Pc1251KeyboardLayout.rows to Pc1251KeyboardLayout.COLUMN_COUNT
         MachineKeyboardLayout.PC_1261 -> Pc1261KeyboardLayout.rows to Pc1261KeyboardLayout.COLUMN_COUNT
         MachineKeyboardLayout.PC_1350 -> Pc1350KeyboardLayout.rows to Pc1350KeyboardLayout.COLUMN_COUNT
-        MachineKeyboardLayout.PC_1360 -> Pc1360KeyboardLayout.rows to Pc1360KeyboardLayout.COLUMN_COUNT
+        MachineKeyboardLayout.PC_1360 -> if (runner?.machineId?.value == "pc-1360k") {
+            com.digihori.pgp.desktop.input.Pc1360kKeyboardLayout.rows to com.digihori.pgp.desktop.input.Pc1360kKeyboardLayout.COLUMN_COUNT
+        } else Pc1360KeyboardLayout.rows to Pc1360KeyboardLayout.COLUMN_COUNT
         MachineKeyboardLayout.PC_1470U, MachineKeyboardLayout.PC_1460, MachineKeyboardLayout.PC_1450, MachineKeyboardLayout.PC_1401 -> error("PC-1401 panels are rendered separately")
     }
     PocketKeyboardRows(runner, rows, columnCount)

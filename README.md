@@ -22,7 +22,7 @@ PGPは次の2製品と共有Emulator Coreで構成します。
 ## 現在の状態
 
 プロジェクトは初期実装段階です。Pokecom GO StudioではPC-1245、PC-1250／1251／1255ファミリー、
-PC-1261／1350／1401を実装し、PC-1360は実ROM起動、16KiB×8 ROMバンク、LCD、キー入力、S2 BASICに対応しています。
+PC-1261／1350／1401を実装し、PC-1360／1360Kは実ROM起動、16KiB×8 ROMバンク、LCD、キー入力、S2 BASICに対応しています。PC-1360Kは漢字ROMを登録すると、かな入力・漢字変換も利用できます。
 macOSでは実ROMの起動、物理／画面キーボード入力、BASICと
 マシン語の入出力、LCD表示、サウンド出力まで動作確認済みです。WindowsではROM起動、キー入力、BASICと
 サウンド、Linux x86_64ではROM起動、基本操作、サウンド、tar.gz／DEB配布物を手動確認しています。
@@ -208,7 +208,7 @@ S1/S2は未実装のためpcwavを使用する。Playerには搭載せず、ROM�
 `File` → `Create ROM Set…`で専用ウィンドウを開き、対象機種、内部ROM、外部ROM、
 保存先のフォルダとファイル名をそれぞれ指定して`Create`を押す。
 内部ROMは全対応機種で8 KiB。外部ROMはPC-1245／1250／1251／1255が16 KiB、
-PC-1261／1350／1401が32 KiB、PC-1360が128 KiB（bank 0〜7の順に連結したファイル）。
+PC-1261／1350／1401が32 KiB、PC-1360／1360Kが128 KiB（bank 0〜7の順に連結したファイル）。
 必要な項目とROMサイズを確認後、manifestとSHA-256を記録した`.pgrom` v1パッケージを生成する。
 
 作成後の`Register in ROM Library`で登録・起動できる。登録は後から`Manage ROMs…`でも行える。
@@ -336,6 +336,7 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 - [PC-1245機種定義](docs/machines/PC-1245.md)
 - [PC-1350機種定義](docs/machines/PC-1350.md)
 - [PC-1360次期機種定義](docs/machines/PC-1360.md)
+- [PC-1360Kと漢字ROM](docs/machines/PC-1360K.md)
 - [PGP ROMパッケージ形式](docs/ROM_PACKAGE.md)
 - [Golden Test Data形式](docs/GOLDEN_TEST_DATA.md)
 - [外部エディタ連携とプロジェクト形式](docs/PROJECTS.md)

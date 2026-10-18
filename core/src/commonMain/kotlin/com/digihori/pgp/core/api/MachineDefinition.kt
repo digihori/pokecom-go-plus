@@ -362,7 +362,19 @@ public object MachineCatalog {
     private val pc1402 = pc1401.copy(id = MachineId("pc-1402"), displayName = "PC-1402",
         memoryRegions = pc1401.memoryRegions.map { if (it.id == "ram") it.copy(startAddress = 0x2000) else it })
 
-    public val definitions: List<MachineDefinition> = listOf(pc1245) + pc1251Family + listOf(pc1260, pc1261, pc1350, pc1360, pc1401, pc1402, pc1450, pc1460, pc1470u)
+    private val pc1360k = pc1360.copy(
+        id = Pc1360RomDefinition.PC1360K_MACHINE_ID,
+        displayName = "PC-1360K",
+        memoryRegions = listOf(
+            MachineMemoryRegion("internal-rom", "Internal ROM", 0x0000, 0x1fff, MachineMemoryRegionKind.ROM),
+            MachineMemoryRegion("kanji-work", "Kanji work RAM (2 KiB)", 0x2000, 0x27ff, MachineMemoryRegionKind.RAM),
+            MachineMemoryRegion("control", "Control and display memory", 0x2800, 0x3fff, MachineMemoryRegionKind.DISPLAY),
+            MachineMemoryRegion("banked-rom", "Banked ROM window", 0x4000, 0x7fff, MachineMemoryRegionKind.ROM),
+            MachineMemoryRegion("ram", "RAM", 0x8000, 0xffff, MachineMemoryRegionKind.RAM),
+        ),
+    )
+
+    public val definitions: List<MachineDefinition> = listOf(pc1245) + pc1251Family + listOf(pc1260, pc1261, pc1350, pc1360, pc1360k, pc1401, pc1402, pc1450, pc1460, pc1470u)
     public val defaultDefinition: MachineDefinition = pc1245
 
     private val byId: Map<MachineId, MachineDefinition> = definitions.associateBy(MachineDefinition::id)

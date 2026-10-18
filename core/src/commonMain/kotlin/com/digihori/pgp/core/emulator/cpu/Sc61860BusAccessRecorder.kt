@@ -17,6 +17,12 @@ internal class Sc61860BusAccessRecorder(private val delegate: Sc61860Bus) : Sc61
         return value
     }
 
+    override fun readProgramData(programCounter: Int, dataPointer: Int): Sc61860ProgramDataRead {
+        val result = delegate.readProgramData(programCounter, dataPointer)
+        if (enabled) accesses += MemoryAccess(MemoryAccessKind.READ, result.address and 0xffff, result.value and 0xff)
+        return result
+    }
+
     override fun write(address: Int, value: Int) {
         if (enabled) accesses += MemoryAccess(MemoryAccessKind.WRITE, address and 0xffff, value and 0xff)
         delegate.write(address, value)

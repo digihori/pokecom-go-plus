@@ -33,6 +33,7 @@ internal fun DesktopRomSetWindow(initialMachineId: MachineId, onClose: () -> Uni
     StudioWindow(id = "create-rom-set", title = uiText("romSet.title"), onCloseRequest = { if (!busy) onClose() }) {
         var machineId by remember { mutableStateOf(initialMachineId) }
         var internal by remember { mutableStateOf<File?>(null) }
+        var kanjiFiles by remember { mutableStateOf(List<File?>(4) { null }) }
         var external by remember { mutableStateOf<File?>(null) }
         var destination by remember { mutableStateOf<File?>(null) }
         var created by remember { mutableStateOf<File?>(null) }
@@ -41,19 +42,21 @@ internal fun DesktopRomSetWindow(initialMachineId: MachineId, onClose: () -> Uni
         var machineMenu by remember { mutableStateOf(false) }
         val scope = rememberCoroutineScope()
         val definition = MachineCatalog.require(machineId)
+        val kanjiModel = machineId == com.digihori.pgp.core.emulator.machine.pc1360.Pc1360RomDefinition.PC1360K_MACHINE_ID
         val externalSize = DesktopRomSetCreator.externalSize(machineId)
         fun changed() { created = null; error = null }
         fun create(overwrite: Boolean) {
             val selectedInternal = internal ?: return
             val selectedExternal = external ?: return
             val selectedDestination = destination ?: return
+            val selectedKanji = if (kanjiModel) kanjiFiles.filterNotNull() else emptyList()
             val selectedMachine = machineId
             busy = true
             error = null
             created = null
             scope.launch {
                 val result = withContext(Dispatchers.IO) {
-                    runCatching { DesktopRomSetCreator.create(selectedMachine, selectedInternal, selectedExternal, selectedDestination, overwrite) }
+                    runCatching { DesktopRomSetCreator.create(selectedMachine, selectedInternal, selectedExternal, selectedDestination, overwrite, selectedKanji) }
                 }
                 result.onSuccess { created = it }.onFailure { error = StudioStrings.system.romSetCreationError(it) }
                 busy = false
@@ -73,7 +76,7 @@ internal fun DesktopRomSetWindow(initialMachineId: MachineId, onClose: () -> Uni
                                     machineMenu = false
                                     if (machineId != machine.id) {
                                         machineId = machine.id
-                                        internal = null; external = null; destination = null; changed()
+                                        internal = null; external = null; kanjiFiles = List(4) { null }; destination = null; changed()
                                     }
                                 })
                             }
@@ -90,6 +93,18 @@ internal fun DesktopRomSetWindow(initialMachineId: MachineId, onClose: () -> Uni
                         chooseRomSetFile(window, uiText("romSet.selectExternal"), if (banked) "${machineId.value.replace("-", "").removeSuffix("u")}bank.bin" else "external.bin")?.let { external = it; changed() }
                     }
                     if (banked) Text(uiText("romSet.bankHelp" , (banking.bankCount - 1).toString()), style = MaterialTheme.typography.bodySmall)
+                    if (kanjiModel) {
+                        Text(uiText("romSet.kanjiHelp"), style = MaterialTheme.typography.bodySmall)
+                        kanjiFiles.forEachIndexed { selector, file ->
+                            RomFileField(uiText("romSet.kanji", selector.toString()), file, !busy,
+                                file?.let { DesktopRomSetCreator.inputIssue(it, 65536)?.let(StudioStrings.system::romSetInputIssue) }) {
+                                chooseRomSetFile(window, uiText("romSet.selectKanji", selector.toString()), "kanji-selector-$selector.bin")?.let { selected ->
+                                    kanjiFiles = kanjiFiles.mapIndexed { index, previous -> if (index == selector) selected else previous }
+                                    changed()
+                                }
+                            }
+                        }
+                    }
                     RomFileField(uiText("romSet.destination"), destination, !busy) {
                         chooseRomSetFile(window, uiText("romSet.save"), destination?.name ?: "${machineId.value}.pgrom", FileDialog.SAVE,
                             destination?.parentFile)?.let { destination = DesktopRomSetCreator.destination(it); changed() }
@@ -99,7 +114,8 @@ internal fun DesktopRomSetWindow(initialMachineId: MachineId, onClose: () -> Uni
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                         Button(enabled = !busy && created == null && destination != null &&
                             DesktopRomSetCreator.inputError(internal, 8192) == null &&
-                            DesktopRomSetCreator.inputError(external, externalSize) == null,
+                            DesktopRomSetCreator.inputError(external, externalSize) == null &&
+                            (!kanjiModel || DesktopRomSetCreator.validKanjiInputs(kanjiFiles)),
                             onClick = { if (destination?.exists() == true) overwriteConfirmation = true else create(false) }) {
                             Text(if (busy) uiText("romSet.creating") else uiText("romSet.create"))
                         }

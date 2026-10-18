@@ -155,7 +155,9 @@ object GamepadKeys {
             MachineKeyboardLayout.PC_1360 -> common + setOf(
                 PocketKey.MODE, PocketKey.KANA, PocketKey.SMALL, PocketKey.INSERT,
                 PocketKey.DELETE, PocketKey.COLON, PocketKey.SEMICOLON, PocketKey.COMMA,
-            )
+            ) + if (machineId.value == "pc-1360k") setOf(
+                PocketKey.KANJI, PocketKey.KANJI_FIX, PocketKey.KANJI_CONVERT, PocketKey.HIRA_KATA, PocketKey.YJ,
+            ) else emptySet()
         }
     }
 

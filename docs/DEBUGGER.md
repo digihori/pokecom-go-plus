@@ -186,7 +186,10 @@ Resetで両方を消去する。Debuggerを閉じても保持済みの履歴は�
 履歴から命令・メモリへ移動できるのは停止中／Fault時。移動先は現在のメモリとbankを使い、過去の状態を復元しない。
 説明・絞込みは開閉でき、入力条件は同じウィンドウ内で保持する。検証範囲は[ステップ3記録](DEBUGGER_STEP3_VERIFICATION.md)を参照する。
 
-FO経由のRAM bank処理およびPC-1360K固有の漢字ROM構成は、仕様が確定していないため実装していない。
+[PC-1360K](machines/PC-1360K.md)は通常の機種一覧から選択できる。
+漢字ROMは`0x3600=0..3`で選ぶ64 KiB×4の独立した読出し空間として実装し、
+READ／READMのAccess HistoryにはDPと読出し値を記録する。Memory表示は通常のメモリ空間を示す。
+FO経由のRAM bank処理、物理チップ選択とFポートの関係は未確定。
 
 ## 10. Debug Checkpoint
 

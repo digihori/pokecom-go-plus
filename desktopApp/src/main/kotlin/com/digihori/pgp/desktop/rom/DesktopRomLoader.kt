@@ -32,6 +32,7 @@ internal object DesktopRomLoader {
         image: ByteArray,
         configuration: EmulatorConfiguration = EmulatorConfiguration(),
         bankImage: ByteArray? = null,
+        kanjiImages: List<ByteArray> = emptyList(),
     ): DesktopRomLoadResult {
         val definition = MachineCatalog.find(machineId) ?: return DesktopRomLoadResult.Failure(
                 DesktopRomLoadError.SessionCreation(CreateSessionError.UnsupportedMachine(machineId)),
@@ -48,7 +49,7 @@ internal object DesktopRomLoader {
             MachineFamily.PC_1360 -> if (bankImage == null) {
                 RomImportResult.Failure(RomImportError.InvalidImageSize(listOf(0x20000), 0))
             } else {
-                Pc1360LegacyRomImporter.importImages(image, bankImage)
+                Pc1360LegacyRomImporter.importImages(image, bankImage, machineId, kanjiImages)
             }
         }
         return when (imported) {
@@ -95,7 +96,8 @@ internal object DesktopRomLoader {
         is DesktopRomPackageReadResult.Success -> {
             val packageDefinition = MachineCatalog.find(read.romSet.machineId)
             val targetDefinition = MachineCatalog.find(machineId)
-            if (packageDefinition == null || targetDefinition == null || packageDefinition.family != targetDefinition.family) {
+            if (packageDefinition == null || targetDefinition == null || packageDefinition.family != targetDefinition.family ||
+                (targetDefinition.family == MachineFamily.PC_1360 && read.romSet.machineId != machineId)) {
                 DesktopRomLoadResult.Failure(
                     DesktopRomLoadError.SessionCreation(
                         CreateSessionError.MachineIdMismatch(machineId, read.romSet.machineId),

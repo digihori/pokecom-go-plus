@@ -33,6 +33,20 @@ internal object DesktopRomLocator {
     ): File? = findRom(configuredPath, DEFAULT_PC1360_ROM_PATH, workingDirectory)
         ?.takeIf { File(it.parentFile, "pc1360bank.bin").isFile }
 
+    fun findPc1360kRom(workingDirectory: File = File(System.getProperty("user.dir"))): File? =
+        findRom(null, "local-data/roms/pc-1360k/pc-1360k.pgrom", workingDirectory)
+            ?: findRom(null, "local-data/roms/pc-1360k/pc1360kmem.bin", workingDirectory)
+                ?.takeIf { File(it.parentFile, "pc1360kbank.bin").isFile }
+
+    fun pc1360kKanjiFiles(directory: File): List<File> {
+        val files = (0..3).map { File(directory, "kanji-selector-$it.bin") }
+        return when {
+            files.drop(2).any(File::exists) -> files
+            files.take(2).any(File::exists) -> files.take(2)
+            else -> emptyList()
+        }
+    }
+
     fun findPc1261Rom(
         configuredPath: String? = System.getenv(PC1261_ROM_ENVIRONMENT_VARIABLE),
         workingDirectory: File = File(System.getProperty("user.dir")),
@@ -85,6 +99,7 @@ internal object DesktopRomLocator {
         } ?: findPc1261Rom(null, workingDirectory)?.let {
             DesktopRomSelection(it, Pc1261RomDefinition.MACHINE_ID)
         } ?: findPc1401Rom(null, workingDirectory)?.let { DesktopRomSelection(it, Pc1401RomDefinition.MACHINE_ID) }
+            ?: findPc1360kRom(workingDirectory)?.let { DesktopRomSelection(it, Pc1360RomDefinition.PC1360K_MACHINE_ID) }
     }
 
     private fun findRom(configuredPath: String?, defaultPath: String, workingDirectory: File): File? {

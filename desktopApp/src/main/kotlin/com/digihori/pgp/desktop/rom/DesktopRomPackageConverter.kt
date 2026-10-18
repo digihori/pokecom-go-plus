@@ -38,7 +38,7 @@ internal object DesktopRomPackageConverter {
             MachineFamily.PC_1360 -> if (bankImage == null) {
                 RomImportResult.Failure(RomImportError.InvalidImageSize(listOf(0x20000), 0))
             } else {
-                Pc1360LegacyRomImporter.importImages(image, bankImage)
+                Pc1360LegacyRomImporter.importImages(image, bankImage, machineId)
             }
             null -> RomImportResult.Failure(RomImportError.UnsupportedMachine(machineId))
         }
@@ -54,7 +54,10 @@ internal object DesktopRomPackageConverter {
         machineId: MachineId,
         internal: ByteArray,
         external: ByteArray,
-    ): DesktopRomPackageConversionResult = when (MachineCatalog.find(machineId)?.family) {
+        kanjiImages: List<ByteArray> = emptyList(),
+    ): DesktopRomPackageConversionResult = if (kanjiImages.isNotEmpty()) {
+        createPc1360kPackage(machineId, internal, external, kanjiImages)
+    } else when (MachineCatalog.find(machineId)?.family) {
         MachineFamily.PC_1245 -> createPc1245Package(internal, external)
         MachineFamily.PC_1251 -> createPc1251Package(internal, external, machineId)
         MachineFamily.PC_1450 -> when (val imported = Pc14xxComponentRomImporter.importImages(Pc14xxModel.PC_1450, internal, external)) {
@@ -81,9 +84,17 @@ internal object DesktopRomPackageConverter {
             is RomImportResult.Success -> DesktopRomPackageConversionResult.Success(DesktopRomPackage.write(imported.romSet, title = "${machineId.value.uppercase()} ROM"))
         }
         MachineFamily.PC_1350 -> createPc1350Package(internal, external)
-        MachineFamily.PC_1360 -> createPc1360Package(internal, external)
+        MachineFamily.PC_1360 -> convertLegacyImage(machineId, internal, external)
         null -> DesktopRomPackageConversionResult.Failure(RomImportError.UnsupportedMachine(machineId))
     }
+
+    private fun createPc1360kPackage(machineId: MachineId, internal: ByteArray, bankImage: ByteArray, kanjiImages: List<ByteArray>): DesktopRomPackageConversionResult =
+        if (machineId != com.digihori.pgp.core.emulator.machine.pc1360.Pc1360RomDefinition.PC1360K_MACHINE_ID) {
+            DesktopRomPackageConversionResult.Failure(RomImportError.UnsupportedMachine(machineId))
+        } else when (val imported = Pc1360LegacyRomImporter.importImages(internal, bankImage, machineId, kanjiImages)) {
+            is RomImportResult.Failure -> DesktopRomPackageConversionResult.Failure(imported.error)
+            is RomImportResult.Success -> DesktopRomPackageConversionResult.Success(DesktopRomPackage.write(imported.romSet, title = "PC-1360K ROM"))
+        }
 
     fun createPc1245Package(
         internal: ByteArray,

@@ -12,8 +12,9 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicMemoryResult
 import com.digihori.pgp.core.rom.RomSet
 
 internal class Pc1360Machine(romSet: RomSet) {
+    val machineId = romSet.machineId
     private val display = Pc1360Display()
-    private val keyboard = Pc1360Keyboard()
+    private val keyboard = Pc1360Keyboard(kanjiModel = machineId == Pc1360RomDefinition.PC1360K_MACHINE_ID)
     private val buzzer = Pc1245Buzzer(clockHz = 256_000.0)
     private val bus = Pc1360MemoryBus(romSet, display)
     private val cpuBus = Sc61860BusAccessRecorder(bus)

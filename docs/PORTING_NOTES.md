@@ -2433,3 +2433,136 @@ added. Device acceptance remains separate in ANDROID_PC1350_PROGRESS.md.
 - Included the supplied Android PC-1350 skin image cleanup, which only removes unwanted image marks.
   Skin layout, key regions and LCD geometry are unchanged by this image update.
 - Kept packageVersion 1.3.1 and existing release tags/history unchanged. This update is not a new release.
+
+## PC-1360K local analysis profile (2026-10-17)
+
+The user supplied local internal and banked firmware and reported that PC-1360K
+shares the PC-1360 base hardware, with two Kanji ROM chips and an additional
+2 KiB RAM at `0x2000..0x27ff`. This corrects the initial 8 KiB description.
+The profile reuses PGP's PC-1360 implementation; no external project code or
+firmware is copied into the repository. Studio exposes it only with
+`PGP_ENABLE_PC1360K=1`, under the separate `pc-1360k` identity.
+
+User-supplied schematic references: `pc1360-mainboard0.pdf` (printed pp. 10-11)
+and `MemoryPWB.pdf` (printed pp. 14-15). They are analysis references, not bundled
+assets. Initial reading identifies SC6976S-0225 / SC6976T-0224 and separate
+CED, AD16 and AD17 signals; full CPU F-port connectivity and chip-selection
+semantics remain subject to verification. No mapping is inferred from this alone.
+
+Writes of 1 and 0 to `0x3600` around Kanji processing are a user observation to
+reproduce, not an implemented ROM selector. The existing PC-1360 bus retains
+these values without introducing guessed Kanji reads. The five extra K keys are ported from the active scan table in
+`KeyBoard1360k.java`, compared with `KeyBoard1360.java`, on the user's
+`digihori/pokecom` branch `feature/pc1360k`, commit
+`4344f8946d544954ee7b088d4aeed98d9a1cc976`. The requested `feature/pc1350k`
+branch does not exist on the remote; `git ls-remote` confirmed the 1360k branch
+and the local reference matches that commit. `KeyboardBase.java` confirms
+index/8 = group and index%8 = bit. `include_keys_1360k.xml` supplies layout
+positions. Only scan positions and layout data are ported, with no Android
+UI dependencies. Existing IA scanning already covers groups 7 through 11;
+no scan-bound change is needed. The duplicate COMMA entry in the legacy table
+is not added: legacy first-match lookup uses its existing group-1 entry.
+Tests cover each new key, release/reset and isolation from standard PC-1360.
+See `docs/machines/PC-1360K.md`.
+
+## PC-1360K batch capture extraction (2026-10-18)
+
+- Reference: same author's read-only `pcwav`, commit `14e1ef53596f0d8791b6d14965061f63846d11a7`.
+- Sources: `src/PCWAV/Binary/S1Encode.pm`, `src/PCWAV/Binary/S1Decode.pm`,
+  `src/PCWAV/Format/S1.pm`, `src/PCWAV/Common.pm` and the existing raw decoder.
+- Independently described the S1 binary framing, nibble exchange, 120-byte chunk checksum
+  and footer in the local analysis utility `docs/analysis/pc1360k/extract-batch.py`.
+  This does not add S1 codecs or ROM hooks to Studio/core. The reference repository was not changed.
+- Added a new 16-byte analysis packet header to identify selector, source address, sum,
+  reread differences and block index. The utility extracts every batch record and combines
+  only complete selector images. Captures and ROM payloads remain under ignored local-data.
+- Verified with independently encoded synthetic frames, a two-save WAV with a gap, checksum
+  and packet corruption, duplicate conflicts, and BASIC loop tests with cassette saves substituted.
+  Actual consecutive hardware saves remain to be verified from the user's recording.
+
+### PC-1360K batch hardware receipt: S1 partial-tail correction (2026-10-18)
+
+The user's 32-record capture validates the S1 Binary tail checksum over the final
+partial raw data bytes followed by the first FF, excluding the second FF.
+The referenced pcwav encoder instead sums FF alone. The analysis extractor now
+validates the hardware formula by default; --allow-legacy-tail explicitly accepts
+the old encoder variant. Tests cover a corrected synthetic fixture and reject
+partial-tail corruption; no firmware is added to tracked files. All 32 hardware
+records passed checksums and packet sums and matched prior overlapping captures.
+Neither the reference repository nor Studio's production WAV codecs were changed.
+
+## Captured PC-1360K ROM integration (2026-10-18)
+
+- Evidence: user-performed READ/READM probes and 32 checksum-verified 4 KiB
+  captures, retained only under ignored local-data. No reference emulator code
+  was copied for this mapping. Physical S/T assignment and F-port gating remain unknown.
+- Added a machine-owned READ/READM bus operation with address/value recording.
+  Default machines preserve next-PC reads; only pc-1360k with both Kanji images
+  uses selector 0/1 and DP. Instruction fetch and ordinary RAM/ROM reads are unchanged.
+- Manifest v1 gains no schema fields. Two role=kanji components are validated as
+  a pair, exposed only by the hidden K ROM Set form, and rejected on ordinary 1360.
+  K remains outside the normal machine catalog and Player choices.
+- Verified register-instruction semantics, DP boundaries, independent ordinary-ROM
+  banks/RAM, reset, access tracing, malformed packages and package round trips.
+  Local unmodified firmware displays the recovered A glyph exactly after WIDTH,2
+  and Kanji/A input. Conversion candidates are not yet validated.
+
+## Four-selector PC-1360K integration (2026-10-18)
+
+- Extended the capture-backed Kanji component set to selectors 0..3, each 65536
+  bytes, without changing manifest v1 or ordinary memory/instruction fetch.
+- Preserved the earlier 0/1 pair and empty analysis set; reject noncontiguous sets,
+  invalid counts, sizes, roles and ordinary PC-1360 use. Unknown selectors do not alias.
+- Updated hidden ROM Set creation, legacy sidecar discovery and local package
+  generation. Captured firmware and the regenerated package remain ignored.
+- Local unmodified firmware now converts A to 亜 and fixes it. KANJI produces
+  かんじ, converts to 感じ, cycles to 幹事 and commits that candidate. The test checks
+  recovered A data, selector 2/3 access, candidate display path and candidate changes.
+  These scenarios are verified; exhaustive dictionary/keyboard behavior is not claimed.
+
+## PC-1360K catalog promotion and key legends (2026-10-18)
+
+- Promoted `pc-1360k` into the normal Studio catalog and ROM registration. Removed
+  the environment gate and forced analysis startup; saved library selection has
+  priority, with local K files recognized by the ordinary development fallback.
+  Player's explicit supported-machine list remains separate.
+- User-confirmed legends replace FIX with 採用 and CHG with 変換. YJ is drawn as
+  ▲ above ▼ in one key, with centered multiline layout at both keyboard scales.
+- The four-selector Kanji mapping and manifest v1 component validation are
+  unchanged. No captured firmware is added to tracked files.
+- JDK 21 full build and the opt-in real-ROM Kanji conversion test passed.
+
+## iPhone program document presentation (2026-10-18)
+
+- Investigated CI run [39078310161](https://github.com/digihori/pokecom-go-plus/actions/runs/39078310161):
+  shared Native/framework compilation passed; the iPhone UI test failed after
+  requesting program export, with no picker exposed in the accessibility tree.
+- Replaced two independent nested picker sheets and separate export visibility/URL
+  state with one item-based presentation carrying either import or the export URL.
+  The export sheet no longer depends on an optional URL captured by a Boolean
+  presentation closure. Cancellation retains the program panel and cleans its
+  temporary export; existing resume intent rules are retained.
+- Deferred the parent-presentation callback to the next main queue turn so it
+  does not publish observed state inside UIKit/SwiftUI view updates.
+- Both load and save start in Documents. The UI test recognizes English and
+  Japanese local-storage navigation labels rather than waiting on a disabled
+  Save button at the storage-provider root. Wait for the Documents fixture after
+  folder navigation before tapping Save; the parent button can remain enabled
+  during that transition.
+- Local validation: JDK 21 full Gradle build passed (578 tasks); the opt-in
+  captured-ROM Kanji test passed. iOS 26.5 Simulator passed all six UI smoke
+  scenarios, and the final Swift unit suite passed all 35 tests, including the
+  new export cancellation/retry case. The earlier iOS CI runtime is not installed
+  locally; a new GitHub CI run is still required after publishing these changes.
+- Final targeted UI rerun passed the complete BASIC/DMP save and reload flow,
+  including Japanese folder navigation and waiting for its destination contents.
+
+## PC-1360K dump BASIC distribution layout (2026-10-18)
+
+- Collected the two hardware-verified batch BASIC sources under
+  `tools/pc1360k-rom-dump/`, named `pc1360k-kanji-dump-01.bas` and
+  `pc1360k-kanji-dump-23.bas`. Their bytes are unchanged from the analysis copies.
+- Added a Japanese README with RAM usage, recording workflow, result format and
+  the explicit boundary that WAV codecs and reconstruction tools are not bundled.
+- Updated analysis links and the optional BASIC generator destinations. Existing
+  probes, assembly and extraction utilities remain in the analysis directory.

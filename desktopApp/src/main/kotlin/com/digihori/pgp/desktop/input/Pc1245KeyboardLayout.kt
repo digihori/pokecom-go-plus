@@ -209,3 +209,16 @@ internal object Pc1360KeyboardLayout {
         shifted: String? = null,
     ): PocketKeyCap = PocketKeyCap(key, label, shiftedLabel = shifted, column = column, columnSpan = span)
 }
+
+
+internal object Pc1360kKeyboardLayout {
+    const val COLUMN_COUNT: Int = 17
+    val rows: List<List<PocketKeyCap>> = Pc1360KeyboardLayout.rows.mapIndexed { index, row ->
+        row + when (index) {
+            0 -> listOf(PocketKeyCap(PocketKey.KANJI, "漢字", column = 16))
+            1 -> listOf(PocketKeyCap(PocketKey.HIRA_KATA, "平/片", column = 16))
+            2 -> listOf(PocketKeyCap(PocketKey.KANJI_FIX, "採用", column = 15), PocketKeyCap(PocketKey.YJ, "▲\n▼", column = 16))
+            else -> listOf(PocketKeyCap(PocketKey.KANJI_CONVERT, "変換", column = 15))
+        }
+    }
+}

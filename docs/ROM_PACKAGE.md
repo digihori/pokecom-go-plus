@@ -269,3 +269,18 @@ Importerは最低限次を検証する。
 ZIPの読書きやファイル選択はCoreのエミュレーション層に置かない。KMP共通コードには
 manifest、validator、正規モデルを置き、実ファイルI/Oはプラットフォーム層または専用の
 infrastructure層で扱う。
+
+## PC-1360K package
+
+The `pc-1360k` profile uses manifest v1 with the usual 8 KiB `internal`
+and eight 16 KiB `bank-0`..`bank-7` components. Four additional components can be supplied: `kanji-selector-0` through
+`kanji-selector-3`, role `kanji`, 65536 bytes each. Files are stored as
+`rom/kanji-selector-0.bin` through `rom/kanji-selector-3.bin`, with the normal
+SHA-256 validation. The earlier 0/1-only pair and no-Kanji analysis sets remain
+accepted; a hole or an incomplete added pair is rejected.
+
+The machine implementation owns selector/DP access behavior; no addresses or
+registers are added to the manifest. Component names deliberately do not assign
+physical S/T chip identities. The ordinary PC-1360 rejects these components.
+ROM Set creation shows the four optional selector fields only for PC-1360K.
+See [PC-1360K](machines/PC-1360K.md).

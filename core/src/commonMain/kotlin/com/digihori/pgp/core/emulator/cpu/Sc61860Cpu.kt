@@ -460,7 +460,7 @@ internal class Sc61860Cpu(
     }
 
     private fun loadProgramByteIntoP(): Sc61860StepResult {
-        state.internalRam[state.p] = readByte(state.programCounter)
+        state.internalRam[state.p] = bus.readProgramData(state.programCounter, state.dataPointer).value and BYTE_MASK
         return Sc61860StepResult(cycles = 3)
     }
 
@@ -470,7 +470,7 @@ internal class Sc61860Cpu(
     }
 
     private fun loadProgramByteIntoAccumulator(): Sc61860StepResult {
-        state.internalRam[INTERNAL_A] = readByte(state.programCounter)
+        state.internalRam[INTERNAL_A] = bus.readProgramData(state.programCounter, state.dataPointer).value and BYTE_MASK
         return Sc61860StepResult(cycles = 3)
     }
 

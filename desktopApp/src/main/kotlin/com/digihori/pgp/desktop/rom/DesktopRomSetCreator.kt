@@ -31,16 +31,29 @@ internal object DesktopRomSetCreator {
         is RomSetInputIssue.SizeMismatch -> "Expected ${expectedSize / 1024} KiB; selected ${actualSize} bytes."
     }
 
+    fun validKanjiInputs(files: List<File?>): Boolean {
+        if (files.size != 4) return false
+        val count = files.count { it != null }
+        return count in listOf(0, 2, 4) && files.take(count).all { inputIssue(it, 65536) == null } &&
+            files.drop(count).all { it == null }
+    }
+
     fun destination(file: File): File = if (file.extension.equals("pgrom", ignoreCase = true)) file
         else File(file.parentFile, "${file.name}.pgrom")
 
-    fun create(machineId: MachineId, internal: File, external: File, destination: File, overwrite: Boolean = false): File {
+    fun create(machineId: MachineId, internal: File, external: File, destination: File, overwrite: Boolean = false, kanjiFiles: List<File> = emptyList()): File {
         inputIssue(internal, 8192)?.let { throw RomSetInputException(it, it.description()) }
         inputIssue(external, externalSize(machineId))?.let { throw RomSetInputException(it, it.description()) }
+        if (kanjiFiles.isNotEmpty()) {
+            require(machineId == com.digihori.pgp.core.emulator.machine.pc1360.Pc1360RomDefinition.PC1360K_MACHINE_ID && kanjiFiles.size in listOf(2, 4)) {
+                "Kanji ROMs require selectors 0/1 or all four selectors for PC-1360K"
+            }
+            kanjiFiles.forEach { file -> inputIssue(file, 65536)?.let { throw RomSetInputException(it, it.description()) } }
+        }
         val target = destination.canonicalFile
-        require(target != internal.canonicalFile && target != external.canonicalFile) { "The output must not replace an input ROM." }
+        require(target != internal.canonicalFile && target != external.canonicalFile && kanjiFiles.none { target == it.canonicalFile }) { "The output must not replace an input ROM." }
         require(overwrite || !target.exists()) { "The destination already exists." }
-        val conversion = DesktopRomPackageConverter.createPackage(machineId, internal.readBytes(), external.readBytes())
+        val conversion = DesktopRomPackageConverter.createPackage(machineId, internal.readBytes(), external.readBytes(), kanjiFiles.map(File::readBytes))
         val bytes = when (conversion) {
             is DesktopRomPackageConversionResult.Success -> conversion.packageBytes
             is DesktopRomPackageConversionResult.Failure -> throw RomSetValidationException(conversion.error)

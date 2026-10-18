@@ -2,7 +2,8 @@ package com.digihori.pgp.core.emulator.machine.pc1360
 
 import com.digihori.pgp.core.api.PocketKey
 
-internal class Pc1360Keyboard {
+internal class Pc1360Keyboard(private val kanjiModel: Boolean = false) {
+    private val keyPositions = KEY_POSITIONS + if (kanjiModel) KANJI_KEY_POSITIONS else emptyMap()
     private val groupMasks = IntArray(12)
     private val pressedKeys = mutableSetOf<PocketKey>()
     private var keyOnCountdown = 0
@@ -12,14 +13,14 @@ internal class Pc1360Keyboard {
             if (pressedKeys.add(key)) keyOnCountdown = 10
             return true
         }
-        val position = KEY_POSITIONS[key] ?: return false
+        val position = keyPositions[key] ?: return false
         if (pressedKeys.add(key)) groupMasks[position.group] = groupMasks[position.group] or (1 shl position.row)
         return true
     }
 
     fun release(key: PocketKey): Boolean {
         if (key == PocketKey.BREAK) return pressedKeys.remove(key).let { true }
-        val position = KEY_POSITIONS[key] ?: return false
+        val position = keyPositions[key] ?: return false
         if (pressedKeys.remove(key)) groupMasks[position.group] = groupMasks[position.group] and (1 shl position.row).inv()
         return true
     }
@@ -50,6 +51,14 @@ internal class Pc1360Keyboard {
     private data class Position(val group: Int, val row: Int)
 
     private companion object {
+        // digihori/pokecom feature/pc1360k, KeyBoard1360k.java (4344f8946d54).
+        val KANJI_KEY_POSITIONS = mapOf(
+            PocketKey.KANJI_FIX to Position(0, 2),
+            PocketKey.KANJI_CONVERT to Position(0, 3),
+            PocketKey.KANJI to Position(10, 4),
+            PocketKey.HIRA_KATA to Position(11, 5),
+            PocketKey.YJ to Position(11, 6),
+        )
         val KEY_POSITIONS = mapOf(
             PocketKey.COLON to Position(0, 0), PocketKey.SEMICOLON to Position(0, 1),
             PocketKey.SMALL to Position(0, 4),

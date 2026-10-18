@@ -26,7 +26,8 @@ internal class DesktopRomLibrary(
         if (!packageFile.isFile) return false
         val read = runCatching { DesktopRomPackage.read(packageFile.readBytes()) }.getOrNull()
         return read is DesktopRomPackageReadResult.Success &&
-            MachineCatalog.find(read.romSet.machineId)?.family == MachineCatalog.find(machineId)?.family
+            MachineCatalog.find(read.romSet.machineId)?.family == MachineCatalog.find(machineId)?.family &&
+            (MachineCatalog.find(machineId)?.family != MachineFamily.PC_1360 || read.romSet.machineId == machineId)
     }
 
     fun packageFile(machineId: MachineId): File = File(File(root, storageId(machineId)), PACKAGE_NAME)

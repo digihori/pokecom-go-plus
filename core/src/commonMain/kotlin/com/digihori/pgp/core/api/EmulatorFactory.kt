@@ -36,7 +36,7 @@ public object EmulatorFactory {
         romSet: RomSet,
         configuration: EmulatorConfiguration = EmulatorConfiguration(),
     ): CreateSessionResult {
-        if (machineId !in supportedMachineIds()) {
+        if (MachineCatalog.find(machineId) == null) {
             return CreateSessionResult.Failure(CreateSessionError.UnsupportedMachine(machineId))
         }
         if (romSet.machineId != machineId) {
@@ -267,7 +267,7 @@ private class Pc14xxEmulatorSession(private val machine: Pc14xxMachine) : Emulat
 private class Pc1360EmulatorSession(
     private val machine: Pc1360Machine,
 ) : EmulatorSession {
-    override val machineId: MachineId = Pc1360RomDefinition.MACHINE_ID
+    override val machineId: MachineId = machine.machineId
     private var status: ExecutionStatus = ExecutionStatus.Ready
     override fun reset() { machine.coldReset(); status = ExecutionStatus.Ready }
     override fun step(): StepResult = machine.step().let {
