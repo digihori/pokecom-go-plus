@@ -2637,3 +2637,36 @@ Neither the reference repository nor Studio's production WAV codecs were changed
 - Retain the local Simulator script, all unit/UI tests, and diagnostics for future
   investigation. Local Xcode 26.6 / iOS 26.5 passed all 35 unit and 6 UI tests;
   the targeted save/reload test also passed with English/US test settings.
+
+## Publish the PC-1360K page dump and WAV recovery tools (2026-10-18)
+
+- Consolidate the two public batch BASIC programs into
+  `tools/pc1360k-rom-dump/pc1360k-kanji-dump.bas`. INPUT selects page 0..3;
+  reject out-of-range/fractional values and save exactly sixteen 4 KiB blocks.
+  Preserve the verified 284-byte machine-code reader and K136 packet format.
+- Publish a one-line transfer test and a Japanese end-to-end guide: BASIC-to-WAV,
+  CLOAD/RUN, CSAVE recording, BASIC recovery, then page recordings and ROM recovery.
+  Recommend the author's [pcwav](https://github.com/digihori/pcwav) for BASIC transfer
+  and [Audacity](https://www.audacityteam.org/) for recording. External references
+  remain read-only; do not modify or bundle pcwav, and do not add build dependencies.
+- The standalone Python 3.10+ decoder uses only the standard library and bounded
+  PCM reads. Its signal detector independently adapts PCWAV RawDecode/PcmNormalize
+  at read-only reference `14e1ef53596f0d8791b6d14965061f63846d11a7`;
+  packet validation derives from this repository's earlier `extract-batch.py`.
+  Validate hardware S1 partial-tail checksums without the legacy encoder bypass.
+- Reject missing/duplicate/unexpected blocks, repeat differences, malformed headers,
+  and byte-sum/transfer-checksum failures before publishing ROMs. Preserve differing
+  existing outputs. Emit `kanji-selector-0.bin` through `-3.bin`, each 64 KiB, plus
+  per-page JSON checks. The four-file Studio dialog is unchanged.
+- Both historical hardware WAV captures decoded to all 64 blocks, and all four
+  resulting images matched the local ROM images byte for byte. No recording,
+  firmware or generated image is included in shared source. Synthetic tests cover
+  PCM widths, stereo channel selection, truncation/corruption, page completeness,
+  duplicates and overwrite protection.
+- Local real-ROM emulator checks cover all four page loops, invalid INPUT values,
+  packet content and stopping before a bad block is saved. Only CSAVE is replaced
+  with a capture callback in that test. Both BASIC files passed pcwav encode/decode
+  round trips. The new four separate hardware recording sessions remain untested;
+  approximately 33 minutes per page is estimated from the earlier two-page runs.
+- Historical analysis documents retain the old two-page experiment description;
+  their current-source links now point to the unified tool and guide.

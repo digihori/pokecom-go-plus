@@ -13,7 +13,10 @@
 
 ## 操作
 
-1. [pc1360k-kanji-dump-01.bas](../../../tools/pc1360k-rom-dump/pc1360k-kanji-dump-01.bas) を新しいBASICプログラムとして実機へ転送する。
+以下は旧版（`read-all.bas`／後の`pc1360k-kanji-dump-01.bas`）での実行記録。
+現在の配布ソースは[ページ指定版](../../../tools/pc1360k-rom-dump/pc1360k-kanji-dump.bas)に統合している。
+
+1. 当時の選択値0・1用BASICを新しいプログラムとして実機へ転送する。
 2. PC側で録音を開始する。長い録音なので、無音での自動停止は無効にする。
 3. 実機でRUNする。
 4. 以後は読み出し→再読比較→CSAVE Mを32回、自動で繰り返す。

@@ -11,13 +11,14 @@ S/Tチップとの対応や、4つの範囲すべての物理的な独立性は�
 
 ## 操作
 
-前回のpc1360k-kanji-dump-01.basが実機に残っている場合、行60だけを変更する。
+前回のread-all.basが実機に残っている場合、行60だけを変更する。
 
 ```basic
 60 FOR K=&20 TO &3F
 ```
 
-または、[pc1360k-kanji-dump-23.bas](../../../tools/pc1360k-rom-dump/pc1360k-kanji-dump-23.bas)を新しいBASICプログラムとして転送する。
+当時は`read-all-23.bas`（後の`pc1360k-kanji-dump-23.bas`）を新しいBASICとして転送する方法も使った。
+現在の配布ソースは[ページ指定版](../../../tools/pc1360k-rom-dump/pc1360k-kanji-dump.bas)に統合している。
 機械語DATA、使用RAM、CSAVE Mの範囲と識別形式は前回と同じ。
 
 1. PC側で録音を開始する。

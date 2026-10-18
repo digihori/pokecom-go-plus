@@ -84,10 +84,9 @@ class Pc1360kFastReadTest {
             assertEquals(165, machine.readMemory(0xc215)); assertEquals(1, machine.readMemory(0x3600))
             assertEquals(0, machine.selectedRomBank); assertEquals(0, state.fo)
         }
+        assertEquals(batchBasic(bytes), File(root(), "tools/pc1360k-rom-dump/pc1360k-kanji-dump.bas").readText())
         if (System.getenv("PGP_ANALYZE_PC1360K_FAST") == "1") {
             File(root(), "docs/analysis/pc1360k/read-fast-4k.bas").writeText(fastBasic(bytes))
-            File(root(), "tools/pc1360k-rom-dump/pc1360k-kanji-dump-01.bas").writeText(batchBasic(bytes))
-            File(root(), "tools/pc1360k-rom-dump/pc1360k-kanji-dump-23.bas").writeText(batchBasic(bytes, firstSelector = 2))
             File(root(), "local-data/analysis/pc-1360k/read-fast-4k.bin").apply { parentFile.mkdirs(); writeBytes(bytes) }
         }
     }
@@ -102,7 +101,7 @@ class Pc1360kFastReadTest {
         )).romSet
         val assembly = assemble()
         val sites = assembly.symbols.filter { it.name.lowercase() in setOf("copy_read", "verify_read") }.associate { it.name.lowercase() to it.address }
-        for (firstSelector in listOf(0, 2)) for (fault in listOf(false, true)) {
+        for (page in 0..3) for (fault in listOf(false, true)) {
             val machine = Pc1360Machine(rom)
             val packets = mutableListOf<ByteArray>()
             fun value(selector: Int, dp: Int) = (dp xor (dp ushr 8) xor (selector * 0x5a)) and 255
@@ -115,7 +114,7 @@ class Pc1360kFastReadTest {
                     if (pc == 0xc300) packets += ByteArray(4112) { machine.readMemory(0xcff0 + it).toByte() }
                     val result = machine.step(); assertNull(result.stopReason); cycles += result.cycles
                     if (pc in sites.values) {
-                        val damage = fault && pc == sites["verify_read"] && selector == firstSelector && dp == 0x112c
+                        val damage = fault && pc == sites["verify_read"] && selector == page && dp == 0x112c
                         machine.cpuState.internalRam[2] = value(selector, dp) xor if (damage) 1 else 0
                     }
                 }
@@ -127,7 +126,7 @@ class Pc1360kFastReadTest {
             }
             run(1_000_000); key(PocketKey.Y); key(PocketKey.ENTER); key(PocketKey.CLEAR); run(500_000)
             // Only the cassette operation is replaced in this test. Hardware recording remains unverified.
-            val text = batchBasic(assembly.image.segments.single().copyBytes(), firstSelector)
+            val text = File(root(), "tools/pc1360k-rom-dump/pc1360k-kanji-dump.bas").readText()
                 .replace("400 CSAVE M &CFF0,&DFFF", "400 CALL &C300")
             assertFalse(text.contains("CSAVE M"))
             val basic = assertIs<BasicProgramCompileResult.Success>(BasicProgramCodec.compileProgram(
@@ -141,11 +140,27 @@ class Pc1360kFastReadTest {
                 keys.asReversed().forEach { machine.keyboardState.release(it) }; run(100_000)
             }
             key(PocketKey.ENTER)
+            run(10_000_000) // DATA initialization, then INPUT prompt.
+            fun input(value: String) {
+                for (char in value) {
+                    val keys = assertNotNull(Pc1360CharacterInput.keySequence(char))
+                    keys.forEach { machine.keyboardState.press(it) }; run(80_000)
+                    keys.asReversed().forEach { machine.keyboardState.release(it) }; run(100_000)
+                }
+                key(PocketKey.ENTER)
+            }
+            if (page == 0 && !fault) {
+                for (invalid in listOf("4", "-1", "0.5")) {
+                    input(invalid); run(1_000_000)
+                    assertTrue(packets.isEmpty(), "Invalid page must return to INPUT")
+                }
+            }
+            input(page.toString())
             repeat(200) { if (machine.readMemory(0xc220) == 0) run(500_000) }
-            assertEquals(if (fault) 238 else 90, machine.readMemory(0xc220))
-            assertEquals(if (fault) 1 else 32, packets.size)
+            assertEquals(if (fault) 238 else 90, machine.readMemory(0xc220), "page=$page fault=$fault packets=${packets.size} pc=${machine.cpuState.programCounter}")
+            assertEquals(if (fault) 1 else 16, packets.size)
             packets.forEachIndexed { offset, packet ->
-                val index = firstSelector * 16 + offset
+                val index = page * 16 + offset
                 assertEquals("K136", packet.take(4).map { (it.toInt() and 255).toChar() }.joinToString(""))
                 assertEquals(1, packet[4].toInt()); assertEquals(index / 16, packet[5].toInt())
                 assertEquals(0, packet[6].toInt()); assertEquals((index % 16) * 16, packet[7].toInt() and 255)
@@ -245,14 +260,17 @@ private fun fastBasic(bytes: ByteArray): String = buildString {
     }
 }
 
-private fun batchBasic(bytes: ByteArray, firstSelector: Int = 0): String = buildString {
-    require(firstSelector == 0 || firstSelector == 2)
+private fun batchBasic(bytes: ByteArray): String = buildString {
     appendLine("10 FOR I=0 TO &${(bytes.size - 1).toString(16).uppercase()}")
     appendLine("20 READ B")
     appendLine("30 POKE &C000+I,B")
     appendLine("40 NEXT I")
-    appendLine("50 POKE &C220,0")
-    appendLine("60 FOR K=&${(firstSelector * 16).toString(16).uppercase()} TO &${(firstSelector * 16 + 31).toString(16).uppercase()}")
+    appendLine("45 INPUT \"PAGE(0-3)\";P")
+    appendLine("52 IF P<0 THEN GOTO 45")
+    appendLine("54 IF P>3 THEN GOTO 45")
+    appendLine("56 IF P<>INT(P) THEN GOTO 45")
+    appendLine("58 POKE &C220,0")
+    appendLine("60 FOR K=&10*P TO &10*P+&F")
     appendLine("70 S=INT(K/&10):A=&1000*(K-&10*S)")
     appendLine("80 Z=A-1:IF Z<0 THEN LET Z=&FFFF")
     appendLine("90 H=INT(Z/&100)")
