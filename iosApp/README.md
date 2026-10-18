@@ -115,14 +115,19 @@ PC-1245の `.pgrom`（ZIP store/deflate）または32/64 KiBのlegacy ROMを選�
 - 実パッド/Physicalキーボード、接続方式・配列差、複数機器選択、単独SHIFT/同時押し/repeat/短押し/切断と復帰。
 - 実ROMでのPC-1245全体受入れと、LCDドットの見え方。iOSの他機種追加は別工程。
 
-iOSの自動CIは一旦停止している。ローカル検証は `sh iosApp/test-simulator.sh`。使い捨てiPhone Simulatorを作成し、終了時にその端末だけを削除する。
+iOSの通常CIは共有Nativeテスト、アプリのビルド、Swift単体テスト35件を実行する。
+Xcode 26.6・iOS 26.5を固定し、UI操作テストと実機向けRelease Framework生成は通常CIに含めない。
+同じ単体テストをローカルで実行するには `sh iosApp/test-simulator.sh --unit` を使う。
+専用scheme `PokecomGOPlayerUnitTests`はUIテストのターゲットを含めず、Filesの事前起動も行わない。
+全UIテストを含むローカル検証は `sh iosApp/test-simulator.sh`。
+両モードとも使い捨てiPhone Simulatorを作成し、終了時にその端末だけを削除する。
 Xcode 26.6・iOS 26.5で単体35件とUI6件のローカル成功を確認済み。CIでのFiles保存失敗は未解決。
 `PGP_IOS_SIMULATOR_RUNTIME`でRuntimeの完全な識別子を指定でき、未導入なら別版へ黙って切り替えず失敗する。
 指定なしのローカル実行では、利用可能な最も新しいiOS RuntimeのiPhoneを選ぶ。
 実機・古いiOSの保存動作まで検証したことにはならない。
 Files pickerのCancelはiOS 18.5でもボタンとして公開されない場合がある。UIテストはOS番号で分岐せず、
 押せるボタンを優先し、必要ならナビゲーションバーから戻ってキャンセルする。
-初回起動完了を待ち、Filesを一度起動してからテストする。失敗時はFiles関連のシステムログもbuild配下へ残す。
+初回起動完了を待ってテストする。全UIモードではFilesを一度起動し、失敗時にFiles関連のシステムログもbuild配下へ残す。
 結果bundleはbuild配下へ残す。署名付きArchive・TestFlight/App Store配布は別途の指示と検証が必要。
 
 ## Xcodeの基本操作と成果物

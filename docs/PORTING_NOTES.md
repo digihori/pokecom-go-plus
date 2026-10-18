@@ -2693,3 +2693,24 @@ Neither the reference repository nor Studio's production WAV codecs were changed
   versionCode increments to 7. Preserve the Windows UpgradeCode.
 - Verify both the native package metadata and ProjectInfo class inside the built
   macOS application, in addition to the full build and hosted checks.
+
+## Restore a lightweight iOS CI lane (2026-10-18)
+
+- Measured previous full iOS jobs took 14m37s and 22m12s, compared with roughly
+  40–70 seconds for the other platforms. In the 22-minute run, shared Native work
+  took 2m54s, Xcode build roughly 1m33s, build-to-first-test waiting roughly 4m29s,
+  and six UI tests roughly 9m25s. This was substantially broader than Android's
+  unit-test/build lane. Files export failure remains a separate unresolved issue.
+- Restore normal iOS CI with shared Native tests, the Debug app build, and all
+  35 Swift unit tests. Keep Xcode 26.6 / iOS 26.5 pinned. Do not build the device
+  Release framework in this lane; let the Xcode integration build its required
+  Simulator framework instead of pre-linking it in a separate step.
+- Add shared scheme `PokecomGOPlayerUnitTests`, which excludes the UI test target,
+  and select it with `test-simulator.sh --unit`. This mode skips Files warm-up
+  and Files-specific failure diagnostics, while retaining isolated-device cleanup
+  and xcresult artifacts. Default invocation still runs the complete local suite.
+- Use the `test` Xcode action, which includes its build, rather than requesting
+  both `build` and `test` and rerunning the always-out-of-date Kotlin build phase.
+- UI tests and their assertions remain available for explicit local diagnosis.
+  A passing lightweight CI does not validate system Files export or iOS devices.
+  No iOS release asset or signing workflow is added.

@@ -244,6 +244,7 @@ GitHubへpushした場合とPull Requestを更新した場合は、GitHub Action
 Linux上でCoreのDesktopテストとDesktopアプリのビルド・テストを実行し、別のAndroid環境で
 Playerの共有層テスト、Android固有テスト、APK生成を行う。CIにはROMを渡さず、再配布可能な
 合成データだけを使用する。
+iOSは共有Nativeテスト・アプリビルド・Swift単体テストを通常CIで実行し、時間のかかるUI操作は別途ローカルで検証する。
 
 ローカルでのDMG／MSI／DEB生成方法は[ソースからのビルド](docs/BUILDING.md)を参照する。
 
