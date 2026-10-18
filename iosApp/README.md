@@ -115,8 +115,8 @@ PC-1245の `.pgrom`（ZIP store/deflate）または32/64 KiBのlegacy ROMを選�
 - 実パッド/Physicalキーボード、接続方式・配列差、複数機器選択、単独SHIFT/同時押し/repeat/短押し/切断と復帰。
 - 実ROMでのPC-1245全体受入れと、LCDドットの見え方。iOSの他機種追加は別工程。
 
-CIと同じ検証は `sh iosApp/test-simulator.sh`。使い捨てiPhone Simulatorを作成し、終了時にその端末だけを削除する。
-CIはXcode 26.6とiOS 26.5 Runtimeを明示して全UIテストを実行する。
+iOSの自動CIは一旦停止している。ローカル検証は `sh iosApp/test-simulator.sh`。使い捨てiPhone Simulatorを作成し、終了時にその端末だけを削除する。
+Xcode 26.6・iOS 26.5で単体35件とUI6件のローカル成功を確認済み。CIでのFiles保存失敗は未解決。
 `PGP_IOS_SIMULATOR_RUNTIME`でRuntimeの完全な識別子を指定でき、未導入なら別版へ黙って切り替えず失敗する。
 指定なしのローカル実行では、利用可能な最も新しいiOS RuntimeのiPhoneを選ぶ。
 実機・古いiOSの保存動作まで検証したことにはならない。

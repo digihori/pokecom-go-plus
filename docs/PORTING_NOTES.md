@@ -2617,11 +2617,23 @@ Neither the reference repository nor Studio's production WAV codecs were changed
   35 unit tests and 6 UI tests locally. Pinning the runtime alone did not fix CI.
 - The CI xcresult system log records repeated `LocalStorageFileProvider`
   `bulkItemChanges` failures with Cocoa error 513 (no permission to save),
-  including during export. This narrows the investigation to the system Files
-  provider; the exact denied path and underlying cause are not yet established.
+  including during export. Comparing the successful local run later showed the
+  same errors there, so error 513 alone does not distinguish the CI failure or
+  establish its cause. The exact denied path is not established.
 - Explicitly wait for disposable-device first boot with `simctl bootstatus -b`,
   launch Files before XCTest, and print installed runtime versions.
   This is an initialization hypothesis to verify in CI, not a confirmed fix.
 - If testing fails, retain a filtered File Provider system log before deleting
   the disposable device, and upload it alongside xcresult. Keep real export and
   reload assertions enabled.
+
+## Suspend iOS CI pending Files export investigation (2026-10-18)
+
+- At the project owner's request, remove the `ios-player` job from the automatic
+  CI workflow. Keep the three desktop platforms and Android Player checks.
+- Run [39106514805](https://github.com/digihori/pokecom-go-plus/actions/runs/39106514805)
+  still failed at the Save-enabled assertion after first-boot/Files initialization.
+  The CI-only export issue remains unresolved; this change does not fix it.
+- Retain the local Simulator script, all unit/UI tests, and diagnostics for future
+  investigation. Local Xcode 26.6 / iOS 26.5 passed all 35 unit and 6 UI tests;
+  the targeted save/reload test also passed with English/US test settings.
