@@ -2587,3 +2587,24 @@ Neither the reference repository nor Studio's production WAV codecs were changed
   destination. Continue waiting for the folder contents after navigation.
 - Cover both the program export and ROM import picker flows. No application
   presentation or emulator behavior is changed by this follow-up.
+
+## Pin iOS CI SDK and UI runtime (2026-10-18)
+
+- In run [39099737032](https://github.com/digihori/pokecom-go-plus/actions/runs/39099737032),
+  the iOS 18.5 export cancellation passed after the AX-query correction. The next
+  save remained disabled even after explicitly selecting the destination folder.
+- This matches reports of Simulator Files export being disabled in
+  [Apple Developer Forums thread 763549](https://developer.apple.com/forums/thread/763549);
+  those reports are supporting evidence, not proof that every device or runtime
+  has the same cause. Local iOS 26.5 completed the same real export/reload checks.
+- Pin CI to macOS 26, Xcode 26.6 and iOS 26.5, matching the successful local
+  SDK/runtime combination and listed in the official
+  [macOS 26 arm64 runner image](https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md).
+  Keep every UI scenario and assertion enabled; do not substitute a direct file
+  write or a skip for the system export operation.
+- `test-simulator.sh` accepts an exact `PGP_IOS_SIMULATOR_RUNTIME` selector and
+  fails if unavailable. Without it, select the newest available iOS runtime.
+  Print the chosen runtime/device along with the Xcode version for diagnosis.
+  Continue using a disposable device and serial, non-cloned UI testing.
+- The minimum deployment target is unchanged. This CI environment choice does
+  not establish Files export behavior on older iOS releases or physical devices.

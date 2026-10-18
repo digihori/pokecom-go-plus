@@ -69,10 +69,13 @@ jobs:
 
   ios-player:
     name: Build and test (iPhone Simulator)
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 45
     env:
       GRADLE_USER_HOME: ${{ github.workspace }}/.gradle-local
+      # Pin the SDK and UI runtime together instead of using the image default/first device.
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+      PGP_IOS_SIMULATOR_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-26-5
 
     steps:
       - name: Check out repository
