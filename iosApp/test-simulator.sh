@@ -28,12 +28,23 @@ pgp_device_type=${pgp_simulator_spec%%|*}
 pgp_runtime=${pgp_simulator_spec#*|}
 pgp_simulator_id=$(xcrun simctl create "PGP CI isolated" "$pgp_device_type" "$pgp_runtime")
 pgp_cleanup_simulator() {
+    pgp_exit_status=$?
+    if [ "$pgp_exit_status" -ne 0 ]; then
+        mkdir -p iosApp/build
+        xcrun simctl spawn "$pgp_simulator_id" log show --style compact --last 20m \
+            --predicate 'process CONTAINS[c] "fileprovider" OR process == "DocumentsApp" OR subsystem CONTAINS[c] "FileProvider"' \
+            > iosApp/build/CI-FileProvider.log 2>&1 || true
+    fi
     xcrun simctl shutdown "$pgp_simulator_id" >/dev/null 2>&1 || true
     xcrun simctl delete "$pgp_simulator_id" >/dev/null 2>&1 || true
 }
 trap pgp_cleanup_simulator EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+# Complete first-boot migration before XCTest installs and launches the app.
+xcrun simctl bootstatus "$pgp_simulator_id" -b
+xcrun simctl launch "$pgp_simulator_id" com.apple.DocumentsApp
+xcrun simctl list runtimes
 pgp_result_bundle=${PGP_IOS_RESULT_BUNDLE:-iosApp/build/CI-TestResults-$(date +%Y%m%d-%H%M%S).xcresult}
 xcodebuild -version
 echo "Simulator runtime: $pgp_runtime"

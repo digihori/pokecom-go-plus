@@ -103,6 +103,7 @@ jobs:
           name: ios-simulator-test-results
           path: |
             iosApp/build/CI-TestResults*.xcresult
+            iosApp/build/CI-FileProvider.log
             core/build/test-results/iosSimulatorArm64Test/**
             hostInput/build/test-results/iosSimulatorArm64Test/**
             playerShared/build/test-results/iosSimulatorArm64Test/**

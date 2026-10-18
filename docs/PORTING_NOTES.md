@@ -2608,3 +2608,20 @@ Neither the reference repository nor Studio's production WAV codecs were changed
   Continue using a disposable device and serial, non-cloned UI testing.
 - The minimum deployment target is unchanged. This CI environment choice does
   not establish Files export behavior on older iOS releases or physical devices.
+
+## Initialize the disposable Simulator and retain Files diagnostics (2026-10-18)
+
+- Run [39100731974](https://github.com/digihori/pokecom-go-plus/actions/runs/39100731974)
+  still failed at the export Save-enabled assertion on Xcode 26.6 (17F113),
+  iOS 26.5 (23F77), iPhone 17 Pro. The same toolchain and device passed all
+  35 unit tests and 6 UI tests locally. Pinning the runtime alone did not fix CI.
+- The CI xcresult system log records repeated `LocalStorageFileProvider`
+  `bulkItemChanges` failures with Cocoa error 513 (no permission to save),
+  including during export. This narrows the investigation to the system Files
+  provider; the exact denied path and underlying cause are not yet established.
+- Explicitly wait for disposable-device first boot with `simctl bootstatus -b`,
+  launch Files before XCTest, and print installed runtime versions.
+  This is an initialization hypothesis to verify in CI, not a confirmed fix.
+- If testing fails, retain a filtered File Provider system log before deleting
+  the disposable device, and upload it alongside xcresult. Keep real export and
+  reload assertions enabled.

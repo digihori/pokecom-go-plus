@@ -122,6 +122,7 @@ CIはXcode 26.6とiOS 26.5 Runtimeを明示して全UIテストを実行する�
 実機・古いiOSの保存動作まで検証したことにはならない。
 Files pickerのCancelはiOS 18.5でもボタンとして公開されない場合がある。UIテストはOS番号で分岐せず、
 押せるボタンを優先し、必要ならナビゲーションバーから戻ってキャンセルする。
+初回起動完了を待ち、Filesを一度起動してからテストする。失敗時はFiles関連のシステムログもbuild配下へ残す。
 結果bundleはbuild配下へ残す。署名付きArchive・TestFlight/App Store配布は別途の指示と検証が必要。
 
 ## Xcodeの基本操作と成果物
