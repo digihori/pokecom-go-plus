@@ -18,11 +18,31 @@
 
 - [x] Versioned candidate local JDK 21 full build and Core tests.
 - [x] Synthetic decoder tests and macOS createDistributable.
-- [ ] Candidate pushed; macOS, Windows, Linux and Android CI all successful.
-- [ ] New annotated tag pushed after candidate checks.
-- [ ] Tagged packaging and prerelease publication successful.
-- [ ] Seven packages and four checksum lists verified against asset digest metadata.
-- [ ] Publication result recorded.
+- [x] Candidate pushed; macOS, Windows, Linux and Android CI all successful.
+- [x] New annotated tag pushed after candidate checks.
+- [x] Tagged packaging and prerelease publication successful.
+- [x] Seven packages and four checksum lists verified against asset digest metadata.
+- [x] Publication result recorded.
 
 Release authorization includes commit/push, the new tag and prerelease publication.
 Existing tags/history are not rewritten. End-user installation of the final assets is not claimed.
+
+## Publication result
+
+Published as a prerelease on 2026-10-18 at 18:07 JST:
+https://github.com/digihori/pokecom-go-plus/releases/tag/v0.6.0-alpha.1
+
+- Candidate and annotated tag target: `98fdf86`.
+- Candidate CI: https://github.com/digihori/pokecom-go-plus/actions/runs/39113621092
+  (macOS, Windows, Linux and Android all successful).
+- Tagged packaging/publication: https://github.com/digihori/pokecom-go-plus/actions/runs/39113836461
+  (all four packaging jobs and GitHub Release publication successful).
+- Seven package files and four SHA256SUMS files are public. Each package hash in
+  the downloaded checksum lists matches GitHub's asset SHA-256 digest metadata;
+  the downloaded checksum files' own hashes also match asset metadata.
+- Published release notes match the repository notes. The Windows packaging
+  identity check verifies version 1.4.0 and the retained UpgradeCode.
+- Page 0 hardware dump result matches the previously verified 65536-byte image.
+  No firmware, user recording, personal local path or private credential is added.
+
+This publication-record commit does not rewrite the release tag or released code.
