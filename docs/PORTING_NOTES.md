@@ -2680,3 +2680,16 @@ Neither the reference repository nor Studio's production WAV codecs were changed
   source. Continue comparing the entire source, including machine-code DATA.
   Exercise the same test locally with the published file temporarily converted
   to CRLF, then restore the original bytes. No emulator or dump behavior changes.
+
+## Correct displayed release version (2026-10-18)
+
+- Technical Preview 0.6 alpha 1 updated Gradle/package versions but left the common
+  `ProjectInfo.VERSION` at 0.5.0-alpha.1. Studio About and MCP initialize therefore
+  reported the wrong version. The prior common test also expected the stale value.
+- Set the common runtime version to 0.6.0-alpha.2 and add a desktop test comparing
+  it with the actual root Gradle version passed as a test system property.
+- Prepare a new alpha-2 tag rather than replacing published alpha-1 artifacts.
+  Native packageVersion increments to 1.4.1 for installation updates; Android
+  versionCode increments to 7. Preserve the Windows UpgradeCode.
+- Verify both the native package metadata and ProjectInfo class inside the built
+  macOS application, in addition to the full build and hosted checks.

@@ -43,3 +43,8 @@ android {
         minSdk = 26
     }
 }
+
+// Verify the common runtime version against the actual Gradle release version.
+tasks.withType<Test>().configureEach {
+    systemProperty("pgp.projectVersion", rootProject.version.toString())
+}
