@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
 
-> **[Technical Preview 0.5公開済み](https://github.com/digihori/pokecom-go-plus/releases/tag/v0.5.0-alpha.1)** — Studio日英UI、デバッガ、AI読み取り連携と対応機種を更新した早期評価版です。
+> **[Technical Preview 0.6](https://github.com/digihori/pokecom-go-plus/releases/tag/v0.6.0-alpha.1)** — PC-1360Kの漢字対応・ROM吸い出しツールとAndroid Playerを更新した早期評価版です。
 
 Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向けプログラムを
 現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す
@@ -237,7 +237,7 @@ OSのセキュリティ警告が表示される可能性がある。ROMイメー
 Releaseには各ファイルのSHA-256チェックサムを掲載する。
 
 `.github/workflows/release.yml`をGitHub Actionsから手動実行すると、Studioを3環境、PlayerをAndroid環境で
-テストして配布物を生成し、14日間保持されるworkflow artifactとして取得できる。`v0.5.0-alpha.1` tagをpushした場合は、
+テストして配布物を生成し、14日間保持されるworkflow artifactとして取得できる。`v0.6.0-alpha.1` tagをpushした場合は、
 同じ成果物を使ってprereleaseのGitHub Releaseを自動作成する。公開候補の検証が完了するまではtagを作成しない。
 
 GitHubへpushした場合とPull Requestを更新した場合は、GitHub ActionsがmacOS、Windows、
@@ -347,6 +347,7 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 - [iPhone Playerの操作・ビルド・検証状況](iosApp/README.md)
 - [ロードマップ](docs/ROADMAP.md)
 - [Technical Preview公開チェックリスト](docs/PUBLIC_RELEASE_CHECKLIST.md)
+- [Technical Preview 0.6 Release Notes](docs/RELEASE_NOTES_0.6.0-alpha.1.md)
 - [Technical Preview 0.5 Release Notes](docs/RELEASE_NOTES_0.5.0-alpha.1.md)
 - [Technical Preview 0.4 Release Notes](docs/RELEASE_NOTES_0.4.0-alpha.1.md)
 - [Technical Preview 0.3 Release Notes](docs/RELEASE_NOTES_0.3.0-alpha.1.md)
