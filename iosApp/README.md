@@ -115,12 +115,16 @@ PC-1245の `.pgrom`（ZIP store/deflate）または32/64 KiBのlegacy ROMを選�
 - 実パッド/Physicalキーボード、接続方式・配列差、複数機器選択、単独SHIFT/同時押し/repeat/短押し/切断と復帰。
 - 実ROMでのPC-1245全体受入れと、LCDドットの見え方。iOSの他機種追加は別工程。
 
-iOSの通常CIは共有Nativeテスト、アプリのビルド、Swift単体テスト35件を実行する。
+iOSの通常CIはアプリのビルドとSwift単体テスト35件を実行する。
+共有ロジックは既存のCoreテストでも検証する。Native専用の3モジュールのテストは
+GitHub Actionsの `iOS Native tests (manual)` から手動実行する。
 Xcode 26.6・iOS 26.5を固定し、UI操作テストと実機向けRelease Framework生成は通常CIに含めない。
 同じ単体テストをローカルで実行するには `sh iosApp/test-simulator.sh --unit` を使う。
 専用scheme `PokecomGOPlayerUnitTests`はUIテストのターゲットを含めず、Filesの事前起動も行わない。
 全UIテストを含むローカル検証は `sh iosApp/test-simulator.sh`。
-両モードとも使い捨てiPhone Simulatorを作成し、終了時にその端末だけを削除する。
+ローカルでは両モードとも使い捨てiPhone Simulatorを作成し、終了時にその端末だけを削除する。
+GitHub Actionsの単体テストモードだけは、ユーザーのROMが存在しないCI環境の既存端末を使い、
+作成・削除を行わない。Nativeツールチェーンは `~/.konan` をXcode・Kotlin版に応じたキーでキャッシュする。
 Xcode 26.6・iOS 26.5で単体35件とUI6件のローカル成功を確認済み。CIでのFiles保存失敗は未解決。
 `PGP_IOS_SIMULATOR_RUNTIME`でRuntimeの完全な識別子を指定でき、未導入なら別版へ黙って切り替えず失敗する。
 指定なしのローカル実行では、利用可能な最も新しいiOS RuntimeのiPhoneを選ぶ。

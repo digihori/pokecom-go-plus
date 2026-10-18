@@ -2714,3 +2714,18 @@ Neither the reference repository nor Studio's production WAV codecs were changed
 - UI tests and their assertions remain available for explicit local diagnosis.
   A passing lightweight CI does not validate system Files export or iOS devices.
   No iOS release asset or signing workflow is added.
+
+### Refine the lane after the first hosted measurement
+
+- The initial unit-only run 39119872982 passed all 35 Swift tests in about 30
+  seconds, but the whole lane remained around 15 minutes. Shared Native tests
+  alone took 5m18s; the additional Framework build took 2m31s. New-device boot
+  migration took 1m36s, with further runtime enumeration/startup/post-processing.
+- Move Native-specific module tests to the explicit `iOS Native tests (manual)`
+  workflow. Normal CI retains app compilation and all Swift unit tests, with
+  existing desktop/Android Core tests providing shared-logic coverage.
+- Cache ~/.konan with OS/architecture, pinned Xcode and Kotlin/Gradle version keys.
+  On ephemeral GitHub Actions unit runs only, use an existing matching Simulator
+  (prefer booted) rather than creating another device. Never delete that device.
+  Local invocations and full UI runs retain isolated-device creation/cleanup.
+  Omit expensive all-runtime enumeration from unit mode.

@@ -1,0 +1,45 @@
+name: iOS Native tests (manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-tests:
+    name: Test shared Native code
+    runs-on: macos-26
+    timeout-minutes: 20
+    env:
+      GRADLE_USER_HOME: ${{ github.workspace }}/.gradle-local
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Cache Kotlin Native toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: ${{ runner.os }}-${{ runner.arch }}-konan-xcode26.6-${{ hashFiles('gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
+
+      - name: Test shared Native code
+        run: ./gradlew --gradle-user-home .gradle-local :core:iosSimulatorArm64Test :hostInput:iosSimulatorArm64Test :playerShared:iosSimulatorArm64Test --no-daemon
+      - name: Upload Native test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-native-test-results
+          path: |
+            core/build/test-results/iosSimulatorArm64Test/**
+            hostInput/build/test-results/iosSimulatorArm64Test/**
+            playerShared/build/test-results/iosSimulatorArm64Test/**
+          if-no-files-found: warn
+          retention-days: 14

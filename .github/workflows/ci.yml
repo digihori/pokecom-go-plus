@@ -89,8 +89,11 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Test shared Native code
-        run: ./gradlew --gradle-user-home .gradle-local :core:iosSimulatorArm64Test :hostInput:iosSimulatorArm64Test :playerShared:iosSimulatorArm64Test --no-daemon
+      - name: Cache Kotlin Native toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: ${{ runner.os }}-${{ runner.arch }}-konan-xcode26.6-${{ hashFiles('gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
 
       - name: Build app and run Swift unit tests
         run: sh iosApp/test-simulator.sh --unit
