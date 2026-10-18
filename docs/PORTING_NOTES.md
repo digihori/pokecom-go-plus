@@ -2729,3 +2729,11 @@ Neither the reference repository nor Studio's production WAV codecs were changed
   (prefer booted) rather than creating another device. Never delete that device.
   Local invocations and full UI runs retain isolated-device creation/cleanup.
   Omit expensive all-runtime enumeration from unit mode.
+
+- Refined lane first hosted run: [39121256568](https://github.com/digihori/pokecom-go-plus/actions/runs/39121256568),
+  all five jobs successful, iOS 14m11s. All 35 Swift tests passed in 44.8s.
+  This cold measurement is not evidence of a few-minute turnaround: boot migration
+  took 2m22s, the Framework Gradle invocation took 3m53s, and further Xcode/SDK
+  work and post-processing remained. The new Native toolchain cache missed on
+  this run and was successfully saved afterward. Measure a cache-hit run before
+  claiming the expected steady-state speedup.
