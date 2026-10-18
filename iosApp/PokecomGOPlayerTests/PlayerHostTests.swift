@@ -451,6 +451,41 @@ final class PlayerHostTests: XCTestCase {
         host.closeProgram()
     }
 
+    func testExportPresentationCarriesItsURLAndDismissKeepsProgramPanelOpen() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let frames = ManualFrames(), host = try programHost(root, frames: frames)
+        host.setActive(true)
+        host.openProgram(save: false)
+        host.programPanelDidAppear()
+        host.cancelProgramPicker()
+        host.programDocumentDidDismiss()
+        host.closeProgram()
+        host.openProgram(save: true)
+        host.prepareProgramExport(basic: false, start: "C500", end: "C501")
+        waitUntil { !host.programBusy }
+        guard case .exporting(let url)? = host.programDocument else { return XCTFail("export picker") }
+        XCTAssertEqual(url, host.exportURL)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+        // SwiftUI clears the item before onDismiss when the user dismisses the sheet.
+        host.programDocument = nil
+        host.programDocumentDidDismiss()
+        XCTAssertTrue(host.programPanelOpen)
+        XCTAssertTrue(host.programMessage.contains("セーブをキャンセル"))
+        XCTAssertNil(host.exportURL)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+        XCTAssertEqual(host.status.runState, "PAUSED")
+        // A second export has its own URL and is still presentable without reopening the panel.
+        host.prepareProgramExport(basic: false, start: "C500", end: "C501")
+        waitUntil { !host.programBusy }
+        guard case .exporting(let next)? = host.programDocument else { return XCTFail("second export picker") }
+        XCTAssertNotEqual(next, url)
+        host.finishProgramExport(saved: true)
+        host.programDocumentDidDismiss()
+        XCTAssertTrue(host.programMessage.contains("ファイルへセーブしました"))
+        host.closeProgram()
+    }
+
     func testSaveCancelFailureAndBackgroundResumeRules() throws {
         let frames = ManualFrames(), root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

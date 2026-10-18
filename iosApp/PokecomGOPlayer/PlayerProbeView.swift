@@ -167,8 +167,8 @@ struct PlayerDocumentPicker: UIViewControllerRepresentable {
         }
         else {
             picker = UIDocumentPickerViewController(forOpeningContentTypes: [.data], asCopy: true)
-            picker.directoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
         }
+        picker.directoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
         picker.allowsMultipleSelection = false
         picker.delegate = context.coordinator
         return picker
@@ -220,13 +220,13 @@ private struct ProgramPanel: View {
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる", action: host.closeProgram) } }
         }
         .background(PanelAppearance { host.programPanelDidAppear() }.frame(width: 0, height: 0))
-        .sheet(isPresented: $host.programPickerPresented, onDismiss: host.programPickerDidDismiss) {
-            PlayerDocumentPicker(onSelect: host.importProgram, onCancel: host.cancelProgramPicker)
-        }
-        .sheet(isPresented: $host.programExporterPresented, onDismiss: host.programExportDidDismiss) {
-            if let url = host.exportURL {
+        .sheet(item: $host.programDocument, onDismiss: host.programDocumentDidDismiss) { document in
+            switch document {
+            case .importing:
+                PlayerDocumentPicker(onSelect: host.importProgram, onCancel: host.cancelProgramPicker)
+            case .exporting(let url):
                 PlayerDocumentPicker(exportURL: url, onSelect: { _ in host.finishProgramExport(saved: true) },
-                                     onCancel: { host.finishProgramExport(saved: false) }).id(url)
+                                     onCancel: { host.finishProgramExport(saved: false) })
             }
         }
     }
@@ -643,7 +643,7 @@ private struct PanelAppearance: UIViewControllerRepresentable {
             super.viewDidAppear(animated)
             guard !delivered else { return }
             delivered = true
-            appeared()
+            DispatchQueue.main.async { [weak self] in self?.appeared() }
         }
     }
 }

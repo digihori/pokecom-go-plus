@@ -101,6 +101,8 @@ PC-1245の `.pgrom`（ZIP store/deflate）または32/64 KiBのlegacy ROMを選�
 
 基本対象は「このiPhone内」とiCloud Drive。Google Driveは利用者がDriveアプリを設定し、Filesで有効にした場合の追加対象。
 独自ログイン・クラウド同期・Google SDKは追加しない。Player自身の通信とproviderの取得/同期通信を区別する。
+ロード・セーブのFiles pickerはDocumentsから開く。選択画面はimport／export URLを持つ
+単一のpresentationとして管理し、キャンセルしても元のプログラム画面を維持する。
 保存picker完了はクラウド同期完了を意味しない。実providerの検証は未実施。
 
 ## 残る受入れ

@@ -9,6 +9,19 @@ struct PlayerStatus: Equatable {
     var breakHeld = false
 }
 
+/// One presentation value carries the export URL so SwiftUI never builds an empty picker.
+enum ProgramDocument: Identifiable {
+    case importing
+    case exporting(URL)
+
+    var id: String {
+        switch self {
+        case .importing: return "import"
+        case .exporting(let url): return url.absoluteString
+        }
+    }
+}
+
 @MainActor
 protocol PlayerFrameDriver: AnyObject {
     func start(_ frame: @escaping (Int64) -> Void)
@@ -82,8 +95,15 @@ final class PlayerHost: ObservableObject {
     private var homeShouldRun = true
     private var hasEnteredPlayer = false
     @Published var programPanelOpen = false
-    @Published var programPickerPresented = false
-    @Published var programExporterPresented = false
+    @Published var programDocument: ProgramDocument?
+    var programPickerPresented: Bool {
+        if case .importing? = programDocument { return true }
+        return false
+    }
+    var programExporterPresented: Bool {
+        if case .exporting? = programDocument { return true }
+        return false
+    }
     @Published private(set) var programSaving = false
     @Published private(set) var programBusy = false
     @Published private(set) var programMessage = ""
@@ -543,7 +563,7 @@ final class PlayerHost: ObservableObject {
 
     func programPanelDidAppear() {
         guard programPanelOpen, !programSaving, awaitingProgramSelection, !programPickerPresented else { return }
-        programPickerPresented = true
+        programDocument = .importing
     }
 
     func chooseProgramFile() {
@@ -552,18 +572,18 @@ final class PlayerHost: ObservableObject {
         programIssue = nil
         programMessage = "bas／dmpを選択してください。"
         awaitingProgramSelection = true
-        programPickerPresented = true
+        programDocument = .importing
     }
 
     func cancelProgramPicker() {
         awaitingProgramSelection = false
-        programPickerPresented = false
+        programDocument = nil
         programMessage = "ロードをキャンセルしました。"
     }
 
     func importProgram(_ url: URL) {
         awaitingProgramSelection = false
-        programPickerPresented = false
+        programDocument = nil
         guard let source = programSource, source === player, !programSaving else { return }
         programGeneration += 1
         let ticket = programGeneration, read = readProgram
@@ -631,7 +651,7 @@ final class PlayerHost: ObservableObject {
                 switch output {
                 case .success(let url):
                     self.exportURL = url
-                    self.programExporterPresented = true
+                    self.programDocument = .exporting(url)
                     self.programMessage = "保存先を選択してください。"
                 case .failure(let error): self.setProgramFailure(error)
                 }
@@ -640,18 +660,15 @@ final class PlayerHost: ObservableObject {
     }
 
     func finishProgramExport(saved: Bool) {
-        programExporterPresented = false
+        programDocument = nil
         programMessage = saved ? "ファイルへセーブしました。クラウド同期の完了を示すものではありません。" : "セーブをキャンセルしました。"
         cleanupProgramExport()
         restoreSaveIntent()
     }
 
-    func programPickerDidDismiss() {
-        if awaitingProgramSelection { cancelProgramPicker() }
-    }
-
-    func programExportDidDismiss() {
+    func programDocumentDidDismiss() {
         if exportURL != nil { finishProgramExport(saved: false) }
+        else if awaitingProgramSelection { cancelProgramPicker() }
     }
 
     func closeProgram() {
@@ -679,8 +696,7 @@ final class PlayerHost: ObservableObject {
         awaitingProgramSelection = false
         saveShouldResume = false
         programBusy = false
-        programPickerPresented = false
-        programExporterPresented = false
+        programDocument = nil
         programIssue = nil
         cleanupProgramExport()
     }

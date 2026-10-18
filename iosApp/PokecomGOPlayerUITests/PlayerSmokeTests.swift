@@ -226,11 +226,18 @@ final class PlayerSmokeTests: XCTestCase {
     private func saveLocalExport(_ app: XCUIApplication) {
         let save = app.buttons.matching(NSPredicate(format: "label IN %@", ["Export", "Save", "書き出す", "保存"])).firstMatch
         XCTAssertTrue(save.waitForExistence(timeout: 10), app.debugDescription)
-        if app.buttons["On My iPhone"].exists { app.buttons["On My iPhone"].tap() }
-        let folder = app.cells.containing(NSPredicate(format: "label CONTAINS %@", "Pokecom GO Player")).firstMatch
-        if folder.exists { folder.tap() }
+        let fixture = app.cells.matching(NSPredicate(format: "label CONTAINS %@", "picker-test.bas")).firstMatch
+        if !fixture.waitForExistence(timeout: 3) {
+            let local = app.buttons.matching(NSPredicate(format: "label IN %@", ["On My iPhone", "このiPhone内"])).firstMatch
+            if local.exists { local.tap() }
+            let folder = app.cells.containing(NSPredicate(format: "label CONTAINS %@", "Pokecom GO Player")).firstMatch
+            XCTAssertTrue(folder.waitForExistence(timeout: 5), app.debugDescription)
+            folder.tap()
+        }
+        // Folder navigation is asynchronous; an enabled Save may still belong to its parent.
+        XCTAssertTrue(fixture.waitForExistence(timeout: 10), app.debugDescription)
         let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: save)
-        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 15), .completed)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 15), .completed, app.debugDescription)
         attachScreen("Local export destination")
         save.tap()
         let replace = app.alerts.buttons.matching(NSPredicate(format: "label IN %@", ["Replace", "置き換える", "置き換え"])).firstMatch
