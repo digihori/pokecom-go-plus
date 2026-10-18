@@ -227,7 +227,9 @@ final class PlayerSmokeTests: XCTestCase {
         let save = app.buttons.matching(NSPredicate(format: "label IN %@", ["Export", "Save", "書き出す", "保存"])).firstMatch
         XCTAssertTrue(save.waitForExistence(timeout: 10), app.debugDescription)
         let fixture = app.cells.matching(NSPredicate(format: "label CONTAINS %@", "picker-test.bas")).firstMatch
-        if !fixture.waitForExistence(timeout: 3) {
+        // iOS 18.5 may show Documents while Save remains disabled until a
+        // destination is explicitly selected through the local-storage browser.
+        if !fixture.waitForExistence(timeout: 3) || !save.isEnabled {
             let local = app.buttons.matching(NSPredicate(format: "label IN %@", ["On My iPhone", "このiPhone内"])).firstMatch
             if local.exists { local.tap() }
             let folder = app.cells.containing(NSPredicate(format: "label CONTAINS %@", "Pokecom GO Player")).firstMatch
@@ -244,26 +246,28 @@ final class PlayerSmokeTests: XCTestCase {
         if replace.waitForExistence(timeout: 2) { replace.tap() }
     }
     private func cancelPicker(_ app: XCUIApplication) {
-        if #unavailable(iOS 26) {
-            let cancel = app.buttons.matching(NSPredicate(format: "label IN %@", ["Cancel", "キャンセル"])).firstMatch
-            XCTAssertTrue(cancel.waitForExistence(timeout: 10), app.debugDescription)
-            cancel.tap()
-            return
-        }
-        // Fixtures always start in this app's local Documents (set by the native picker).
-        // iOS 26 File Provider exposes duplicate/stale Cancel AX nodes, even reporting
-        // visible native buttons as non-hittable. The captured picker screenshots show
-        // Back and the root close X in the same navigation slot on the test iPhones.
-        // Navigate Documents -> On My iPhone -> Browse -> Close using that visible slot.
-        // Callers verify the resulting cancellation message and CPU intent separately.
+        // Export pickers on iOS 18.5 also expose Cancel as a stale Other node,
+        // overlapping More, rather than a tappable Button. Do not key this on OS version.
         let local = app.cells.matching(NSPredicate(format: "label CONTAINS %@", "picker-test.bas")).firstMatch
         XCTAssertTrue(local.waitForExistence(timeout: 15), app.debugDescription)
-        let navigationSlot = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
-            .withOffset(CGVector(dx: 60, dy: 46))
-        attachScreen("Standard picker before cancellation navigation")
-        navigationSlot.tap()
-        navigationSlot.tap()
-        navigationSlot.tap()
+        for step in 0..<3 {
+            let cancel = app.buttons.matching(NSPredicate(format: "label IN %@", ["Cancel", "キャンセル"])).firstMatch
+            if cancel.exists && cancel.isHittable {
+                cancel.tap()
+                return
+            }
+            // Documents -> On My iPhone -> Browse -> Close. Re-read the real bar
+            // each time: its top is 0 on iOS 18.5 and 24 on the iOS 26 test iPhone.
+            let bar = app.navigationBars["FullDocumentManagerViewControllerNavigationBar"]
+            XCTAssertTrue(bar.waitForExistence(timeout: 5), app.debugDescription)
+            let frame = bar.frame
+            XCTAssertGreaterThanOrEqual(frame.height, 44, app.debugDescription)
+            attachScreen("Picker cancellation navigation \(step)")
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+                .withOffset(CGVector(dx: frame.minX + 60 - app.frame.minX,
+                                     dy: frame.minY + 22 - app.frame.minY)).tap()
+        }
+        // Every caller asserts the cancellation result and restored CPU intent.
     }
     private func localFile(_ app: XCUIApplication, _ name: String) -> XCUIElement {
         let file = app.cells.matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch

@@ -116,6 +116,8 @@ PC-1245の `.pgrom`（ZIP store/deflate）または32/64 KiBのlegacy ROMを選�
 - 実ROMでのPC-1245全体受入れと、LCDドットの見え方。iOSの他機種追加は別工程。
 
 CIと同じ検証は `sh iosApp/test-simulator.sh`。使い捨てiPhone Simulatorを作成し、終了時にその端末だけを削除する。
+Files pickerのCancelはiOS 18.5でもボタンとして公開されない場合がある。UIテストはOS番号で分岐せず、
+押せるボタンを優先し、必要ならナビゲーションバーから戻ってキャンセルする。
 結果bundleはbuild配下へ残す。署名付きArchive・TestFlight/App Store配布は別途の指示と検証が必要。
 
 ## Xcodeの基本操作と成果物

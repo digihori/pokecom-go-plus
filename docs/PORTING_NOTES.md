@@ -2536,7 +2536,8 @@ Neither the reference repository nor Studio's production WAV codecs were changed
 
 - Investigated CI run [39078310161](https://github.com/digihori/pokecom-go-plus/actions/runs/39078310161):
   shared Native/framework compilation passed; the iPhone UI test failed after
-  requesting program export, with no picker exposed in the accessibility tree.
+  requesting program export. The initial inspection missed the later picker subtree;
+  the follow-up below identifies the actual Cancel query failure.
 - Replaced two independent nested picker sheets and separate export visibility/URL
   state with one item-based presentation carrying either import or the export URL.
   The export sheet no longer depends on an optional URL captured by a Boolean
@@ -2566,3 +2567,23 @@ Neither the reference repository nor Studio's production WAV codecs were changed
   the explicit boundary that WAV codecs and reconstruction tools are not bundled.
 - Updated analysis links and the optional BASIC generator destinations. Existing
   probes, assembly and extraction utilities remain in the analysis directory.
+
+## iOS CI export picker Cancel query correction (2026-10-18)
+
+- CI run [39092473953](https://github.com/digihori/pokecom-go-plus/actions/runs/39092473953)
+  still failed in `cancelPicker`, while shared Native tests, Swift unit tests and
+  the four other platform jobs passed. Full job logs show Xcode 16.4/iOS 18.5.
+- The export picker was present. Its Cancel label appeared as an `Other` node
+  overlapping the More button; the test searched only `app.buttons`. The previous
+  iOS-26-only fallback therefore excluded an environment with the same AX issue.
+  This corrects the earlier inference that the picker itself had disappeared.
+- Use an available, hittable Cancel button on either OS; otherwise navigate back
+  from Documents through local storage to Browse and Close. Derive the tap's Y
+  coordinate from the current native navigation bar instead of a fixed iOS 26
+  offset. Keep cancellation-message and CPU-intent assertions in the callers.
+- The CI capture also showed Save disabled in the initial Documents view. When
+  disabled, explicitly select the local destination folder before waiting for
+  Save, rather than assuming that visible file cells imply a selected writable
+  destination. Continue waiting for the folder contents after navigation.
+- Cover both the program export and ROM import picker flows. No application
+  presentation or emulator behavior is changed by this follow-up.
