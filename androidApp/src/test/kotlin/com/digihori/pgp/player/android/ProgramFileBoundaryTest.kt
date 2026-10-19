@@ -19,10 +19,4 @@ class ProgramFileBoundaryTest {
         }
     }
 
-    @Test fun addressInputIsHexadecimalAndBounded() {
-        assertEquals(0xc500, parseProgramAddress(" C500 "))
-        assertEquals(0xffff, parseProgramAddress("0xFFFF"))
-        assertEquals(0, parseProgramAddress("0000"))
-        for (text in listOf("", "10000", "-1", "GGGG", "C500 trailing")) assertNull(parseProgramAddress(text))
-    }
 }

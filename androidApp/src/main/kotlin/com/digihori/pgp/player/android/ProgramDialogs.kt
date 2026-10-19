@@ -32,27 +32,10 @@ internal fun ProgramDialogs(io: AndroidProgramIo) {
 
 @Composable
 private fun SaveProgramDialog(io: AndroidProgramIo) {
-    var format by remember { mutableStateOf(PlayerProgramFormat.BASIC) }
-    var start by remember { mutableStateOf("") }
-    var end by remember { mutableStateOf("") }
-    val valid = format == PlayerProgramFormat.BASIC ||
-        (parseProgramAddress(start)?.let { first -> parseProgramAddress(end)?.let { first <= it } } == true)
     AlertDialog(
-        onDismissRequest = io::dismiss, title = { Text("プログラムをセーブ") },
-        text = { Column(Modifier.heightIn(max = 240.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row {
-                FilterChip(selected = format == PlayerProgramFormat.BASIC, onClick = { format = PlayerProgramFormat.BASIC }, label = { Text("BASIC (.bas)") })
-                Spacer(Modifier.width(8.dp))
-                FilterChip(selected = format == PlayerProgramFormat.MEMORY_DUMP, onClick = { format = PlayerProgramFormat.MEMORY_DUMP }, label = { Text("ダンプ (.dmp)") })
-            }
-            if (format == PlayerProgramFormat.BASIC) Text("現在のBASICプログラム全体を保存します。") else {
-                Text("保存するRAM範囲を16進数で指定してください。終了アドレスを含みます。")
-                OutlinedTextField(value = start, onValueChange = { start = it }, label = { Text("開始アドレス（例 ${hexAddress(io.dumpAddressExample)}）") }, singleLine = true)
-                OutlinedTextField(value = end, onValueChange = { end = it }, label = { Text("終了アドレス（例 ${hexAddress(io.dumpAddressExample + 0xff)}）") }, singleLine = true)
-            }
-            Text(if (io.resumesAfterSave) "セーブ終了後にCPUを自動再開します。" else "停止中に開いたため、セーブ終了後も停止状態を維持します。")
-        } },
-        confirmButton = { TextButton(enabled = valid, onClick = { io.export(format, start, end) }) { Text("ファイルへセーブ") } },
+        onDismissRequest = io::dismiss, title = { Text("BASICをセーブ") },
+        text = { Text("現在のBASICプログラムをファイルに保存します。") },
+        confirmButton = { TextButton(onClick = io::exportBasic) { Text("ファイルへセーブ") } },
         dismissButton = { TextButton(onClick = io::dismiss) { Text("キャンセル") } },
     )
 }

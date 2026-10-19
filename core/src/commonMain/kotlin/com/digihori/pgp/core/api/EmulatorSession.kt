@@ -168,6 +168,9 @@ public enum class DisplaySymbol {
     DEG,
     ERROR,
     CAL, HYP, STAT, MEMORY, PARENTHESES, KANA_SMALL, MATRIX, DBL, AER, BATTERY,
+    HIRAGANA, KATAKANA,
+    /** PC-1360K indicator printed as [S]. */
+    S,
 }
 
 public class DisplaySnapshot internal constructor(

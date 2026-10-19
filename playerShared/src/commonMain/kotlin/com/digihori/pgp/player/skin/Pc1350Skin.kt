@@ -5,7 +5,7 @@ import com.digihori.pgp.core.api.PocketKey
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.player.Pc1350KeyboardLayout
 
-/** Geometry in the existing 1429 × 603 illustration, with symbols beside the centered LCD. */
+/** Geometry in the existing 1429 × 603 illustration, with left-aligned symbols below the centered LCD. */
 internal object Pc1350Skin {
     val definition = SkinDefinition(
         id = PlayerSkinCatalog.PC1350_SKIN_ID,
@@ -15,13 +15,8 @@ internal object Pc1350Skin {
         controllerDisplayRegion = SkinRect(0f, 0f, 968f, 337f),
         lcdPanelRegion = SkinRect(34f, 44f, 897f, 252f),
         // Core supplies all 150 × 32 dots, including each character's sixth column/eighth row.
-        lcdContentRegion = SkinRect(132f, 86.8f, 780f, 166.4f),
-        statusRegions = listOf(
-            DisplaySymbol.RUN, DisplaySymbol.PRO, DisplaySymbol.KANA,
-            DisplaySymbol.SMALL, DisplaySymbol.SHIFT, DisplaySymbol.DEF,
-        ).mapIndexed { index, symbol ->
-            SkinStatusRegion(symbol, SkinRect(48f, 86.8f + index * ((166.4f - 26f) / 5f), 72f, 26f))
-        },
+        lcdContentRegion = FourLinePlayerLcdLayout.content,
+        statusRegions = FourLinePlayerLcdLayout.symbols(),
         keyRegions = buildList {
             val controls = mapOf(
                 PocketKey.DOWN to SkinRect(982f, 105f, 68f, 49f),

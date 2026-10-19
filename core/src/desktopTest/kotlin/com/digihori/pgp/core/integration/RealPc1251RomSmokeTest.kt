@@ -119,6 +119,29 @@ class RealPc1251RomSmokeTest {
         }
     }
 
+    @Test fun locallySuppliedBeepProducesPcmThenSettlesToSilence() {
+        val session = createLocalSession(memoryMode = Pc1251FamilyMemoryMode.HARDWARE) ?: return
+        var nonSilent = 0
+        var lastSampleCount = 0
+        fun advance(cycles: Long) {
+            repeat((cycles / 1920).toInt()) {
+                assertIs<ExecutionStatus.Ready>(session.runCycles(1920).status)
+                val pcm = session.drainAudioSamples()
+                if (pcm.copySamples().any { it.toInt() != 0 }) nonSilent++
+                lastSampleCount = pcm.sampleCount
+            }
+        }
+        advance(1_000_320)
+        assertEquals(0, nonSilent)
+        for (key in listOf(PocketKey.B, PocketKey.E, PocketKey.E, PocketKey.P, PocketKey.SPACE, PocketKey.NUM_1, PocketKey.ENTER)) {
+            session.pressKey(key); advance(38_400); session.releaseKey(key); advance(19_200)
+        }
+        advance(576_000)
+        assertTrue(nonSilent > 0, "BEEP produced no PCM")
+        assertEquals(0, session.audioSnapshot().frequencyHz)
+        assertEquals(0, lastSampleCount)
+    }
+
     private fun createLocalSession(
         model: Pc1251FamilyModel = Pc1251FamilyModel.PC_1251,
         memoryMode: Pc1251FamilyMemoryMode = Pc1251FamilyMemoryMode.EXPANDED,

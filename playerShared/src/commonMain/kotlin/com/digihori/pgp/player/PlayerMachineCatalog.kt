@@ -10,9 +10,10 @@ public object PlayerMachineCatalog {
     public val definitions: List<MachineDefinition>
         get() = enabledMachineIds.map { MachineCatalog.require(MachineId(it)) }
             .filter { PlayerSkinCatalog.forMachine(it.id) != null }
+            .sortedBy { it.displayName }
 
-    // Keep the existing home order stable when adding a new integration target.
-    private val enabledMachineIds = listOf("pc-1245", "pc-1401", "pc-1350")
+    // Integration targets are explicit; presentation order follows the machine name.
+    private val enabledMachineIds = listOf("pc-1245", "pc-1401", "pc-1350", "pc-1251", "pc-1261", "pc-1360", "pc-1360k")
 }
 
 /** Portable library listing; file paths and persistence stay in each host. */

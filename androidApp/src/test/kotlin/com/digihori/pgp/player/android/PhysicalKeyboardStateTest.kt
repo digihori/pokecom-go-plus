@@ -215,6 +215,44 @@ class PhysicalKeyboardStateTest {
         assertFalse("NUM_7" in events)
     }
 
+    @Test fun pc1360kFunctionKeysDispatchKanjiControlsAndSwitchingReleasesThem() {
+        val mapping = listOf(KeyEvent.KEYCODE_F5 to PocketKey.KANJI, KeyEvent.KEYCODE_F6 to PocketKey.HIRA_KATA,
+            KeyEvent.KEYCODE_F7 to PocketKey.KANJI_FIX, KeyEvent.KEYCODE_F8 to PocketKey.KANJI_CONVERT,
+            KeyEvent.KEYCODE_F9 to PocketKey.YJ)
+        val events = mutableListOf<String>()
+        val keyboard = PhysicalKeyboardState({ _, key -> events += key.name }, { events += "up" })
+        val allowed = mapping.map { it.second }.toSet()
+        keyboard.configure(true, allowed, pc1360k = true)
+        mapping.forEach { (code, key) ->
+            assertEquals(key, physicalPocketKey(code, pc1360k = true))
+            keyboard.handle(1, code, true); keyboard.handle(1, code, false)
+        }
+        assertEquals(mapping.flatMap { listOf(it.second.name, "up") }, events)
+        keyboard.handle(1, KeyEvent.KEYCODE_F5, true)
+        keyboard.configure(true, emptySet(), pc1360 = true)
+        assertEquals(listOf("KANJI", "up"), events.takeLast(2))
+        assertNull(physicalPocketKey(KeyEvent.KEYCODE_F5, pc1360 = true))
+    }
+
+    @Test fun pc1360ModeKanaSmallUseTimedInputAndReleaseOnBackground() {
+        val definition = com.digihori.pgp.core.api.MachineCatalog.require(com.digihori.pgp.core.rom.MachineId("pc-1360"))
+        val events = mutableListOf<String>()
+        val keyboard = PhysicalKeyboardState({ _, key -> events += key.name }, { events += "up" })
+        val allowed = setOf(PocketKey.MODE, PocketKey.KANA, PocketKey.SMALL)
+        keyboard.configure(true, allowed, definition.automaticKeyHoldCycles, definition.automaticKeyGapCycles, pc1360 = true)
+        for ((code, key) in listOf(KeyEvent.KEYCODE_F2 to PocketKey.MODE, KeyEvent.KEYCODE_F3 to PocketKey.KANA,
+            KeyEvent.KEYCODE_F4 to PocketKey.SMALL)) {
+            assertEquals(key, physicalPocketKey(code, pc1360 = true))
+            keyboard.handle(1, code, true); keyboard.handle(1, code, false)
+            keyboard.advanceCycles(definition.automaticKeyHoldCycles)
+            keyboard.advanceCycles(definition.automaticKeyGapCycles)
+        }
+        assertEquals(listOf("MODE", "up", "KANA", "up", "SMALL", "up"), events)
+        keyboard.handle(1, KeyEvent.KEYCODE_F4, true)
+        keyboard.configure(false, allowed, pc1360 = true)
+        assertEquals(listOf("SMALL", "up"), events.takeLast(2))
+    }
+
     @Test fun pc1350MappingAndModeTapUseMachineTiming() {
         assertEquals(PocketKey.MODE, physicalPocketKey(KeyEvent.KEYCODE_F2, true))
         assertEquals(PocketKey.KANA, physicalPocketKey(KeyEvent.KEYCODE_F3, true))
@@ -262,6 +300,29 @@ class PhysicalKeyboardStateTest {
         keys.release("screen:SHIFT_RIGHT") // cancellation after host reset is harmless
         assertFalse(keys.isHeld(PocketKey.SHIFT))
         assertEquals(2, releases.size)
+    }
+
+    @Test fun pc1251UsesOldKeysAndItsOwnHoldAndGapCycles() {
+        val definition = com.digihori.pgp.core.api.MachineCatalog.require(
+            com.digihori.pgp.core.rom.MachineId("pc-1251"))
+        val allowed = com.digihori.pgp.player.PlayerKeyboardCatalog.forMachine(definition.id)!!
+            .rows.flatten().map { it.key }.toSet()
+        val events = mutableListOf<String>()
+        val keyboard = PhysicalKeyboardState({ _, key -> events += key.name }, { events += "up" })
+        keyboard.configure(true, allowed, definition.automaticKeyHoldCycles, definition.automaticKeyGapCycles)
+        assertFalse(keyboard.handle(1, KeyEvent.KEYCODE_F2, true))
+        assertFalse(keyboard.handle(1, KeyEvent.KEYCODE_F3, true))
+        assertTrue(keyboard.handle(1, KeyEvent.KEYCODE_DPAD_DOWN, true))
+        keyboard.handle(1, KeyEvent.KEYCODE_DPAD_DOWN, false)
+        keyboard.handle(1, KeyEvent.KEYCODE_DPAD_UP, true)
+        keyboard.handle(1, KeyEvent.KEYCODE_DPAD_UP, false)
+        keyboard.advanceCycles(38_399)
+        assertEquals(listOf("DOWN"), events)
+        keyboard.advanceCycles(1)
+        keyboard.advanceCycles(19_200)
+        assertEquals(listOf("DOWN", "up", "UP"), events)
+        keyboard.configure(false, allowed)
+        assertEquals(listOf("DOWN", "up", "UP", "up"), events)
     }
 
 }

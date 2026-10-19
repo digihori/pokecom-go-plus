@@ -27,7 +27,7 @@ class Pc1350SkinTest {
             }
         }
         assertNull(skin.operatingModeRegion)
-        assertTrue(PlayerMachineCatalog.definitions.none { it.id == MachineId("pc-1360") })
+        assertTrue(PlayerMachineCatalog.definitions.none { it.id == MachineId("pc-1450") })
     }
 
     @Test fun lcdAndExportedSymbolsFitThePanelWithoutOverlap() {
@@ -42,16 +42,17 @@ class Pc1350SkinTest {
         }
     }
 
-    @Test fun verticalSymbolColumnMatchesCenteredLcdHeight() {
+    @Test fun lowerSymbolRowIsLeftAlignedUnderTheCenteredLcd() {
         val lcd = skin.lcdContentRegion
         val panel = skin.lcdPanelRegion
         assertEquals(panel.y + panel.height / 2, lcd.y + lcd.height / 2, 0.001f)
-        assertTrue(lcd.x + lcd.width / 2 > panel.x + panel.width / 2)
+        assertEquals(panel.x + panel.width / 2, lcd.x + lcd.width / 2, 0.001f)
+        assertEquals(857f, lcd.width)
+        assertEquals(lcd.x, skin.statusRegions.first().bounds.x)
+        assertTrue(skin.statusRegions.all { it.bounds.y > lcd.bottom })
+        assertTrue(skin.statusRegions.last().bounds.right < lcd.x + lcd.width * 0.7f)
         assertEquals(listOf(DisplaySymbol.RUN, DisplaySymbol.PRO, DisplaySymbol.KANA,
             DisplaySymbol.SMALL, DisplaySymbol.SHIFT, DisplaySymbol.DEF), skin.statusRegions.map { it.symbol })
-        assertEquals(lcd.y, skin.statusRegions.first().bounds.y, 0.001f)
-        assertEquals(lcd.bottom, skin.statusRegions.last().bounds.bottom, 0.001f)
-        skin.statusRegions.forEach { assertTrue(it.bounds.right < lcd.x) }
     }
 
     @Test fun lcdAndTouchCoordinatesShareSafeAreaTransformsInBothLandscapeDirections() {

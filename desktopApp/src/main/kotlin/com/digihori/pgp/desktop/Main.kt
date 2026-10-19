@@ -3453,6 +3453,9 @@ private fun PocketLcdPanel(snapshot: DisplaySnapshot?, machineId: MachineId) {
         }
         Text(
             text = snapshot?.let { com.digihori.pgp.player.lcdSymbolText(it.symbols) { when (it) {
+                com.digihori.pgp.core.api.DisplaySymbol.HIRAGANA -> "平"
+                com.digihori.pgp.core.api.DisplaySymbol.KATAKANA -> "片"
+                com.digihori.pgp.core.api.DisplaySymbol.S -> "[S]"
                 com.digihori.pgp.core.api.DisplaySymbol.MEMORY -> "M"
                 com.digihori.pgp.core.api.DisplaySymbol.PARENTHESES -> "( )"
                 com.digihori.pgp.core.api.DisplaySymbol.KANA_SMALL -> "小"

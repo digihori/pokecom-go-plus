@@ -40,7 +40,7 @@ class Pc1401SkinTest {
             assertTrue(region.right <= skin.lcdPanelRegion.right && region.bottom <= skin.lcdPanelRegion.bottom)
             regions.drop(index + 1).forEach { assertFalse(overlap(region, it)) }
         }
-        assertEquals(listOf("pc-1245", "pc-1401", "pc-1350"), PlayerMachineCatalog.definitions.map { it.id.value })
+        assertEquals(listOf("pc-1245", "pc-1251", "pc-1261", "pc-1350", "pc-1360", "pc-1360k", "pc-1401"), PlayerMachineCatalog.definitions.map { it.id.value })
     }
 
     @Test fun referenceSymbolsSurroundDotsInTheRequestedGroups() {

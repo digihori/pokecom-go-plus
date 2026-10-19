@@ -1,7 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <activity android:name=".Pc1360SkinProbeActivity"
+            android:screenOrientation="sensorLandscape"
+            android:exported="true" />
+        <activity android:name=".Pc1360RomProbeActivity"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
+            android:exported="true" />
+        <activity android:name=".Pc1360InputProbeActivity"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
+            android:exported="true" />
+        <activity android:name=".Pc1360kInputProbeActivity"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
+            android:exported="true" />
+        <activity android:name=".Pc1360kSkinProbeActivity"
+            android:screenOrientation="sensorLandscape"
+            android:exported="true" />
         <!-- Production home/ROM flow with synthetic programs and isolated app data. -->
+        <activity android:name=".Pc1261RomProbeActivity"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
+            android:exported="true" />
+        <activity android:name=".Pc1251RomProbeActivity"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
+            android:exported="true" />
         <activity android:name=".PlayerRomProbeActivity"
             android:screenOrientation="sensorLandscape"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
@@ -13,8 +39,18 @@
         <activity android:name=".GamepadProbeActivity"
             android:screenOrientation="sensorLandscape"
             android:exported="true" />
+        <activity android:name=".Pc1261SkinProbeActivity"
+            android:screenOrientation="sensorLandscape"
+            android:exported="true" />
+        <activity android:name=".Pc1251SkinProbeActivity"
+            android:screenOrientation="sensorLandscape"
+            android:exported="true" />
         <activity android:name=".Pc1350SkinProbeActivity"
             android:screenOrientation="sensorLandscape"
+            android:exported="true" />
+        <activity android:name=".Pc1251InputProbeActivity"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
             android:exported="true" />
         <activity android:name=".PlayerInputProbeActivity"
             android:screenOrientation="sensorLandscape"

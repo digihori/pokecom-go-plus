@@ -9,7 +9,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.digihori.pgp.player.*
 import java.util.concurrent.Executor
-import com.digihori.pgp.core.api.MachineMemoryLayout
 
 internal sealed interface ProgramDialogState {
     data object Save : ProgramDialogState
@@ -32,10 +31,6 @@ internal class AndroidProgramIo(
     private var sourceSession: PlayerSession? = null
     private var output: ProgramOutput? = null
     private val saveResume = SaveResumeState<PlayerSession>()
-    val resumesAfterSave: Boolean get() = saveResume.shouldResume
-    val dumpAddressExample: Int get() = session()?.machineId?.let {
-        MachineMemoryLayout(it).assemblyStartAddress
-    } ?: 0xc500
     private val picker = activity.registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) { dismiss(); return@registerForActivityResult }
         read(uri)
@@ -115,7 +110,7 @@ internal class AndroidProgramIo(
                                 PlayerProgramApplyResult.Success -> {
                                     refresh()
                                     resumeAfterLoad()
-                                    message("ロード完了", "$name をロードしました。CPUの自動実行を開始します。BASICのRUNコマンドは自動入力しません。")
+                                    message("ロード完了", "$name をロードしました。")
                                 }
                                 is PlayerProgramApplyResult.Failure -> message("ロードできませんでした", applied.error.userMessage())
                             }
@@ -126,19 +121,14 @@ internal class AndroidProgramIo(
         }
     }
 
-    fun export(format: PlayerProgramFormat, start: String, end: String) {
+    fun exportBasic() {
         val target = sourceSession ?: return
         if (session() !== target) { message("保存できませんでした", "Sessionが変更されました。"); return }
-        val result = if (format == PlayerProgramFormat.BASIC) target.exportBasic() else {
-            val first = parseProgramAddress(start)
-            val last = parseProgramAddress(end)
-            if (first == null || last == null || first > last) { message("保存できませんでした", "開始・終了アドレスを0000〜FFFFの16進数で指定してください。"); return }
-            target.exportMemoryDump(first, last)
-        }
+        val result = target.exportBasic()
         when (result) {
             is PlayerProgramExportResult.Failure -> message("保存できませんでした", result.error.userMessage())
             is PlayerProgramExportResult.Success -> {
-                val name = "${target.machineId.value}-program.${if (format == PlayerProgramFormat.BASIC) "bas" else "dmp"}"
+                val name = "${target.machineId.value}-program.bas"
                 val snapshot = ProgramOutput(name, result.copyBytes())
                 output = snapshot
                 showDialog(ProgramDialogState.Busy("保存先を選択してください"))
@@ -149,9 +139,6 @@ internal class AndroidProgramIo(
 
 
 }
-
-internal fun parseProgramAddress(text: String): Int? = text.trim().removePrefix("0x").removePrefix("0X")
-    .takeIf { it.length in 1..4 && it.all { c -> c in '0'..'9' || c.lowercaseChar() in 'a'..'f' } }?.toIntOrNull(16)
 
 internal fun readProgramBytes(input: java.io.InputStream, maximumBytes: Int = 2 * 1024 * 1024): ByteArray {
     val buffer = java.io.ByteArrayOutputStream()

@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Density
 import kotlin.math.min
@@ -92,6 +96,7 @@ import com.digihori.pgp.player.PlayerScreenState
 import com.digihori.pgp.player.PlayerKeyCap
 import com.digihori.pgp.player.PlayerKeyboard
 import com.digihori.pgp.player.PresentationMode
+import com.digihori.pgp.player.skin.withFixedModeIndicators
 import com.digihori.pgp.player.skin.PlayerSkinCatalog
 import com.digihori.pgp.player.skin.SkinDefinition
 import com.digihori.pgp.player.skin.SkinLayoutEngine
@@ -127,6 +132,8 @@ internal fun PlayerApp(
     homeRomEntries: List<PlayerRomEntry>? = null,
     onImportMachineRom: (MachineId) -> Unit = {},
     onHome: () -> Unit = {},
+    homeLayout: PlayerHomeLayout = PlayerHomeLayout.TILES,
+    onHomeLayoutChange: (PlayerHomeLayout) -> Unit = {},
 ) {
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
@@ -137,7 +144,8 @@ internal fun PlayerApp(
                 contentAlignment = Alignment.Center,
             ) {
                 if (showHome) {
-                    PlayerHomeScreen(screenState, homeRomEntries, onPlay, onImportMachineRom, romImportEnabled)
+                    PlayerHomeScreen(screenState, homeRomEntries, onPlay, onImportMachineRom, romImportEnabled,
+                        homeLayout, onHomeLayoutChange)
                 } else when (screenState) {
                     PlayerScreenState.RomMissing -> RomMissingScreen(onImportRom, romImportEnabled)
                     PlayerScreenState.Loading -> LoadingScreen()
@@ -183,52 +191,6 @@ internal fun PlayerApp(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun PlayerHomeScreen(
-    state: PlayerScreenState,
-    entries: List<PlayerRomEntry>?,
-    onPlay: (MachineId) -> Unit,
-    onImportRom: (MachineId) -> Unit,
-    importEnabled: Boolean,
-) {
-    Column(
-        Modifier.fillMaxSize().padding(top = 80.dp, start = 24.dp, end = 24.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text("機種を選択")
-        PlayerMachineCatalog.definitions.forEach { machine ->
-            val entry = entries?.find { it.machineId == machine.id }
-            Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp) {
-                Row(Modifier.fillMaxWidth().padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        Text(machine.displayName + if (state is PlayerScreenState.Emulator &&
-                            state.machineId == machine.id) "（選択中）" else "",
-                            style = MaterialTheme.typography.titleMedium)
-                        Text(when {
-                            entries == null -> "ROMを確認しています…"
-                            entry?.installed == true -> "登録済み"
-                            else -> "ROM未登録"
-                        })
-                    }
-                    if (entry?.installed == true) {
-                        Button(onClick = { onPlay(machine.id) }) { Text("プレイ") }
-                    } else {
-                        Button(onClick = { onImportRom(machine.id) }, enabled = entries != null && importEnabled) {
-                            Text("ROMを登録")
-                        }
-                    }
-                }
-            }
-        }
-        if (state is PlayerScreenState.Failure) Text("選択中のROMを復元できませんでした。ROM管理で確認するか、別の機種を選択してください。")
-        Text("Playerとホームを同じ機種で往復する場合はRAMを維持します。実行中なら自動再開し、明示停止は維持します。")
-        Text("別の機種へ切り替える場合は、確認後に起動し直します。RAMとロード済みプログラムは引き継ぎません。")
     }
 }
 
@@ -320,9 +282,9 @@ private fun EmulatorScreen(
     onMenuVisibilityChange: (Boolean) -> Unit = {},
     onHome: () -> Unit = {},
 ) {
-    val skin = PlayerSkinCatalog.forMachine(machineId)
-    val quickModes = machineId == MachineId("pc-1245") &&
-        supportedOperatingModes == setOf(OperatingMode.RUN, OperatingMode.PROGRAM)
+    val skin = remember(machineId) { PlayerSkinCatalog.forMachine(machineId)?.withFixedModeIndicators() }
+    val quickModes = machineId in setOf(MachineId("pc-1245"), MachineId("pc-1251"), MachineId("pc-1261")) &&
+        supportedOperatingModes.containsAll(setOf(OperatingMode.RUN, OperatingMode.PROGRAM))
     Box(modifier = Modifier.fillMaxSize()) {
         if (displayFrame == null) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -582,15 +544,23 @@ private fun SkinnedDevice(
         PresentationMode.CONTROLLER_DISPLAY -> skin.controllerDisplayRegion
     }
     val imageResource = when (skin.id) {
+        PlayerSkinCatalog.PC1261_SKIN_ID -> R.drawable.skin_pc1261
+        PlayerSkinCatalog.PC1251_SKIN_ID -> R.drawable.skin_pc1251
         PlayerSkinCatalog.PC1245_SKIN_ID -> R.drawable.skin_pc1245
         PlayerSkinCatalog.PC1401_SKIN_ID -> R.drawable.skin_pc1401
+        PlayerSkinCatalog.PC1360K_SKIN_ID -> R.drawable.skin_pc1360k
+        PlayerSkinCatalog.PC1360_SKIN_ID -> R.drawable.skin_pc1360
         PlayerSkinCatalog.PC1350_SKIN_ID -> R.drawable.skin_pc1350
         else -> error("No Android image for skin ${skin.id}")
     }
     val skinImage = ImageBitmap.imageResource(imageResource)
     val skinDescription = when (skin.id) {
         PlayerSkinCatalog.PC1245_SKIN_ID -> stringResource(R.string.pc1245_skin_content_description)
+        PlayerSkinCatalog.PC1261_SKIN_ID -> "PC-1261"
+        PlayerSkinCatalog.PC1251_SKIN_ID -> "PC-1251"
         PlayerSkinCatalog.PC1401_SKIN_ID -> "PC-1401"
+        PlayerSkinCatalog.PC1360K_SKIN_ID -> "PC-1360K"
+        PlayerSkinCatalog.PC1360_SKIN_ID -> "PC-1360"
         PlayerSkinCatalog.PC1350_SKIN_ID -> "PC-1350"
         else -> skin.id
     }
@@ -626,17 +596,25 @@ private fun SkinnedDevice(
                 .width((panel.width * placement.scale).dp).height((panel.height * placement.scale).dp)
                 .background(Color(0xFFB7C8A7)))
             skin.statusRegions.forEach { region ->
-                val bounds = region.bounds
+                val joinedAngle = skin.id == PlayerSkinCatalog.PC1261_SKIN_ID && region.symbol == DisplaySymbol.DEG
+                if (skin.id == PlayerSkinCatalog.PC1261_SKIN_ID && region.symbol == DisplaySymbol.RAD) return@forEach
+                val bounds = if (joinedAngle) region.bounds.copy(width = region.bounds.width +
+                    skin.statusRegions.single { it.symbol == DisplaySymbol.RAD }.bounds.width) else region.bounds
                 SkinLcdLabel(
-                    text = if (skin.id == PlayerSkinCatalog.PC1350_SKIN_ID) when (region.symbol) {
+                    text = if (skin.id in setOf(PlayerSkinCatalog.PC1350_SKIN_ID, PlayerSkinCatalog.PC1360_SKIN_ID, PlayerSkinCatalog.PC1360K_SKIN_ID, PlayerSkinCatalog.PC1261_SKIN_ID)) when (region.symbol) {
                         DisplaySymbol.KANA -> "カナ"
                         DisplaySymbol.SMALL -> "SML"
+                        DisplaySymbol.ERROR -> if (skin.id == PlayerSkinCatalog.PC1261_SKIN_ID) "ERROR" else region.symbol.lcdLabel()
                         else -> region.symbol.lcdLabel()
                     } else region.symbol.lcdLabel(),
                     color = if (displayFrame.enabled && region.symbol in displayFrame.symbols)
                         Color(0xFF26352C) else Color(0x1F26352C),
+                    invertedSquare = region.symbol == DisplaySymbol.S,
+                    trailingText = if (joinedAngle) "RAD" else "",
+                    trailingColor = if (displayFrame.enabled && DisplaySymbol.RAD in displayFrame.symbols)
+                        Color(0xFF26352C) else Color(0x1F26352C),
                     alignEnd = region.symbol == DisplaySymbol.SHIFT && skin.id == PlayerSkinCatalog.PC1245_SKIN_ID,
-                    bold = skin.id == PlayerSkinCatalog.PC1401_SKIN_ID || skin.id == PlayerSkinCatalog.PC1350_SKIN_ID,
+                    bold = skin.id in setOf(PlayerSkinCatalog.PC1401_SKIN_ID, PlayerSkinCatalog.PC1360_SKIN_ID, PlayerSkinCatalog.PC1360K_SKIN_ID, PlayerSkinCatalog.PC1350_SKIN_ID, PlayerSkinCatalog.PC1261_SKIN_ID),
                     modifier = Modifier.offset(placement.screenX(bounds.x).dp, placement.screenY(bounds.y).dp)
                         .width((bounds.width * placement.scale).dp).height((bounds.height * placement.scale).dp),
                 )
@@ -722,19 +700,37 @@ private fun SkinnedDevice(
 
 /** Fits measured glyphs in skin coordinates, independent of the host font-size setting. */
 @Composable
-private fun SkinLcdLabel(text: String, color: Color, modifier: Modifier, alignEnd: Boolean = false, bold: Boolean = false) {
+private fun SkinLcdLabel(text: String, color: Color, modifier: Modifier, alignEnd: Boolean = false, bold: Boolean = false,
+                         trailingText: String = "", trailingColor: Color = color, invertedSquare: Boolean = false) {
     val measurer = rememberTextMeasurer()
-    val layout = remember(measurer, text, bold) {
-        measurer.measure(text, style = TextStyle(fontSize = 20.sp, lineHeight = 24.sp,
+    val measuredText = if (trailingText.isEmpty()) AnnotatedString(if (invertedSquare) "S" else text) else buildAnnotatedString {
+        withStyle(SpanStyle(color = color)) { append(text) }
+        withStyle(SpanStyle(color = trailingColor)) { append(trailingText) }
+    }
+    val layout = remember(measurer, measuredText, bold) {
+        measurer.measure(measuredText, style = TextStyle(fontSize = 20.sp, lineHeight = 24.sp,
                 fontWeight = if (bold) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal),
             density = Density(1f, 1f), softWrap = false, maxLines = 1)
     }
-    Canvas(modifier.semantics { contentDescription = text }) {
-        val factor = min(size.width / layout.size.width.coerceAtLeast(1), size.height / layout.size.height.coerceAtLeast(1))
-        val x = if (alignEnd) size.width - layout.size.width * factor else 0f
-        val y = (size.height - layout.size.height * factor) / 2f
-        withTransform({ translate(x, y); scale(factor, factor, pivot = Offset.Zero) }) {
-            drawText(layout, color = color, topLeft = Offset.Zero)
+    Canvas(modifier.semantics { contentDescription = text + trailingText }) {
+        if (invertedSquare) {
+            val side = min(size.width, size.height)
+            val top = (size.height - side) / 2f
+            drawRect(color, topLeft = Offset(0f, top), size = Size(side, side))
+            val factor = min(side * 0.92f / layout.size.width.coerceAtLeast(1),
+                side * 0.92f / layout.size.height.coerceAtLeast(1))
+            val x = (side - layout.size.width * factor) / 2f
+            val y = top + (side - layout.size.height * factor) / 2f
+            withTransform({ translate(x, y); scale(factor, factor, pivot = Offset.Zero) }) {
+                drawText(layout, color = Color(0xFFB7C8A7), topLeft = Offset.Zero)
+            }
+        } else {
+            val factor = min(size.width / layout.size.width.coerceAtLeast(1), size.height / layout.size.height.coerceAtLeast(1))
+            val x = if (alignEnd) size.width - layout.size.width * factor else 0f
+            val y = (size.height - layout.size.height * factor) / 2f
+            withTransform({ translate(x, y); scale(factor, factor, pivot = Offset.Zero) }) {
+                drawText(layout, color = if (trailingText.isEmpty()) color else Color.Unspecified, topLeft = Offset.Zero)
+            }
         }
     }
 }
@@ -881,6 +877,9 @@ private fun LcdDisplay(
 }
 
 private fun DisplaySymbol.lcdLabel(): String = when (this) {
+    DisplaySymbol.HIRAGANA -> "平"
+    DisplaySymbol.KATAKANA -> "片"
+    DisplaySymbol.S -> "[S]"
     DisplaySymbol.MEMORY -> "M"
     DisplaySymbol.PARENTHESES -> "( )"
     DisplaySymbol.ERROR -> "E"

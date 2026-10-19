@@ -47,9 +47,9 @@ public object PlayerKeyboardCatalog {
             MachineKeyboardLayout.PC_1401 -> Pc1401KeyboardLayout.keyboard
             MachineKeyboardLayout.PC_1350 -> Pc1350KeyboardLayout.keyboard
             MachineKeyboardLayout.PC_1245 -> pc1245
-            MachineKeyboardLayout.PC_1251,
-            MachineKeyboardLayout.PC_1261,
-            MachineKeyboardLayout.PC_1360,
+            MachineKeyboardLayout.PC_1251 -> pc1251
+            MachineKeyboardLayout.PC_1261 -> pc1261
+            MachineKeyboardLayout.PC_1360 -> if (machineId == MachineId("pc-1360k")) Pc1360kKeyboardLayout.keyboard else Pc1360KeyboardLayout.keyboard
             MachineKeyboardLayout.PC_1450,
             MachineKeyboardLayout.PC_1460,
             MachineKeyboardLayout.PC_1470U,
@@ -106,6 +106,33 @@ public object PlayerKeyboardCatalog {
             ),
         ),
     )
+
+    // Same physical matrix; PC-1251 moves parentheses to the arrow keys and has no BASIC legends.
+    private val pc1251 = pc1245.copy(rows = pc1245.rows.map { row ->
+        row.map { cap ->
+            cap.copy(
+                shiftedLabel = when (cap.key) {
+                    PocketKey.DOWN -> "("
+                    PocketKey.UP -> ")"
+                    PocketKey.NUM_1, PocketKey.NUM_2 -> null
+                    else -> cap.shiftedLabel
+                },
+                basicLabel = null,
+            )
+        }
+    })
+
+    // Studio's PC-1261 legends retain the PC-1245 parentheses and add HELP/KANA.
+    private val pc1261 = pc1245.copy(rows = pc1245.rows.map { row ->
+        row.map { cap -> cap.copy(
+            shiftedLabel = when (cap.key) {
+                PocketKey.NUM_7 -> "HELP"
+                PocketKey.NUM_8 -> "カナ"
+                else -> cap.shiftedLabel
+            },
+            basicLabel = null,
+        ) }
+    })
 
     private fun cap(
         key: PocketKey,

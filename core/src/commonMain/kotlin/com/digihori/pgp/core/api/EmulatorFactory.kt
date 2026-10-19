@@ -306,7 +306,11 @@ private class Pc1360EmulatorSession(
                 if (symbols and 0x04 != 0) add(DisplaySymbol.DEF)
                 if (symbols and 0x08 != 0) add(DisplaySymbol.RUN)
                 if (symbols and 0x10 != 0) add(DisplaySymbol.PRO)
-                if (symbols and 0x40 != 0) add(DisplaySymbol.KANA)
+                if (machineId == Pc1360RomDefinition.PC1360K_MACHINE_ID) {
+                    if (symbols and 0x20 != 0) add(DisplaySymbol.HIRAGANA)
+                    if (symbols and 0x40 != 0) add(DisplaySymbol.KATAKANA)
+                    if (symbols and 0x80 != 0) add(DisplaySymbol.S)
+                } else if (symbols and 0x40 != 0) add(DisplaySymbol.KANA)
                 if (symbols and 0x01 != 0) add(DisplaySymbol.SMALL)
             },
             true, display.revision, display.copyDots(),

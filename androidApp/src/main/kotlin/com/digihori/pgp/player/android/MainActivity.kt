@@ -68,6 +68,8 @@ open class MainActivity : ComponentActivity() {
     private lateinit var physicalKeyboard: AndroidPhysicalKeyboard
     private lateinit var gamepad: AndroidGamepadController
     private val entryPolicy = PlayerEntryPolicy()
+    private var homeLayout by mutableStateOf(PlayerHomeLayout.TILES)
+    private val homePreferences by lazy { getSharedPreferences("player-home", MODE_PRIVATE) }
     private var showHome by mutableStateOf(true)
     private var showPlayerMenu by mutableStateOf(false)
     private var showControllerSettings by mutableStateOf(false)
@@ -91,6 +93,7 @@ open class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        homeLayout = PlayerHomeLayout.fromId(runCatching { homePreferences.getString("layout", null) }.getOrNull())
         enableEdgeToEdge()
         configureSystemBars()
         volumeControlStream = android.media.AudioManager.STREAM_MUSIC
@@ -139,6 +142,11 @@ open class MainActivity : ComponentActivity() {
                 PlayerApp(
                     screenState = screenState,
                     showHome = showHome,
+                    homeLayout = homeLayout,
+                    onHomeLayoutChange = { layout ->
+                        homeLayout = layout
+                        homePreferences.edit().putString("layout", layout.id).apply()
+                    },
                     onPlay = ::openPlayer,
                     onHome = ::returnHome,
                     displayFrame = displayFrame,
@@ -332,6 +340,8 @@ open class MainActivity : ComponentActivity() {
             keyboard?.let { it.rows.flatten().map { cap -> cap.key }.toSet() +
                 it.functionPanel?.rows?.flatten().orEmpty().map { cap -> cap.key } }.orEmpty(),
             pc1350 = playerSession?.machineId?.value == "pc-1350",
+            pc1360 = playerSession?.machineId?.value == "pc-1360",
+            pc1360k = playerSession?.machineId?.value == "pc-1360k",
             minimumHoldCycles = playerSession?.machineId?.let { id ->
                 MachineCatalog.require(id).automaticKeyHoldCycles
             } ?: 0L,

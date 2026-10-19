@@ -1,5 +1,24 @@
 # Porting Notes
 
+## 2026-10-19: Android PC-1261 foundation / BASIC-only save
+
+- Source: 既存PGP Core pc1261とStudio Pc1261KeyboardLayout。配置済みAndroid画像を確認。
+  LCD上下シンボル帯の参考として旧Pokecom GO MainLoop1261.javaを参照するが、ホスト構造・依存は移植しない。
+- 共有52キーと24桁×2行LCD、9シンボルを接続。ユーザー図で配置を調整し、その後PC-1261だけをホーム・ROM decoderへ接続。
+- ユーザー方針でAndroid全機種のセーブをBASICだけへ統一し、形式選択・アドレス入力・DMP保存分岐を削除。
+  DMPロード、Core／StudioのダンプAPI、iOSの機能は維持する。
+- 検証区分: [PC-1261対応記録](ANDROID_PC1261_PROGRESS.md)。ROM／ROM由来データはコミットしない。
+
+
+## 2026-10-19: Android PC-1251 Player foundation
+
+- Source: 既存PGP Coreのpc1251とStudioのPc1251KeyboardLayout。外部参照プロジェクトからの追加移植・依存なし。
+- 共有PlayerへOLD系52キーの凡例差分と配置済みAndroidスキンの暫定座標を接続。LCD／symbol座標はユーザー確認待ち。
+- PlayerのPC-1251だけ既存EmulatorConfigurationのHARDWAREを指定し、RAM拡張を有効にしない。Core／Studio既定設定は維持。
+- 初期基盤では非選択を維持。その後PC-1251だけをホーム・ROM decoderへ接続し、Debug専用の合成／入力ホストで通常Library／設定を使わずに確認する。
+- タイトルバーのRUN／PROは1245／1251／1261を対象とするユーザー指示を反映。1261自体のPlayer選択はこの段階では有効化しない。
+- 詳細と検証区分: [Android PC-1251](ANDROID_PC1251_PROGRESS.md)。ROM／ROM由来データは追加しない。
+
 ## 2026-10-14: PC-1470U ↕ key recheck
 
 - ユーザーの「キーの取り違えでは」という指摘を受け、STAT（SHIFT＋「=」）と通常↕／SHIFT TITLEを分けてローカルROMで再検証。
@@ -2746,3 +2765,44 @@ Neither the reference repository nor Studio's production WAV codecs were changed
   work still impose substantial overhead. Do not describe it as a sub-minute or
   fully optimized iOS pipeline. System Files/UI and Native-specific tests remain
   outside this normal lane, with the documented manual/local paths retained.
+
+## Android PC-1360 / PC-1360K Player integration (2026-10-20)
+
+- Reused existing Core machine sessions, eight-bank ROM model, S2 BASIC codec, LCD mapping,
+  memory classification and PC-1360K kanji READ/READM behavior. No firmware hooks or new RAM expansion modes.
+- Ported key legends and the K-specific five controls from
+  `desktopApp/src/main/kotlin/com/digihori/pgp/desktop/input/Pc1245KeyboardLayout.kt`
+  into the portable Player layer, with no desktop dependency. The supplied Player skins omit right SHIFT.
+- Measured bundled 1426×615 images for touch geometry. PC-1360 LCD/symbol layout follows the
+  PC-1350 implementation and was approved by the user; K shares that geometry.
+- Android ROM registration uses Studio pgrom packages, preserving all eight banks and optional kanji selectors.
+  The existing package check and Session creation reject malformed firmware before Library installation.
+- Added independently authored instruction/pattern tests and optional local-ROM S2 input regression.
+  Debug verification namespaces do not reuse normal Android Library/settings. No ROM-derived fixtures added.
+- Stage-specific evidence and remaining physical-device acceptance are in
+  `ANDROID_PC1360_PROGRESS.md` and `ANDROID_PC1360K_PROGRESS.md`.
+
+## Four-line Player LCD and PC-1360K indicators (2026-10-20)
+
+- Applied the user-approved centered 857×182.83 LCD proposal to PC-1350/1360/1360K;
+  grouped lower indicators at the left instead of distributing them across the panel.
+  Geometry is shared and preserves the existing 150×32 dot aspect ratio and touch coordinates.
+- Corrected the initial PC-1360K reuse of the six PC-1360 flags. Existing local observations
+  in `docs/machines/PC-1360K_ANALYSIS.md` and `PC-1360K.md` distinguish 303C bit5/6/7.
+  Added explicit HIRAGANA, KATAKANA and neutral S ([S]) indicators without inventing further semantics.
+  Standard PC-1360 still exports KANA for bit6. Android and Studio use the supplied captions.
+- A locally supplied, unmodified ROM test verifies WIDTH,2, KANJI and HIRA_KATA produce
+  RUN+HIRAGANA+S then RUN+KATAKANA+S. Synthetic instructions independently test all eight bits.
+  No firmware glyphs or ROM-derived fixture files were added.
+- Studio launch verification uses a temporary HOME and a temporary in-memory PreferencesFactory.
+  The initial macOS filesystem-preferences isolation attempt was unavailable because its native backend
+  is absent; the temporary adapter resolves launch isolation without changing product persistence.
+
+2026-10-20追記: Android Playerのユーザー指定の[S]は角括弧文字ではなく、正方形の塗りつぶしに明るいSを抜いた反転表示とする。消灯時は背景の塗りを薄くし、Coreのbit7による点灯条件は維持する。
+
+## Android Player checkpoint (2026-10-20)
+
+- User reported physical-device testing was broadly successful for the work through PC-1360/1360K, including the latest LCD changes. This does not imply exhaustive per-device, peripheral or audio-route coverage.
+- Home tiles and list share the selected-machine caption: prefix the actual name with `*`, replacing the verbose selected suffix. Name sorting and saved layout preference remain unchanged.
+- JDK 21 `build :core:desktopTest :androidApp:assembleDebug` passed after the caption change. Isolated `desktopApp:run` launched successfully and was explicitly stopped. The new caption itself has not received a separate physical-device acceptance report.
+- Continue Android model integration in order PC-1450, PC-1460, PC-1470U. Family variant selection is deferred; no RAM expansion or iOS scope added.
