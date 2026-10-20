@@ -239,3 +239,24 @@ Swift単体34件、UI 6件が失敗なし。CIで失敗した4つのUIケース�
 JDK 21の全体`build :core:desktopTest`も成功（578 tasks、16実行、562 up-to-date）。
 Coreの結果は別件変更を含む453件、失敗なし（今回up-to-date）。`git diff --check`成功。
 iOS 18.5／Xcode 16.4の修正後確認はhosted CI、iOS 16・実機の受入れは別途必要。
+
+## 2026-10-20: iOSオフライン音声テスト中のCoreAudio異常終了
+
+[commit 4412310のCI](https://github.com/digihori/pokecom-go-plus/actions/runs/39395088185/job/118535721550)は、
+アプリとSwiftテストのコンパイル後、`PlayerAudioTests.testFloatPCMAndActualOfflineEnginePathAtAllRates`
+の実行中に`Cleanup: RPC timeout. Apparently deadlocked. Aborting now.`を出力した。
+XCTestはプロセスを再起動し、残りのテストは成功したが、全体はexit 65で失敗した。
+他の4環境のjobは成功している。README翻訳のコンパイルエラーではない。
+
+オフライン用`EnginePCMSink`でも、従来は`mainMixerNode`へ接続してからmanual renderingを有効にしていた。
+デフォルトグラフ生成時にデバイスI/Oへ触れる可能性を避けるため、`live: false`では
+グラフ生成前にoffline manual renderingを設定する。実出力経路の初期化と5レートの既存検証は維持する。
+ログから初期化内部の厳密な停止箇所までは確定できないため、hosted CIでの再確認を必要とする。
+テストの除外、失敗の無視、自動再試行は追加しない。
+
+修正後のローカル確認：
+
+- JDK 21で全体`build :core:desktopTest`成功（578 tasks、18実行、5 from cache、555 up-to-date）。
+- Xcode 26.6／iOS 26.5の使い捨てSimulatorでSwift単体35件、失敗なし。
+  問題のoffline描画5レートと、live合成PCM出力5レートの両方を含む。
+- `git diff --check`成功。実機・実ROM音声・聴感とhosted CIでの修正確認は別途必要。

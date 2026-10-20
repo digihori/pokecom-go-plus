@@ -39,6 +39,10 @@ final class EnginePCMSink: PlayerPCMSink {
             try session.setCategory(.ambient, mode: .default)
             try session.setPreferredIOBufferDuration(0.01)
             try session.setActive(true)
+        } else {
+            // Select offline mode before accessing mainMixerNode. Creating the default
+            // graph first can initialize device I/O and deadlock CoreAudio on hosted Simulators.
+            try engine.enableManualRenderingMode(.offline, format: format, maximumFrameCount: 4096)
         }
         engine.attach(node)
         engine.connect(node, to: engine.mainMixerNode, format: format)
@@ -67,7 +71,6 @@ final class EnginePCMSink: PlayerPCMSink {
 
     /// Exercises the actual engine/node/converter path without device output or listening claims.
     func renderOffline(_ packet: PlayerPCM) throws -> [Float] {
-        try engine.enableManualRenderingMode(.offline, format: format, maximumFrameCount: 4096)
         try engine.start()
         try schedule(packet) {}
         node.play()
