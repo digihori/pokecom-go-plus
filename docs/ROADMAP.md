@@ -410,15 +410,18 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](DEBUGGER.md)を参�
     - [ ] payload解釈に失敗しても波形、ON／OFF、W0／W1、raw byteまでの成功結果を残す
     - [ ] sample rate、channel、bit depth、duration、peak、DC offset、検出edge／byte数をsummary表示する
     - [ ] raw／変換後byte列、文字変換結果、解析diagnosticを個別にexportできるようにする
-  - [ ] S1 WAV Codecを実装する
+  - [x] S1 WAV Codecを実装する（段階3・4、実機往復は別途未確認）
+    - [x] 2026-10-20: 実機確認済みの末尾checksumへ仕様を修正し、28件の合成vectorを整理する。[進捗](WAV_S1_S2_PROGRESS.md)。後続の段階3〜5でpayloadも実装。
     - 2026-10-12方針: Playerの作業を優先し、S1/S2対応は後回し。WAV Tool冒頭でpcwavの利用を案内する。
-    - [ ] S1共通信号と4.096秒leader、16-unit byte framingを実装する
-    - [ ] S1 Binary `67`を単一連続領域の`.dmp`／Intel HEX入出力として実装する
-    - [ ] S1 BASIC `07`、120-byte chunk、半角カナ、物理trailer `FF`を実装する
-  - [ ] S2 BASIC WAV Codecを実装する
-    - [ ] type `27`（BASIC）／`37`（password付きBASIC）、`FE token`、`1F line reference`、CP932 textを実装する
-    - [ ] 作者が動作実績を確認したpcwav tail checksum方式を採用し、参照一致とPGP実機往復を検証する
-  - [ ] S2 Binaryは作者確認に基づきS1 Binary `67`と同じcodecを共用して対応する
+    - [x] S1共通信号と4.096秒leader、16-unit byte framingを実装する（段階2：8／16／24／32kHz Decode、合成vector・破損診断テスト）
+    - [x] S1 Binary `67`を単一連続領域の`.dmp`／Intel HEX入出力として実装する（段階3：合成検証完了、実機往復未確認）
+    - [x] S1 BASIC `07`、120-byte chunk、半角カナ、物理trailer `FF`を実装する（2026-10-21：段階4、機種別adapter／Studio接続、合成検証済み・実機往復未確認）
+  - [x] S2 BASIC WAV Codecを実装する（2026-10-21：段階5、合成検証済み・実機往復未確認）
+    - [x] type `27`（BASIC）／`37`（password付きBASIC）、`FE token`、`1F line reference`、CP932 textを実装する
+    - [x] 作者確認済みのpcwav BASIC tail checksum方式を採用し、固定vector一致を検証する
+    - [ ] 新PGP codecの実機往復を確認する（[確認表](WAV_TOOL_GUIDE.md#実機往復の確認記録)）
+  - [x] S2 Binaryは作者確認に基づきS1 Binary `67`と同じcodecを共用して対応する（実機往復未確認）
+  - [x] 2026-10-21：段階6の全形式UI・診断・操作ガイド・OLD回帰を仕上げる（[ガイド](WAV_TOOL_GUIDE.md)）
   - [ ] 実機録音fixtureでDecode許容範囲を確定する
 
 ## Phase 6: 機種追加

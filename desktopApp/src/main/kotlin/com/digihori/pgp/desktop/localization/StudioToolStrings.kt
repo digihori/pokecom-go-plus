@@ -6,6 +6,50 @@ import com.digihori.pgp.desktop.message
 
 // UI-only conversion. The operation result and exported report retain original text.
 private val toolMessages = mapOf(
+    "Transfer format could not be determined" to "tool.auto.undetermined",
+    "No transfer format passed validation" to "tool.auto.none",
+    "Multiple transfer formats passed validation" to "tool.auto.multiple",
+    "Expected S2 BASIC type 27 or 37" to "tool.s2Basic.expectedType",
+    "Select an S2 target machine to interpret BASIC tokens." to "tool.s2Basic.selectMachine",
+    "Unsupported WAV target machine." to "tool.s2Basic.unsupportedTarget",
+    "S1 BASIC filename must contain at most seven printable ASCII characters" to "tool.s1Basic.0",
+    "S1 BASIC header is truncated" to "tool.s1Basic.1",
+    "Expected S1 BASIC type 07" to "tool.s1Basic.2",
+    "S1 BASIC filename terminator is missing" to "tool.s1Basic.3",
+    "S1 BASIC filename characters or padding are invalid" to "tool.s1Basic.4",
+    "S1 BASIC chunk checksum is missing" to "tool.s1Basic.5",
+    "S1 BASIC line is truncated" to "tool.s1Basic.6",
+    "S1 BASIC FF FF footer is missing" to "tool.s1Basic.7",
+    "S1 BASIC line number or length is invalid" to "tool.s1Basic.8",
+    "S1 BASIC line must end with 0D" to "tool.s1Basic.9",
+    "S1 BASIC body exceeds 65536 bytes" to "tool.s1Basic.10",
+    "S1 BASIC body must contain a line" to "tool.s1Basic.11",
+    "S1 BASIC tail checksum is missing" to "tool.s1Basic.12",
+    "S1 BASIC has trailing raw data" to "tool.s1Basic.13",
+    "S1 BASIC image must begin and end with FF" to "tool.s1Basic.14",
+    "S1 BASIC body must contain 1..65536 bytes of line records" to "tool.s1Basic.15",
+    "S1 BASIC line header is truncated" to "tool.s1Basic.16",
+    "S1 BASIC checksum mismatch" to "tool.s1Basic.17",
+    "Select an S1 target machine to interpret BASIC tokens." to "tool.s1Basic.18",
+    "S1 BASIC text cannot preserve all bytes for the selected machine" to "tool.s1Basic.19",
+    "S2 BASIC WAV is not implemented." to "tool.s1.basicUnsupported",
+    "S1/S2 signal failed" to "tool.s1.0",
+    "S1 binary requires a nonempty body within the 16-bit address space" to "tool.s1.1",
+    "S1 binary header is truncated" to "tool.s1.2",
+    "Expected S1 binary type 67" to "tool.s1.3",
+    "S1 binary filename markers are invalid" to "tool.s1.4",
+    "S1 binary reserved metadata must be zero" to "tool.s1.5",
+    "S1 binary filename contains invalid characters or padding" to "tool.s1.6",
+    "S1 binary metadata exceeds the 16-bit address space" to "tool.s1.7",
+    "S1 binary body or footer is truncated" to "tool.s1.8",
+    "S1 binary FF FF footer is missing" to "tool.s1.9",
+    "S1 binary has trailing raw data" to "tool.s1.10",
+    "S1 binary checksum mismatch" to "tool.s1.11",
+    "S1/S2 signal requires a sample rate of 8000, 16000, 24000, or 32000 Hz" to "tool.s1.12",
+    "S1/S2 signal ends with an incomplete raw byte" to "tool.s1.13",
+    "S1/S2 byte framing or carrier was lost; waiting for a new leader" to "tool.s1.14",
+    "No complete S1/S2 raw byte could be decoded" to "tool.s1.15",
+    "S1/S2 signal exceeds the supported PCM sample count" to "tool.s1.16",
     "Unsupported target" to "tool.detail.unsupportedTarget",
     "Invalid memory dump" to "tool.detail.invalidMemoryDump",
     "Invalid memory image" to "tool.detail.invalidMemoryImage",
@@ -60,6 +104,11 @@ private val toolMessages = mapOf(
     "The byte values do not fit this format." to "tool.detail.theByteValuesDoNotFitThisFormat"
 )
 private val toolPatterns = listOf(
+    Regex("Detected format: (.*)") to "tool.auto.detected",
+    Regex("Validated S2 (.+), filename: (.*)") to "tool.s2Basic.validated",
+    Regex("Validated S1 PASSWORD_PROTECTED_BASIC, filename: (.*)") to "tool.s1Basic.protectedValidated",
+    Regex("Validated S1 BASIC, filename: (.*)") to "tool.s1Basic.validated",
+    Regex("Validated S1 BINARY, filename: (.*)") to "tool.s1.validated",
     Regex("Encoded for (.+)") to "tool.pattern.encodedFor",
     Regex("(\\d+) Hz / (\\d+) channel\\(s\\) / (\\d+)-bit") to "tool.pattern.hzChannelSBit",
     Regex("(\\d+) samples / (.+) seconds") to "tool.pattern.samplesSeconds",
@@ -76,7 +125,7 @@ private val toolPatterns = listOf(
     Regex("WAV sample rate (\\d+) Hz is not supported") to "tool.pattern.wavSampleRateHzIsNotSupported",
     Regex("WAV (\\d+)-bit PCM is not supported") to "tool.pattern.wavBitPCMIsNotSupported",
     Regex("OLD signal sample rate (\\d+) Hz is not supported") to "tool.pattern.oldSignalSampleRateHzIsNotSupported",
-    Regex("OLD WAV binary data must be contiguous; gap before 0x([0-9A-F]+)\\.") to "tool.pattern.oldWAVBinaryDataMustBeContiguousGapBefore0x",
+    Regex("(?:OLD )?WAV binary data must be contiguous; gap before 0x([0-9A-F]+)\\.") to "tool.pattern.oldWAVBinaryDataMustBeContiguousGapBefore0x",
     Regex("BASIC at (\\d+): (.+)") to "tool.pattern.basicAt",
     Regex("Enter (\\d+) byte values\\.") to "tool.pattern.enterByteValues",
     Regex("Expected (\\d+) byte values but found (\\d+)\\.") to "tool.pattern.expectedByteValuesButFound",
@@ -88,10 +137,13 @@ private val toolPatterns = listOf(
 internal fun StudioStrings.toolDetail(message: String): String {
     if (language == StudioLanguage.ENGLISH) return message
     toolMessages[message]?.let { return text(it) }
+    if (message.startsWith("S2 BASIC")) {
+        toolMessages[message.replace("S2 BASIC", "S1 BASIC")]?.let { return text(it).replace("S1 BASIC", "S2 BASIC") }
+    }
     for ((pattern, key) in toolPatterns) {
         val match = pattern.matchEntire(message) ?: continue
         val args = match.groupValues.drop(1).toMutableList()
-        if (key == "tool.pattern.validatedOLDFilename") {
+        if (key in setOf("tool.pattern.validatedOLDFilename", "tool.s2Basic.validated")) {
             OldPayloadType.entries.firstOrNull { it.name == args[0] }?.let { args[0] = text("wav.payload.${it.name}") }
         }
         if (key == "tool.pattern.basicAt") args[1] = transferDetail(args[1])

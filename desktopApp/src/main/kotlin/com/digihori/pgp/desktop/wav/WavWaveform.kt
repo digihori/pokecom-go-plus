@@ -36,8 +36,9 @@ internal fun WavWaveform(output: DesktopWavResult, cursor: Int, onCursor: (Int) 
     val pcm = output.pcm
     val samples = remember(output) { pcm?.samples?.copySamples() }
     if (pcm == null || samples == null || samples.isEmpty()) { Text(strings.text("wave.noPcm")); return }
-    val inspection = remember(output) { OldSignalDecoder.inspect(pcm.sampleRate, pcm.samples) }
-    val differences = remember(inspection) { inspection.copyDifferences() }
+    val inspection = remember(output) { if (output.signalDialect == com.digihori.pgp.core.api.MachineBasicDialect.OLD) OldSignalDecoder.inspect(pcm.sampleRate, pcm.samples) else null }
+    val differences = remember(inspection) { inspection?.copyDifferences() ?: IntArray(0) }
+    val threshold = inspection?.threshold ?: 5120
     val amplitudes = remember(samples) { IntArray(samples.size) { samples[it].toInt() } }
     val statistics = remember(samples) {
         Triple(samples.min().toInt(), samples.max().toInt(), samples.sumOf { it.toLong() }.toDouble() / samples.size)
@@ -83,15 +84,17 @@ internal fun WavWaveform(output: DesktopWavResult, cursor: Int, onCursor: (Int) 
         Text(strings.text("wave.guideValue", guide.roundToInt().toString()))
         Slider(guide, { guide = it }, valueRange = 0f..32767f, modifier = Modifier.semantics { contentDescription = strings.text("wave.guideValue", guide.roundToInt().toString()) })
     }
-    Row { Checkbox(showDifference, { showDifference = it }, modifier = Modifier.semantics { contentDescription = strings.text("wave.difference") }); Text(strings.text("wave.difference")) }
-    Text(strings.text("wave.algorithm", inspection.tapSamples.toString(), inspection.threshold.toString()))
+    if (inspection != null) {
+        Row { Checkbox(showDifference, { showDifference = it }, modifier = Modifier.semantics { contentDescription = strings.text("wave.difference") }); Text(strings.text("wave.difference")) }
+        Text(strings.text("wave.algorithm", inspection.tapSamples.toString(), threshold.toString()))
+    } else Text(strings.text("wave.s1Signal"))
     Text(strings.text("wave.samples", start.toString(), (start + span).toString(), cursor.toString(), time(cursor.toDouble() / pcm.sampleRate), samples[cursor.coerceIn(samples.indices)].toString()))
 
     val values = amplitudes
     val bound = 32768f
     Text(strings.text("wave.blue"))
     if (showDifference) {
-        Text(strings.text("wave.orange", inspection.threshold.toString()))
+        Text(strings.text("wave.orange", threshold.toString()))
         if ((start until start + span).all { differences[it] == 0 }) {
             Text(strings.text("wave.zero"))
         }
@@ -195,7 +198,7 @@ internal fun WavWaveform(output: DesktopWavResult, cursor: Int, onCursor: (Int) 
                         drawLine(deltaColor, Offset(x(i), deltaY(differences[i])), Offset(x(i + 1), deltaY(differences[i + 1])), 1.5f)
                     }
                 }
-                for (value in listOf(inspection.threshold, -inspection.threshold)) drawLine(deltaColor,
+                for (value in listOf(threshold, -threshold)) drawLine(deltaColor,
                     Offset(left, deltaY(value)), Offset(right, deltaY(value)), 1.5f,
                     pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f)))
             }

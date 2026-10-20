@@ -2914,3 +2914,94 @@ JDK 21 clean build, Core desktop tests and Android debug packaging passed withou
 - 合成テスト、pcwav S1 BASICのWAV生成、ローカルROMでのBASIC制御・保存名・4KiB内容を検証。
   保存命令は取得hookへ置換し、読出しは合成データを注入する。実ROM由来のfixtureは追加しない。
   機器上の保存形式、実CE-140F／互換機器での保存・再読込・全ページ回収は未検証。
+
+## 2026-10-20: WAV S1／S2対応の段階1
+
+- 読み取り専用のpcwav commit `14e1ef53596f0d8791b6d14965061f63846d11a7`の
+  Common／WavWriter／S1 Binary／S1・S2 BASIC／CLIを再照合。
+- 2026-10-18の1360K実機録音検証に従い、S1 Binary tail仕様をpartial raw＋最初のFFへ修正。
+  最後のfull chunkのchecksum、BASIC末尾との違い、65536-byte長の参照Decoderの問題を明記した。
+- `test-data/wav/s1-s2`へ独自の短いBASICと合成byteによる28件のraw／PCM hashを追加。
+  製品コードから期待値を作らず、仕様からの独立生成とpcwavの実行結果を比較した。
+  外部コードはコピーせず、参照srcが変更済み・revision不一致なら再採取を拒否する。
+- Binary旧tailの参照値を採用期待値と分け、正常な成功fixtureへ混ぜない。
+  ROM・録音・端末情報は含めず、pcwavリポジトリと製品codecは変更していない。
+- 固定JSONは外部ツールなしで検証可能。次段階のCoreテストから固定期待値として利用する方針で、
+  pcwav／PerlはPGPのビルド・実行時依存に追加しない。
+
+## 2026-10-20: WAV S1／S2共通信号（段階2）
+
+- 参照元：pcwav commit `14e1ef53596f0d8791b6d14965061f63846d11a7`のCommon／WavWriter／RawDecode。
+- S1/S2の16-unit frameと2048-unit leaderをCoreの独立codecへ実装。
+  原実装の固定先頭skipや途中byteの無検証出力は採用せず、搬送波・sync／stopを検査する。
+- Decodeは8／16／24／32kHzを対象とし、125msの搬送波で同期取得・再取得する。
+  再標本化や速度ずれ補正を行わない範囲を明示。rawとPCMおよびnibbleの位置を保存する。
+- 段階1の独立した28合成vectorでPCM hashとraw復元を検証する。
+  commonTestで破損・切詰め・無音・極性・振幅・別sample rate・WAV層との接続を検証する。
+- 外部リポジトリの変更・通常ビルドからの依存はない。payload／Studioへの接続は後続段階。
+
+## 2026-10-20: WAV s1binとStudio接続（段階3）
+
+- 参照：pcwav commit `14e1ef53596f0d8791b6d14965061f63846d11a7`、Format/S1.pm、Binary/S1Encode.pm・S1Decode.pm。
+- Coreへ独立したtype 67 payload codecを実装。name／metadata／chunk／tailの全checksumを検証する。
+  最終120 bytesにもchunk checksumを付け、partial tailは実機確認済みのpartial＋最初のFF方式を採用。
+  旧参照Decoderの65536-byte wrap、最終full chunk不整合、tail未検証は引き継がない。
+- 8件の固定Binary期待値、最大長・範囲・破損・切詰めの合成テストを追加。
+- StudioのS1/S2 binaryを共用codecへ接続し、PCM/rawの途中結果と位置情報を保持する。
+  `.dmp`／16-bit Intel HEXは単一連続領域を要求する。Playerや音声device I/Oは変更しない。
+- 実機確認済みtail仕様の採用と、新PGP codecの実機往復は別であり、後者は未確認。
+  外部リポジトリやROM・録音データは変更・追加していない。
+
+## 2026-10-21: WAV s1basicと機種別body adapter（段階4）
+
+- 参照元：pcwav commit `14e1ef53596f0d8791b6d14965061f63846d11a7`、Basic/S1Encode.pm・S1Decode.pm、Common.pm。
+- type 07／filename／120-byte chunk／tailをCoreの独立codecへ実装。
+  最後のfull chunkをtailへ含め、rawのlow nibble加算後だけcarry補正するchecksumを全箇所で検証する。
+  原Decoderのchunk・tail未検証やFF FFの単純探索は採用せず、行長でbodyを復元する。
+- BASIC imageの前後FFを変換する純粋adapterと、物理trailerを明示的に扱うStudio接続を追加。
+  既存の機種別BASIC codecを再利用し、pcwavの単一token表を全機種へ適用しない。
+- 独立fixtureのS1 BASIC 8件、chunk境界・破損・切詰め・行内FF FF、7機種のStudio byte往復を合成テストで確認。
+  未知byteや文字変換損失は診断し、raw／PCMを保持する。外部依存・ROM・録音追加はない。
+- 新codecの実機往復は未確認。S2 BASICは後続段階とし、Player／音声I/Oは変更しない。
+
+## 2026-10-21: WAV s2basic、行参照・CP932・type（段階5）
+
+- 参照：pcwav commit `14e1ef53596f0d8791b6d14965061f63846d11a7`、Basic/S2Encode.pm・S2Decode.pm、TextCodec.pm。
+- S1 BASICの検証済みenvelopeを内部共用し、S2のtype 27／37を明示的に保持するcodecを追加。
+  原参照のchecksum検証省略は採用しない。type 37からpassword文字列設定を推測しない。
+- 既存Coreの機種別S2 codecを拡張。ON GOTO/GOSUBリスト、THEN、0..65535範囲、quote／REMを扱う。
+  PC-1360系とPC-1470Uの語彙表は分離したまま使用する。
+- CP932 pair表はPython標準ライブラリのcp932 codecから独立生成した文字コード対応データ。
+  `tools/generate-s2-cp932.py`で再生成・照合可能。実行時の外部依存やCoreのOS charset APIはない。
+  JVM windows-31jとの割当済みpair比較、11件の独立S2 vector、機種別byte往復・破損で検証する。
+- StudioのS2 BASICとtype選択・機種選択を有効化し、既存の波形/raw/診断/.bas保存へ接続。
+  Player UI・音声I/Oを変更しない。実機往復は未確認、ROMや録音由来データの追加はない。
+
+## 2026-10-21: WAV全形式の仕上げ（段階6）
+
+- UIの信号方式を解析結果へ明示し、OLD専用差分表示をS1／S2へ適用しない。
+- OLDを含め信号破損警告時のプログラム保存を抑止し、途中結果を保持する。EOF診断の画面遷移範囲を補正。
+- 全形式の破損末尾とraw移動の回帰テスト、全ビルド・既存OLDテストを実施。
+- 操作ガイドと実機未確認表を追加し、自動検証済みの実装と実機往復を分けて記録する。外部依存・ROM追加なし。
+
+## 2026-10-21: WAVエンコード形式の明示選択
+
+- 利用者指定によりtype一覧・mode／互換性注記・type checkboxを画面から削除。
+- OLD／S1のBASIC通常／保護付き／マシン語、S2のBASIC通常／保護付きへ選択を整理。
+- S1の保護付き形式17を生成・識別・保持。共通envelopeを利用し、保護flagの往復テストを追加。
+- 拡張子でencode種別を決定せず、明示した種別への適合確認のみ実施する。
+
+## 2026-10-21: WAV形式単位の変換とDecode自動判別
+
+- 利用者方針に従いWAV側でS1共通（カナ対応）／S2共通（CP932対応）へ変換経路を固定。
+  エミュレータ側の機種別codecを変更せず、Project機種の制約をWAVへ持ち込まない。
+- OLD／S1共通信号を両方解析し、ヘッダー・payload検証が唯一成功した形式を表示。
+  不確定・競合は出力を禁止し、候補ごとのPCM/raw/診断を保持。形式選択UIはEncodeだけにする。
+- 全通常／保護付きBASICとBinaryの自動判別、1401 ProjectでもS1カナを許可する回帰テストを追加。
+
+## 2026-10-21: WAV今回分のユーザー確認と区切り
+
+- S1／S2対応、明示的なEncode選択、Decode自動判別、形式単位の日本語変換を今回の到達点とした。
+- PRINT／REM／引用符を含むS1半角カナ・S2漢字／全角カナ／半角カナの変換確認用BASICを提供した。
+- ユーザーから一通り確認できたとの報告を受領し、WAV関連の今回分を一区切りとした。
+- 実機往復の個別条件・byte比較結果は未記録。残課題・検証範囲は[進捗](WAV_S1_S2_PROGRESS.md)と[操作ガイド](WAV_TOOL_GUIDE.md)を参照。

@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import com.digihori.pgp.desktop.localization.*
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -30,14 +31,15 @@ import java.awt.EventQueue
 import java.io.File
 import kotlinx.coroutines.*
 
-internal data class WavToolInput(val file: File, val origin: String, val machine: MachineId, val request: Long)
+internal data class WavToolInput(val file: File, val origin: String, val machine: MachineId, val request: Long, val fromProject: Boolean = false)
 
 @Composable
 internal fun WavToolPanel(owner: Frame?, request: WavToolInput?, closeRequested: Boolean, onCloseHandled: () -> Unit, onClose: () -> Unit, strings: StudioStrings = StudioStrings.system) {
     var input by remember { mutableStateOf<WavToolInput?>(null) }
     var filename by remember { mutableStateOf("") }
     var format by remember { mutableStateOf<MachineBasicDialect?>(MachineBasicDialect.OLD) }
-    var type12 by remember { mutableStateOf(false) }
+    var targetMachine by remember { mutableStateOf(MachineId("pc-1245")) }
+    var encodeKind by remember { mutableStateOf("basic") }
     var decode by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<DesktopWavResult?>(null) }
     var settingsAtRun by remember { mutableStateOf("") }
@@ -52,17 +54,24 @@ internal fun WavToolPanel(owner: Frame?, request: WavToolInput?, closeRequested:
     var rawPage by remember(result) { mutableStateOf(0) }
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
-    val settings = "${format?.name ?: "UNKNOWN"}/$filename/$type12/$decode"
-    fun inputMachine() = MachineId(when (format) {
+    val settings = if (decode) "AUTO-DECODE" else "${format?.name ?: "UNKNOWN"}/${targetMachine.value}/$filename/$encodeKind"
+    fun inputMachine() = if (MachineCatalog.find(targetMachine)?.basicDialect == format) targetMachine else MachineId(when (format) {
         MachineBasicDialect.S1 -> "pc-1350"
         MachineBasicDialect.S2 -> "pc-1360"
         else -> "pc-1245"
     })
     fun accept(value: WavToolInput) {
         input = value
-        type12 = false
+        targetMachine = value.machine
         filename = value.file.nameWithoutExtension
-        format = MachineCatalog.find(value.machine)?.basicDialect
+        if (value.fromProject) {
+            val defaults = projectWavDefaults(value.machine, value.file.extension)
+            format = defaults.first
+            encodeKind = defaults.second
+        } else {
+            format = MachineCatalog.find(value.machine)?.basicDialect
+            if (format == MachineBasicDialect.S2 && encodeKind == "binary") encodeKind = "basic"
+        }
         decode = value.file.extension.equals("wav", true)
         result = null
         status = ""
@@ -92,11 +101,10 @@ internal fun WavToolPanel(owner: Frame?, request: WavToolInput?, closeRequested:
     Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(strings.text("wav.title"), style = MaterialTheme.typography.titleLarge)
         Text(strings.text("wav.future"))
-        Text(strings.text("wav.subtitle"))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(enabled = !busy, onClick = {
-                choose(owner, strings.text("wav.chooseCreate"), "*.bas;*.dmp")?.let {
-                    if (it.extension.lowercase() !in setOf("bas", "dmp")) status = strings.text("wav.chooseInput")
+                choose(owner, strings.text("wav.chooseCreate"), "*.bas;*.dmp;*.hex;*.ihx")?.let {
+                    if (it.extension.lowercase() !in setOf("bas", "dmp", "hex", "ihx")) status = strings.text("wav.chooseInput")
                     else open(WavToolInput(it, strings.text("wav.origin"), inputMachine(), System.nanoTime()))
                 }
             }) { Text(strings.text("wav.create")) }
@@ -106,28 +114,34 @@ internal fun WavToolPanel(owner: Frame?, request: WavToolInput?, closeRequested:
         }
         input?.let { source ->
             SelectionContainer { Text(strings.text("wav.source", source.origin, source.file.absolutePath)) }
-            Text(strings.text("wav.mode", strings.text(if (decode) "wav.decode" else "wav.encode")))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            val binaryInput = encodeKind == "binary"
+            val matchingInput = decode || if (binaryInput) source.file.extension.lowercase() in setOf("dmp", "hex", "ihx") else source.file.extension.equals("bas", true)
+            val supported = decode || DesktopWavOperation.supported(format, decode, binaryInput)
+            if (!decode) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 MachineBasicDialect.entries.forEach { candidate ->
-                    OutlinedButton(enabled = !busy, onClick = { format = candidate }) {
-                        Text((if (format == candidate) "✓ " else "") + candidate.name +
-                            (if (candidate != MachineBasicDialect.OLD) strings.text("wav.notImplemented") else ""))
+                    OutlinedButton(enabled = !busy, onClick = { if (format != candidate) encodeKind = "basic"; format = candidate; targetMachine = inputMachine() }) {
+                        Text((if (format == candidate) "✓ " else "") + candidate.name)
                     }
                 }
             }
-            if (format != MachineBasicDialect.OLD) Text(strings.text("wav.unsupported", format?.name ?: strings.text("wav.unknown")))
+            if (!supported) Text(strings.text("wav.unsupported", format?.name ?: strings.text("wav.unknown")))
             if (!decode) {
-                OutlinedTextField(filename, { filename = it }, enabled = !busy, label = { Text(strings.text("wav.filename")) }, singleLine = true)
-                if (source.file.extension.equals("bas", true)) Row {
-                    Checkbox(type12, { type12 = it }, enabled = !busy, modifier = Modifier.semantics { contentDescription = strings.text("wav.type12") })
-                    Text(strings.text("wav.type12"))
+                Text(strings.text("wav.encodeFormat"), style = MaterialTheme.typography.titleMedium)
+                (if (format == MachineBasicDialect.S2) listOf("basic", "protected") else listOf("basic", "protected", "binary")).forEach { kind ->
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable(enabled = !busy) { encodeKind = kind }) {
+                        RadioButton(encodeKind == kind, { encodeKind = kind }, enabled = !busy)
+                        Text(strings.text("wav.kind.$kind"))
+                    }
                 }
+                if (!matchingInput) Text(strings.text(if (binaryInput) "wav.needBinaryInput" else "wav.needBasicInput"))
+                OutlinedTextField(filename, { filename = it }, enabled = !busy, label = { Text(strings.text("wav.filename")) }, singleLine = true)
+
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(enabled = !busy && format == MachineBasicDialect.OLD, onClick = {
+                Button(enabled = !busy && supported && matchingInput, onClick = {
                     val selectedMachine = inputMachine()
                     val selectedFilename = filename
-                    val selectedType12 = type12
+                    val selectedType12 = encodeKind == "protected"
                     val selectedDecode = decode
                     val capturedSettings = settings
                     busy = true
@@ -136,8 +150,8 @@ internal fun WavToolPanel(owner: Frame?, request: WavToolInput?, closeRequested:
                             val next = withContext(Dispatchers.Default) {
                                 runCatching {
                                     val bytes = source.file.readBytes()
-                                    if (selectedDecode) DesktopWavOperation.decode(WavByteSequence(bytes), selectedMachine)
-                                    else DesktopWavOperation.encode(bytes, source.file.extension.equals("dmp", true), selectedMachine, selectedFilename, selectedType12)
+                                    if (selectedDecode) DesktopWavOperation.decode(WavByteSequence(bytes))
+                                    else DesktopWavOperation.encode(bytes, binaryInput, selectedMachine, selectedFilename, selectedType12)
                                 }.getOrElse { DesktopWavResult("Operation failed", error = it.message ?: it.toString()) }
                             }
                             result = next
@@ -157,8 +171,9 @@ internal fun WavToolPanel(owner: Frame?, request: WavToolInput?, closeRequested:
             if (settings != settingsAtRun) Text(strings.text("wav.changed", settingsAtRun))
             SelectionContainer { Text(strings.wavSummary(output.summary)) }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                output.wav?.let { wav -> Button(onClick = { save("${output.payload?.filename?.ifBlank { "program" } ?: "program"}.wav", wav.copyBytes(), true) }) { Text(strings.text("wav.saveWav")) } }
+                output.wav?.let { wav -> Button(onClick = { save("${output.transferFilename}.wav", wav.copyBytes(), true) }) { Text(strings.text("wav.saveWav")) } }
                 output.program?.let { bytes -> Button(onClick = { save(output.programName!!, bytes, true) }) { Text(strings.text("wav.saveProgram")) } }
+                output.hexProgram?.let { bytes -> OutlinedButton(onClick = { save("${output.transferFilename}.hex", bytes, true) }) { Text(strings.text("wav.saveHex")) } }
                 output.raw?.let { raw -> OutlinedButton(onClick = { save("raw-transfer.bin", raw.copyBytes(), false) }) { Text(strings.text("wav.exportRaw")) } }
                 OutlinedButton(onClick = { save("wav-analysis.txt", ("Input: ${input?.file?.absolutePath}\nSettings: $settingsAtRun\n" + output.report()).encodeToByteArray(), false) }) { Text(strings.text("wav.exportReport")) }
             }
@@ -172,7 +187,7 @@ internal fun WavToolPanel(owner: Frame?, request: WavToolInput?, closeRequested:
                     SelectionContainer { Text(output.content.take(16000).ifBlank { strings.text("wav.noProgram") }, fontFamily = FontFamily.Monospace) }
                 }
                 "Raw" -> {
-                    Text(if (output.payload == null) strings.text("wav.unvalidated") else strings.text("wav.validated"))
+                    Text(if (!output.validated) strings.text("wav.unvalidated") else strings.text("wav.validated"))
                     output.raw?.let { raw ->
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(enabled = rawPage > 0, onClick = { rawPage-- }) { Text(strings.text("wav.previous")) }
@@ -202,8 +217,8 @@ internal fun WavToolPanel(owner: Frame?, request: WavToolInput?, closeRequested:
                 Text(diagnostic.uiDescription(strings), modifier = Modifier.semantics { contentDescription = strings.text("wav.diagnosticAction", diagnostic.code.name) }.clickable {
                     diagnostic.range?.let { range ->
                         when (range.kind) {
-                            com.digihori.pgp.core.wav.CodecDataKind.PCM_SAMPLES -> { selectedSample = range.offset; view = "Waveform" }
-                            com.digihori.pgp.core.wav.CodecDataKind.RAW_BYTES -> { rawPage = range.offset / 256; view = "Raw" }
+                            com.digihori.pgp.core.wav.CodecDataKind.PCM_SAMPLES -> { selectedSample = range.offset.coerceIn(0, ((output.pcm?.samples?.size ?: 1) - 1).coerceAtLeast(0)); view = "Waveform" }
+                            com.digihori.pgp.core.wav.CodecDataKind.RAW_BYTES -> { rawPage = rawPageFor(range.offset, output.raw?.size ?: 0); view = "Raw" }
                             else -> Unit
                         }
                     }
@@ -233,4 +248,14 @@ private fun choose(owner: Frame?, title: String, suggested: String, mode: Int = 
     dialog.dispose()
     EventQueue.invokeLater { owner?.let { it.toFront(); it.requestFocus(); it.requestFocusInWindow() } }
     return if (directory != null && name != null) File(directory, name) else null
+}
+
+internal fun rawPageFor(offset: Int, size: Int): Int = offset.coerceIn(0, (size - 1).coerceAtLeast(0)) / 256
+
+internal fun projectWavDefaults(machine: MachineId, extension: String): Pair<MachineBasicDialect?, String> {
+    val dialect = MachineCatalog.find(machine)?.basicDialect
+    val binary = extension.lowercase() in setOf("dmp", "hex", "ihx")
+    // S2 binary uses the S1 transfer format; the S2 selector offers BASIC only.
+    return (if (binary && dialect == MachineBasicDialect.S2) MachineBasicDialect.S1 else dialect) to
+        (if (binary) "binary" else "basic")
 }

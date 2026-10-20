@@ -196,13 +196,20 @@ ROM起動後にUTF-8の`.bas`ファイルを指定して読み込める。通常
 
 ### WAV変換と解析（Studio専用）
 
-`Tools` → `WAV Tool`でOLD BASIC（02/12）とBinary（62）を変換できる。
-Encodeは既存の`.bas`/単一連続領域の`.dmp`、またはProjectツリーの選択項目から`Create WAV…`で指定する。
+[操作ガイド・診断・実機確認表](docs/WAV_TOOL_GUIDE.md)。
+
+`Tools` → `WAV Tool`でOLD BASIC（02/12）、OLD Binary（62）、S1 BASIC（07/17）、S2 BASIC（27/37）、S1/S2 Binary（67）を変換できる。
+Encodeは既存の`.bas`／単一連続領域の`.dmp`・Intel HEX（`.hex`／`.ihx`）、またはProjectツリーの選択項目から`Create WAV…`で指定する。
 `Convert`後に結果を確認し、`Save WAV…`で保存する。録音WAVは`Open WAV…`→`Analyze / reanalyze`で解析し、
 検証済みのBASIC/`.dmp`、raw byte列、解析reportを個別に保存できる。
 payload検証に失敗しても取得できたPCM/rawを確認でき、波形の目盛・zoom・水平移動・差分threshold表示を備える。
 
-S1/S2は未実装のためpcwavを使用する。Playerには搭載せず、ROMのCSAVE/CLOADやDecodeからの
+S1/S2のバイナリーに対応し、検証済みDecode結果は`.dmp`／Intel HEXとして保存できる。
+WAVのエンコード形式はBASICパスワードなし／あり・マシン語から明示選択する（S2はBASICのみ）。拡張子は選択形式との適合確認に使用する。
+
+S1/S2 BASICは転送名は印字可能ASCIIを使用する。7文字を超える場合は先頭7文字へ短縮し、レポートに記録する。対象機種の選択UIは設けず、Projectの機種とファイルから形式・BASIC／マシン語を初期選択する。Project情報は初期選択にだけ使用し、Decode結果は`.bas`として保存できる。
+S2はCP932日本語・行参照・形式共通語彙に対応。通常はtype 27を使い、保護付き選択は転送type 37を指定する（パスワード文字列の新規設定は行わない）。新codecは合成テスト済みで、PGPでの実機往復は未確認。
+Playerには搭載せず、ROMのCSAVE/CLOADやDecodeからの
 エミュレータ直接ロードとも連動しない。操作・対応範囲は[WAV操作方針](docs/WAV_OPERATIONS.md)参照。
 
 ### ROMセットの作成
@@ -366,3 +373,5 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 
 Pokecom GO等から移植するコード・仕様・画像については、由来と権利を確認し、
 [PORTING_NOTES.md](docs/PORTING_NOTES.md)へ記録します。
+
+WAVのBASIC変換は個別機種で制限せず、形式単位の上位仕様を使用する。Decodeは信号とヘッダーから自動判別し、形式・機種指定は不要。

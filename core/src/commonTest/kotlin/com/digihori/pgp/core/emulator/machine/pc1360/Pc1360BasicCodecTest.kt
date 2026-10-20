@@ -9,6 +9,34 @@ import kotlin.test.assertIs
 
 class Pc1360BasicCodecTest {
     @Test
+    fun encodesReferenceListsJapaneseAndRemarkQuotesWithoutChangingBytes() {
+        val source = "10 ON A GOSUB 0,65535:IF A=1 THEN 100\n100 PRINT \"漢字ｱ\"\n200 REM THEN 100 \""
+        val document = assertIs<BasicTextParseResult.Success>(BasicTextParser.parse(source)).document
+        val image = assertIs<Pc1360BasicTokenizeResult.Success>(Pc1360BasicCodec.tokenize(document)).bytes
+        val raw = image.map { it.toInt() and 255 }
+        val refs = raw.windowed(3).filter { it[0] == 0x1f }
+        assertEquals(listOf(listOf(31, 0, 0), listOf(31, 255, 255), listOf(31, 0, 100)), refs)
+        // CP932 漢=8ABF, 字=8E9A; half-width ｱ=B1.
+        kotlin.test.assertTrue(raw.windowed(5).contains(listOf(0x8a, 0xbf, 0x8e, 0x9a, 0xb1)))
+        val text = assertIs<Pc1360BasicDetokenizeResult.Success>(Pc1360BasicCodec.detokenize(image)).source
+        val regenerated = assertIs<Pc1360BasicTokenizeResult.Success>(Pc1360BasicCodec.tokenize(
+            assertIs<BasicTextParseResult.Success>(BasicTextParser.parse(text)).document)).bytes
+        assertContentEquals(image, regenerated)
+    }
+
+    @Test
+    fun rejectsOutOfRangeReferencesUnsupportedUnicodeAndTruncatedMarkers() {
+        for (source in listOf("10 GOTO 65536", "10 GOTO 999999999999999999999999", "10 PRINT \"😀\"")) {
+            val document = assertIs<BasicTextParseResult.Success>(BasicTextParser.parse(source)).document
+            assertIs<Pc1360BasicTokenizeResult.Failure>(Pc1360BasicCodec.tokenize(document))
+        }
+        for (statement in listOf(byteArrayOf(0xfe.toByte()), byteArrayOf(0x1f, 0), byteArrayOf(0xfe.toByte(), 0xff.toByte()))) {
+            val image = byteArrayOf(-1, 0, 10, (statement.size + 1).toByte()) + statement + byteArrayOf(13, -1)
+            assertIs<Pc1360BasicDetokenizeResult.Failure>(Pc1360BasicCodec.detokenize(image))
+        }
+    }
+
+    @Test
     fun encodesS2TokensLineReferencesAndHalfWidthKana() {
         val document = assertIs<BasicTextParseResult.Success>(
             BasicTextParser.parse("10 PRINT \"ｱ\"\n20 GOTO 10"),

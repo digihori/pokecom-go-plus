@@ -60,7 +60,7 @@ class StudioToolStringsTest {
         }
         val failure = DesktopWavOperation.decode(WavByteSequence(byteArrayOf(0)), MachineId("pc-1245"))
         assertTrue(ja.wavSummary(failure.summary).contains("失敗"))
-        assertTrue(failure.diagnostics.single().uiDescription(ja).contains("RIFF"))
+        assertTrue(failure.diagnostics.first().uiDescription(ja).contains("RIFF"))
     }
 
     @Test fun typedWavInputErrorsKeepOriginalReport() {

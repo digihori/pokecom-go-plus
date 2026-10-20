@@ -135,7 +135,12 @@ private fun renderPreviews(directory: File, group: String? = null) {
             if (group?.substringBefore(':') in setOf("step8-ja", "step9-ja", "step10-ja", "language-ja") && language != StudioLanguage.JAPANESE) continue
             if (group?.substringBefore(':') in setOf("step8-en", "step9-en", "step10-en", "language-en") && language != StudioLanguage.ENGLISH) continue
             val strings = StudioStrings(language)
-            for ((name, dimensions) in mapOf("normal" to (600 to 780), "narrow" to (420 to 620), "dialog" to (480 to 420), "menu" to (480 to 420), "basic" to (600 to 780), "basic-narrow" to (420 to 780), "rom" to (600 to 900), "rom-narrow" to (420 to 900), "rom-delete" to (480 to 420), "rom-replace" to (480 to 420), "project" to (600 to 1100), "project-narrow" to (420 to 1100), "project-create" to (480 to 650), "transfer" to (600 to 850), "transfer-narrow" to (420 to 850), "memory-range" to (480 to 550), "debugger" to (900 to 1100), "debugger-narrow" to (420 to 1100), "debug-tools" to (900 to 1000), "debug-tools-narrow" to (420 to 1000), "character" to (900 to 700), "character-narrow" to (420 to 800), "wav" to (800 to 420), "wav-narrow" to (420 to 550), "wave" to (900 to 1000), "wave-narrow" to (420 to 1300), "wav-unsaved" to (480 to 400), "wav-input" to (800 to 900), "wav-input-narrow" to (420 to 1050), "mcp" to (760 to 1500), "mcp-narrow" to (420 to 2200), "mcp-stopped" to (420 to 1800), "controller" to (600 to 850), "controller-narrow" to (420 to 1000), "final-dialog" to (480 to 650), "final-dialog-bottom" to (480 to 650), "final-assembler" to (420 to 650), "language" to (600 to 480), "language-narrow" to (420 to 500))) {
+            for ((name, dimensions) in mapOf("normal" to (600 to 780), "narrow" to (420 to 620), "dialog" to (480 to 420), "menu" to (480 to 420), "basic" to (600 to 780), "basic-narrow" to (420 to 780), "rom" to (600 to 900), "rom-narrow" to (420 to 900), "rom-delete" to (480 to 420), "rom-replace" to (480 to 420), "project" to (600 to 1100), "project-narrow" to (420 to 1100), "project-create" to (480 to 650), "transfer" to (600 to 850), "transfer-narrow" to (420 to 850), "memory-range" to (480 to 550), "debugger" to (900 to 1100), "debugger-narrow" to (420 to 1100), "debug-tools" to (900 to 1000), "debug-tools-narrow" to (420 to 1000), "character" to (900 to 700), "character-narrow" to (420 to 800), "wav" to (800 to 420), "wav-narrow" to (420 to 550), "wave-s1" to (900 to 1000), "wave-s1-narrow" to (420 to 1300), "wave" to (900 to 1000), "wave-narrow" to (420 to 1300), "wav-unsaved" to (480 to 400), "wav-s2-basic-input" to (800 to 900), "wav-s2-basic-input-narrow" to (420 to 1050), "wav-s1-basic-input" to (800 to 900), "wav-s1-basic-input-narrow" to (420 to 1050), "wav-s1-input" to (800 to 900), "wav-s1-input-narrow" to (420 to 1050), "wav-auto" to (800 to 900), "wav-auto-narrow" to (420 to 900), "wav-project-dmp" to (420 to 900), "wav-input" to (800 to 900), "wav-input-narrow" to (420 to 1050), "mcp" to (760 to 1500), "mcp-narrow" to (420 to 2200), "mcp-stopped" to (420 to 1800), "controller" to (600 to 850), "controller-narrow" to (420 to 1000), "final-dialog" to (480 to 650), "final-dialog-bottom" to (480 to 650), "final-assembler" to (420 to 650), "language" to (600 to 480), "language-narrow" to (420 to 500))) {
+                if (group == "wav-auto" && !name.startsWith("wav-auto")) continue
+                if (group == "wav-choice" && !(name.startsWith("wav-s1-basic-input") || name.startsWith("wav-s2-basic-input") || name.startsWith("wav-input"))) continue
+                if (group == "wav-finish" && !name.startsWith("wave")) continue
+                if (group == "s2-basic" && !name.startsWith("wav-s2-basic-input")) continue
+                if (group == "s1-basic" && !name.startsWith("wav-s1-basic-input")) continue
                 if (group?.startsWith("step8") == true && !name.startsWith("wav") && !name.startsWith("character")) continue
                 if (group?.startsWith("step9") == true && !name.startsWith("mcp") && !name.startsWith("controller")) continue
                 if (group?.startsWith("step10") == true && !name.startsWith("final")) continue
@@ -158,8 +163,8 @@ private fun renderPreviews(directory: File, group: String? = null) {
                     } else if (name.startsWith("character")) PgpStudioTheme {
                         Surface(Modifier.fillMaxSize()) { CharacterEditorPanel(strings, DesktopCharacterEditorModel(CharacterEditorFormats.FIVE_BY_SEVEN_COLUMN_LSB_TOP)
                             .withByteText("1, 2, 3, 4, 128").applyByteText()) }
-                    } else if (name.startsWith("wave")) WavePreview(strings)
-                    else if (name.startsWith("wav")) PgpStudioTheme { Surface(Modifier.fillMaxSize()) { WavToolPanel(null, if (name.startsWith("wav-input")) WavToolInput(File("/日本語/very-long-folder-name/program.bas"), strings.text("wav.origin"), MachineId("pc-1245"), 1L) else null, false, {}, {}, strings) } }
+                    } else if (name.startsWith("wave")) WavePreview(strings, name.startsWith("wave-s1"))
+                    else if (name.startsWith("wav")) PgpStudioTheme { Surface(Modifier.fillMaxSize()) { WavToolPanel(null, if (name.startsWith("wav-auto")) WavToolInput(File("/examples/input.wav"), "File", MachineId("pc-1251"), 1L) else if (name == "wav-project-dmp") WavToolInput(File("/examples/code.dmp"), "Project", MachineId("pc-1251"), 1L, fromProject = true) else if (name.startsWith("wav-s2-basic-input")) WavToolInput(File("/examples/sample.bas"), strings.text("wav.origin"), MachineId("pc-1470u"), 1L) else if (name.startsWith("wav-s1-basic-input")) WavToolInput(File("/examples/sample.bas"), strings.text("wav.origin"), MachineId("pc-1401"), 1L) else if (name.startsWith("wav-s1-input")) WavToolInput(File("/examples/code.dmp"), strings.text("wav.origin"), MachineId("pc-1350"), 1L) else if (name.startsWith("wav-input")) WavToolInput(File("/日本語/very-long-folder-name/program.bas"), strings.text("wav.origin"), MachineId("pc-1245"), 1L) else null, false, {}, {}, strings) } }
                     else if (name.startsWith("debug")) DebuggerPreview(strings, name.startsWith("debug-tools"))
                     else if (name == "memory-range") PgpStudioTheme {
                         AlertDialog(onDismissRequest = {},
@@ -318,10 +323,10 @@ private fun DebuggerPreview(strings: StudioStrings, tools: Boolean) {
 
 
 @Composable
-private fun WavePreview(strings: StudioStrings) {
+private fun WavePreview(strings: StudioStrings, s1: Boolean = false) {
     val output = remember {
         DesktopWavOperation.encode("C000: 01 02 FF\n".encodeToByteArray(), true,
-            MachineId("pc-1245"), "TEST", false)
+            MachineId(if (s1) "pc-1350" else "pc-1245"), "TEST", false)
     }
     PgpStudioTheme {
         Surface(Modifier.fillMaxSize()) {
@@ -332,7 +337,7 @@ private fun WavePreview(strings: StudioStrings) {
                     com.digihori.pgp.core.wav.CodecDiagnosticSeverity.ERROR,
                     com.digihori.pgp.core.wav.CodecStage.TRANSFER_DECODE,
                     com.digihori.pgp.core.wav.CodecDiagnosticCode.CHECKSUM_MISMATCH,
-                    "OLD filename checksum mismatch",
+                    if (s1) "S1 binary checksum mismatch" else "OLD filename checksum mismatch",
                     com.digihori.pgp.core.wav.CodecDataRange(com.digihori.pgp.core.wav.CodecDataKind.RAW_BYTES, 8, 2),
                     mapOf("expected" to "FF", "actual" to "12"))
                 Text(diagnostic.uiDescription(strings))

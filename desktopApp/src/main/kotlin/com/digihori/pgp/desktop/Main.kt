@@ -2218,7 +2218,7 @@ private fun FrameWindowScope.App(
                                         onSelected = { selectedProjectSourcePath = it },
                                         onEdit = { openExternalSource(it) },
                                         onCreateWav = { file ->
-                                            wavToolInput = WavToolInput(file, uiText("project.programLabel" , (workspace.definition.name)), workspace.definition.machineId, System.nanoTime())
+                                            wavToolInput = WavToolInput(file, uiText("project.programLabel" , (workspace.definition.name)), workspace.definition.machineId, System.nanoTime(), fromProject = true)
                                             showWavTool = true
                                         },
                                         modifier = Modifier.weight(1f),
@@ -3745,7 +3745,7 @@ private fun ProjectTreePanel(
         }
         OutlinedButton(
             onClick = { selected?.let { onCreateWav(it.file) } },
-            enabled = selected?.let { it.file.isFile && it.file.extension.lowercase() in setOf("bas", "dmp") } == true,
+            enabled = selected?.let { it.file.isFile && it.file.extension.lowercase() in setOf("bas", "dmp", "hex", "ihx") } == true,
             modifier = Modifier.align(Alignment.End),
         ) { Text(uiText("project.wav")) }
         val verticalState = rememberScrollState()

@@ -40,7 +40,7 @@ public object Pc1360BasicCodec {
     private fun encodeBody(elements: List<Pair<BasicTextElement, Int>>, line: Int, keywords: List<Pair<String, Int>>): BodyResult {
         val chars = elements.map { (it.first as? BasicTextElement.Character)?.value ?: '\u0000' }.joinToString("")
         val output = mutableListOf<Int>()
-        var i = 0; var quoted = false; var remark = false; var lineReference = false
+        var i = 0; var quoted = false; var remark = false; var lineReference = 0; var onPending = false
         while (i < elements.size) {
             val (element, column) = elements[i]
             val char = (element as? BasicTextElement.Character)?.value
@@ -52,24 +52,38 @@ public object Pc1360BasicCodec {
                 if (keyword != null) {
                     output += 0xfe; output += keyword.second
                     remark = keyword.first == "REM"
-                    lineReference = keyword.first in setOf("GOTO", "GOSUB", "THEN")
+                    lineReference = when (keyword.first) {
+                        "ON" -> { onPending = true; 0 }
+                        "GOTO", "GOSUB" -> (if (onPending) 2 else 1).also { onPending = false }
+                        "THEN" -> 1
+                        else -> 0
+                    }
                     i += keyword.first.length
+                    if (remark && chars.getOrNull(i)?.let { it == ' ' || it == '\t' } == true) i++
                     continue
                 }
-                if (lineReference && char?.isDigit() == true) {
+                if (lineReference != 0 && char != null && char in '0'..'9') {
                     var end = i
                     while (end < elements.size && (elements[end].first as? BasicTextElement.Character)?.value?.isDigit() == true) end++
-                    val number = chars.substring(i, end).toInt()
+                    val number = chars.substring(i, end).toIntOrNull()?.takeIf { it in 0..65535 }
+                        ?: return BodyResult.Failure(Pc1360BasicTokenizeError(line, column, "S2 line reference must be between 0 and 65535"))
                     output += 0x1f; output += number ushr 8; output += number and 0xff
-                    lineReference = false; i = end; continue
+                    if (lineReference == 1) lineReference = 0
+                    i = end; continue
                 }
             }
+            if (!quoted && !remark && lineReference != 0 && !(lineReference == 2 && char == ',')) lineReference = 0
+            if (!quoted && !remark && char == ':') onPending = false
             when (element) {
                 is BasicTextElement.Character -> when {
-                    element.value == '"' -> { output += 0x22; quoted = !quoted }
+                    element.value == '"' -> { output += 0x22; if (!remark) quoted = !quoted }
                     element.value.code in 0x20..0x7e -> output += element.value.code
                     element.value.code in 0xff61..0xff9f -> output += 0xa1 + element.value.code - 0xff61
-                    else -> return BodyResult.Failure(Pc1360BasicTokenizeError(line, column, "Character '${element.value}' is not supported by PC-1360"))
+                    else -> {
+                        val pair = S2JapaneseText.encode(element.value)
+                            ?: return BodyResult.Failure(Pc1360BasicTokenizeError(line, column, "Character '${element.value}' is not representable in S2 CP932 text"))
+                        output += pair ushr 8; output += pair and 255
+                    }
                 }
                 is BasicTextElement.RawByte -> output += element.value
                 is BasicTextElement.Special -> output += when (element.symbol) {
@@ -99,6 +113,9 @@ public object Pc1360BasicCodec {
             val body = StringBuilder(); var p = offset + 3; var quoted = false; var remark = false
             while (p < end - 1) {
                 val value = bytes[p].toInt() and 0xff
+                if (!quoted && !remark && value == 0xfe && p + 1 >= end - 1) return decodeFailure(p, "Truncated S2 token")
+                if (!quoted && !remark && value == 0x1f && p + 2 >= end - 1) return decodeFailure(p, "Truncated S2 line reference")
+                val japanese = if (p + 1 < end - 1) S2JapaneseText.decode(value, bytes[p + 1].toInt() and 255) else null
                 when {
                     !quoted && !remark && value == 0xfe && p + 1 < end - 1 -> {
                         val keyword = tokenNames[bytes[p + 1].toInt() and 0xff]
@@ -114,7 +131,8 @@ public object Pc1360BasicCodec {
                         body.append(((bytes[p + 1].toInt() and 0xff) shl 8) or (bytes[p + 2].toInt() and 0xff))
                         p += 3; continue
                     }
-                    value == 0x22 -> { body.append('"'); quoted = !quoted }
+                    japanese != null && (quoted || remark || value !in setOf(0xfb, 0xfc)) -> { body.append(japanese); p += 2; continue }
+                    value == 0x22 -> { body.append('"'); if (!remark) quoted = !quoted }
                     value in 0x20..0x7e -> body.append(value.toChar())
                     value in 0xa1..0xdf -> body.append((0xff61 + value - 0xa1).toChar())
                     value == 0xfb -> body.append('π')
@@ -132,6 +150,7 @@ public object Pc1360BasicCodec {
 
     private fun boundary(text: String, start: Int, keyword: String): Boolean {
         val before = text.getOrNull(start - 1); val after = text.getOrNull(start + keyword.length)
+        if (keyword in setOf("GOTO", "GOSUB", "IF", "FOR", "TO", "STEP", "THEN", "ON", "LET", "REM", "PRINT", "INPUT", "READ", "DATA", "NEXT", "STOP", "RETURN", "RESTORE", "PAUSE", "WAIT", "DIM", "CALL", "POKE", "CLEAR", "RANDOM", "TRON", "TROFF", "RUN", "NEW", "CONT", "PASS", "LIST", "LLIST", "CSAVE", "CLOAD", "AREAD", "LPRINT")) return true
         return (before == null || !before.isLetterOrDigit() && before != '$') &&
             (after == null || !after.isLetterOrDigit() && after != '$')
     }

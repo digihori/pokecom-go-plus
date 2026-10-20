@@ -1,8 +1,19 @@
 # WAV操作方針と現在の実装
 
+日常の手順・対応表・診断と実機確認は[操作ガイド](WAV_TOOL_GUIDE.md)を参照。
+
 2026-10-11作成、2026-10-12更新。統合Tool、Encodeの二つの入力経路、ROM CSAVE/CLOAD非連動、Decodeからの直接ロード対象外はユーザー確認済み。
 基本操作は実装開始時に採用済み。本文は全体方針を示し、現在の実装範囲と後続事項は§10で区別する。
 実装状況と根拠は[調査結果](WAV_REVIEW_2026-10-11.md)を参照する。
+
+## S1／S2対応の再開（2026-10-20）
+
+ユーザー指示によりs1bin／s1basic／s2basic対応を順番に進める。
+[進捗記録](WAV_S1_S2_PROGRESS.md)の段階1で、仕様修正と28件の合成vector整理を完了した。
+段階2の共通信号、段階3のs1bin、段階4のs1basicに続き、段階5のs2basicとStudio接続・合成検証まで完了した。段階6のUI・診断・操作ガイド・OLD回帰も実施。実機往復は別途継続する。
+S1／S2 binaryのWAV作成、Decode、`.dmp`／Intel HEX保存を利用できる。実機往復は未確認。
+S1／S2 BASICは対象機種を選択して`.bas`入出力に対応。本文の2026-10-12の
+後回し方針は当時の経緯として保持する。既存の非連動・Studio専用方針は継続する。
 
 ## 1. 入口と作業単位
 
@@ -24,17 +35,16 @@ StudioのTools → WAV Toolから専用windowを開く。Projectやエミュレ�
 ## 2. WAVを作成する流れ
 
 1. プロジェクトツリーで入力を指定して「WAVを作成…」を選ぶ、またはToolの「既存ファイルを開く…」でBASIC source/address付きmemory imageを指定する。
-2. 転送形式OLD/S1/S2を選ぶ。現在はOLDのみ対応。将来、S1/S2 BASICの機種別token語彙が必要な場合は追加指定を設計する。
+2. 転送形式OLD/S1/S2を選ぶ。OLD／S1／S2のBASIC・Binaryに対応。S1／S2ではProject由来の機種情報から機種別token語彙を使用する。
 3. ポケコン側filename、形式、必要な設定を確認する。入力ファイル名をfilenameの初期候補とし、実際に送る正規化名を表示する。
 4. BASIC sourceまたはBinary address範囲・長さを確認して「変換」を押す。
 5. 結果を確認する。BASIC/転送type、filename、address、logical/raw長、WAV形式・時間、warning/errorを表示する。
 6. 「WAVを保存…」で保存先を選ぶ。保存成功後はfull pathと保存状態を表示する。cancel/失敗しても結果を保持し、再保存できる。
 
-初期対応はOLD 02/12/62のみ。将来のS1/S2は同じ流れへ追加する。
-対象機種と形式の対応・実機互換性確認状況を表示し、未対応の組合せは変換できない。
-OLD 12の設定名は「BASIC type 12」とし、password文字列の設定機能があるように見せない。
-通常BASIC（02、パスワードなし）を初期値とし、新しい入力を指定するたびtype 12の選択を解除する。
-現在はpassword文字列の入力方法を提供しない。type 12の選択だけをpassword設定と扱わない。
+OLD／S1／S2と、BASICパスワードなし／あり・マシン語を明示選択する（S2はBASICのみ）。
+冒頭のtype一覧・互換性注記、ファイル名下のtype checkboxは表示しない。
+入力拡張子で種別を自動決定せず、選択した種別と入力が一致するかだけ確認する。
+保護付き形式はOLD 12／S1 17／S2 37として保持する。password文字列の新規設定は別の機能である。
 Binaryの複数領域/gapは変換前に説明して拒否し、addressを書き直したりzero-fillしたりしない。
 
 生成WAVも「波形」「raw」「内容」の表示で検査できるようにする。
@@ -154,14 +164,19 @@ rawは256-byteページ、内容previewは16000文字まで（保存は全文）
 Raw欄はoffset付きhex byte列に絞り、byteごとのLOW/HIGH同期sample一覧は表示しない。
 同期情報は内部に保持し、波形markerと位置対応に使用する。
 詳細なsignal trace/ON-OFF/W0-W1/leader overlay、元channel比較、構造/文字の完全mapping、
-部分logical解析、候補比較、S1/S2、複数stream、Intel HEXは後続。
+部分logical解析、候補比較、複数streamは後続。
+2026-10-20追加：S1/S2 binaryと16-bitのIntel HEX入出力は段階3で対応した。
 
 初期操作: 入力指定→形式/転送名設定→ConvertまたはAnalyze→結果確認→Save WAV/Save program。
 rawと解析reportは別のexport。Decodeにロード操作はなく、PlayerのUIも変更しない。
 
 形式選択UIは機種4個のボタンからOLD/S1/S2へ変更。Project機種のbasicDialectを初期値に使い、
-S1/S2選択時は未実装と表示してConvert/Analyzeを無効化する。OLDへの切替はユーザーが明示的に行う。
-既存ファイル指定は選択中の形式を維持する。S1/S2の実装完了を示すものではない。
+OLD／S1／S2ともBASICとバイナリーに対応する。`.dmp`／`.hex`／`.ihx`入力とWAV解析に対応。
+S1／S2の`.bas`ではProject由来の機種情報を使用し、転送名を印字可能ASCIIの7文字以内にする。Project指定はその機種を保持する。
+S2 BASICは通常type 27を使用し、必要な場合のみ保護付き形式のtype 37を選ぶ。パスワード文字列の設定ではない。既存ファイル指定は選択中の形式と対象機種を維持する。
+Decode成功後は「プログラムを保存」で`.dmp`、「Intel HEXを保存」で`.hex`を保存できる。
+S1／S2 BASICのDecode成功時は「プログラムを保存」で`.bas`を保存できる。文字変換のbyte一致も確認する。
+信号・payloadが破損している場合やテキストが全byteを保持できない場合はrawとreportを保存して診断を確認する。
 
 ### 波形ビューの表示と移動
 

@@ -207,14 +207,22 @@ see [BASIC text format (Japanese)](docs/BASIC_TEXT_FORMAT.md).
 
 ### WAV conversion and analysis (Studio only)
 
-Open `Tools` → `WAV Tool` to convert OLD BASIC (02/12) and Binary (62).
-Encode an existing `.bas` or a `.dmp` containing one contiguous region, or choose `Create WAV…` from the project tree.
+[Step-by-step guide and hardware verification checklist (Japanese)](docs/WAV_TOOL_GUIDE.md).
+
+Open `Tools` → `WAV Tool` to convert OLD BASIC (02/12), OLD Binary (62), S1 BASIC (07/17), S2 BASIC (27/37), and S1/S2 Binary (67).
+Encode an existing `.bas`, or a `.dmp` / Intel HEX (`.hex` / `.ihx`) containing one contiguous region, or choose `Create WAV…` from the project tree.
 After `Convert`, inspect the result and use `Save WAV…`.
 For recordings, use `Open WAV…` → `Analyze / reanalyze`, then export validated BASIC/`.dmp`, raw bytes,
 or an analysis report separately. PCM/raw data can still be inspected when payload validation fails.
 The waveform view provides scales, zoom, horizontal navigation, and a difference-threshold display.
 
-S1/S2 conversion is not implemented in Studio; use pcwav for those formats.
+Select S1 or S2 for Binary 67; validated results can be saved as `.dmp` or Intel HEX.
+WAV Encode uses explicit BASIC without password / BASIC with password / machine-code selection (S2: BASIC only). Input extensions are checked against the selected kind.
+
+For S1/S2 BASIC, enter a printable ASCII transfer name. Names longer than seven characters are shortened, with a note in the report.
+There is no target-machine picker. Project launch selects the initial dialect and BASIC/binary kind from the project machine and file; these selections remain editable. Project information is used only for the initial encode selection; validated BASIC can be saved as `.bas`.
+S2 supports Japanese CP932 text and line references, with format-wide vocabulary, without individual machine restrictions.
+Type 27 is the default; the protected BASIC option selects type 37 without setting a password string. The new S1/S2 codec has passed synthetic tests; hardware round trips are unverified.
 The tool does not integrate with ROM CSAVE/CLOAD or directly load decoded data into the emulator.
 See [WAV operations and scope (Japanese)](docs/WAV_OPERATIONS.md).
 
@@ -365,3 +373,5 @@ their translation will be handled separately. See the [Japanese README](README.j
 This project is released under the [MIT License](LICENSE).
 The provenance and rights of code, specifications, and images ported from Pokecom GO and other sources
 are reviewed and recorded in [PORTING_NOTES.md](docs/PORTING_NOTES.md).
+
+WAV BASIC conversion uses the upper format specification rather than individual machine restrictions. Decode automatically detects the validated format; it does not require format or machine selection.

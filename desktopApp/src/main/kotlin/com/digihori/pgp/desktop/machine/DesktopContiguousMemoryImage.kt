@@ -18,7 +18,7 @@ internal object DesktopContiguousMemoryImage {
         segments.forEach { segment ->
             if (segment.startAddress != expectedAddress) {
                 return DesktopContiguousMemoryImageResult.Failure(
-                    "OLD WAV binary data must be contiguous; gap before 0x${segment.startAddress.toString(16).uppercase().padStart(4, '0')}.",
+                    "WAV binary data must be contiguous; gap before 0x${segment.startAddress.toString(16).uppercase().padStart(4, '0')}.",
                 )
             }
             val bytes = segment.copyBytes()
