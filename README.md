@@ -1,287 +1,277 @@
 # Pokecom GO Plus
 
+[English](README.md) | [日本語](README.ja.md)
+
 [![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
 
-> **[Technical Preview 0.6 (alpha 2)](https://github.com/digihori/pokecom-go-plus/releases/tag/v0.6.0-alpha.2)** — PC-1360Kの漢字対応・ROM吸い出しツールとAndroid Playerを更新した早期評価版です。
+> **[Technical Preview 0.6 (alpha 2)](https://github.com/digihori/pokecom-go-plus/releases/tag/v0.6.0-alpha.2)** — An early preview with PC-1360K kanji support, ROM extraction tools, and Android Player updates.
 
-Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向けプログラムを
-現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す
-マルチプラットフォーム開発環境です。
+Pokecom GO Plus (PGP) is a multiplatform development environment for vintage pocket computers.
+It aims to help you write, run, and analyze programs on a modern PC, then transfer them to the original hardware.
 
-将来はStudioのProject、Assembler、Debuggerをlocalhost MCP経由でAIから利用できるようにし、
-BASIC作成、既存マシン語の解析、実行中デバッグを安全な承認付き操作で支援することを目指します。
+PGP consists of two products and a shared emulator core:
 
-PGPは次の2製品と共有Emulator Coreで構成します。
+- **Pokecom GO Studio** — A pocket computer development environment for macOS, Windows, and Linux.
+- **Pokecom GO Player** — An emulator focused on running programs on Android and iOS.
+- **PGP Emulator Core** — The Kotlin Multiplatform core shared by Studio and Player.
 
-- **Pokecom GO Studio** — macOS／Windows／Linux向けのポケコン開発環境
-- **Pokecom GO Player** — Android／iOS向けの実行専用エミュレータ
-- **PGP Emulator Core** — StudioとPlayerが共有するKotlin Multiplatform Core
+“Pokecom GO Plus” and “PGP” are development code names for the project as a whole.
+Future AI integration aims to expose Studio's Project, Assembler, and Debugger through localhost MCP,
+supporting BASIC development, machine-code analysis, and debugging with explicit approval for changes.
 
-「Pokecom GO Plus」と「PGP」は、このプロジェクト全体を表す開発コードネームとして使用します。
+## Current status
 
-## 現在の状態
+The project is in early development. Studio implements PC-1245, the PC-1250/1251/1255 family,
+and PC-1261/1350/1401. PC-1360/1360K support includes booting user-supplied ROMs, eight 16 KiB ROM banks,
+LCD output, keyboard input, and S2 BASIC. Registering a kanji ROM enables kana input and kanji conversion on PC-1360K.
 
-プロジェクトは初期実装段階です。Pokecom GO StudioではPC-1245、PC-1250／1251／1255ファミリー、
-PC-1261／1350／1401を実装し、PC-1360／1360Kは実ROM起動、16KiB×8 ROMバンク、LCD、キー入力、S2 BASICに対応しています。PC-1360Kは漢字ROMを登録すると、かな入力・漢字変換も利用できます。
-macOSでは実ROMの起動、物理／画面キーボード入力、BASICと
-マシン語の入出力、LCD表示、サウンド出力まで動作確認済みです。WindowsではROM起動、キー入力、BASICと
-サウンド、Linux x86_64ではROM起動、基本操作、サウンド、tar.gz／DEB配布物を手動確認しています。
-Pokecom GO PlayerのPC-1245 Android版は、LCD／スキン入力、bas／dmp入出力、ROM管理、横向き・ノッチ対応、ゲームパッド割当に対応し、2026-10-12にユーザー動作確認済みです。PC-1401 Androidも今回の対応範囲を完了し、2026-10-15にユーザーが区切りを確認しました。検証範囲と残る機器別確認は[対応記録](docs/ANDROID_PC1401_PROGRESS.md)を参照してください。PC-1401のiOS対応は別工程です。PC-1350 Androidは[2026-10-16に今回の対応範囲をユーザー確認済み](docs/ANDROID_PC1350_PROGRESS.md)です。
+On macOS, testing with actual ROMs covers booting, physical and on-screen keyboards, BASIC and machine-code
+file operations, LCD output, and sound. Manual checks on Windows cover ROM booting, keyboard input, BASIC,
+and sound. Linux x86_64 checks cover ROM booting, basic operation, sound, and tar.gz/DEB packages.
+These checks do not establish complete compatibility across every machine, ROM revision, or peripheral.
 
-開発中のPC-1245 iPhone版は、ホーム・ROM管理・BASIC/DMP・音声/速度・GameController/Physical入力を実装し、
-Simulatorと合成データで検証しています。実機・実provider・実ROM音声/入力・最低iOS 16の実行は未確認です。
-[現行操作と段階別の検証記録](iosApp/README.md)を参照してください。署名付きiOS配布の完了を意味しません。
+The PC-1245 Android Player scope was user-confirmed on October 12, 2026. PC-1401 reached its agreed milestone
+on October 15; see its [verification record (Japanese)](docs/ANDROID_PC1401_PROGRESS.md).
+PC-1350 reached its milestone on [October 16 (Japanese)](docs/ANDROID_PC1350_PROGRESS.md).
+These are dated milestones; development in the source tree may extend beyond the published preview.
 
-現在利用できる主な機能は次のとおりです。
+The PC-1245 iPhone app implements the home screen, ROM management, BASIC/DMP operations, audio and speed
+settings, GameController support, and physical keyboard input. Verification uses Simulator and synthetic data.
+Acceptance on physical devices, real file providers, actual-ROM audio/input, and the minimum iOS 16 runtime
+remains outstanding. See the [iPhone guide and verification records (Japanese)](iosApp/README.md).
+A signed iOS release is not yet available.
 
-- 実ROMおよび`.pgrom`パッケージからのエミュレーター起動
-- RUN／PRO／RSVモード、物理キーボード、機種別画面キーボード
-- BASICテキストのROM経由入力とTokenizerによる直接読み書き
-- `.dmp`形式によるマシン語データの読み書き
-- 外部エディタ向け複数ソースプロジェクトの作成、変更検知、Build & Load
-- LCD表示、CPU状態表示、サウンド出力
-- 実機RAM容量と拡張RAMモードの切り替え
-- File／Project／Program／Emulator／Debugに分けたメニューバー
-- 機種別ROM Library、メイン画面のProjectツリー、独立Debuggerウィンドウ
+Main features include:
 
-## 画面構成
+- Booting from user-supplied ROM images and `.pgrom` packages.
+- RUN/PRO/RSV controls where supported, physical keyboards, and machine-specific on-screen keyboards.
+- BASIC text entry through the ROM, or direct tokenization and extraction.
+- Machine-code import and export in `.dmp` format.
+- Multiple-source projects, external editor change detection, and Build & Load.
+- LCD output, CPU state display, and sound.
+- Hardware RAM and expanded RAM profiles on supported machines.
+- File, Project, Program, Emulator, and Debug menus.
+- A machine-specific ROM Library, project tree, and separate Debugger window.
 
-メインウィンドウはLCD、機種別ソフトウェアキーボード、Run／Pause／Reset／Step、対応機種の
-RUN／PRO／RSV操作に集中する。右上の機種プルダウンでは、ROM Libraryへ登録済みの機種だけを切り替えられる。
+## Download and get started
 
-- `File`: ROMの登録・管理とROM set作成
-- `Project`: 新規作成、Open、Assembly Workspace表示、Build & Load
-- `Program`: BASIC／マシン語の単発入出力とQuick Assemble
-- `Emulator`: 実行制御とRAM profile
-- `Debug`: DebuggerとCheckpoint
+Download the preview from [GitHub Releases](https://github.com/digihori/pokecom-go-plus/releases).
+Studio packages include their runtime; JDK 21 is required when building from source.
 
-Assembly WorkspaceのAssembleは結果確認、Buildはファイル生成、Build & Loadは生成後の
-エミュレータへのロードを行います。式・EQU・データ定義、機種別配置、出力名と制約は
-[SC61860アセンブラガイド](docs/SC61860_ASSEMBLY.md)を参照してください。
+1. Extract or install the package for your platform:
+   - **macOS:** Open the `.app`, or the application supplied in the DMG.
+   - **Windows:** Run `PokecomGOStudio.exe` from the ZIP, or install the MSI.
+   - **Linux x86_64:** Run `bin/PokecomGOStudio` from the tar.gz, or install the DEB.
+2. Prepare ROM images lawfully obtained for your machine. **ROM images are not included.**
+3. In Studio, use `File` → `Register ROM…` or `Manage ROMs…` to register a compatible image or `.pgrom` package.
+   Use `Create ROM Set…` if you need to package separate ROM components first.
+4. Studio copies validated ROMs into its private ROM Library and restores the last-used machine on later launches.
+5. Use the on-screen keyboard or your physical keyboard to operate the emulated machine.
 
-プロジェクトツリーはメイン画面左側、CPU、Disassembly、Memory、TraceはDebuggerウィンドウへ
-分離している。機種別ソフトウェアキーボードは実機のキー配列、SHIFT表記、予約語表記を反映する。
+Studio previews are not signed with a distribution certificate or notarized for macOS.
+The Android preview APK uses a debug signature, not a production store signature.
+Your operating system may display a security warning. Packages include the MIT license and third-party
+notices; releases provide SHA-256 checksums.
 
-## プロジェクトの位置付け
+The detailed [getting started guide](docs/GETTING_STARTED.md) is currently in Japanese.
 
-- PGPは既存Androidアプリ「Pokecom GO」の新バージョンではありません。
-- Pokecom GOはAndroidアプリとして独立して維持されます。
-- PGPはPokecom GOからCPU、機種定義、BASIC変換等の技術を分析・再設計して利用します。
-- ROMイメージは本リポジトリおよび配布物に含めません。
+## Workspace
 
-## 対象プラットフォーム
+The main window focuses on the LCD, machine-specific keyboard, Run/Pause/Reset/Step,
+and RUN/PRO/RSV controls where supported. The machine selector lists machines registered in the ROM Library.
 
-初期開発はPokecom GO Studioを優先します。
+- `File`: Register and manage ROMs; create ROM sets.
+- `Project`: Create/open projects, open Assembly Workspace, and Build & Load.
+- `Program`: Import/export BASIC and machine code; Quick Assemble.
+- `Emulator`: Execution controls and RAM profiles.
+- `Debug`: Debugger and checkpoints.
 
-- macOS
-- Windows
-- Linux
+The project tree appears on the left. CPU, Disassembly, Memory, and Trace views live in the separate Debugger.
+Machine-specific keyboards reflect the original layouts, SHIFT legends, and keyword labels.
 
-実行機能へ特化したPokecom GO PlayerはPC-1245／PC-1401／PC-1350 Android版の今回の開発範囲を完了しています。
-PC-1245 iPhone版は実装・Simulator検証を進めており、実機受入れと署名付き配布は未完了です。Playerにはデバッガ、アセンブラ、逆アセンブラなどの開発機能を搭載しません。
+In Assembly Workspace, **Assemble** previews results, **Build** writes output files, and **Build & Load**
+also loads them into the emulator. See the [SC61860 assembler guide (Japanese)](docs/SC61860_ASSEMBLY.md)
+for expressions, EQU, data definitions, memory placement, output names, and restrictions.
 
-## リポジトリ構成
+## Relationship to Pokecom GO
+
+- PGP is a separate project, rather than a new version of the existing Pokecom GO Android app.
+- Pokecom GO continues to be maintained independently.
+- PGP analyzes and redesigns technology from Pokecom GO, including the CPU, machine definitions, and BASIC conversion.
+- Neither the repository nor its distributions contain ROM images.
+
+## Platforms
+
+Studio development focuses on **macOS, Windows, and Linux**.
+Linux packages currently target x86_64; ARM64 Linux packages are not yet available.
+
+Player focuses on execution, without development tools such as a debugger, assembler, or disassembler.
+The Android milestones and iPhone limitations are described above. Other iOS machines and save states remain future work.
+
+## Repository layout
 
 ```text
 pokecom-go-plus/
-├── core/          Kotlin Multiplatformの共有Core
-├── hostInput/     ゲームパッド割当・入力源別の押下管理
-├── controllerUi/  Studio／Android共通のコントローラー設定画面
-├── playerShared/  Android／iOS Playerで共有する実行・表示モデル
-├── desktopApp/    Pokecom GO Studio（現在のCompose Desktop実装）
-├── androidApp/    Pokecom GO Player（PC-1245／PC-1401／PC-1350 Android）
-├── iosApp/        Pokecom GO Player（PC-1245 iPhone host）
-├── docs/          構想・設計・移植記録・ロードマップ
-├── local-data/    ローカルROM等（Git管理外）
-└── test-data/     再配布可能なテストデータ
+├── core/          Shared Kotlin Multiplatform emulator core
+├── hostInput/     Gamepad mappings and input ownership
+├── controllerUi/  Controller settings shared by Studio and Android
+├── playerShared/  Execution and display models shared by Android/iOS Player
+├── desktopApp/    Pokecom GO Studio (Compose Desktop)
+├── androidApp/    Pokecom GO Player for Android
+├── iosApp/        PC-1245 iPhone host
+├── docs/          Concepts, design, porting notes, and roadmap
+├── local-data/    Local ROMs and other private data (ignored by Git)
+└── test-data/     Redistributable test data
 ```
 
-開発用の実ROMは`local-data/roms/<machine-id>/`へ配置する。従来形式を使う場合の既定位置は、
-PC-1245が`local-data/roms/pc-1245/pc1245mem.bin`、PC-1251ファミリーが
-`local-data/roms/pc-1251/pc1251mem.bin`である。`local-data/`全体はGit管理外であり、
-ROMイメージをコミットしない。
+Place development ROMs in `local-data/roms/<machine-id>/`.
+The default legacy paths are `local-data/roms/pc-1245/pc1245mem.bin` and
+`local-data/roms/pc-1251/pc1251mem.bin`. The entire `local-data/` directory is ignored by Git.
+Do not commit ROM images.
 
-## 開発環境
+## Development requirements
 
-- JDK 21
-- Android SDK 36（Android Playerをビルドする場合）
-- Gradle Wrapper（同梱）
-- Kotlin 2.4.20
-- Compose Multiplatform 1.12.1
+- JDK 21.
+- Android SDK 36, when building Android Player.
+- Gradle Wrapper (included).
+- Kotlin 2.4.20.
+- Compose Multiplatform 1.12.1.
 
-通常のビルドと実行にはJDK 21を使用する。Android Studio付属JBRはJava 21の場合のみ使用でき、Java 25は使用しない。
-DMG／MSI／DEBを生成する場合は、`jpackage`を含む完全なJDK 21が必要であり、
-現在のAndroid Studio付属JBRだけではパッケージを生成できない。
+Use JDK 21 for normal builds and execution. Android Studio's bundled JBR can be used only if it is Java 21;
+do not use Java 25. Creating DMG/MSI/DEB packages requires a full JDK 21 with `jpackage`;
+the current Android Studio JBR alone cannot create these packages.
 
-## ビルドとテスト
+See [Building from source (Japanese)](docs/BUILDING.md) for complete setup, platform-specific packaging,
+output locations, and troubleshooting. Gradle does not need to be installed separately.
 
-公開ソースの取得、JDK設定、OS別ビルド、配布パッケージ生成、生成物の場所、典型的なエラーは
-[ソースからのビルド](docs/BUILDING.md)を正本とする。以下は日常的に使う起動・テスト手順の要約である。
+### Run Studio
 
-### 起動前の準備
-
-PGPはROMイメージを同梱しない。利用者自身が正当に入手した、対象機種のROMイメージを用意する必要がある。
-ROMは起動後に`File` → `Register ROM…`または`Manage ROMs…`から登録できる。上記の既定位置へ置けば
-初回起動時に自動検出され、検証済み`.pgrom`としてアプリ専用領域へ取り込まれる。
-
-ソースからのビルドにはJDK 21を使用する。Gradle本体を別途インストールする必要はない。
-
-### macOSでの起動
-
-Finderで`run-pgp.command`をダブルクリックするか、ターミナルで次を実行する。
-インストール済みJDK 21とローカルGradleキャッシュはスクリプトが自動設定する。JDK 21が見つからない場合は起動を中止する。
-前回使用した機種のROMがLibraryにある場合は、アプリ内コピーから自動的に復元する。履歴がない場合は、既定位置の
-`local-data/roms/pc-1245/pc1245mem.bin`、続いて
-`local-data/roms/pc-1251/pc1251mem.bin`を探索し、最初に見つかったROMをロードして実行する。
+On macOS, double-click `run-pgp.command` in Finder, or run:
 
 ```bash
 ./run-pgp.command
 ```
 
-初回はmacOSのセキュリティ確認が表示されることがある。その場合はFinderでファイルを右クリックし、
-「開く」を選択する。
+The script locates an installed JDK 21 and configures the local Gradle cache; it stops if JDK 21 is unavailable.
+If macOS asks for confirmation, right-click the script in Finder and choose Open.
+Studio restores the last-used machine from its private ROM Library. Without history, it checks the default
+PC-1245 path followed by the PC-1251 path and runs the first ROM found.
 
-### Windows／Linuxでの起動
-
-Windowsでは次を実行する。
+On Windows:
 
 ```powershell
 .\gradlew.bat :desktopApp:run
 ```
 
-Linuxでは次を実行する。
+On Linux, or for a direct Gradle launch on macOS:
 
 ```bash
 ./gradlew :desktopApp:run
 ```
 
-Windows／LinuxともCIによるビルドと自動テストは実施しているが、画面操作、音声、ファイル選択を含む
-手動スモークテストは公開前の確認項目である。
+Windows and Linux have CI builds and automated tests. Manual coverage of UI operations, sound,
+and file selection varies by platform and release; see the verification records.
 
-### Android Player（PC-1245／PC-1401／PC-1350）
+### Build Android Player
 
-Android SDK 36とJDK 21を設定した環境でdebug APKを生成する。
+With Android SDK 36 and JDK 21 configured:
 
 ```bash
 ./gradlew :androidApp:assembleDebug
 ```
 
-生成先は`androidApp/build/outputs/apk/debug/androidApp-debug.apk`。
-`.pgrom`／選択機種のlegacy ROMを取り込み、機種別のアプリ専用領域へ保存する。
-PC-1401はホーム・ROM管理・Session切替・本体操作・BASIC／DMP入出力・ゲームパッドへの接続を完了。[機種別の検証範囲と未確認事項](docs/ANDROID_PC1401_PROGRESS.md)を参照。
-起動時はホームへROMを復元し、初回プレイとReset後はCPUを自動実行する。ROMは同梱しない。
+Output: `androidApp/build/outputs/apk/debug/androidApp-debug.apk`.
+Import a `.pgrom` package or a supported legacy ROM for the selected machine; ROMs are stored in private app storage.
+Banked machines may require a Studio-created `.pgrom`; see the machine-specific documentation.
+ROMs are restored to the home screen at startup, and the CPU runs automatically on first play and after Reset.
 
-- スキン上の52キー、16桁LCDとSHIFT／DEF等、RUN／PRO、常時実行状態表示
-- 両方向の横向き、ノッチ・ナビゲーション領域回避、手動Controller Display
-- 画面内の階層メニュー、ROM取込み・置換・削除、ゲームパッド割当
-- `.bas`／`.dmp`の拡張子自動判定ロード、BASIC全体／指定RAM範囲のセーブ
-- BASIC／dmpロード成功後はCPUを自動再開。失敗・キャンセル後はPAUSED
-- ホームの設定／ヘルプ・情報、Playerとは／Studioについて／バージョン・ライセンス、プライバシー原文案の同梱表示
-- 外部キーボードのPhysical入力、左上状態表示のRun/Pause切替
+Player features include machine-specific skins and LCD symbols, landscape layouts, notch/navigation-area
+handling, manual Controller Display, hierarchical menus, ROM replacement/deletion, gamepad mappings,
+and physical keyboard input. PC-1245 has 52 skin keys and a 16-character LCD; other machines have their own layouts.
 
-現在の選択対象はPC-1245／PC-1401／PC-1350。Project、Assembler、Debugger、WAV、セーブステートは搭載しない。AndroidにはサウンドON／OFFとCPU速度5段階を追加。実機の音質などの未確認事項は[音声・速度対応記録](docs/PLAYER_AUDIO_SPEED_PROGRESS.md)を参照。
-操作と制限は[Android Playerガイド](docs/PLAYER_PROGRAM_IO.md)を参照。
-PC-1245の0.4時点の動作はユーザー確認済み。現在の追加変更の検証範囲は上記ガイド、Technical Preview 0.4の公開状況は[公開チェックリスト](docs/RELEASE_CHECKLIST_0.4.0-alpha.1.md)を参照。
+Program loading detects `.bas`/`.dmp` by extension. The documented file operations include BASIC export
+and selected RAM-range export where supported. Successful loading resumes the CPU; failure or cancellation leaves it paused.
+The app includes settings, help, product information, version/license notices, and a draft privacy policy.
+Android also provides sound on/off and five CPU speed settings.
+See the [Player guide](docs/PLAYER_PROGRAM_IO.md) and [audio/speed verification record](docs/PLAYER_AUDIO_SPEED_PROGRESS.md),
+both currently in Japanese, for machine-specific behavior and limits.
+Project, Assembler, Debugger, WAV tools, and save states are outside the current Player scope.
 
-### BASICテキストの読み込み
+### Load BASIC text
 
-ROM起動後にUTF-8の`.bas`ファイルを指定して読み込める。通常はTokenizerで直接中間コードへ変換するため、
-実機の1行入力長を超える行やエスケープ表記した特殊文字も扱える。ROM自身の編集処理を通して入力する方式も、
-手軽な互換入力として利用できる。
+After booting a ROM, load a UTF-8 `.bas` file. The tokenizer normally converts it directly into intermediate code,
+allowing lines longer than the original interactive input limit and escaped special characters.
+Input through the ROM's own editor is also available as a compatibility option.
+Character encodings, keywords, and special characters vary by machine;
+see [BASIC text format (Japanese)](docs/BASIC_TEXT_FORMAT.md).
 
-文字コード、予約語、特殊文字の割り当てには機種差がある。対応する表記と現在の制約は
-`docs/BASIC_TEXT_FORMAT.md`を参照する。
+### WAV conversion and analysis (Studio only)
 
-### WAV変換と解析（Studio専用）
+Open `Tools` → `WAV Tool` to convert OLD BASIC (02/12) and Binary (62).
+Encode an existing `.bas` or a `.dmp` containing one contiguous region, or choose `Create WAV…` from the project tree.
+After `Convert`, inspect the result and use `Save WAV…`.
+For recordings, use `Open WAV…` → `Analyze / reanalyze`, then export validated BASIC/`.dmp`, raw bytes,
+or an analysis report separately. PCM/raw data can still be inspected when payload validation fails.
+The waveform view provides scales, zoom, horizontal navigation, and a difference-threshold display.
 
-`Tools` → `WAV Tool`でOLD BASIC（02/12）とBinary（62）を変換できる。
-Encodeは既存の`.bas`/単一連続領域の`.dmp`、またはProjectツリーの選択項目から`Create WAV…`で指定する。
-`Convert`後に結果を確認し、`Save WAV…`で保存する。録音WAVは`Open WAV…`→`Analyze / reanalyze`で解析し、
-検証済みのBASIC/`.dmp`、raw byte列、解析reportを個別に保存できる。
-payload検証に失敗しても取得できたPCM/rawを確認でき、波形の目盛・zoom・水平移動・差分threshold表示を備える。
+S1/S2 conversion is not implemented in Studio; use pcwav for those formats.
+The tool does not integrate with ROM CSAVE/CLOAD or directly load decoded data into the emulator.
+See [WAV operations and scope (Japanese)](docs/WAV_OPERATIONS.md).
 
-S1/S2は未実装のためpcwavを使用する。Playerには搭載せず、ROMのCSAVE/CLOADやDecodeからの
-エミュレータ直接ロードとも連動しない。操作・対応範囲は[WAV操作方針](docs/WAV_OPERATIONS.md)参照。
+### Create a ROM set
 
-### ROMセットの作成
+Open `File` → `Create ROM Set…`, select the machine, internal/external ROM components,
+destination folder, and filename, then choose `Create`.
+For the machines described here, internal ROMs are 8 KiB. External ROM sizes are:
 
-`File` → `Create ROM Set…`で専用ウィンドウを開き、対象機種、内部ROM、外部ROM、
-保存先のフォルダとファイル名をそれぞれ指定して`Create`を押す。
-内部ROMは全対応機種で8 KiB。外部ROMはPC-1245／1250／1251／1255が16 KiB、
-PC-1261／1350／1401が32 KiB、PC-1360／1360Kが128 KiB（bank 0〜7の順に連結したファイル）。
-必要な項目とROMサイズを確認後、manifestとSHA-256を記録した`.pgrom` v1パッケージを生成する。
+- PC-1245/1250/1251/1255: 16 KiB.
+- PC-1261/1350/1401: 32 KiB.
+- PC-1360/1360K: 128 KiB, concatenated in bank 0–7 order.
 
-作成後の`Register in ROM Library`で登録・起動できる。登録は後から`Manage ROMs…`でも行える。
-元のROMと生成物はリポジトリへ追加せず、`local-data/`などGit管理外の場所に保存する。
-詳しい操作は[導入ガイドのROMセット作成手順](docs/GETTING_STARTED.md#43-romダンプからpgromを作る)を参照。
+The tool validates the inputs and creates a `.pgrom` v1 package with a manifest and SHA-256 hashes.
+Use `Register in ROM Library` afterward, or register it later through `Manage ROMs…`.
+Keep source ROMs and generated packages outside Git, for example under `local-data/`.
+Existing Pokecom GO 32/64 KiB images can also be registered as compatible legacy inputs.
+See the [ROM set creation guide (Japanese)](docs/GETTING_STARTED.md#43-romダンプからpgromを作る).
 
-既存のPokecom GO用32/64KiBイメージは、ROM Libraryから互換入力として直接登録できる。
-
-### ビルドと自動テスト
+### Build and test
 
 ```bash
 ./gradlew build
 ```
 
-初回ビルドではGradle、Kotlin/Native、Compose等をダウンロードするため、回線環境によっては
-数分かかり、数百MB以上のディスク領域を使用する。2回目以降はローカルキャッシュを再利用する。
+The first build downloads Gradle, Kotlin/Native, Compose, and other dependencies. It may take several minutes
+and use hundreds of megabytes or more. Later builds reuse the local cache.
 
-### Technical Preview配布物
-
-Technical Previewではソースコード、macOS／Windows／Linux向けStudio配布物、およびAndroid向けPlayer
-プレビューAPKをGitHub Releasesへ掲載する。StudioはDeveloper ID等による正式署名やmacOS公証を
-行わない。Player APKはAndroidのデバッグ署名を使用し、ストア配布用の正式署名版ではない。
-OSのセキュリティ警告が表示される可能性がある。ROMイメージは配布物にも含めない。
-
-配布物にはPGPの`LICENSE`と`THIRD_PARTY_NOTICES.md`をアプリresourceとして含め、
-Releaseには各ファイルのSHA-256チェックサムを掲載する。
-
-`.github/workflows/release.yml`をGitHub Actionsから手動実行すると、Studioを3環境、PlayerをAndroid環境で
-テストして配布物を生成し、14日間保持されるworkflow artifactとして取得できる。`v0.6.0-alpha.2` tagをpushした場合は、
-同じ成果物を使ってprereleaseのGitHub Releaseを自動作成する。公開候補の検証が完了するまではtagを作成しない。
-
-GitHubへpushした場合とPull Requestを更新した場合は、GitHub ActionsがmacOS、Windows、
-Linux上でCoreのDesktopテストとDesktopアプリのビルド・テストを実行し、別のAndroid環境で
-Playerの共有層テスト、Android固有テスト、APK生成を行う。CIにはROMを渡さず、再配布可能な
-合成データだけを使用する。
-iOSはアプリビルド・Swift単体テストを通常CIで実行する。Native専用テストは手動フロー、UI操作はローカルで別途検証する。
-
-ローカルでのDMG／MSI／DEB生成方法は[ソースからのビルド](docs/BUILDING.md)を参照する。
-
-Coreの共通テストだけを実行する場合：
+Run Core tests:
 
 ```bash
 ./gradlew :core:desktopTest
 ```
 
-PC-1245の実ROMを使うDesktopスモークテストは、既定の`local-data`配置を自動検出する。
-別の場所に置く場合は`PGP_PC1245_ROM`へ絶対パスまたはリポジトリ相対パスを指定する。
+PC-1245 and PC-1251 real-ROM smoke tests automatically detect the default `local-data` paths.
+To use another location, provide an absolute or repository-relative path:
 
 ```bash
 PGP_PC1245_ROM=/path/to/pc1245mem.bin \
   ./gradlew :core:desktopTest \
   --tests com.digihori.pgp.core.integration.RealPc1245RomSmokeTest
-```
 
-ROMが見つからない環境ではこのテストだけをスキップし、ROMイメージをCIやGitへ持ち込まない。
-
-PC-1251の実ROMスモークテストも既定の`local-data`配置を自動検出する。別の場所に置く場合は
-`PGP_PC1251_ROM`を指定する。
-
-```bash
 PGP_PC1251_ROM=/path/to/pc1251mem.bin \
   ./gradlew :core:desktopTest \
   --tests com.digihori.pgp.core.integration.RealPc1251RomSmokeTest
 ```
 
-再配布可能なGoldenケースのJSON再生テスト：
+These tests are skipped when their ROMs are unavailable. Do not add ROMs to CI or Git.
+
+Replay redistributable golden JSON scenarios:
 
 ```bash
 ./gradlew :core:desktopTest \
   --tests com.digihori.pgp.core.integration.GoldenScenarioRunnerTest
 ```
 
-実ROMからPGP側Golden Snapshotを`local-data/golden/`へ明示的に採取する場合：
+Explicitly export a local golden snapshot from a supplied ROM:
 
 ```bash
 PGP_EXPORT_GOLDEN=1 \
@@ -291,76 +281,87 @@ PGP_GOLDEN_PRODUCER_REVISION=<git-revision> \
   --tests com.digihori.pgp.core.integration.GoldenSnapshotExporterTest.exportsLocallySuppliedRomOnlyWhenExplicitlyRequested
 ```
 
-出力はROM SHA-256を含み、生成直後に同じRunnerで再生検証される。実ROMと出力JSONは
-`local-data/`配下に留まり、Git管理対象にはならない。
+The output includes the ROM SHA-256 and is replay-validated immediately. ROMs and generated JSON remain
+under `local-data/`, outside Git.
 
-Desktopアプリを起動する場合：
+### CI and preview packages
 
-```bash
-./gradlew :desktopApp:run
-```
+Pushes and pull requests run Core desktop tests and Studio builds/tests on macOS, Windows, and Linux.
+A separate Android job runs shared Player and Android-specific tests and builds the APK.
+CI uses redistributable synthetic data, without ROM images.
+iOS app builds and Swift unit tests run in regular CI; Native-only tests use a manual workflow,
+and UI interactions are verified locally.
 
-## 既知の制限
+Running `.github/workflows/release.yml` manually creates Studio and Android Player packages,
+retained as workflow artifacts for 14 days. Release tags such as `v0.6.0-alpha.2` use those packages
+to publish a GitHub prerelease. Verify release candidates before creating tags.
+See [Building from source (Japanese)](docs/BUILDING.md) for local DMG/MSI/DEB packaging.
 
-- ROMイメージは同梱しない。利用には対象機種のROMが必要である。
-- Apple Silicon MacのVMware上にあるWindows ARM64で、x64版をエミュレーション実行した環境では、
-  SkikoのDirect3D／OpenGL描画で一部ボタンのhover表示が壊れた。互換性を優先してWindows版は
-  当面Software描画を既定とする。ネイティブWindows x64で再確認後に既定値を再評価する。
-  描画方式の比較には`PGP_RENDER_API=DIRECT3D`または`OPENGL`を指定できる。
-- Linux x86_64では展開型tar.gzの起動、音声再生と、DEBのインストール・起動・アンインストールを確認済みである。
-  ARM64 Linuxの配布物はまだ用意していない。DEBのメニュー項目は現在「その他」に分類される。
-- ROM Importerの操作ガイドと、バンクROMを持つ機種の一括選択UIは暫定実装である。
-- ROM経由のBASIC入力には実機同様の1行入力長制限がある。長い行にはTokenizer方式を使用する。
-- サウンド出力は初期実装で、プログラムによっては音の途切れや波形差が発生する可能性がある。
-  Windowsでは、サウンドを使用したプログラムの終了後もクリックノイズが鳴り続けることがある。
-  オーディオラインの終了判定と無音バッファ処理は今後の改善項目である。
-- PC-1245／1250の`0xb000..0xbfff`周辺のミラー仕様は再確認が必要である。
-- PlayerはPC-1245／PC-1401／PC-1350 Androidに対応する。[検証範囲と機器別の未確認事項](docs/ANDROID_PC1401_PROGRESS.md)は別途記録する。PC-1350 Androidは[2026-10-16に今回の対応範囲をユーザー確認済み](docs/ANDROID_PC1350_PROGRESS.md)。PC-1245 iOSは実装・Simulator検証済みで実機受入れを残す。他機種のiOSとセーブステートは後続。Android音声出力・CPU速度は[対応記録](docs/PLAYER_AUDIO_SPEED_PROGRESS.md)の検証範囲を参照。情報画面は静的同梱。プライバシーポリシーは公開前の原文案である。
+## Known limitations
 
-公開版に向けた確認状況は[Technical Preview公開チェックリスト](docs/PUBLIC_RELEASE_CHECKLIST.md)を参照する。
+- You must supply the appropriate ROMs; none are bundled.
+- Windows defaults to software rendering because some button hover effects were corrupted with Skiko
+  Direct3D/OpenGL when running the x64 build under Windows ARM64 in VMware on Apple Silicon.
+  Native Windows x64 verification is needed before reconsidering this default.
+  Use `PGP_RENDER_API=DIRECT3D` or `OPENGL` to compare renderers.
+- Linux x86_64 tar.gz launch, audio, and DEB installation/launch/removal have been checked.
+  ARM64 Linux packages are unavailable; the DEB menu entry currently appears under “Other.”
+- ROM import guidance and bulk selection of banked ROM components remain provisional.
+- ROM-driven BASIC input retains the original per-line input limit; use the tokenizer for longer lines.
+- Sound may differ from the hardware or break up with some programs. The Japanese README records Windows
+  clicking after sound playback; a later [follow-up record (Japanese)](docs/TASK_REVIEW.md) reports improvement
+  confirmed on October 13, with detailed checks still outstanding.
+- The PC-1245/1250 mirror behavior near `0xb000..0xbfff` needs further verification.
+- Player verification is machine- and device-specific. iOS physical-device acceptance, other iOS machines,
+  and save states remain future work. The bundled privacy policy is a draft.
 
-## フィードバック
+See the [preview checklist (Japanese)](docs/PUBLIC_RELEASE_CHECKLIST.md) for recorded release checks.
 
-Technical Previewの不具合報告と機能要望はGitHub Issuesで受け付ける。
-IssueにはROMイメージ、秘密情報、再配布できないデータを添付しないこと。
+## Feedback
 
-## ドキュメント
+Please report bugs and feature requests through [GitHub Issues](https://github.com/digihori/pokecom-go-plus/issues).
+Do not attach ROM images, secrets, or data you do not have permission to redistribute.
 
-- [はじめに](docs/GETTING_STARTED.md)
-- [ソースからのビルド](docs/BUILDING.md)
-- [プロジェクト構想](docs/PGP_CONCEPT.md)
-- [アーキテクチャ](docs/ARCHITECTURE.md)
-- [Emulator Core公開API](docs/CORE_API.md)
+## Documentation
+
+Most detailed documentation is currently in **Japanese**. The links below retain the existing documents;
+their translation will be handled separately. See the [Japanese README](README.ja.md) for the original overview.
+
+- [Getting started](docs/GETTING_STARTED.md)
+- [Building from source](docs/BUILDING.md)
+- [Project concept](docs/PGP_CONCEPT.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Emulator Core public API](docs/CORE_API.md)
 - [Debugger](docs/DEBUGGER.md)
-- [AI連携構想](docs/AI_INTEGRATION.md)
-- [SC61860機種世代](docs/MACHINE_FAMILIES.md)
-- [PC-1245機種定義](docs/machines/PC-1245.md)
-- [PC-1350機種定義](docs/machines/PC-1350.md)
-- [PC-1360次期機種定義](docs/machines/PC-1360.md)
-- [PC-1360Kと漢字ROM](docs/machines/PC-1360K.md)
-- [PGP ROMパッケージ形式](docs/ROM_PACKAGE.md)
-- [Golden Test Data形式](docs/GOLDEN_TEST_DATA.md)
-- [外部エディタ連携とプロジェクト形式](docs/PROJECTS.md)
-- [SC61860 Assembler／Disassembler](docs/SC61860_ASSEMBLY.md)
-- [WAV操作方針と実装範囲](docs/WAV_OPERATIONS.md)
-- [OLD WAV形式](docs/WAV_OLD_FORMAT.md)
-- [S1／S2 WAV仕様と作者確認](docs/WAV_S1_S2_FORMAT.md)
-- [iPhone Playerの操作・ビルド・検証状況](iosApp/README.md)
-- [ロードマップ](docs/ROADMAP.md)
-- [Technical Preview公開チェックリスト](docs/PUBLIC_RELEASE_CHECKLIST.md)
-- [Technical Preview 0.6 alpha 2 Release Notes](docs/RELEASE_NOTES_0.6.0-alpha.2.md)
-- [Technical Preview 0.6 Release Notes](docs/RELEASE_NOTES_0.6.0-alpha.1.md)
-- [Technical Preview 0.5 Release Notes](docs/RELEASE_NOTES_0.5.0-alpha.1.md)
-- [Technical Preview 0.4 Release Notes](docs/RELEASE_NOTES_0.4.0-alpha.1.md)
-- [Technical Preview 0.3 Release Notes](docs/RELEASE_NOTES_0.3.0-alpha.1.md)
-- [Technical Preview 0.2 Release Notes](docs/RELEASE_NOTES_0.2.0-alpha.1.md)
-- [Technical Preview 0.1 Release Notes](docs/RELEASE_NOTES_0.1.0-alpha.1.md)
-- [移植記録](docs/PORTING_NOTES.md)
-- [第三者ソフトウェア通知](THIRD_PARTY_NOTICES.md)
+- [AI integration](docs/AI_INTEGRATION.md)
+- [SC61860 machine families](docs/MACHINE_FAMILIES.md)
+- [PC-1245 machine definition](docs/machines/PC-1245.md)
+- [PC-1350 machine definition](docs/machines/PC-1350.md)
+- [PC-1360 machine definition](docs/machines/PC-1360.md)
+- [PC-1360K and kanji ROM](docs/machines/PC-1360K.md)
+- [PC-1360K kanji ROM extraction tools](tools/pc1360k-rom-dump/README.md)
+- [PGP ROM package format](docs/ROM_PACKAGE.md)
+- [Golden test data format](docs/GOLDEN_TEST_DATA.md)
+- [External editors and project format](docs/PROJECTS.md)
+- [SC61860 assembler/disassembler](docs/SC61860_ASSEMBLY.md)
+- [WAV operations and scope](docs/WAV_OPERATIONS.md)
+- [OLD WAV format](docs/WAV_OLD_FORMAT.md)
+- [S1/S2 WAV specification and author confirmation](docs/WAV_S1_S2_FORMAT.md)
+- [iPhone Player operation, building, and verification](iosApp/README.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Technical Preview checklist](docs/PUBLIC_RELEASE_CHECKLIST.md)
+- [Technical Preview 0.6 alpha 2 release notes](docs/RELEASE_NOTES_0.6.0-alpha.2.md)
+- [Technical Preview 0.6 release notes](docs/RELEASE_NOTES_0.6.0-alpha.1.md)
+- [Technical Preview 0.5 release notes](docs/RELEASE_NOTES_0.5.0-alpha.1.md)
+- [Technical Preview 0.4 release notes](docs/RELEASE_NOTES_0.4.0-alpha.1.md)
+- [Technical Preview 0.3 release notes](docs/RELEASE_NOTES_0.3.0-alpha.1.md)
+- [Technical Preview 0.2 release notes](docs/RELEASE_NOTES_0.2.0-alpha.1.md)
+- [Technical Preview 0.1 release notes](docs/RELEASE_NOTES_0.1.0-alpha.1.md)
+- [Porting notes](docs/PORTING_NOTES.md)
+- [Third-party software notices](THIRD_PARTY_NOTICES.md)
 
-## ライセンス
+## License
 
-本プロジェクトは[MIT License](LICENSE)の下で公開します。
-
-Pokecom GO等から移植するコード・仕様・画像については、由来と権利を確認し、
-[PORTING_NOTES.md](docs/PORTING_NOTES.md)へ記録します。
+This project is released under the [MIT License](LICENSE).
+The provenance and rights of code, specifications, and images ported from Pokecom GO and other sources
+are reviewed and recorded in [PORTING_NOTES.md](docs/PORTING_NOTES.md).
