@@ -15,22 +15,22 @@ class DesktopSc61AssemblerTest {
         val directory = Files.createTempDirectory("pgp-sc61-import-").toFile()
         try {
             val dump = File(directory, "test.dmp")
-            assertIs<DesktopSc61AssemblyResult.Failure>(DesktopSc61Assembler.importDump(success, dump, layout))
+            assertIs<DesktopExternalAssemblyResult.Failure>(DesktopSc61Assembler.importDump(success, dump, layout))
             dump.writeText("4000 : 12 34 : 46\n\u001a")
-            val accepted = assertIs<DesktopSc61AssemblyResult.Success>(DesktopSc61Assembler.importDump(success, dump, layout))
+            val accepted = assertIs<DesktopExternalAssemblyResult.Success>(DesktopSc61Assembler.importDump(success, dump, layout))
             assertEquals(2, accepted.image.byteCount)
             assertEquals(0x4000, accepted.image.segments.single().startAddress)
-            assertIs<DesktopSc61AssemblyResult.Failure>(DesktopSc61Assembler.importDump(
+            assertIs<DesktopExternalAssemblyResult.Failure>(DesktopSc61Assembler.importDump(
                 DesktopExternalAssemblerRunResult.Exited(0, "LINE:2 ERROR CODE:009 Illegal Operand"), dump, layout))
-            assertIs<DesktopSc61AssemblyResult.Failure>(DesktopSc61Assembler.importDump(
+            assertIs<DesktopExternalAssemblyResult.Failure>(DesktopSc61Assembler.importDump(
                 success.copy(log = success.log + "LINE:2 ERROR CODE:009 Illegal Operand"), dump, layout))
             dump.writeText("bad dump")
-            assertIs<DesktopSc61AssemblyResult.Failure>(DesktopSc61Assembler.importDump(success, dump, layout))
+            assertIs<DesktopExternalAssemblyResult.Failure>(DesktopSc61Assembler.importDump(success, dump, layout))
             dump.writeText("1000:12")
-            assertIs<DesktopSc61AssemblyResult.Success>(DesktopSc61Assembler.importDump(success, dump, layout, validatePlacement = false))
-            assertTrue(assertIs<DesktopSc61AssemblyResult.Failure>(DesktopSc61Assembler.importDump(success, dump, layout)).message.contains("cannot be loaded"))
+            assertIs<DesktopExternalAssemblyResult.Success>(DesktopSc61Assembler.importDump(success, dump, layout, validatePlacement = false))
+            assertTrue(assertIs<DesktopExternalAssemblyResult.Failure>(DesktopSc61Assembler.importDump(success, dump, layout)).message.contains("cannot be loaded"))
             dump.writeText("8000:12\nA000:34")
-            assertTrue(assertIs<DesktopSc61AssemblyResult.Failure>(DesktopSc61Assembler.importDump(
+            assertTrue(assertIs<DesktopExternalAssemblyResult.Failure>(DesktopSc61Assembler.importDump(
                 success, dump, MachineMemoryLayout(MachineId("pc-1245")))).message.contains("same physical"))
         } finally { directory.deleteRecursively() }
     }
@@ -47,7 +47,7 @@ class DesktopSc61AssemblerTest {
             }
             val settings = DesktopAssemblerSettings(true, File(System.getProperty("java.home"), "bin/java").path,
                 "-cp \"$classpath\" ${Sc61ProcessFixture::class.java.name} {source}")
-            val result = assertIs<DesktopSc61AssemblyResult.Success>(DesktopSc61Assembler.assemble(settings, source, layout))
+            val result = assertIs<DesktopExternalAssemblyResult.Success>(DesktopSc61Assembler.assemble(settings, source, layout))
             assertContentEquals(byteArrayOf(0x42), result.image.segments.single().copyBytes())
             assertEquals("original dump", oldDump.readText())
             assertEquals("original list", oldList.readText())
@@ -55,7 +55,7 @@ class DesktopSc61AssemblerTest {
             val staged = File(result.log.lineSequence().first { it.startsWith("STAGED:") }.removePrefix("STAGED:"))
             assertFalse(staged.parentFile.exists())
             source.writeText("fail")
-            assertIs<DesktopSc61AssemblyResult.Failure>(DesktopSc61Assembler.assemble(settings, source, layout))
+            assertIs<DesktopExternalAssemblyResult.Failure>(DesktopSc61Assembler.assemble(settings, source, layout))
             assertEquals("original dump", oldDump.readText())
         } finally { directory.deleteRecursively() }
     }

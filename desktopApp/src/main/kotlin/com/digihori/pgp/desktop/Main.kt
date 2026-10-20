@@ -181,6 +181,7 @@ import com.digihori.pgp.desktop.project.DesktopAssemblyDiagnostic
 import com.digihori.pgp.desktop.project.DesktopAssemblySourceResult
 import com.digihori.pgp.desktop.project.renderMemoryLayout
 import com.digihori.pgp.core.api.MachineMemoryLayout
+import com.digihori.pgp.desktop.project.assemblerLabel
 import com.digihori.pgp.desktop.project.DesktopAssemblyWorkspaceCompiler
 import com.digihori.pgp.desktop.project.DesktopAssemblyWorkspaceResult
 import com.digihori.pgp.desktop.project.DesktopExternalEditor
@@ -428,6 +429,7 @@ private fun FrameWindowScope.App(
     var wavToolInput by remember { mutableStateOf<WavToolInput?>(null) }
     var assemblyPreview by remember { mutableStateOf(emptyList<DesktopAssemblySourceResult>()) }
     var assemblyDiagnostics by remember { mutableStateOf(emptyList<DesktopAssemblyDiagnostic>()) }
+    var currentAssemblerSettings by remember { mutableStateOf(DesktopUiPreferences.assemblerSettings()) }
     var assemblyStatus by remember { mutableStateOf(uiText("assembly.notAssembled")) }
     var showRenameProjectDialog by remember { mutableStateOf(false) }
     var renamedProjectName by remember { mutableStateOf("") }
@@ -775,7 +777,7 @@ private fun FrameWindowScope.App(
 
     suspend fun assembleWorkspaceWork() {
         val workspace = projectWorkspace ?: return
-        val result = DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, projectMemoryLayout(workspace), DesktopUiPreferences.assemblerSettings())
+        val result = DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, projectMemoryLayout(workspace), currentAssemblerSettings)
         check(projectWorkspace === workspace) { uiText("assembly.projectChanged") }
         when (result) {
             is DesktopAssemblyWorkspaceResult.Failure -> {
@@ -806,7 +808,7 @@ private fun FrameWindowScope.App(
     suspend fun buildProjectOutputsWork(): DesktopProjectBuildResult.Success? {
         val workspace = projectWorkspace ?: return null
         val layout = projectMemoryLayout(workspace)
-        val assembly = DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, layout, DesktopUiPreferences.assemblerSettings())
+        val assembly = DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, layout, currentAssemblerSettings)
         val built = withContext(Dispatchers.IO) { DesktopProjectBuilder.build(workspace, layout, compiledAssembly = assembly) }
         check(projectWorkspace === workspace) { uiText("assembly.buildProjectChanged") }
         return when (built) {
@@ -1034,12 +1036,12 @@ private fun FrameWindowScope.App(
     }
 
     suspend fun quickAssembleWork(sourceFile: File) {
-        val settings = DesktopUiPreferences.assemblerSettings()
+        val settings = currentAssemblerSettings
         if (settings.external) {
             val layout = runner?.memoryLayout ?: MachineMemoryLayout(selectedMachineId)
-            when (val result = com.digihori.pgp.desktop.project.DesktopSc61Assembler.assemble(settings, sourceFile, layout)) {
-                is com.digihori.pgp.desktop.project.DesktopSc61AssemblyResult.Failure -> showError(uiText("quick.externalFailed", StudioStrings.system.projectOperationError(result.message)) + "\n" + result.log)
-                is com.digihori.pgp.desktop.project.DesktopSc61AssemblyResult.Success -> {
+            when (val result = com.digihori.pgp.desktop.project.DesktopConfiguredExternalAssembler.assemble(settings, sourceFile, layout)) {
+                is com.digihori.pgp.desktop.project.DesktopExternalAssemblyResult.Failure -> showError(uiText("quick.externalFailed", StudioStrings.system.projectOperationError(result.message)) + "\n" + result.log)
+                is com.digihori.pgp.desktop.project.DesktopExternalAssemblyResult.Success -> {
                     val destination = selectAndRestoreFocus { selectAssembledDumpDestination(ownerWindow) } ?: return
                     withContext(Dispatchers.IO) { destination.writeBytes(DesktopMemoryDumpWriter.write(result.image)) }
                     message = uiText("quick.externalSaved", (result.image.byteCount).toString(), (destination.name).toString(), (result.log))
@@ -1621,6 +1623,7 @@ private fun FrameWindowScope.App(
                         SettingsSection(uiText("settings.assembler")) {
                             com.digihori.pgp.desktop.project.DesktopAssemblerSettingsPanel(
                                 projectWorkspace?.let(::projectMemoryLayout) ?: MachineMemoryLayout(selectedMachineId),
+                                onSettingsChanged = { currentAssemblerSettings = it },
                             )
                         }
                         SettingsSection(uiText("settings.keyboard")) {
@@ -1916,9 +1919,10 @@ private fun FrameWindowScope.App(
                             }
                         } else {
                             Text(uiText("assembly.title"), style = MaterialTheme.typography.titleLarge)
+                            Text(uiText("assembler.current", currentAssemblerSettings.assemblerLabel()))
                             Text(assemblyStatus)
                             assemblyPreview.filter { it.consoleLog.isNotBlank() }.forEach {
-                                AssemblyPreviewSection(uiText("assembly.logTitle" , (it.source.definition.path)), it.consoleLog)
+                                AssemblyPreviewSection(uiText("assembly.logTitle" , (it.source.definition.path)), it.consoleLog, boundedLog = true)
                             }
                             val memoryLayout = projectMemoryLayout(workspace)
                             val memoryLayoutText = remember(memoryLayout.machineId, memoryLayout.pc1251MemoryMode) {
@@ -2026,6 +2030,10 @@ private fun FrameWindowScope.App(
                                     TextButton(onClick = {
                                         openExternalSource(diagnostic.file, diagnostic.line)
                                     }) { Text(if (diagnostic.line == null) uiText("assembly.openSource") else uiText("assembly.openLine")) }
+                                }
+                                if (diagnostic.consoleLog.isNotBlank()) {
+                                    com.digihori.pgp.desktop.project.AssemblyConsoleLog(
+                                        uiText("assembly.logTitle", diagnostic.source.definition.path), diagnostic.consoleLog)
                                 }
                             }
                             val previewSources = assemblyPreview
@@ -2301,6 +2309,7 @@ private fun FrameWindowScope.App(
                             Text(message)
                             Text(buildString {
                                 append(uiText("main.status", runnerState.uiLabel(), executedCycles.toString()))
+                                append("  •  ").append(uiText("assembler.current", currentAssemblerSettings.assemblerLabel()))
                                 if (requestedToneHz != 0) append("  •  $requestedToneHz Hz")
                                 projectWorkspace?.let {
                                     append("  •  ${projectRuntimeStatus.displayName}")
@@ -3888,7 +3897,11 @@ internal fun AssemblyOutputField(content: String, strings: StudioStrings = Studi
 }
 
 @Composable
-private fun AssemblyPreviewSection(title: String, content: String) {
+private fun AssemblyPreviewSection(title: String, content: String, boundedLog: Boolean = false) {
+    if (boundedLog) {
+        com.digihori.pgp.desktop.project.AssemblyConsoleLog(title, content)
+        return
+    }
     Text(title, style = MaterialTheme.typography.titleSmall)
     Text(
         content.ifBlank { uiText("common.empty") },

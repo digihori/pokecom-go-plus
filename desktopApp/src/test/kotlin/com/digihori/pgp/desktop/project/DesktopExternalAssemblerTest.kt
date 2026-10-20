@@ -14,6 +14,24 @@ class DesktopExternalAssemblerTest {
         assertFailsWith<IllegalArgumentException> { DesktopAssemblerSettings(true, "sc61", "'unfinished").command(source) }
     }
 
+    @Test fun expandsOutputWithoutReinterpretingPlaceholderTextInsidePaths() {
+        val source = File("source {output}/日本語 name.asm").absoluteFile
+        val output = File("output {source}/result.dmp").absoluteFile
+        val settings = DesktopAssemblerSettings(true, "perl", "script.pl -d {output} {source}")
+        assertEquals(listOf("perl", "script.pl", "-d", output.path, source.path), settings.command(source, output))
+        assertFailsWith<IllegalArgumentException> { settings.copy(successExitCode = -1).command(source) }
+    }
+
+    @Test fun yasmAlwaysUsesManagedDumpOutput() {
+        val source = File("source folder/input.asm").absoluteFile
+        val output = File("fresh output/input.dmp").absoluteFile
+        val settings = DesktopAssemblerSettings(true, "yasm.pl", "{source}", tool = DesktopAssemblerTool.YASM)
+        assertEquals(listOf("yasm.pl", source.path, "-d", output.path), settings.command(source, output))
+        assertEquals(listOf("yasm.pl", "-d", output.path, source.path), settings.copy(arguments = "-d old.dmp {source}").command(source, output))
+        assertEquals(listOf("yasm.pl", "-d", output.path, source.path), settings.copy(arguments = "").command(source, output))
+        assertFailsWith<IllegalArgumentException> { settings.copy(arguments = "{source} -d").command(source, output) }
+    }
+
     private val fixtureClasspath = listOf(AssemblerProcessFixture::class.java, Unit::class.java)
         .joinToString(File.pathSeparator) { File(it.protectionDomain.codeSource.location.toURI()).absolutePath }
 

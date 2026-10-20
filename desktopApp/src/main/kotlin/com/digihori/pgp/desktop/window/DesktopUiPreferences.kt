@@ -32,18 +32,23 @@ internal object DesktopUiPreferences {
         preferences.put("externalEditorCommand", value.trim())
     }
 
-    fun assemblerSettings() = com.digihori.pgp.desktop.project.DesktopAssemblerSettings(
-        external = preferences.getBoolean("assemblerExternal", false),
-        executable = preferences.get("assemblerExecutable", ""),
-        arguments = preferences.get("assemblerArguments", "{source}"),
-        timeoutSeconds = preferences.getInt("assemblerTimeout", 60).coerceIn(1, 3600),
-    )
+    fun assemblerStore() = com.digihori.pgp.desktop.project.DesktopAssemblerPreferences(preferences)
+
+    fun assemblerSettings() = com.digihori.pgp.desktop.project.DesktopAssemblerPreferences(preferences).load()
 
     fun saveAssemblerSettings(value: com.digihori.pgp.desktop.project.DesktopAssemblerSettings) {
-        preferences.putBoolean("assemblerExternal", value.external)
-        preferences.put("assemblerExecutable", value.executable.trim())
-        preferences.put("assemblerArguments", value.arguments)
-        preferences.putInt("assemblerTimeout", value.timeoutSeconds)
+        com.digihori.pgp.desktop.project.DesktopAssemblerPreferences(preferences).save(value)
+    }
+
+    fun assemblerProfile(tool: com.digihori.pgp.desktop.project.DesktopAssemblerTool) =
+        com.digihori.pgp.desktop.project.DesktopAssemblerPreferences(preferences).profile(tool)
+
+    fun saveAssemblerProfile(value: com.digihori.pgp.desktop.project.DesktopAssemblerSettings) {
+        com.digihori.pgp.desktop.project.DesktopAssemblerPreferences(preferences).saveProfile(value)
+    }
+
+    fun selectAssembler(tool: com.digihori.pgp.desktop.project.DesktopAssemblerTool?) {
+        com.digihori.pgp.desktop.project.DesktopAssemblerPreferences(preferences).select(tool)
     }
 
     fun projectPaneWidth(defaultValue: Float): Float =

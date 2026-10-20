@@ -30,6 +30,7 @@ internal data class DesktopAssemblyDiagnostic(
     val message: String,
     val sourceText: String?,
     val file: File = source.file,
+    val consoleLog: String = "",
 )
 
 internal sealed interface DesktopAssemblyWorkspaceResult {
@@ -46,12 +47,13 @@ internal object DesktopAssemblyWorkspaceCompiler {
         val externalListings = mutableMapOf<String, DesktopSc61Listing>()
         val externalDiagnostics = mutableMapOf<String, DesktopSc61SourceLocation>()
         for (source in workspace.sources.filter { it.definition.type == ProjectSourceType.ASSEMBLY }) {
-            when (val result = DesktopSc61Assembler.assemble(settings, source.file, layout)) {
-                is DesktopSc61AssemblyResult.Failure -> {
+            when (val result = DesktopConfiguredExternalAssembler.assemble(settings, source.file, layout)) {
+                is DesktopExternalAssemblyResult.Failure -> {
                     result.location?.let { externalDiagnostics[source.definition.id] = it }
-                    assembled[source.definition.id] = Sc61860AssemblyResult.Failure(0, result.message + "\n" + result.log)
+                    logs[source.definition.id] = result.log
+                    assembled[source.definition.id] = Sc61860AssemblyResult.Failure(0, result.message)
                 }
-                is DesktopSc61AssemblyResult.Success -> {
+                is DesktopExternalAssemblyResult.Success -> {
                     logs[source.definition.id] = result.log
                     result.sourceListing?.let { externalListings[source.definition.id] = it }
                     // Byte ownership is available even before an external source map is parsed.
@@ -67,7 +69,8 @@ internal object DesktopAssemblyWorkspaceCompiler {
                     val location = externalDiagnostics[it.source.definition.id] ?: externalListings[it.source.definition.id]?.rows
                         ?.filter { row -> row.location != null && row.location.line == it.line && row.location.text == it.sourceText }
                         ?.mapNotNull { row -> row.location }?.distinct()?.singleOrNull()
-                    if (location == null) it else it.copy(line = location.line, file = location.file, sourceText = location.text)
+                    val withLog = it.copy(consoleLog = logs[it.source.definition.id].orEmpty())
+                    if (location == null) withLog else withLog.copy(line = location.line, file = location.file, sourceText = location.text)
                 })
                 is DesktopAssemblyWorkspaceResult.Success -> result.copy(sources = result.sources.map {
                     val listing = externalListings[it.source.definition.id]

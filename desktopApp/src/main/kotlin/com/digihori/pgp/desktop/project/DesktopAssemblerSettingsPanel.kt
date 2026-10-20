@@ -20,81 +20,148 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
+private data class AssemblerProfileDraft(
+    val executable: String, val arguments: String, val timeout: String,
+    val successExitCode: String, val source: String,
+) {
+    fun settings(tool: DesktopAssemblerTool): DesktopAssemblerSettings {
+        val seconds = timeout.toIntOrNull()
+        require(seconds != null && seconds in 1..3600) { "Timeout must be 1..3600 seconds" }
+        val code = successExitCode.toIntOrNull()
+        require(code != null && code in 0..255) { "Success exit code must be 0..255" }
+        return DesktopAssemblerSettings(true, executable, arguments, seconds, tool, code, source)
+    }
+}
+
 @Composable
-internal fun DesktopAssemblerSettingsPanel(layout: com.digihori.pgp.core.api.MachineMemoryLayout) {
-    val initial = remember { DesktopUiPreferences.assemblerSettings() }
-    var external by remember { mutableStateOf(initial.external) }
-    var executable by remember { mutableStateOf(initial.executable) }
-    var arguments by remember { mutableStateOf(initial.arguments) }
-    var timeout by remember { mutableStateOf(initial.timeoutSeconds.toString()) }
-    var source by remember { mutableStateOf("") }
+internal fun DesktopAssemblerSettingsPanel(
+    layout: com.digihori.pgp.core.api.MachineMemoryLayout,
+    onSettingsChanged: (DesktopAssemblerSettings) -> Unit = {},
+    store: DesktopAssemblerPreferences = DesktopUiPreferences.assemblerStore(),
+    strings: StudioStrings = StudioStrings.system,
+) {
+    val initial = remember { store.load() }
+    var active by remember { mutableStateOf(initial) }
+    var editing by remember { mutableStateOf<DesktopAssemblerTool?>(if (initial.external) initial.tool else null) }
+    var drafts by remember { mutableStateOf(DesktopAssemblerTool.entries.associateWith { tool ->
+        val p = store.profile(tool)
+        AssemblerProfileDraft(p.executable, p.arguments, p.timeoutSeconds.toString(), p.successExitCode.toString(), p.testSource)
+    }) }
     var message by remember { mutableStateOf("") }
     var running by remember { mutableStateOf(false) }
     var job by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
-    fun settings(): DesktopAssemblerSettings {
-        val seconds = timeout.toIntOrNull()
-        require(seconds != null && seconds in 1..3600) { uiText("assembler.timeoutError") }
-        return DesktopAssemblerSettings(external, executable, arguments, seconds).also {
-            if (external) it.command(File("source.asm"))
+    fun refreshActive() {
+        active = store.load()
+        onSettingsChanged(active)
+    }
+    Text(strings.text("assembler.activeSelection"), style = MaterialTheme.typography.titleSmall)
+    fun select(tool: DesktopAssemblerTool?) {
+        runCatching {
+            tool?.let { store.profile(it).command(File("source.asm")) }
+            store.select(tool)
+        }.onSuccess { refreshActive(); message = strings.text("assembler.activeChanged") }
+            .onFailure { message = strings.projectOperationError(it.message.orEmpty()) }
+    }
+    AssemblerSelectionOptions(active.external, { if (!it) select(null) }, !running,
+        strings = strings, tool = active.tool, onToolChange = { select(it) })
+    Text(strings.text("assembler.current", active.assemblerLabel(strings)), style = MaterialTheme.typography.bodySmall)
+    Text(strings.text("assembler.profileHelp"))
+    val tabs = listOf(null) + DesktopAssemblerTool.entries
+    TabRow(selectedTabIndex = tabs.indexOf(editing)) {
+        tabs.forEach { tool ->
+            Tab(selected = editing == tool, enabled = !running, onClick = { editing = tool; message = "" },
+                text = { Text(strings.text(when (tool) {
+                    null -> "assembler.internal"
+                    DesktopAssemblerTool.SC61 -> "assembler.sc61"
+                    DesktopAssemblerTool.YASM -> "assembler.yasm"
+                    DesktopAssemblerTool.GENERIC -> "assembler.genericTab"
+                })) })
         }
     }
-    Text(uiText("assembler.scopeHelp"))
-    AssemblerSelectionOptions(external, { external = it }, !running)
-    OutlinedTextField(executable, { executable = it }, label = { Text(uiText("assembler.executable")) },
-        singleLine = true, enabled = !running, modifier = Modifier.fillMaxWidth())
-    OutlinedTextField(arguments, { arguments = it }, label = { Text(uiText("assembler.arguments")) },
-        singleLine = true, enabled = !running, modifier = Modifier.fillMaxWidth())
-    Text(uiText("assembler.commandHelp"))
-    OutlinedTextField(timeout, { timeout = it }, label = { Text(uiText("assembler.timeout")) },
-        singleLine = true, enabled = !running)
-    Button(enabled = !running, onClick = {
-        runCatching { DesktopUiPreferences.saveAssemblerSettings(settings()) }
-            .onSuccess { message = uiText("assembler.saved") }
-            .onFailure { message = StudioStrings.system.projectOperationError(it.message.orEmpty()) }
-    }) { Text(uiText("assembler.apply")) }
-    Text(uiText("assembler.selectionHelp"))
-    OutlinedTextField(source, { source = it }, label = { Text(uiText("assembler.testSource")) },
-        singleLine = true, enabled = !running, modifier = Modifier.fillMaxWidth())
-    Text(uiText("assembler.testHelp"))
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(enabled = !running, onClick = {
-            val configured = runCatching { settings().also { it.command(File(source)) } }
-            configured.onFailure { message = StudioStrings.system.projectOperationError(it.message.orEmpty()) }.onSuccess { config ->
-                running = true
-                message = uiText("assembler.running")
-                job = scope.launch {
-                    try {
-                        message = when (val result = DesktopSc61Assembler.assemble(config, File(source), layout)) {
-                            is DesktopSc61AssemblyResult.Success -> uiText("assembler.imported" , result.image.byteCount.toString(), result.exitCode.toString()) +
-                                result.image.segments.joinToString("\n") { "%04X..%04X".format(it.startAddress, it.endAddress) } + "\n${result.log}"
-                            is DesktopSc61AssemblyResult.Failure -> uiText("assembly.failureDetail", StudioStrings.system.projectOperationError(result.message)) + "\n" + result.log
+    val tool = editing
+    if (tool == null) {
+        Text(strings.text("assembler.internalHelp"))
+    } else {
+        val draft = drafts.getValue(tool)
+        fun update(value: AssemblerProfileDraft) { drafts = drafts + (tool to value) }
+        OutlinedTextField(draft.executable, { update(draft.copy(executable = it)) }, label = { Text(strings.text("assembler.executable")) },
+            singleLine = true, enabled = !running, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(draft.arguments, { update(draft.copy(arguments = it)) }, label = { Text(strings.text("assembler.arguments")) },
+            singleLine = true, enabled = !running, modifier = Modifier.fillMaxWidth())
+        Text(strings.text("assembler.commandHelp"))
+        if (tool == DesktopAssemblerTool.YASM) Text(strings.text("assembler.yasmHelp"))
+        if (tool == DesktopAssemblerTool.GENERIC) {
+            OutlinedTextField(draft.successExitCode, { update(draft.copy(successExitCode = it)) },
+                label = { Text(strings.text("assembler.successExitCode")) }, singleLine = true, enabled = !running)
+            Text(strings.text("assembler.genericHelp"))
+        }
+        OutlinedTextField(draft.timeout, { update(draft.copy(timeout = it)) }, label = { Text(strings.text("assembler.timeout")) },
+            singleLine = true, enabled = !running)
+        OutlinedTextField(draft.source, { update(draft.copy(source = it)) }, label = { Text(strings.text("assembler.testSource")) },
+            singleLine = true, enabled = !running, modifier = Modifier.fillMaxWidth())
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(enabled = !running, onClick = {
+                runCatching {
+                    val value = draft.settings(tool)
+                    if (active.external && active.tool == tool) value.command(File("source.asm"))
+                    store.saveProfile(value)
+                }.onSuccess { refreshActive(); message = strings.text("assembler.profileSaved") }
+                    .onFailure { message = strings.projectOperationError(it.message.orEmpty()) }
+            }) { Text(strings.text("assembler.saveProfile")) }
+            OutlinedButton(enabled = !running, onClick = {
+                runCatching { draft.settings(tool).also { it.command(File(draft.source)) } }
+                    .onFailure { message = strings.projectOperationError(it.message.orEmpty()) }
+                    .onSuccess { config ->
+                        running = true
+                        message = strings.text("assembler.running")
+                        job = scope.launch {
+                            try {
+                                message = when (val result = DesktopConfiguredExternalAssembler.assemble(config, File(draft.source), layout)) {
+                                    is DesktopExternalAssemblyResult.Success -> strings.text("assembler.imported", result.image.byteCount.toString(), result.exitCode.toString()) +
+                                        result.image.segments.joinToString("\n") { "%04X..%04X".format(it.startAddress, it.endAddress) } + "\n${result.log}"
+                                    is DesktopExternalAssemblyResult.Failure -> strings.text("assembly.failureDetail", strings.projectOperationError(result.message)) + "\n" + result.log
+                                }
+                            } catch (cancelled: CancellationException) { message = strings.text("assembler.cancelled"); throw cancelled }
+                            finally { running = false }
                         }
-                    } catch (cancelled: CancellationException) {
-                        message = uiText("assembler.cancelled")
-                        throw cancelled
-                    } finally { running = false }
-                }
-            }
-        }) { Text(uiText("assembler.test")) }
-        OutlinedButton(enabled = running, onClick = { job?.cancel() }) { Text(uiText("assembler.cancel")) }
+                    }
+            }) { Text(strings.text("assembler.test")) }
+            if (running) OutlinedButton(onClick = { job?.cancel() }) { Text(strings.text("assembler.cancel")) }
+        }
+        Text(strings.text("assembler.testHelp"))
     }
     SelectionContainer {
-        Text(message, modifier = Modifier.fillMaxWidth().heightIn(max = 280.dp).verticalScroll(rememberScrollState()))
+        Text(message, modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp).verticalScroll(rememberScrollState()))
     }
 }
+
+internal fun DesktopAssemblerSettings.assemblerLabel(strings: StudioStrings = StudioStrings.system): String =
+    strings.text(if (!external) "assembler.internal" else when (tool) {
+        DesktopAssemblerTool.SC61 -> "assembler.sc61"
+        DesktopAssemblerTool.YASM -> "assembler.yasm"
+        DesktopAssemblerTool.GENERIC -> "assembler.genericTab"
+    })
 
 
 @Composable
 internal fun AssemblerSelectionOptions(
     external: Boolean, onExternalChange: (Boolean) -> Unit, enabled: Boolean,
     strings: StudioStrings = StudioStrings.system,
+    tool: DesktopAssemblerTool = DesktopAssemblerTool.SC61,
+    onToolChange: (DesktopAssemblerTool) -> Unit = {},
 ) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        for (isExternal in listOf(false, true)) {
-            val label = strings.text(if (isExternal) "assembler.external" else "assembler.internal")
+        for (candidate in listOf(null) + DesktopAssemblerTool.entries) {
+            val label = strings.text(when (candidate) {
+                null -> "assembler.internal"
+                DesktopAssemblerTool.SC61 -> "assembler.sc61"
+                DesktopAssemblerTool.YASM -> "assembler.yasm"
+                DesktopAssemblerTool.GENERIC -> "assembler.generic"
+            })
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                RadioButton(external == isExternal, onClick = { onExternalChange(isExternal) }, enabled = enabled,
+                RadioButton(if (candidate == null) !external else external && tool == candidate,
+                    onClick = { onExternalChange(candidate != null); candidate?.let(onToolChange) }, enabled = enabled,
                     modifier = Modifier.semantics { contentDescription = label })
                 Text(label)
             }

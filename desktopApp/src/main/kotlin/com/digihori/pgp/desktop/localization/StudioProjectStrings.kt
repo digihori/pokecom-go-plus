@@ -10,6 +10,11 @@ internal fun StudioStrings.projectOperationError(message: String): String {
         "Assembler timed out" -> text("project.operation.assemblerTimeout")
         "SC61 did not generate a DMP file" -> text("project.operation.noDmp")
         "SC61 DMP exceeds 2 MiB" -> text("project.operation.dmpLimit")
+        "External assembler did not generate a DMP file" -> text("project.operation.externalNoDmp")
+        "External DMP exceeds 2 MiB" -> text("project.operation.externalDmpLimit")
+        "YASM -d requires an output path" -> text("assembler.yasmDumpPathError")
+        "YASM did not report completion" -> text("project.operation.yasmIncomplete")
+        "Success exit code must be 0..255" -> text("assembler.successExitCodeError")
         "Assembler executable is required" -> text("project.operation.assemblerRequired")
         "Timeout must be 1..3600 seconds" -> text("project.operation.assemblerTimeoutRange")
         else -> null
@@ -19,5 +24,8 @@ internal fun StudioStrings.projectOperationError(message: String): String {
     if (folder != null) return text("project.operation.folderExists", folder.groupValues[1])
     val exit = Regex("SC61 assembly failed \\(exit code (-?\\d+)\\)").matchEntire(message)
     if (exit != null) return text("project.operation.sc61Failed", exit.groupValues[1])
+    val externalExit = Regex("External assembly failed \\(exit code (-?\\d+)\\)").matchEntire(message)
+    if (externalExit != null) return text("project.operation.externalFailed", externalExit.groupValues[1])
+    if (message.startsWith("Invalid external DMP: ")) return text("project.operation.invalidExternalDmp", message.removePrefix("Invalid external DMP: "))
     return editorError(message)
 }

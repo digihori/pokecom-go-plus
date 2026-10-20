@@ -2915,6 +2915,32 @@ JDK 21 clean build, Core desktop tests and Android debug packaging passed withou
   保存命令は取得hookへ置換し、読出しは合成データを注入する。実ROM由来のfixtureは追加しない。
   機器上の保存形式、実CE-140F／互換機器での保存・再読込・全ページ回収は未検証。
 
+
+## 2026-10-20: YASM61860と汎用外部アセンブラ
+
+- 共通Runnerを維持し、SC61／YASM61860／汎用DMPのadapter選択をDesktopへ追加。
+  Workspace、Build、Quick Assemble、接続テストを同じdispatcherへ接続した。
+- YASMはユーザー提供のローカル`yasm.pl`（表示version 1.02）を読み取り・実行して調査。
+  確認したスクリプトのSHA-256は`b3ba48650b72dbf0dd254428cafd7c9436cbd46efbf7c26884530d4c8489a222`。
+  [作者の説明](https://www.oit.ac.jp/labs/rd/rssrv/kobayashi-lab/~yagshi/old_web/misc/pocketcom/yasm-e.html)も参照。
+  既存プログラムを変更せず、PGPへの同梱・コピー・ビルド時依存は追加しない。
+- 8byte境界の行アドレスと先頭空欄、任意のORG間隔、行SUMをPGP側で解釈する専用処理を新規実装。
+  汎用adapterでは同じ文字列を推測で変換せず、PGP DMPそのものを要求する。
+- 外部出力は今回専用の一時ディレクトリで取得。旧成果物を使わず、終了・形式検査後に既存の配置検査へ渡す。
+  SC61の従来の成功コード・ログ・Listing解析は維持する。Core commonMainへのOS API追加はない。
+- 合成テストとローカルYASM実行で検証。未検証の他バージョンやWindows／Linuxでの操作を動作保証としない。
+
+- 同日のユーザー報告により、yasm.pl直接起動＋`{source}`のみではダンプが標準出力に出るため
+  取り込めない設定上の不足を修正。YASM adapterは`-d`を補完し、明示的な保存先も今回の一時DMPへ差し替える。
+  元の設定値・ソースは書き換えず、SC61／汎用adapterにはこの補完を適用しない。
+
+- 後続のUI改善では使用対象と編集中タブを分離し、ツール別Preferencesキーへ実行設定・テスト用ソースを保存。
+  旧設定は当時のツールのプロファイルとして読み込み、選択や別タブの保存で上書きしない。
+  使用対象はメイン画面とWorkspaceにも反映する。プロジェクト形式は変更しない。
+- Workspaceの外部ログは8行超で200dpのLazyColumnとスクロールバーへ表示し、全文コピーを提供。
+  失敗時もログを診断本文から分け、生成物と短いエラー概要を保つ。
+
+
 ## 2026-10-20: WAV S1／S2対応の段階1
 
 - 読み取り専用のpcwav commit `14e1ef53596f0d8791b6d14965061f63846d11a7`の

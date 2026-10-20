@@ -1,18 +1,85 @@
-# SC61外部アセンブラを使う
+# 外部アセンブラを使う
 
-Pokecom GO Studioは、内蔵アセンブラの代わりに、あおさんのSC61860 CROSS ASSEMBLER（SC61）を実行できる。
-選択はStudio全体の設定で、Workspace、Build、Build & Load、Quick Assembleに共通する。
-現時点の外部出力の取り込みはSC61用。yasm等の出力形式への対応は含まない。
-SC61の入手・ビルドは利用者が行う。Studioには同梱しない。
+Pokecom GO Studioは、内蔵アセンブラに加えてSC61、YASM61860（yasm.pl）、
+その他のDMP出力ツールを選択できる。選択はStudio全体で保存し、Workspace、Build、
+Build & Load、Quick Assembleに共通する。外部アセンブラとPerl等は利用者が別途用意し、同梱しない。
 
-## 設定
+## ツールの選択（2026-10-20）
+
+| 選択 | 成功条件と取り込み |
+| --- | --- |
+| Internal | 内蔵SC61860アセンブラ |
+| SC61 | 既存の成功メッセージと今回生成されたDMPを確認。正常終了コード2も従来どおり扱う |
+| yasm.pl | 終了コード0と`complete.`を確認。YASM固有の列配置を解釈してDMPを取り込む |
+| Other (generic DMP) | 設定した成功時の終了コード（既定0）と、今回生成されたPGP形式のアドレス付きDMPを確認 |
+
+従来のInternal/External設定はそのまま読み込み、旧ExternalはSC61として扱う。
+設定画面の上部「使用するアセンブラ」で、Workspace／Build／Quick Assembleに使う対象を選ぶ。
+この選択は保存済みの各設定を使って直ちに保存・反映され、メイン画面下部とWorkspace上部にも表示される。
+未設定の外部ツールは、先にそのタブで実行ファイル等を保存してから選ぶ。
+
+下部の「内蔵／SC61／yasm.pl／汎用」タブは設定の編集対象を切り替える。
+タブを変えても使用対象は変わらず、編集中の値は画面内で保持する。
+各外部ツールの実行ファイル・引数・タイムアウト・成功終了コード・テスト用ソースを個別に保存する。
+「この設定を保存」は表示中のタブだけを保存する。設定画面を閉じる前に必要なタブを保存すること。
+使用中ツールの設定を保存した場合は、次の実行からその設定を使う。内蔵タブは説明だけを表示する。
+接続テストは編集中のタブの設定で実行し、保存や使用対象の切替は行わない。
+旧1組の設定は当時のツールのプロファイルへ引き継ぎ、他ツールへコピーしない。
+
+### YASM61860の設定例
+
+| 項目 | 値 |
+| --- | --- |
+| 選択 | yasm.pl |
+| Executable / interpreter path | `perl`、またはPerl実行ファイルの絶対パス |
+| Arguments | `"/path/to/yasm.pl" -d {output} {source}` |
+| Timeout in seconds | `60` |
+
+`/path/to/yasm.pl`を手元のスクリプトの絶対パスへ変更する。WindowsでもPerlを実行ファイル、
+スクリプトを最初の引数にする。パスの`~`や環境変数をシェル展開する機能はない。
+
+YASMの標準出力には進捗等も含まれるため、Studioが`-d`の出力先を今回専用のDMPへ自動設定する。
+実行可能な`yasm.pl`を実行ファイルに直接指定し、引数を`{source}`だけにしても使える。
+Perl経由の場合も`"/path/to/yasm.pl" {source}`でよい。
+明示した`-d {output}`も利用できるが、固定の出力先を指定した場合も一時領域へ差し替える。
+元ソース隣のファイルを誤って上書きしないため、YASMのDMP出力先はStudioが管理する。
+`-r`の生バイナリは使わない。手元のYASM61860 1.02では、ORG間の空き領域がraw出力に
+保持されないコードであり、配布ページの説明だけから配置を推測しない。
+
+YASMのダンプは8バイト境界のアドレスを表示し、開始位置まで空欄を置く。
+例えば`ORG $4003`は`4000`の行の先頭3列が空欄になる。
+専用処理で実アドレス`4003`として取り込み、ORG間の空きを維持する。存在する行チェックサムも検査する。
+YASMのListing／Symbol Map／ソース位置の解析は今回含めない。
+Workspaceでは出力byteと逆アセンブル、コンソールログを確認できる。
+エラー時の行番号が特定できない場合、主ソースと原文ログから確認する。
+
+### その他の外部ツール
+
+`Other (generic DMP)`を選び、実行ファイルと、DMP出力先を指定する引数を設定する。
+例えばツールが`-o`をサポートするなら`-o {output} {source}`とする。
+スクリプトの場合は、そのインタープリターを実行ファイルにする。
+
+- `{source}`：実行用に一時領域へコピーしたソースの絶対パス。指定しない場合は末尾へ追加する。
+- `{output}`：今回専用の一時領域にある`input.dmp`の絶対パス。
+- ソースと同じ場所・同じ名前の`.dmp`を生成するツールは、`{source}`だけでも使える。
+- 成功時の終了コードを0〜255で設定できる。非一致・出力なし・不正なDMPは取り込まない。
+- 取り込みはPGPのアドレス付きDMPに限定する。Intel HEX、raw binary、標準出力の直接取り込み、
+  任意のListing／Symbol形式は未対応。ツール側の設定や利用者のラッパーでDMPへ変換する。
+
+作業ディレクトリは元ソースの親フォルダで、シェルは介さない。引数の引用符は引数区切りのために使い、
+リダイレクトやパイプは使わない。出力先は上記の一時パスを指定し、元ソース隣の既存成果物を出力先にしない。
+DMPは2MiBまでで、空データ、16bit範囲外、同一アドレスの重複を拒否する。
+ROMやBASIC領域等への配置可否は従来どおりLoad時に検査する。
+タイムアウト・キャンセル・ログ収集と、一時領域の破棄は外部実行の共通処理を使う。
+
+## SC61の設定
 
 アプリメニューのSettingsを開き、Assembler欄に以下を入力する。
 
 | 項目 | macOSの例 | Windowsの例（Windows上のStudioは未検証） |
 |---|---|---|
-| 選択 | External | External |
-| Executable path (SC61) | `/Users/yourname/tools/sc61` | `C:\Tools\SC61\SC61.exe` |
+| 選択 | SC61 | SC61 |
+| Executable / interpreter path | `/Users/yourname/tools/sc61` | `C:\Tools\SC61\SC61.exe` |
 | Arguments | `{source}` | `{source}` |
 | Timeout in seconds | `60` | `60` |
 
@@ -92,7 +159,7 @@ Load失敗時は一部だけを書き込まず、以前のロード済み状態�
 - Windows版SC61 Rev 0.04aはmacOSのWine 11.0で確認。19byteの検証ソースはmacOS版とアドレス・byteが一致し、成功2、不明命令17、未定義operandエラー0、失敗後の旧DMP保持を確認。
 - Windowsユーザー確認で、SC61接続テストとBuild成功、修正後の「プログラム登録」成功が報告された。登録先の詳細は未確認。
 - Windowsの設定再起動保持、日本語パス／文字コード、全操作の失敗・取消、Assembleハング解消の個別確認、FENSCERのゲーム実行は確認待ち。Build成功をLoadやゲーム実行成功とは扱わない。
-- SC61初版の対応は2026-10-13に一区切りとする。yasm.pl・汎用adapterと「内蔵／SC61／yasm.pl／その他」の選択画面は後続設計。現在はInternal/Externalの２択で、ExternalはSC61向け。
+- SC61初版の対応は2026-10-13に一区切りとした。2026-10-20にyasm.pl／汎用DMP adapterと4択の画面を追加。新adapterの確認範囲は下記参照。
 
 Windows実機での残る確認項目:
 
@@ -109,6 +176,63 @@ Windows実機での残る確認項目:
 ### Connection test and large previews
 
 Run connection test directly tests the configured SC61 command even while Internal is selected.
-Workspace/Build/Quick Assemble use the saved Internal/External selection; choose External and Apply
+Workspace/Build/Quick Assemble use the saved tool selection; choose SC61 and Apply
 assembler setting to use SC61 there. Large Workspace results render visible lines only; Copy all
 copies the complete result, and Build preserves the full DMP/LST/Map outputs.
+
+
+## 新adapterの確認範囲（2026-10-20）
+
+- ユーザーのローカルYASM61860 1.02を変更せず実行し、終了コード0／不正命令の失敗を確認。
+  アドレス境界内・非整列・行境界をまたぐ出力、複数ORGによる空き領域、不正命令を自動検証。
+- 合成の別プロセスで、汎用の成功・失敗・出力なし・不正DMPと、以前の成果物を取り込まないことを確認。
+- SC61の成功メッセージ・DMP・Listing取り込み、共有Runnerの終了・タイムアウト・キャンセルの回帰テストを維持。
+- 旧設定の読込みと各ツール種別・引数・終了コードの保存復元は、メモリー内の設定ストアで検証する。
+- macOSのローカル検証と、Windows／Linux実環境のyasm.pl・汎用ツール確認は区別する。
+  外部ツールやユーザーの実ソースをCIへ追加しない。YASM実行テストは`PGP_YASM_SCRIPT`指定時だけ実行する。
+
+```sh
+PGP_YASM_SCRIPT=/path/to/yasm.pl ./gradlew :desktopApp:test --tests '*DesktopConfiguredExternalAssemblerTest'
+```
+
+参照：[YASM61860作者の説明](https://www.oit.ac.jp/labs/rd/rssrv/kobayashi-lab/~yagshi/old_web/misc/pocketcom/yasm-e.html)。
+実行仕様はローカル1.02のコード・実測を優先し、外部ソースを製品へ組み込んでいない。
+
+今回の最終ローカル検証：JDK 21で`build :core:desktopTest`成功。
+Studio 323件（既存skip 1）、Core desktop 462件で失敗なし。
+YASM実行テストはローカルスクリプト指定付きで実行した。
+一時HOME・メモリー内Preferences・空の作業ディレクトリでStudioを起動し、
+日英の4択部分は隔離描画で確認した。通常の設定／ROM Libraryは使わない。
+本番設定画面での全操作・Windows／Linux実ツール・hosted CIの確認とは区別する。
+
+### 同日の修正：YASMの出力指定がない設定
+
+実行ファイルにyasm.plを直接指定し、引数が`{source}`だけの設定では、YASMは正常終了しても
+DMPを標準出力へ出すため、Studioが`External assembler did not generate a DMP file`として拒否していた。
+YASM選択時の`-d`設定をStudio側で補完・管理し、この既存設定のまま利用できるようにした。
+汎用DMPとSC61の引数処理は変更しない。
+修正後、ローカル1.02の直接起動＋`{source}`だけの設定で、ユーザーのpacman.asmの取り込みを確認。
+出力指定なし／`-d {output}`／固定名の指定を含む回帰テストと、全体`build :core:desktopTest`が成功した。
+これはアセンブル結果の取り込み確認であり、ゲーム実行の確認とは区別する。
+
+## Workspaceのログ表示
+
+成功時・失敗時とも外部アセンブラのログをエラー概要や生成物と分けて表示する。
+8行を超えるログは高さ200dpの枠内でスクロールでき、右側にスクロールバーを表示する。
+表示は必要な行だけを描画し、長いログでも下の操作を押し下げない。
+「ログをすべてコピー」で、枠の外にある行も含む全文をコピーできる。
+外部Runnerの収集上限1MiBは従来どおりであり、それを超えたログは収集時の切詰め表示に従う。
+
+設定タブ／使用対象分離とログ枠の追加後、全体`build :core:desktopTest`成功。
+Studio 325件（既存skip 1）、Core desktop 462件で失敗なし。
+日英の設定画面と1,000行ログの隔離描画、旧設定の移行・独立したプロファイル保存復元を確認。
+通常のユーザー設定へテスト用の値を書き込んでいない。
+
+
+## 今回のユーザー確認（2026-10-20）
+
+使用するアセンブラの選択、内蔵／SC61／yasm.pl／汎用の設定タブと個別保存、
+メイン画面・Workspaceでの使用対象表示、長いログの固定枠・スクロール表示を追加後、
+ユーザーから「動作確認しました。問題ないと思います」との報告を受領した。
+今回の外部アセンブラ対応を一区切りとする。
+確認OS・各ツール・個別操作の内訳は未指定であり、全環境・全ツールの網羅確認とは区別する。
