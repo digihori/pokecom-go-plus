@@ -18,7 +18,9 @@ internal object PlayerRomDecoder {
             (AndroidRomPackage.read(bytes) as? RomPackageReadResult.Success)?.romSet
         } else {
             // PC-1360 uses internal + eight ROM banks; import its validated .pgrom package.
-            val imported = when (machineId.value) {
+            val imported = when (PlayerMachineCatalog.romId(machineId).value) {
+                "pc-1450" -> com.digihori.pgp.core.emulator.machine.pc14xx.Pc14xxFlatRomImporter.importImage(
+                    com.digihori.pgp.core.emulator.machine.pc14xx.Pc14xxModel.PC_1450, bytes)
                 "pc-1261" -> Pc1261FlatRomImporter.importImage(bytes)
                 "pc-1251" -> Pc1251FlatRomImporter.importImage(bytes)
                 "pc-1245" -> Pc1245FlatRomImporter.importImage(bytes)
@@ -28,6 +30,6 @@ internal object PlayerRomDecoder {
             }
             (imported as? RomImportResult.Success)?.romSet
         }
-        return rom?.takeIf { it.machineId == machineId }
+        return rom?.let { PlayerMachineCatalog.forModel(it, machineId) }
     }
 }

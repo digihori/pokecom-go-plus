@@ -27,7 +27,7 @@ class Pc1350SkinTest {
             }
         }
         assertNull(skin.operatingModeRegion)
-        assertTrue(PlayerMachineCatalog.definitions.none { it.id == MachineId("pc-1450") })
+        assertTrue(PlayerMachineCatalog.definitions.any { it.id == MachineId("pc-1470u") })
     }
 
     @Test fun lcdAndExportedSymbolsFitThePanelWithoutOverlap() {

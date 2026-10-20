@@ -15,9 +15,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.digihori.pgp.core.api.MachineCatalog
 import com.digihori.pgp.core.rom.MachineId
+import com.digihori.pgp.player.PlayerMachineCatalog
 
 @Composable
-internal fun RomManagementScreen(manager: AndroidRomManager, current: MachineId?) {
+internal fun RomManagementScreen(manager: AndroidRomManager, current: MachineId?, homeModels: Map<MachineId, MachineId> = emptyMap()) {
     val state = manager.state ?: return
     BackHandler {
         when (state) {
@@ -31,15 +32,19 @@ internal fun RomManagementScreen(manager: AndroidRomManager, current: MachineId?
         Text("ROM管理", style = MaterialTheme.typography.headlineSmall)
         when (state) {
             is RomManagerState.ListRoms -> {
-                Text("機種ごとにROMを1セット保存します。切替・置換時にRAMは引き継ぎません。")
+                Text("シリーズごとにROMを1セット保存します。切替・置換時にRAMは引き継ぎません。")
                 state.entries.forEach { entry ->
-                    Text(MachineCatalog.require(entry.machineId).displayName + if (entry.machineId == current) "（使用中）" else "",
+                    val model = PlayerMachineCatalog.selectedModel(entry.machineId, homeModels)
+                    Text(PlayerMachineCatalog.romLabel(entry.machineId) + if (entry.machineId == current?.let(PlayerMachineCatalog::romId)) "（使用中）" else "",
                         style = MaterialTheme.typography.titleMedium)
+                    if (PlayerMachineCatalog.models(entry.machineId).size > 1) {
+                        Text("起動機種：${MachineCatalog.require(model).displayName}（ホームで選択）")
+                    }
                     Text(if (entry.installed) "登録済み · ${entry.sourceName.orEmpty().substringAfterLast('/')}" else "未登録")
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { manager.importRom(entry.machineId) }) { Text(if (entry.installed) "置換" else "取込み") }
+                        OutlinedButton(onClick = { manager.importRom(model) }) { Text(if (entry.installed) "置換" else "取込み") }
                         if (entry.installed) {
-                            OutlinedButton(onClick = { manager.use(entry.machineId) }, enabled = entry.machineId != current) { Text("使用する") }
+                            OutlinedButton(onClick = { manager.use(model) }, enabled = model != current) { Text("使用する") }
                             TextButton(onClick = { manager.delete(entry.machineId) }) { Text("削除") }
                         }
                     }

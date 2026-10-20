@@ -11,7 +11,7 @@ import kotlin.test.*
 class PlayerAudioTest {
     @Test
     fun allSupportedMachinesDeliverOscillatorsAndConsumeEachTick() {
-        for (model in listOf("pc-1245", "pc-1401", "pc-1350", "pc-1251", "pc-1360", "pc-1360k")) for (control in listOf(0x20, 0x30)) {
+        for (model in listOf("pc-1245", "pc-1401", "pc-1350", "pc-1251", "pc-1360", "pc-1360k", "pc-1450", "pc-1460", "pc-1470u")) for (control in listOf(0x20, 0x30)) {
             val runner = runner(model, control)
             runner.run(0)
             val audio = assertNotNull(runner.tick(10_000_000).audio)
@@ -44,7 +44,7 @@ class PlayerAudioTest {
             repeat(48) { add(0x4d) }
             addAll(listOf(0x79, 0x00, 0x00).map(Int::toByte))
         }.toByteArray()
-        for (model in listOf("pc-1245", "pc-1401", "pc-1350", "pc-1251", "pc-1360", "pc-1360k")) {
+        for (model in listOf("pc-1245", "pc-1401", "pc-1350", "pc-1251", "pc-1360", "pc-1360k", "pc-1450", "pc-1460", "pc-1470u")) {
             val runner = runner(model, 0, program)
             runner.run(0)
             val samples = assertNotNull(runner.tick(10_000_000).audio).copySamples()
@@ -55,7 +55,7 @@ class PlayerAudioTest {
 
     @Test
     fun silentFramesRetainDurationAndSnapshotsAreImmutable() {
-        for (model in listOf("pc-1245", "pc-1401", "pc-1350", "pc-1251", "pc-1360", "pc-1360k")) {
+        for (model in listOf("pc-1245", "pc-1401", "pc-1350", "pc-1251", "pc-1360", "pc-1360k", "pc-1450", "pc-1460", "pc-1470u")) {
             val runner = runner(model, 0)
             runner.run(0)
             val silent = assertNotNull(runner.tick(10_000_000).audio)
@@ -79,6 +79,13 @@ class PlayerAudioTest {
         if (model in setOf("pc-1360", "pc-1360k")) {
             val rom = (com.digihori.pgp.core.emulator.machine.pc1360.Pc1360ComponentRomImporter.importImages(
                 internal, List(8) { ByteArray(0x4000) }, MachineId(model)) as com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult.Success).romSet
+            return PlayerRunner(assertIs<CreateSessionResult.Success>(EmulatorFactory.create(rom.machineId, rom)).session)
+        }
+        if (model in setOf("pc-1450", "pc-1460", "pc-1470u")) {
+            val definition = com.digihori.pgp.core.emulator.machine.pc14xx.Pc14xxModel.fromMachineId(MachineId(model))!!
+            val rom = assertIs<com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult.Success>(
+                com.digihori.pgp.core.emulator.machine.pc14xx.Pc14xxComponentRomImporter.importImages(definition,
+                    internal, ByteArray(if (definition.bankCount == 0) 0x8000 else definition.bankCount * 0x4000))).romSet
             return PlayerRunner(assertIs<CreateSessionResult.Success>(EmulatorFactory.create(rom.machineId, rom)).session)
         }
         val rom = RomSet(MachineId(model), listOf(

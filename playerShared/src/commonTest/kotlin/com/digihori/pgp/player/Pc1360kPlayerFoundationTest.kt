@@ -32,7 +32,6 @@ class Pc1360kPlayerFoundationTest {
         }
         assertNotNull(caps.single { it.key == PocketKey.SMALL })
         assertNotNull(caps.single { it.key == PocketKey.KANA })
-        assertNull(PlayerKeyboardCatalog.forMachine(MachineId("pc-1450")))
     }
 
     @Test fun originalInstructionsExerciseFourRowsAndSnapshotSymbolsWithoutRom() {

@@ -50,10 +50,9 @@ public object PlayerKeyboardCatalog {
             MachineKeyboardLayout.PC_1251 -> pc1251
             MachineKeyboardLayout.PC_1261 -> pc1261
             MachineKeyboardLayout.PC_1360 -> if (machineId == MachineId("pc-1360k")) Pc1360kKeyboardLayout.keyboard else Pc1360KeyboardLayout.keyboard
-            MachineKeyboardLayout.PC_1450,
-            MachineKeyboardLayout.PC_1460,
-            MachineKeyboardLayout.PC_1470U,
-            -> null
+            MachineKeyboardLayout.PC_1450 -> Pc1450KeyboardLayout.keyboard
+            MachineKeyboardLayout.PC_1460 -> Pc1460KeyboardLayout.keyboard
+            MachineKeyboardLayout.PC_1470U -> Pc1470uKeyboardLayout.keyboard
         }
 
     private val pc1245 = PlayerKeyboard(

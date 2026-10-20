@@ -33,7 +33,6 @@ class Pc1251PlayerFoundationTest {
         assertNull(caps.single { it.key == PocketKey.NUM_1 }.shiftedLabel)
         assertNull(caps.single { it.key == PocketKey.NUM_2 }.shiftedLabel)
         assertIs<InputResult.UnsupportedKey>(player.pressKey(PocketKey.MODE))
-        assertNull(PlayerKeyboardCatalog.forMachine(MachineId("pc-1450")))
     }
 
     @Test fun hardwareRamRejectsExpandedAddressesAndSessionsStayIndependent() {

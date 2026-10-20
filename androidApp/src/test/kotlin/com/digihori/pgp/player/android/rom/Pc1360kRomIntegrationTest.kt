@@ -41,7 +41,7 @@ class Pc1360kRomIntegrationTest {
         assertNull(PlayerRomDecoder.decode(legacy, id))
         for (size in listOf(0, 32767, 32769, 65535, 65537)) assertNull(PlayerRomDecoder.decode(ByteArray(size), id))
         assertNull(PlayerRomDecoder.decode(ByteArray(32768), id))
-        assertNull(PlayerRomDecoder.decode(legacy, MachineId("pc-1450")))
+        assertNull(PlayerRomDecoder.decode(legacy, MachineId("pc-1470u")))
         for (source in ids) {
             val bytes = AndroidRomPackage.write(rom(source))
             for (target in ids) {

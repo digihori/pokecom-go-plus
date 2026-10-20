@@ -10,13 +10,17 @@ import com.digihori.pgp.core.api.PocketKey
 
 /** Android key codes stay in the adapter; timing/ownership are shared with iOS. */
 internal class PhysicalKeyboardState(press: (String, PocketKey) -> Unit, release: (String) -> Unit) {
+    private var pc1470u = false
+    private var pc14xx = false
     private var pc1350 = false
     private var pc1360 = false
     private var pc1360k = false
-    private val input = com.digihori.pgp.input.PhysicalKeyInput(press, release) { physicalPocketKey(it, pc1350, pc1360, pc1360k) }
+    private val input = com.digihori.pgp.input.PhysicalKeyInput(press, release) { physicalPocketKey(it, pc1350, pc1360, pc1360k, pc14xx, pc1470u) }
     fun configure(receiving: Boolean, allowed: Set<PocketKey>, minimumHoldCycles: Long = 0,
-                  minimumGapCycles: Long = 0, pc1350: Boolean = false, pc1360: Boolean = false, pc1360k: Boolean = false) {
-        if (this.pc1350 != pc1350 || this.pc1360 != pc1360 || this.pc1360k != pc1360k) input.reset()
+                  minimumGapCycles: Long = 0, pc1350: Boolean = false, pc1360: Boolean = false, pc1360k: Boolean = false, pc14xx: Boolean = false, pc1470u: Boolean = false) {
+        if (this.pc1470u != pc1470u || this.pc14xx != pc14xx || this.pc1350 != pc1350 || this.pc1360 != pc1360 || this.pc1360k != pc1360k) input.reset()
+        this.pc1470u = pc1470u
+        this.pc14xx = pc14xx
         this.pc1350 = pc1350
         this.pc1360 = pc1360
         this.pc1360k = pc1360k
@@ -50,7 +54,16 @@ internal class AndroidPhysicalKeyboard(context: Context, press: (String, PocketK
     override fun onInputDeviceRemoved(deviceId: Int) { input.reset(deviceId) }
 }
 
-internal fun physicalPocketKey(code: Int, pc1350: Boolean = false, pc1360: Boolean = false, pc1360k: Boolean = false): PocketKey? = when {
+internal fun physicalPocketKey(code: Int, pc1350: Boolean = false, pc1360: Boolean = false, pc1360k: Boolean = false, pc14xx: Boolean = false, pc1470u: Boolean = false): PocketKey? = when {
+    pc1470u && code == KeyEvent.KEYCODE_DEL -> PocketKey.BACKSPACE
+    pc1470u && code == KeyEvent.KEYCODE_FORWARD_DEL -> PocketKey.DELETE
+    pc1470u && code == KeyEvent.KEYCODE_INSERT -> PocketKey.INSERT
+    pc1470u && code == KeyEvent.KEYCODE_F8 -> PocketKey.SHIFT
+    pc14xx && code == KeyEvent.KEYCODE_F4 -> PocketKey.KANA
+    pc14xx && code == KeyEvent.KEYCODE_F5 -> PocketKey.SMALL
+    pc14xx && code == KeyEvent.KEYCODE_F6 -> PocketKey.DAKUTEN
+    pc14xx && code == KeyEvent.KEYCODE_F7 -> PocketKey.LONG_VOWEL
+    pc14xx && code == KeyEvent.KEYCODE_F8 -> PocketKey.LOCK
     (pc1350 || pc1360 || pc1360k) && code == KeyEvent.KEYCODE_F2 -> PocketKey.MODE
     (pc1350 || pc1360 || pc1360k) && code == KeyEvent.KEYCODE_F3 -> PocketKey.KANA
     (pc1350 || pc1360 || pc1360k) && code == KeyEvent.KEYCODE_INSERT -> PocketKey.INSERT

@@ -8,7 +8,7 @@ import com.digihori.pgp.core.rom.MachineId
 internal object Pc1251Skin {
     val definition = SkinDefinition(
         id = PlayerSkinCatalog.PC1251_SKIN_ID,
-        machineIds = setOf(MachineId("pc-1251")),
+        machineIds = listOf("pc-1250", "pc-1251", "pc-1255").map(::MachineId).toSet(),
         designSize = SkinSize(1205f, 600f),
         fullDeviceRegion = SkinRect(0f, 0f, 1205f, 600f),
         controllerDisplayRegion = SkinRect(30f, 35f, 1146f, 185f),

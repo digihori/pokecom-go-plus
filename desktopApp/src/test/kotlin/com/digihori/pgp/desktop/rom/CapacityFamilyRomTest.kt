@@ -62,7 +62,8 @@ class CapacityFamilyRomTest {
             assertEquals(32_768L, DesktopRomSetCreator.externalSize(id))
         }
         for (id in listOf("pc-1260", "pc-1402")) {
-            assertFalse(PlayerMachineCatalog.definitions.any { it.id.value == id }, "New Core/Studio IDs do not add Player skins")
+            assertTrue(PlayerMachineCatalog.definitions.any { it.id.value == id }, "Player now supports the capacity models")
+            assertFalse(PlayerMachineCatalog.homeDefinitions.any { it.id.value == id }, "Shared-ROM models keep one home row per series")
         }
     }
 }

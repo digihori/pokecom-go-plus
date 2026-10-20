@@ -65,7 +65,7 @@ internal class AndroidRomManager(
                         val commit = { install(prepared) }
                         if (replacing || session() != null) {
                             show(RomManagerState.Confirm(
-                                "${MachineCatalog.require(id).displayName}のROMを${if (replacing) "置換" else "登録"}します。現在のRAMとロード済みプログラムは失われます。", commit, cancel,
+                                "${PlayerMachineCatalog.romLabel(id)}の共通ROMを${if (replacing) "置換" else "登録"}します。現在のRAMとロード済みプログラムは失われます。", commit, cancel,
                             ))
                         } else commit()
                     }
@@ -78,7 +78,7 @@ internal class AndroidRomManager(
     fun dismiss() { show(null) }
     fun open() {
         pause()
-        work("ROM一覧を読み込んでいます…", { library.entries(PlayerMachineCatalog.definitions.map { it.id }) }) {
+        work("ROM一覧を読み込んでいます…", { library.entries(PlayerMachineCatalog.homeDefinitions.map { it.id }) }) {
             show(RomManagerState.ListRoms(it))
         }
     }
@@ -119,8 +119,8 @@ internal class AndroidRomManager(
     }
 
     fun delete(machineId: MachineId) {
-        val active = session()?.machineId == machineId
-        show(RomManagerState.Confirm("${MachineCatalog.require(machineId).displayName}の保存済みROMを削除します。${if (active) "現在のSessionとRAMも破棄します。" else ""}", action = {
+        val active = session()?.machineId?.let(PlayerMachineCatalog::romId) == PlayerMachineCatalog.romId(machineId)
+        show(RomManagerState.Confirm("${PlayerMachineCatalog.romLabel(machineId)}の保存済みROMを削除します。${if (active) "現在のSessionとRAMも破棄します。" else ""}", action = {
             work("ROMを削除しています…", { library.delete(machineId) }) {
                 if (active) publishState(PlayerScreenState.RomMissing)
                 open()
@@ -142,9 +142,8 @@ internal class AndroidRomManager(
 
     private fun createStoredSession(id: MachineId): PlayerSession {
         val bytes = library.load(id) ?: error("保存済みROMが見つかりません")
-        val parsed = AndroidRomPackage.read(bytes) as? RomPackageReadResult.Success ?: error("保存済みROMの検証に失敗しました")
-        require(parsed.romSet.machineId == id) { "保存済みROMの機種が一致しません" }
-        return (PlayerSessionFactory.create(parsed.romSet) as? PlayerSessionCreationResult.Success)?.session
+        val parsed = PlayerRomDecoder.decode(bytes, id) ?: error("保存済みROMの検証に失敗しました")
+        return (PlayerSessionFactory.create(parsed) as? PlayerSessionCreationResult.Success)?.session
             ?: error("Sessionを生成できませんでした")
     }
 
@@ -153,7 +152,7 @@ internal class AndroidRomManager(
         if (!initial) show(RomManagerState.Busy(text))
         executor.execute {
             val result = runCatching(operation)
-            val listing = runCatching { library.entries(PlayerMachineCatalog.definitions.map { it.id }) }
+            val listing = runCatching { library.entries(PlayerMachineCatalog.homeDefinitions.map { it.id }) }
             activity.runOnUiThread {
                 if (activity.isDestroyed || ticket != generation) return@runOnUiThread
                 listing.getOrNull()?.let { entries = it }

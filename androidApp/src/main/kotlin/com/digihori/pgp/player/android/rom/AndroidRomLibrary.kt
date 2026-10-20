@@ -4,6 +4,7 @@ import com.digihori.pgp.core.api.MachineCatalog
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.rom.RomSet
 import com.digihori.pgp.player.PlayerRomEntry
+import com.digihori.pgp.player.PlayerMachineCatalog
 import java.io.File
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
@@ -12,7 +13,7 @@ import java.util.Properties
 
 internal class AndroidRomLibrary(private val filesDir: File) {
     fun install(packageBytes: ByteArray, romSet: RomSet, sourceName: String?) {
-        val id = checkedId(romSet.machineId)
+        val id = storageId(romSet.machineId)
         val directory = File(filesDir, "rom-library/$id")
         check(directory.mkdirs() || directory.isDirectory)
         val metadata = Properties().apply {
@@ -26,12 +27,12 @@ internal class AndroidRomLibrary(private val filesDir: File) {
         replaceFiles(linkedMapOf(
             File(directory, PACKAGE_FILE) to packageBytes,
             File(directory, METADATA_FILE) to metadataBytes,
-            File(filesDir, ACTIVE_MACHINE_FILE) to id.encodeToByteArray(),
+            File(filesDir, ACTIVE_MACHINE_FILE) to checkedId(romSet.machineId).encodeToByteArray(),
         ))
     }
 
     fun load(machineId: MachineId): ByteArray? =
-        File(filesDir, "rom-library/${checkedId(machineId)}/$PACKAGE_FILE")
+        File(filesDir, "rom-library/${storageId(machineId)}/$PACKAGE_FILE")
             .takeIf(File::isFile)?.readBytes()
 
     fun activeMachineId(): MachineId? = File(filesDir, ACTIVE_MACHINE_FILE)
@@ -47,7 +48,7 @@ internal class AndroidRomLibrary(private val filesDir: File) {
     }
 
     fun entries(machineIds: List<MachineId>): List<PlayerRomEntry> = machineIds.map { machineId ->
-        val directory = File(filesDir, "rom-library/${checkedId(machineId)}")
+        val directory = File(filesDir, "rom-library/${storageId(machineId)}")
         val metadata = File(directory, METADATA_FILE).takeIf(File::isFile)?.let { file ->
             runCatching { Properties().apply { file.inputStream().use(::load) } }.getOrNull()
         }
@@ -55,14 +56,16 @@ internal class AndroidRomLibrary(private val filesDir: File) {
     }
 
     fun delete(machineId: MachineId) {
-        val directory = File(filesDir, "rom-library/${checkedId(machineId)}")
+        val directory = File(filesDir, "rom-library/${storageId(machineId)}")
         val changes = linkedMapOf<File, ByteArray?>(
             File(directory, PACKAGE_FILE) to null,
             File(directory, METADATA_FILE) to null,
         )
-        if (activeMachineId() == machineId) changes[File(filesDir, ACTIVE_MACHINE_FILE)] = null
+        if (activeMachineId()?.let(PlayerMachineCatalog::romId) == PlayerMachineCatalog.romId(machineId)) changes[File(filesDir, ACTIVE_MACHINE_FILE)] = null
         replaceFiles(changes)
     }
+
+    private fun storageId(machineId: MachineId): String = checkedId(PlayerMachineCatalog.romId(machineId))
 
     private fun checkedId(machineId: MachineId): String {
         require(MachineCatalog.find(machineId) != null) { "Unknown machine" }

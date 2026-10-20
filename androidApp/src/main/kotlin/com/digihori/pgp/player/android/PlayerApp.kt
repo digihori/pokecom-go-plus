@@ -132,9 +132,14 @@ internal fun PlayerApp(
     homeRomEntries: List<PlayerRomEntry>? = null,
     onImportMachineRom: (MachineId) -> Unit = {},
     onHome: () -> Unit = {},
+    homeModels: Map<MachineId, MachineId> = emptyMap(),
+    onHomeModelChange: (MachineId) -> Unit = {},
     homeLayout: PlayerHomeLayout = PlayerHomeLayout.TILES,
     onHomeLayoutChange: (PlayerHomeLayout) -> Unit = {},
 ) {
+    // Keep each home layout's position while the emulator replaces the home composition.
+    val homeTileState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+    val homeListState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             Box(
@@ -145,7 +150,8 @@ internal fun PlayerApp(
             ) {
                 if (showHome) {
                     PlayerHomeScreen(screenState, homeRomEntries, onPlay, onImportMachineRom, romImportEnabled,
-                        homeLayout, onHomeLayoutChange)
+                        homeLayout, onHomeLayoutChange,
+                        if (homeLayout == PlayerHomeLayout.TILES) homeTileState else homeListState, homeModels, onHomeModelChange)
                 } else when (screenState) {
                     PlayerScreenState.RomMissing -> RomMissingScreen(onImportRom, romImportEnabled)
                     PlayerScreenState.Loading -> LoadingScreen()
@@ -283,7 +289,7 @@ private fun EmulatorScreen(
     onHome: () -> Unit = {},
 ) {
     val skin = remember(machineId) { PlayerSkinCatalog.forMachine(machineId)?.withFixedModeIndicators() }
-    val quickModes = machineId in setOf(MachineId("pc-1245"), MachineId("pc-1251"), MachineId("pc-1261")) &&
+    val quickModes = MachineCatalog.require(machineId).family in setOf(MachineFamily.PC_1245, MachineFamily.PC_1251, MachineFamily.PC_1261) &&
         supportedOperatingModes.containsAll(setOf(OperatingMode.RUN, OperatingMode.PROGRAM))
     Box(modifier = Modifier.fillMaxSize()) {
         if (displayFrame == null) {
@@ -544,6 +550,9 @@ private fun SkinnedDevice(
         PresentationMode.CONTROLLER_DISPLAY -> skin.controllerDisplayRegion
     }
     val imageResource = when (skin.id) {
+        PlayerSkinCatalog.PC1470U_SKIN_ID -> R.drawable.skin_pc1470u
+        PlayerSkinCatalog.PC1460_SKIN_ID -> R.drawable.skin_pc1460
+        PlayerSkinCatalog.PC1450_SKIN_ID -> R.drawable.skin_pc1450
         PlayerSkinCatalog.PC1261_SKIN_ID -> R.drawable.skin_pc1261
         PlayerSkinCatalog.PC1251_SKIN_ID -> R.drawable.skin_pc1251
         PlayerSkinCatalog.PC1245_SKIN_ID -> R.drawable.skin_pc1245
@@ -601,7 +610,7 @@ private fun SkinnedDevice(
                 val bounds = if (joinedAngle) region.bounds.copy(width = region.bounds.width +
                     skin.statusRegions.single { it.symbol == DisplaySymbol.RAD }.bounds.width) else region.bounds
                 SkinLcdLabel(
-                    text = if (skin.id in setOf(PlayerSkinCatalog.PC1350_SKIN_ID, PlayerSkinCatalog.PC1360_SKIN_ID, PlayerSkinCatalog.PC1360K_SKIN_ID, PlayerSkinCatalog.PC1261_SKIN_ID)) when (region.symbol) {
+                    text = if (skin.id in setOf(PlayerSkinCatalog.PC1470U_SKIN_ID, PlayerSkinCatalog.PC1460_SKIN_ID, PlayerSkinCatalog.PC1450_SKIN_ID,PlayerSkinCatalog.PC1350_SKIN_ID, PlayerSkinCatalog.PC1360_SKIN_ID, PlayerSkinCatalog.PC1360K_SKIN_ID, PlayerSkinCatalog.PC1261_SKIN_ID)) when (region.symbol) {
                         DisplaySymbol.KANA -> "カナ"
                         DisplaySymbol.SMALL -> "SML"
                         DisplaySymbol.ERROR -> if (skin.id == PlayerSkinCatalog.PC1261_SKIN_ID) "ERROR" else region.symbol.lcdLabel()
@@ -614,7 +623,7 @@ private fun SkinnedDevice(
                     trailingColor = if (displayFrame.enabled && DisplaySymbol.RAD in displayFrame.symbols)
                         Color(0xFF26352C) else Color(0x1F26352C),
                     alignEnd = region.symbol == DisplaySymbol.SHIFT && skin.id == PlayerSkinCatalog.PC1245_SKIN_ID,
-                    bold = skin.id in setOf(PlayerSkinCatalog.PC1401_SKIN_ID, PlayerSkinCatalog.PC1360_SKIN_ID, PlayerSkinCatalog.PC1360K_SKIN_ID, PlayerSkinCatalog.PC1350_SKIN_ID, PlayerSkinCatalog.PC1261_SKIN_ID),
+                    bold = skin.id in setOf(PlayerSkinCatalog.PC1470U_SKIN_ID, PlayerSkinCatalog.PC1460_SKIN_ID, PlayerSkinCatalog.PC1450_SKIN_ID,PlayerSkinCatalog.PC1401_SKIN_ID, PlayerSkinCatalog.PC1360_SKIN_ID, PlayerSkinCatalog.PC1360K_SKIN_ID, PlayerSkinCatalog.PC1350_SKIN_ID, PlayerSkinCatalog.PC1261_SKIN_ID),
                     modifier = Modifier.offset(placement.screenX(bounds.x).dp, placement.screenY(bounds.y).dp)
                         .width((bounds.width * placement.scale).dp).height((bounds.height * placement.scale).dp),
                 )
@@ -877,6 +886,8 @@ private fun LcdDisplay(
 }
 
 private fun DisplaySymbol.lcdLabel(): String = when (this) {
+    DisplaySymbol.BATTERY -> "BATT"
+    DisplaySymbol.KANA_SMALL -> "小"
     DisplaySymbol.HIRAGANA -> "平"
     DisplaySymbol.KATAKANA -> "片"
     DisplaySymbol.S -> "[S]"

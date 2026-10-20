@@ -7,6 +7,39 @@ import com.digihori.pgp.input.HostKeyState
 import kotlin.test.*
 
 class PhysicalKeyboardStateTest {
+    @Test fun pc1470uEditingKeysDoNotFallThroughToClearAndReconfigureReleasesHeldKeys() {
+        assertEquals(PocketKey.BACKSPACE, physicalPocketKey(KeyEvent.KEYCODE_DEL, pc1470u = true))
+        assertEquals(PocketKey.DELETE, physicalPocketKey(KeyEvent.KEYCODE_FORWARD_DEL, pc1470u = true))
+        assertEquals(PocketKey.INSERT, physicalPocketKey(KeyEvent.KEYCODE_INSERT, pc1470u = true))
+        assertEquals(PocketKey.CLEAR, physicalPocketKey(KeyEvent.KEYCODE_CLEAR, pc1470u = true))
+        assertEquals(PocketKey.SHIFT, physicalPocketKey(KeyEvent.KEYCODE_F8, pc14xx = true, pc1470u = true))
+        val events = mutableListOf<String>()
+        val input = PhysicalKeyboardState({ _, key -> events += "down:$key" }, { events += "up:$it" })
+        input.configure(true, setOf(PocketKey.BACKSPACE, PocketKey.CLEAR), pc14xx = true, pc1470u = true)
+        input.handle(1, KeyEvent.KEYCODE_DEL, true)
+        input.configure(true, setOf(PocketKey.BACKSPACE, PocketKey.CLEAR), pc14xx = true)
+        assertEquals(2, events.size); assertEquals("down:BACKSPACE", events.first())
+        input.handle(1, KeyEvent.KEYCODE_DEL, false)
+        assertEquals(2, events.size)
+    }
+    @org.junit.Test fun pc14xxRetainsCalBasicAndAddsKanaControls() {
+        val expected = mapOf(KeyEvent.KEYCODE_F2 to PocketKey.CAL, KeyEvent.KEYCODE_F3 to PocketKey.BASIC,
+            KeyEvent.KEYCODE_F4 to PocketKey.KANA, KeyEvent.KEYCODE_F5 to PocketKey.SMALL,
+            KeyEvent.KEYCODE_F6 to PocketKey.DAKUTEN, KeyEvent.KEYCODE_F7 to PocketKey.LONG_VOWEL,
+            KeyEvent.KEYCODE_F8 to PocketKey.LOCK, KeyEvent.KEYCODE_DEL to PocketKey.CLEAR,
+            KeyEvent.KEYCODE_SHIFT_LEFT to PocketKey.SHIFT, KeyEvent.KEYCODE_SHIFT_RIGHT to PocketKey.SHIFT)
+        expected.forEach { (code, key) -> assertEquals(key, physicalPocketKey(code, pc14xx = true)) }
+        assertEquals(null, physicalPocketKey(KeyEvent.KEYCODE_F4))
+        val events = mutableListOf<String>()
+        val input = PhysicalKeyboardState({ _, key -> events += "down:$key" }, { events += "up:$it" })
+        input.configure(true, expected.values.toSet(), pc14xx = true)
+        input.handle(1, KeyEvent.KEYCODE_F8, true)
+        input.configure(true, expected.values.toSet())
+        assertEquals(2, events.size)
+        assertEquals("down:LOCK", events.first())
+        input.handle(1, KeyEvent.KEYCODE_F8, false)
+        assertEquals(2, events.size)
+    }
     private val allowed = setOf(PocketKey.A, PocketKey.SHIFT, PocketKey.DEF, PocketKey.NUM_7, PocketKey.ENTER)
 
     @Test fun directMappingDoesNotConvertShiftedCharacters() {

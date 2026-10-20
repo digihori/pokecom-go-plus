@@ -7,6 +7,9 @@ import com.digihori.pgp.core.rom.MachineId
 
 /** Platform-neutral skin geometry. Image resources remain owned by each platform application. */
 public object PlayerSkinCatalog {
+    public const val PC1470U_SKIN_ID: String = "pc1470u-default"
+    public const val PC1460_SKIN_ID: String = "pc1460-default"
+    public const val PC1450_SKIN_ID: String = "pc1450-default"
     public const val PC1360K_SKIN_ID: String = "pc1360k-default"
     public const val PC1360_SKIN_ID: String = "pc1360-default"
     public const val PC1261_SKIN_ID: String = "pc1261-default"
@@ -17,11 +20,14 @@ public object PlayerSkinCatalog {
 
     public fun forMachine(machineId: MachineId): SkinDefinition? = when (machineId) {
         Pc1245RomDefinition.MACHINE_ID -> pc1245
+        MachineId("pc-1470u") -> Pc1470uSkin.definition
+        MachineId("pc-1460") -> Pc1460Skin.definition
+        MachineId("pc-1450") -> Pc1450Skin.definition
         MachineId("pc-1360k") -> Pc1360kSkin.definition
         MachineId("pc-1360") -> Pc1360Skin.definition
-        MachineId("pc-1261") -> Pc1261Skin.definition
-        MachineId("pc-1251") -> Pc1251Skin.definition
-        MachineId("pc-1401") -> Pc1401Skin.definition
+        MachineId("pc-1260"), MachineId("pc-1261") -> Pc1261Skin.definition
+        MachineId("pc-1250"), MachineId("pc-1251"), MachineId("pc-1255") -> Pc1251Skin.definition
+        MachineId("pc-1401"), MachineId("pc-1402") -> Pc1401Skin.definition
         MachineId("pc-1350") -> Pc1350Skin.definition
         else -> null
     }

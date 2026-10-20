@@ -9,7 +9,7 @@ import com.digihori.pgp.player.Pc1401KeyboardLayout
 internal object Pc1401Skin {
     val definition = SkinDefinition(
         id = PlayerSkinCatalog.PC1401_SKIN_ID,
-        machineIds = setOf(MachineId("pc-1401")),
+        machineIds = listOf("pc-1401", "pc-1402").map(::MachineId).toSet(),
         designSize = SkinSize(1280f, 548f),
         fullDeviceRegion = SkinRect(0f, 0f, 1280f, 548f),
         controllerDisplayRegion = SkinRect(0f, 0f, 900f, 192f),

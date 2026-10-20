@@ -22,6 +22,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.digihori.pgp.controller.ui.ControllerSettings
 import com.digihori.pgp.core.api.MachineCatalog
@@ -68,6 +70,7 @@ open class MainActivity : ComponentActivity() {
     private lateinit var physicalKeyboard: AndroidPhysicalKeyboard
     private lateinit var gamepad: AndroidGamepadController
     private val entryPolicy = PlayerEntryPolicy()
+    private var homeModels by mutableStateOf<Map<com.digihori.pgp.core.rom.MachineId, com.digihori.pgp.core.rom.MachineId>>(emptyMap())
     private var homeLayout by mutableStateOf(PlayerHomeLayout.TILES)
     private val homePreferences by lazy { getSharedPreferences("player-home", MODE_PRIVATE) }
     private var showHome by mutableStateOf(true)
@@ -94,6 +97,12 @@ open class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         homeLayout = PlayerHomeLayout.fromId(runCatching { homePreferences.getString("layout", null) }.getOrNull())
+        homeModels = com.digihori.pgp.player.PlayerMachineCatalog.homeDefinitions.associate { row ->
+            val stored = runCatching { homePreferences.getString("model:${row.id.value}", null) }
+                .getOrNull()?.let { runCatching { com.digihori.pgp.core.rom.MachineId(it) }.getOrNull() }
+            row.id to com.digihori.pgp.player.PlayerMachineCatalog.selectedModel(row.id,
+                if (stored == null) emptyMap() else mapOf(row.id to stored))
+        }
         enableEdgeToEdge()
         configureSystemBars()
         volumeControlStream = android.media.AudioManager.STREAM_MUSIC
@@ -121,6 +130,13 @@ open class MainActivity : ComponentActivity() {
         val packageInfo = packageManager.getPackageInfo(packageName, 0)
         playerVersion = "${packageInfo.versionName} (${androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(packageInfo)})"
         setContent {
+            val allowRotation = showHome || showControllerSettings || playbackSettings != null ||
+                informationSection != null || romManager.state != null
+            LaunchedEffect(allowRotation) {
+                requestedOrientation = if (allowRotation)
+                    android.content.pm.ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+                else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            }
             val playerInputFocus = remember { FocusRequester() }
             val focusManager = LocalFocusManager.current
             val playerOwnsFocus = !showHome && screenState is PlayerScreenState.Emulator &&
@@ -136,13 +152,23 @@ open class MainActivity : ComponentActivity() {
             BackHandler(enabled = !showHome) { returnHome() }
             BackHandler(enabled = playbackSettings != null) { playbackSettings = null; updateGamepadContext() }
             BackHandler(enabled = showControllerSettings) { closeControllerSettings() }
-            Box(Modifier.fillMaxSize().focusRequester(playerInputFocus)
+            Box(Modifier.fillMaxSize().drawWithContent {
+                // Do not expose the portrait-sized machine layout while Android applies rotation.
+                if (allowRotation || size.width >= size.height) drawContent()
+                else drawRect(Color.Black)
+            }.focusRequester(playerInputFocus)
                 .onFocusChanged { playerHasInputFocus = it.isFocused }
                 .focusable(enabled = playerOwnsFocus)) {
                 PlayerApp(
                     screenState = screenState,
                     showHome = showHome,
                     homeLayout = homeLayout,
+                    homeModels = homeModels,
+                    onHomeModelChange = { id ->
+                        val row = com.digihori.pgp.player.PlayerMachineCatalog.romId(id)
+                        homeModels = homeModels + (row to id)
+                        homePreferences.edit().putString("model:${row.value}", id.value).apply()
+                    },
                     onHomeLayoutChange = { layout ->
                         homeLayout = layout
                         homePreferences.edit().putString("layout", layout.id).apply()
@@ -187,7 +213,7 @@ open class MainActivity : ComponentActivity() {
                     },
                 )
                 ProgramDialogs(programIo)
-                RomManagementScreen(romManager, playerSession?.machineId)
+                RomManagementScreen(romManager, playerSession?.machineId, homeModels)
                 informationSection?.let { section ->
                     PlayerInformationScreen(section, playerVersion) {
                         informationSection = null
@@ -311,6 +337,7 @@ open class MainActivity : ComponentActivity() {
     private fun enterPlayer() {
         if (playerSession == null) return
         pauseEmulator()
+        requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         showHome = false
         if (entryPolicy.shouldRun) requestAutomaticRun()
         updateGamepadContext()
@@ -340,6 +367,8 @@ open class MainActivity : ComponentActivity() {
             keyboard?.let { it.rows.flatten().map { cap -> cap.key }.toSet() +
                 it.functionPanel?.rows?.flatten().orEmpty().map { cap -> cap.key } }.orEmpty(),
             pc1350 = playerSession?.machineId?.value == "pc-1350",
+            pc14xx = playerSession?.machineId?.value in setOf("pc-1450", "pc-1460", "pc-1470u"),
+            pc1470u = playerSession?.machineId?.value == "pc-1470u",
             pc1360 = playerSession?.machineId?.value == "pc-1360",
             pc1360k = playerSession?.machineId?.value == "pc-1360k",
             minimumHoldCycles = playerSession?.machineId?.let { id ->
@@ -389,12 +418,12 @@ open class MainActivity : ComponentActivity() {
     }
 
     private fun configureSystemBars() {
-        // On legacy window-insets implementations, the view flag alone can leave a status-bar
-        // inset on OEM devices. Keep the window fullscreen as well; API 30+ uses the controller.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            @Suppress("DEPRECATION")
-            window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        window.attributes = window.attributes.apply {
+            rotationAnimation = WindowManager.LayoutParams.ROTATION_ANIMATION_JUMPCUT
         }
+        // JUMPCUT requires a fullscreen opaque window. Also avoids legacy OEM status-bar insets.
+        @Suppress("DEPRECATION")
+        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
         val controller = WindowCompat.getInsetsController(window, window.decorView)
         controller.systemBarsBehavior =
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE

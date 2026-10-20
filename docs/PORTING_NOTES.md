@@ -2072,8 +2072,8 @@ JDK 21の全体build / Core回帰成功。ツリー内ファイル名変更は�
   Process death restores ROM only, without RAM/save-state restoration.
 - Sources: https://developer.android.com/guide/topics/manifest/activity-element and
   https://developer.android.com/develop/adaptive-apps/guides/app-orientation-aspect-ratio-resizability
-  Android 16 targetSdk 36 can ignore orientation restrictions on >=600dp screens. No temporary
-  large-screen opt-out added. Device validation of rotation/lifecycle/reset remains pending.
+  Android 16 targetSdk 36 can ignore orientation restrictions on >=600dp screens. The initial
+  implementation had no large-screen opt-out; see the tablet correction below for the current policy.
 - JDK 21 build and core desktop tests passed (some tasks up-to-date); lint emitted Kotlin
   metadata version mismatch messages while the build succeeded. No ROM test data committed.
 
@@ -2806,3 +2806,96 @@ Neither the reference repository nor Studio's production WAV codecs were changed
 - Home tiles and list share the selected-machine caption: prefix the actual name with `*`, replacing the verbose selected suffix. Name sorting and saved layout preference remain unchanged.
 - JDK 21 `build :core:desktopTest :androidApp:assembleDebug` passed after the caption change. Isolated `desktopApp:run` launched successfully and was explicitly stopped. The new caption itself has not received a separate physical-device acceptance report.
 - Continue Android model integration in order PC-1450, PC-1460, PC-1470U. Family variant selection is deferred; no RAM expansion or iOS scope added.
+
+## Android PC-1450 foundation and connection (2026-10-20)
+
+- Ported Studio `desktopApp/src/main/kotlin/com/digihori/pgp/desktop/input/Pc14xxKeyboardLayout.kt` PC-1450 key identities and legends into shared Player. Preserve LOCK for the left SHIFT caption and SHIFT for the right; do not invent a common scan.
+- Retained CAL/BASIC host keys and added explicit Android F4–F8 mappings for kana, small, dakuten, long vowel and LOCK. Model changes release held physical input.
+- Reused existing Pc14xx session, fixed RAM, S1 codec and memory classification. Original instruction tests cover the 1450 LCD wiring, all 18 symbols and oscillator PCM; original BASIC sources exercise vocabulary/kana and rejected DMP placements without changing loaded BASIC.
+- Replaced the initial mockup with the user-supplied LCD guide. Connected PC-1450 only after its shared foundation checks. Android supports validated pgrom or the existing 64 KiB flat importer, which discards RAM.
+- Debug namespaces isolate real-ROM checks from normal Library/preferences. Verified all 81 touch keys, 18 indicators, BASIC load/RUN/save and paused background return. See `ANDROID_PC1450_PROGRESS.md` for stage-specific verification.
+
+## Android PC-1460 connection (2026-10-20)
+
+- Reused existing Pc14xx four-bank ROM, fixed RAM, S1 codec, LCD wiring and Core key scans after PC-1450 host verification. Android accepts Studio pgrom only for banked machines.
+- Ported Studio 1460 labels, retaining LOCK, FSE and SHIFT+UP/DOWN MATRIX. Shared Android F2–F8 mappings use the same scan identities.
+- Supplied user LCD guides determine indicator locations. PC-1460 preserves physical pitch 3:4, independently of the 5×7 Core snapshot; only skin geometry changes the rendered aspect.
+- Shared and Android tests use independently authored instructions and BASIC text; isolated Debug hosts verify all physical key regions without reading normal ROM Library or settings. See `ANDROID_PC1460_PROGRESS.md`.
+
+## Android PC-1470U connection (2026-10-20)
+
+- Reused Core eight-bank ROM, dedicated S2 token table, numeric keyboard selector, 22-bit LCD symbols and RAM boundaries. Ported Studio 1470U keys, adding skin-specific arrow and DRG captions without changing scan behavior.
+- Supplied LCD guide defines two dot rows and the DBL, AER and BATT positions. Square pitch and one-dot row gap are retained. Both physical SHIFTs keep separate IDs and owners for the same logical key.
+- Android Backspace/Delete/Insert dispatch BS/DEL/INS only on PC-1470U. Model reconfiguration releases pending input. AER/CAL is the actual machine key, with SHIFT selecting CAL; no host-generated mode label is used for the skin.
+- Local firmware cold initialization reached RUN. Verification must inspect LCD mode before sending BASIC: a blind BASIC press can select PRO. An initial PRO-mode RUN command produced ERROR 9; this is distinct from program-load validation.
+- Synthetic data, local-ROM checks and user physical-device acceptance are recorded separately in `ANDROID_PC1470U_PROGRESS.md`. No ROM-derived fixtures or iOS feature additions.
+
+### Final validation environment
+
+JDK 21 clean build, Core desktop tests and Android debug packaging passed without configuration/build cache (Core 462; shared desktop/Android 121 each; shared iOS Simulator 131; Android unit 77). Isolated Studio launch passed and was explicitly stopped. Temporary-HOME Native dependency paths had mixed with normal generated outputs; stopping the daemon and rebuilding cleanly resolved this without product or CI changes. Final APK uses the normal debug signing environment; only the fresh isolated test AVD's temporary-signed installation was replaced and final APK launch was verified. Physical-device acceptance remains pending for these three models.
+
+## Android home scroll restoration (2026-10-20)
+
+- Hoisted independent tile/list LazyGridState instances above the home/emulator composition branch. Returning home keeps the previous position instead of recreating the grid at the first machine.
+- On home entry or layout change, wait for grid measurement and ensure the selected machine is fully visible. Keep the position if it already is; otherwise scroll to its named item. ROM persistence and emulator Session ownership are unchanged.
+
+- JDK 21 `build :core:desktopTest :androidApp:assembleDebug --no-configuration-cache` passed. On an isolated emulator, PC-1470U remained visible on home entry and after emulator/home round trips in both layouts. Manually adjusted positions stayed identical after return, and tile/list positions remained independent. No new physical-device acceptance or commit/push.
+
+## Android orientation by screen (2026-10-20)
+
+- MainActivity starts in FULL_USER orientation for home. Home, controller/playback settings, ROM management and information follow system rotation preferences; the machine screen and its program dialogs retain SENSOR_LANDSCAPE. Closing settings opened from the machine restores landscape.
+- Keep the existing configuration-change handling so rotation preserves the Activity and emulator Session and releases held inputs. Home scroll visibility is reevaluated only after measurement matches the resized grid viewport.
+
+- JDK 21 `build :core:desktopTest :androidApp:assembleDebug --no-configuration-cache` passed. Isolated emulator verification covered both tile/list portrait-home → landscape-machine → portrait-home round trips, selected-card visibility after each resize, the same Activity/Session across rotation, and portrait/landscape CPU settings, controller settings and Player help. Physical-device acceptance remains pending.
+
+## Android home scroll indicator (2026-10-20)
+
+- Added a persistent right-side track/thumb for both home layouts when the grid can scroll. Uses measured visible grid rows, partial-row offsets and maxSpan to estimate position with the existing Compose version. Counts the full-width explanatory footer/error as separate rows and anchors the thumb at the actual scroll endpoints.
+- Draw in the existing outer gutter so machine-card sizes, touch targets and adaptive column count stay unchanged. Hide the indicator when all content fits; keep existing scroll restoration and orientation handling.
+
+- JDK 21 `build :core:desktopTest :androidApp:assembleDebug --no-configuration-cache` passed. On the isolated emulator, checked portrait/landscape × tile/list at both scroll endpoints: the visible thumb moved from the top to the bottom of the track in all four cases. Inspected the right gutter to confirm no overlap with machine-card controls. Rotation settings were restored after verification; physical-device acceptance and commit/push remain pending.
+
+
+## Android 16 tablet machine orientation (2026-10-20)
+
+- A Redmi Pad 2 / Android 16 report exposed the platform ignoring SENSOR_LANDSCAPE on large screens. Reproduced on an isolated API 36 emulator with a 1600×2560 display at 240 dpi: entering the machine kept portrait orientation.
+- Added application-level `android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY=true` so API 36 honors runtime orientation requests, including MainActivity-derived debug probes. Home and auxiliary screens retain FULL_USER; machine screens retain SENSOR_LANDSCAPE.
+- This is the documented temporary opt-out for target SDK 36. It is unavailable when targeting SDK 37; reassess the machine layout/orientation policy before that upgrade. Source: https://developer.android.com/about/versions/16/behavior-changes-16
+- Implemented and JDK 21 `build :core:desktopTest :androidApp:assembleDebug --no-configuration-cache` passed. On the isolated API 36 tablet-sized emulator, both tile/list flows kept the machine Activity configuration landscape through portrait/landscape device rotation and returned home to portrait, retaining the same Activity/Session. With the device held portrait, Android may letterbox the landscape app area rather than rotate the entire display. Display size/density and rotation settings were restored. Redmi Pad 2 physical-device confirmation remains pending. No ROM or normal ROM Library/settings were modified; no commit/push.
+
+## Android machine entry rotation presentation (2026-10-20)
+
+- Request SENSOR_LANDSCAPE before switching home to the machine. Keep the existing composition/Session, but draw a black transition surface while a landscape-only screen still has portrait bounds; reveal its content when measured landscape bounds arrive.
+- Request `WindowManager.LayoutParams.ROTATION_ANIMATION_JUMPCUT` and keep the opaque Activity window FULLSCREEN on all supported APIs, as required by the local Android SDK WindowManager documentation for this animation preference. Insets controllers continue to manage transient system bars and navigation visibility.
+- JDK 21 `build :core:desktopTest :androidApp:assembleDebug --no-configuration-cache` passed. Isolated API 36 tablet emulator confirmed tile/list home→machine→home, landscape machine configuration through rotation, and retained Activity/Session. Window diagnostics confirmed `rotAnim=JUMPCUT` and `FULLSCREEN`. Device-specific visual timing/animation on Redmi Pad 2 remains pending; a brief blank transition can remain and the OS ultimately controls its animations. No new physical-device acceptance, commit or push.
+
+
+## Android Player user acceptance and closure (2026-10-20)
+
+- After the tablet rotation transition fix, the user reported improved presentation and no problems after checking operation throughout. Record the current Android machine additions (including PC-1450/1460/1470U), home UI and Redmi Pad 2 / Android 16 rotation changes as physically accepted for this work, separate from the automated/emulator evidence above. Earlier pending statements describe the state at those stages; this entry is the final acceptance.
+- Close the current scope. Selection within the PC-1250/1251/1255, PC-1260/1261 and PC-1401/1402 series remains deferred. This does not claim exhaustive per-feature/peripheral/ROM-version coverage. RAM expansion, save states, iOS extensions and iOS CI optimization remain outside this work.
+- Documentation-only acceptance update; `git diff --check` passed. No additional runtime changes, ROM data, commit or push.
+
+
+## Android Player capacity-series selection (2026-10-20)
+
+- Source: existing Core Pc1251FamilyModel / Pc1261FamilyModel / Pc1401FamilyModel, Studio DesktopRomRegistrationCatalog and shared-ROM loading policy. No external reference dependency or new Core algorithm. Earlier deferred Player selection is implemented here; historical closure remains scoped to the preceding work.
+- Added explicit shared-ROM representative IDs and grouped home rows to PlayerMachineCatalog. Enable 1250/1251/1255, then 1260/1261, then 1401/1402, validating each stage. Reuse family skins/keyboards and enable the existing 125x/126x mode shortcuts for every member; 1402 retains CAL initialization. Player always selects HARDWARE RAM for 125x.
+- Preserve Android's existing pc-1251/pc-1261/pc-1401 Library directories; keep exact active model IDs separate. Decode validated family packages into the selected model identity without modifying component bytes. A replacement updates the one shared package; deletion invalidates any active alias in that family. Cross-series packages remain rejected; transaction rollback behavior remains in place.
+- Hoist per-series pending dropdown selections into MainActivity and persist them independently of the active Session. Changing a dropdown does not reset RAM. Existing confirmed switch flow runs on Play; cancellation keeps the old Session. Group-based scroll restoration/highlighting retains the active row, and an alternate pending model displays the current active model explicitly. ROM management groups rows and states the chosen launch model.
+- Verification levels and remaining physical acceptance: [Android series progress](ANDROID_SERIES_PROGRESS.md). PC-1402 capacity recognition remains ROM-version dependent, matching Studio; do not infer full-capacity support from synthetic tests or patch firmware. No ROM/derived fixture, normal Library migration, RAM expansion, iOS feature addition, commit or push.
+
+- Final verification: JDK 21 full build, Core desktop tests and Android debug APK succeeded. Emulator synthetic-ROM checks covered all seven models, pending selections restored independently of the active Session in both home layouts, shared-ROM deletion/cancellation with an active 1255 alias, external-key delivery/release for 1255/1260/1402, and 1402 background return PAUSED with no held/queued keys. Studio startup was checked with an isolated JavaExec home and in-memory PreferencesFactory, then only that process was stopped. New series selection remains pending user physical acceptance.
+
+
+## Android Player current-scope closure and PC-1250 MEM follow-up (2026-10-20)
+
+- User observed MEM=3486 instead of the expected 1486 with PC-1250 selected, then accepted this provisionally and considered the Android Player work a stopping point. Close the current scope without claiming exhaustive physical acceptance of all series models.
+- Player uses HARDWARE RAM for PC-1250. Existing Core keeps the previously documented, partly unconfirmed PC-1250 RAM mirrors; the local 1251 ROM smoke test expects the same logical BASIC start pointer for 1250 and 1251. ROM-version behavior versus memory mapping/capacity detection remains unresolved. Do not label the MEM result normal or attribute it solely to the ROM. No code or firmware patch in this closure update.
+- Preserve this as a known follow-up with minor UI refinements as needed. Documentation-only update; no additional runtime checks, commit or push.
+
+## Android skin palette refresh (2026-10-20)
+
+- User supplied palette-only updates to skin_pc1350.png, skin_pc1360.png and skin_pc1360k.png. Image dimensions remain 1429×603 / 1426×615 / 1426×615; existing shared LCD/key geometry is retained.
+- User renamed skin_pc1470.png to skin_pc1470u.png. Updated the Android drawable reference and confirmed no stale old-name references remain.
+- JDK 21 `build :core:desktopTest :androidApp:assembleDebug --no-configuration-cache` succeeded. Studio startup checked with isolated JavaExec home and in-memory PreferencesFactory, and only that process was stopped. Android display verification uses ROM-free skin probes on the dedicated emulator; no normal ROM Library/settings or connected physical device was used. Physical acceptance of this palette refresh remains separate; no commit/push.

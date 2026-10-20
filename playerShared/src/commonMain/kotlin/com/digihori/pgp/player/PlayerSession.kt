@@ -34,7 +34,7 @@ public class PlayerSession internal constructor(
     public val machineId: MachineId get() = coreSession.machineId
     public val supportedOperatingModes: Set<OperatingMode> =
         MachineCatalog.require(machineId).supportedOperatingModes
-    private val initialOperatingMode = if (machineId == MachineId("pc-1401"))
+    private val initialOperatingMode = if (machineId in setOf(MachineId("pc-1401"), MachineId("pc-1402"), MachineId("pc-1450"), MachineId("pc-1460")))
         OperatingMode.CALCULATOR else OperatingMode.RUN
     private var requestedOperatingMode: OperatingMode = initialOperatingMode
     public val operatingMode: OperatingMode
@@ -74,9 +74,8 @@ public class PlayerSession internal constructor(
 public object PlayerSessionFactory {
     public fun create(romSet: RomSet): PlayerSessionCreationResult =
         when (val created = EmulatorFactory.create(romSet.machineId, romSet, EmulatorConfiguration(
-            // Player has no RAM expansion control; keep PC-1251 at its hardware capacity.
-            pc1251FamilyMemoryMode = if (romSet.machineId == MachineId("pc-1251"))
-                Pc1251FamilyMemoryMode.HARDWARE else Pc1251FamilyMemoryMode.EXPANDED,
+            // Player always uses the selected model's standard RAM capacity.
+            pc1251FamilyMemoryMode = Pc1251FamilyMemoryMode.HARDWARE,
         ))) {
             is CreateSessionResult.Success -> PlayerSessionCreationResult.Success(
                 PlayerSession(created.session),
