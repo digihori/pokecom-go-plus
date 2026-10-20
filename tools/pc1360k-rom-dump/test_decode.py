@@ -151,14 +151,15 @@ class DecodeTests(unittest.TestCase):
             self.assertFalse(bad.exists())
 
     def test_basic_keeps_verified_machine_code_and_page_loop(self):
-        text = (ROOT / 'pc1360k-kanji-dump.bas').read_text()
-        data = bytes(int(value.strip().removeprefix('&'), 16)
-                     for line in text.splitlines() if ' DATA ' in line
-                     for value in line.split(' DATA ')[1].split(','))
-        self.assertEqual(len(data), 0x11c)
-        import hashlib
-        self.assertEqual(hashlib.sha256(data).hexdigest(), '20d81b9e210053978049655449faa00900505924482af9157a412e42d8d11005')
-        self.assertIn('60 FOR K=&10*P TO &10*P+&F', text)
+        for name in ("pc1360k-kanji-dump.bas", "pc1360k-kanji-dump-ce140f.bas"):
+            text = (ROOT / name).read_text()
+            data = bytes(int(value.strip().removeprefix('&'), 16)
+                         for line in text.splitlines() if ' DATA ' in line
+                         for value in line.split(' DATA ')[1].split(','))
+            self.assertEqual(len(data), 0x11c)
+            import hashlib
+            self.assertEqual(hashlib.sha256(data).hexdigest(), '20d81b9e210053978049655449faa00900505924482af9157a412e42d8d11005')
+            self.assertIn('60 FOR K=&10*P TO &10*P+&F', text)
         for page in range(4):
             indices = range(16 * page, 16 * page + 16)
             self.assertEqual([(i // 16, (i % 16) * 4096) for i in indices],

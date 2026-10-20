@@ -88,6 +88,11 @@ class Pc1360kFastReadTest {
         val publishedBasic = File(root(), "tools/pc1360k-rom-dump/pc1360k-kanji-dump.bas")
             .readText().replace("\r\n", "\n")
         assertEquals(batchBasic(bytes), publishedBasic)
+        // Compile the actual disk command too; the local execution test replaces storage only.
+        val diskBasic = File(root(), "tools/pc1360k-rom-dump/pc1360k-kanji-dump-ce140f.bas").readText()
+        assertIs<BasicProgramCompileResult.Success>(BasicProgramCodec.compileProgram(
+            diskBasic.encodeToByteArray(), Pc1360RomDefinition.PC1360K_MACHINE_ID,
+        ))
         if (System.getenv("PGP_ANALYZE_PC1360K_FAST") == "1") {
             File(root(), "docs/analysis/pc1360k/read-fast-4k.bas").writeText(fastBasic(bytes))
             File(root(), "local-data/analysis/pc-1360k/read-fast-4k.bin").apply { parentFile.mkdirs(); writeBytes(bytes) }
@@ -104,9 +109,10 @@ class Pc1360kFastReadTest {
         )).romSet
         val assembly = assemble()
         val sites = assembly.symbols.filter { it.name.lowercase() in setOf("copy_read", "verify_read") }.associate { it.name.lowercase() to it.address }
-        for (page in 0..3) for (fault in listOf(false, true)) {
+        for (disk in listOf(false, true)) for (page in 0..3) for (fault in listOf(false, true)) {
             val machine = Pc1360Machine(rom)
             val packets = mutableListOf<ByteArray>()
+            val diskNames = mutableListOf<String>()
             fun value(selector: Int, dp: Int) = (dp xor (dp ushr 8) xor (selector * 0x5a)) and 255
             fun run(budget: Long) {
                 var cycles = 0L
@@ -114,7 +120,11 @@ class Pc1360kFastReadTest {
                     val pc = machine.cpuState.programCounter
                     val dp = machine.cpuState.dataPointer
                     val selector = machine.readMemory(0x3600)
-                    if (pc == 0xc300) packets += ByteArray(4112) { machine.readMemory(0xcff0 + it).toByte() }
+                    if (pc == 0xc300) {
+                        packets += if (disk) ByteArray(4096) { machine.readMemory(0xd000 + it).toByte() }
+                        else ByteArray(4112) { machine.readMemory(0xcff0 + it).toByte() }
+                        if (disk) diskNames += (0..8).map { machine.readMemory(0xc230 + it).toChar() }.joinToString("")
+                    }
                     val result = machine.step(); assertNull(result.stopReason); cycles += result.cycles
                     if (pc in sites.values) {
                         val damage = fault && pc == sites["verify_read"] && selector == page && dp == 0x112c
@@ -128,10 +138,14 @@ class Pc1360kFastReadTest {
                 machine.keyboardState.release(key); run(100_000)
             }
             run(1_000_000); key(PocketKey.Y); key(PocketKey.ENTER); key(PocketKey.CLEAR); run(500_000)
-            // Only the cassette operation is replaced in this test. Hardware recording remains unverified.
-            val text = File(root(), "tools/pc1360k-rom-dump/pc1360k-kanji-dump.bas").readText()
+            // Replace only storage with a capture hook. Actual cassette/disk I/O is not emulated here.
+            val file = if (disk) "pc1360k-kanji-dump-ce140f.bas" else "pc1360k-kanji-dump.bas"
+            val text = File(root(), "tools/pc1360k-rom-dump/$file").readText()
                 .replace("400 CSAVE M &CFF0,&DFFF", "400 CALL &C300")
+                .replace("400 SAVE M F$+\".BIN\",&D000,&DFFF",
+                    "395 FOR J=1 TO 9:POKE &C22F+J,ASC MID$(F$+\".BIN\",J,1):NEXT J\n400 CALL &C300")
             assertFalse(text.contains("CSAVE M"))
+            assertFalse(text.contains("SAVE M"))
             val basic = assertIs<BasicProgramCompileResult.Success>(BasicProgramCodec.compileProgram(
                 text.encodeToByteArray(), Pc1360RomDefinition.PC1360K_MACHINE_ID,
             )).bytes
@@ -164,12 +178,17 @@ class Pc1360kFastReadTest {
             assertEquals(if (fault) 1 else 16, packets.size)
             packets.forEachIndexed { offset, packet ->
                 val index = page * 16 + offset
+                val expected = List(4096) { value(index / 16, (index % 16) * 4096 + it) }
+                if (disk) {
+                    assertEquals("X:K$page${offset.toString(16).uppercase()}.BIN", diskNames[offset])
+                    assertEquals(expected, packet.map { it.toInt() and 255 })
+                    return@forEachIndexed
+                }
                 assertEquals("K136", packet.take(4).map { (it.toInt() and 255).toChar() }.joinToString(""))
                 assertEquals(1, packet[4].toInt()); assertEquals(index / 16, packet[5].toInt())
                 assertEquals(0, packet[6].toInt()); assertEquals((index % 16) * 16, packet[7].toInt() and 255)
                 assertEquals(0, packet[8].toInt()); assertEquals(16, packet[9].toInt())
                 assertEquals(index, packet[15].toInt())
-                val expected = List(4096) { value(index / 16, (index % 16) * 4096 + it) }
                 assertEquals(expected, packet.drop(16).map { it.toInt() and 255 })
                 val sum = (packet[10].toInt() and 255) + ((packet[11].toInt() and 255) shl 8) + ((packet[12].toInt() and 255) shl 16)
                 assertEquals(expected.sum(), sum)

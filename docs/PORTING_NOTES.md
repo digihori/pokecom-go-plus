@@ -2899,3 +2899,18 @@ JDK 21 clean build, Core desktop tests and Android debug packaging passed withou
 - User supplied palette-only updates to skin_pc1350.png, skin_pc1360.png and skin_pc1360k.png. Image dimensions remain 1429×603 / 1426×615 / 1426×615; existing shared LCD/key geometry is retained.
 - User renamed skin_pc1470.png to skin_pc1470u.png. Updated the Android drawable reference and confirmed no stale old-name references remain.
 - JDK 21 `build :core:desktopTest :androidApp:assembleDebug --no-configuration-cache` succeeded. Studio startup checked with isolated JavaExec home and in-memory PreferencesFactory, and only that process was stopped. Android display verification uses ROM-free skin probes on the dedicated emulator; no normal ROM Library/settings or connected physical device was used. Physical acceptance of this palette refresh remains separate; no commit/push.
+
+
+## 2026-10-20: PC-1360K CE-140F向け吸い出しソース
+
+- `tools/pc1360k-rom-dump/pc1360k-kanji-dump-ce140f.bas`を録音版から派生させた。
+  DATAの284バイト、READ(LDPC)による4KiB読出し・再読比較、ページ入力と停止条件は共用する。
+- 保存部分のみ、独自ヘッダー付きCSAVE Mから、`SAVE M F$+".BIN",&D000,&DFFF`へ変更。
+  5文字のファイル名stemと拡張子の式を分け、固定文字列変数の長さ制限を避ける。
+- コマンドの装置名・範囲指定は[CE-140F操作マニュアル](https://github.com/ffxx68/Sharp_ce140f_emul/blob/main/CE140F_OPERATION_MANUAL_EN_DE_FR-compressed.pdf)と
+  [操作解説](https://ht-deko.com/pokecom/ce140f.html)を参照。
+  [互換機器の紹介](https://ht-deko.com/pokecom/ce140f_emu.html)のSAVE M／LOAD Mの未確認表示も手順に反映した。
+  外部ファームウェアのコードは移植していない。
+- 合成テスト、pcwav S1 BASICのWAV生成、ローカルROMでのBASIC制御・保存名・4KiB内容を検証。
+  保存命令は取得hookへ置換し、読出しは合成データを注入する。実ROM由来のfixtureは追加しない。
+  機器上の保存形式、実CE-140F／互換機器での保存・再読込・全ページ回収は未検証。
