@@ -3031,3 +3031,86 @@ JDK 21 clean build, Core desktop tests and Android debug packaging passed withou
 - PRINT／REM／引用符を含むS1半角カナ・S2漢字／全角カナ／半角カナの変換確認用BASICを提供した。
 - ユーザーから一通り確認できたとの報告を受領し、WAV関連の今回分を一区切りとした。
 - 実機往復の個別条件・byte比較結果は未記録。残課題・検証範囲は[進捗](WAV_S1_S2_PROGRESS.md)と[操作ガイド](WAV_TOOL_GUIDE.md)を参照。
+
+## 2026-10-21: iOS PC-1251系の接続
+
+- PGP内のCore `Pc1251FlatRomImporter`、`PlayerSessionFactory`、`PlayerMachineCatalog.forModel`、
+  共有スキン・入力・BASIC/DMP処理をApple facadeとSwift hostから再利用する。
+- Android Playerのシリーズ共用ROM・モデル別標準RAMという仕様に合わせる。
+  Androidの画面構造は移植せず、SwiftUIのシリーズカードと独立した選択／実行モデル保存で接続する。
+- iOSの`skin_pc1251.png`は既存PGP Android resourceとbyte一致。外部参照プロジェクトへの
+  build依存、外部コードコピー、ROM/ROM由来fixtureは追加しない。
+- 実装と検証、PC-1250のMEM表示の保留は[手順2](IOS_MACHINE_SUPPORT_STEP2.md)を参照。
+
+## 2026-10-21: iOS PC-1261系の接続
+
+- PGP内の`Pc1261FlatRomImporter`、共有Session／series対応付け、S1 BASIC／DMP、2行LCDとスキンを再利用。
+  Androidのplatform構造は移植せず、既存Swift hostのモデル選択・保存・入力境界へ接続する。
+- 画像はPGP Androidの`skin_pc1261.png`とbyte一致。外部リポジトリ依存、Core動作の変更、ROM追加はない。
+- [手順3](IOS_MACHINE_SUPPORT_STEP3.md)に実装と合成／実ROMの検証区分を記録する。
+
+## 2026-10-21: iOSの固定モード位置とRUN/PROトグル
+
+- Androidで使用中の共有`withFixedModeIndicators()`をApple facadeにも適用し、
+  PC-1245／1251系を固定位置のモード表示に統一する。Coreと元スキン定義は変更しない。
+- 右上はRUN/PROのみのトグルとし、RSVはメニューで選ぶ。
+  [修正・検証記録](IOS_MODE_INDICATORS_FIX.md)を参照。外部コード・ROM追加はない。
+
+## 2026-10-21: iOS PC-1350の接続
+
+- PGP内のPC-1350 Importer、S1 BASIC/DMP、4行LCD・スキン・キー定義をApple facadeへ接続する。
+- Androidの機種別Physical変換を参考に、iOSのHIDコードへ明示的に対応付ける。platform構造は移植しない。
+- 2つのSHIFTを扱うためSwiftのタッチ・ハイライト・accessibilityを既存共有region IDへ接続し、
+  機種別の割当可否も起動中Sessionのキー集合へ合わせる。
+- 画像は既存PGP Android resourceと同じものを同梱。Core動作・外部依存・ROM追加なし。
+  [手順4](IOS_MACHINE_SUPPORT_STEP4.md)に実装と受入れ区分を記録する。
+
+## 2026-10-21: iOS PC-1401系・PC-1450の接続
+
+- PGP内の`Pc1401FlatRomImporter`、`Pc14xxFlatRomImporter`、シリーズ対応付けと標準RAM、
+  S1 BASIC/DMP、共有キー・スキン・ROM由来LCDシンボル処理をApple facadeへ接続する。
+- Android Playerのモデル別Physical変換に合わせ、Apple HIDのF2/F3とPC-1450固有F4〜F8を対応付ける。
+  AndroidのUIやplatform構造は移植せず、既存Swift hostのLibrary・選択保存・入力経路を使う。
+- 画像は既存PGP Androidの`skin_pc1401.png`／`skin_pc1450.png`と同一。
+  外部プロジェクト依存、Core/commonの動作変更、ROM／ROM由来fixture追加はない。
+- [手順5](IOS_MACHINE_SUPPORT_STEP5.md)に検証と実ROM・実機の残項目を記録する。
+
+## 2026-10-21: iOS右上RUN/PROの表示対象を限定
+
+- ユーザー指定に合わせ、右上トグルをPC-1245／1251系／1261系の明示的な一覧で制限する。
+  PC-1401／1402・1450はCAL／BASICキーとモードメニューを使用し、Coreと共有スキンは変更しない。
+
+## 2026-10-21: iOS動作モードメニューも対象限定
+
+- ユーザー指定により、右上トグルと動作モードメニューを共通の機種条件に統一する。
+  PC-1401／1402・1450は本体CAL／BASICキーを使い、Swift hostの直接指定も拒否する。
+  共有Coreが持つモードAPI・キー配送・LCD動作は変更しない。
+
+## 2026-10-21: iOS PC-1360／1460／1470Uの接続
+
+- PGP内のバンク機種Core、S2 BASICと機種別dialect、PlayerSession、スキン・キー定義をApple境界へ接続する。
+  Android同様、Studio作成のpgromのみ登録し、単体ROM画像からバンクを推定しない。
+- バンクのID集合・role・サイズをApple側でも明示検証する。Core/commonの機種動作は変更しない。
+- iOS HIDの機種別変換はPGP Androidの`AndroidPhysicalKeyboard`を参考に接続し、
+  platformのUI・スレッド・ファイル処理は移植しない。Swiftの既存Library・入力所有権・入出力を再利用する。
+- `skin_pc1360.png`／`skin_pc1460.png`／`skin_pc1470u.png`は既存PGP Android resourceを同梱する。
+  外部コード依存・ROM／ROM由来fixtureは追加せず、独自の命令列とバンク別RAMマーカーで検証する。
+- 実装・自動検証と実ROM・実機の区別は[手順6](IOS_MACHINE_SUPPORT_STEP6.md)を参照。
+
+## iOS PC-1360K（手順7）
+
+既存のPc1360kSkin、Pc1360RomDefinition、AndroidのPC-1360K対応仕様をiOSホストへ接続。画像は同リポジトリのAndroid skin_pc1360k.pngを再利用。漢字ROMは連続したselector 0〜3の0／2／4個だけを許可し、roleと64 KiBサイズをApple境界で検証する。反転SはAndroidと同じ暗い正方形・明るい文字として描画。テストROMは命令定義から生成した独自コードと図形で、実機firmwareを使用・追加していない。
+
+## iOS機種対応の全体受入れ（手順8、2026-10-21）
+
+Core・共有Player・Androidの既存機種定義に対するApple接続14モデルの全体回帰を実施し、対応一覧とヘルプを現状へ更新する。新規の外部コード・firmware追加はない。[受入れ記録](IOS_MACHINE_SUPPORT_STEP8.md)に自動検証と実ROM／実機の確認範囲を分けて記載する。初期PC-1245の実ROM確認履歴は保持し、新規機種へ外挿しない。
+
+手順8の全体UIで一定距離のフリックによるPC-1460カードの通り越しを検出し、UIテスト補助だけを実距離・停止付きドラッグへ修正。全体14成功と修正後3成功を合わせて全15ケースの成功を確認した。Release unsignedビルド成功。実ROM・実機の未確認範囲は受入れ記録に保持する。
+
+## 2026-10-21: iOSホームのAndroid仕様への接続
+
+ユーザーの全機種動作・音声再生確認を受領し、ホームの名前順・タイル初期表示と保存・機種画面のみ横固定を既存Android仕様からiOSへ接続する。ホームのメニューはSwiftUI標準Menuへ置き換える。外部実装・ROMを追加せず、Core／音声処理は変更しない。[修正記録](IOS_HOME_PRESENTATION_FIX.md)。
+
+ホーム修正の検証は全体build・Native143・Swift49が成功。iPhone 17 Proの対象UI5ケースは新規期待値修正後の再実行を含め成功し、SE3のOSダーク／ライト2ケースも成功。Release unsignedコンパイルと同梱文書も確認した。
+
+2026-10-21、ユーザーがホーム修正後も一通り確認し、今回のiOS機種対応・ホーム修正の完了を受領。文書の現行状態を14モデル・10 ROMシリーズへ統一し、旧計画・検証件数を履歴として区別した。音声の途切れ感は後続。

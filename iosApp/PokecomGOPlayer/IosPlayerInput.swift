@@ -20,6 +20,7 @@ final class IosPlayerInput: ObservableObject {
     @Published private(set) var bindings: [String: String]
     let buttons = AppleInputCatalog.shared.buttons
     let keys = AppleInputCatalog.shared.keys
+    @Published private(set) var allowedKeys = AppleInputCatalog.shared.keys
     private let defaults: UserDefaults?
     private let selection = AppleGamepadSelection()
     private var controllers: [String: GCController] = [:]
@@ -56,6 +57,8 @@ final class IosPlayerInput: ObservableObject {
             // A held key on focus return is a repeat, never a fresh press.
             baseline()
         }
+        let nextKeys = player?.machine.keys ?? keys
+        if allowedKeys != nextKeys { allowedKeys = nextKeys }
         self.player = player; self.receiving = receiving; self.epoch = epoch
         apply()
     }
@@ -94,7 +97,7 @@ final class IosPlayerInput: ObservableObject {
     var selectedDevice: IosControllerDevice? { devices.first { $0.id == selectedId } }
     func available(_ button: String) -> Bool {
         let key = bindings[button] ?? ""
-        return (key.isEmpty || keys.contains(key)) && (selectedDevice?.available.contains(button) ?? devices.isEmpty)
+        return (key.isEmpty || allowedKeys.contains(key)) && (selectedDevice?.available.contains(button) ?? devices.isEmpty)
     }
 
     private func refreshSystem() {
@@ -180,6 +183,7 @@ struct PhysicalKeyboardShield: UIViewRepresentable {
     func makeUIView(context: Context) -> KeyShieldView { KeyShieldView() }
     func updateUIView(_ view: KeyShieldView, context: Context) {
         view.receiving = host.externalInputReceiving
+        view.mappedKey = { [weak host] in host?.mappedPhysicalKey($0) }
         view.onFocus = { [weak host] in host?.setInputFocus($0) }
         view.onCancel = { [weak host] in host?.releaseAllKeys() }
         if view.receiving && view.window != nil && !view.isFirstResponder { view.becomeFirstResponder() }
@@ -188,6 +192,7 @@ struct PhysicalKeyboardShield: UIViewRepresentable {
 }
 final class KeyShieldView: UIView {
     var receiving = false
+    var mappedKey: (Int32) -> String? = { AppleInputCatalog.shared.keyForCode(code: $0) }
     var onFocus: ((Bool) -> Void)?
     var onCancel: (() -> Void)?
     private var tokens: [NSObjectProtocol] = []
@@ -214,7 +219,7 @@ final class KeyShieldView: UIView {
     private func forwardUnmapped(_ presses: Set<UIPress>, _ event: UIPressesEvent?, began: Bool) {
         let unmapped = Set(presses.filter { press in
             guard receiving, let key = press.key, key.modifierFlags.intersection([.command, .alternate]).isEmpty else { return true }
-            return AppleInputCatalog.shared.keyForCode(code: Int32(key.keyCode.rawValue)) == nil
+            return mappedKey(Int32(key.keyCode.rawValue)) == nil
         })
         guard !unmapped.isEmpty else { return }
         if began { super.pressesBegan(unmapped, with: event) } else { super.pressesEnded(unmapped, with: event) }
@@ -252,15 +257,16 @@ struct PlayerNativeMenu: UIViewRepresentable {
         func action(_ title: String, enabled: Bool = true, _ perform: @escaping () -> Void) -> UIAction {
             UIAction(title: title, attributes: enabled ? [] : .disabled) { _ in perform() }
         }
-        view.menu = UIMenu(children: [
+        let controls: [UIMenuElement] = [
             UIMenu(title: "エミュレータ操作", children: [
                 action("Run", enabled: host.status.runState == "PAUSED", host.run),
                 action("Pause", enabled: host.status.runState == "RUNNING", host.pause),
                 action("Reset", host.reset)]),
             UIMenu(title: "プログラム", children: [action("ロード") { host.openProgram(save: false) }, action("セーブ") { host.openProgram(save: true) }]),
-            UIMenu(title: "動作モード", children: [action("RUN") { host.setOperatingMode("RUN") }, action("PRO") { host.setOperatingMode("PRO") }]),
             UIMenu(title: "表示", children: [action(host.isControllerDisplay ? "通常表示" : "Controller Display", host.togglePresentation)]),
-            action("ホームへ戻る", host.returnHome)])
+            action("ホームへ戻る", host.returnHome)]
+        let modes: [UIMenuElement] = host.operatingModes.isEmpty ? [] : [UIMenu(title: "動作モード", children: host.operatingModes.map { mode in action(mode) { host.setOperatingMode(mode) } })]
+        view.menu = UIMenu(children: Array(controls.prefix(2)) + modes + Array(controls.dropFirst(2)))
     }
 }
 

@@ -184,43 +184,45 @@ enum IosRomCodec {
             throw RomFailure(message: "ROM manifestの形式が不正です。")
         }
         let manifest = try JSONDecoder().decode(RomManifest.self, from: json)
-        guard manifest.machineId == "pc-1245", manifest.components.count == 2 else { throw RomFailure(message: "内部・外部ROMを含むPC-1245 packageを選択してください。") }
+        guard AppleMachineCatalog.shared.find(id: manifest.machineId) != nil else { throw RomFailure(message: "未対応の機種のROM packageです。") }
         let keys = Set(manifest.components.map(\.file))
         let listed = files.filter { keys.contains($0.key) }
-        guard listed.values.allSatisfy({ $0.count <= 16_384 }) else { throw RomFailure(message: "PC-1245のcomponentサイズが不正です。") }
         return ReadRom(sourceName: name, legacy: nil, manifest: manifest, files: listed,
                        unlistedCount: files.keys.filter { $0 != "manifest.json" && !keys.contains($0) }.count)
     }
-    @MainActor static func prepare(_ input: ReadRom) throws -> PreparedRom {
+    @MainActor static func prepare(_ input: ReadRom, machineId: String = AppleMachineCatalog.shared.defaultMachine.id) throws -> PreparedRom {
         let prepared: AppleRomPreparation
-        if let legacy = input.legacy { prepared = ApplePlayerFactory.shared.prepareLegacy(bytes: legacy.kotlinBytes) }
+        if let legacy = input.legacy { prepared = ApplePlayerFactory.shared.prepareLegacyForMachine(bytes: legacy.kotlinBytes, machineId: machineId) }
         else if let manifest = input.manifest {
             guard manifest.formatVersion >= 0, manifest.formatVersion <= Int(Int32.max),
                   manifest.components.allSatisfy({ $0.size >= 0 && $0.size <= Int(Int32.max) }) else { throw RomFailure(message: "ROM manifestの数値が不正です。") }
             let native = RomPackageManifest(format: manifest.format, formatVersion: Int32(manifest.formatVersion), machineId: manifest.machineId,
                 title: manifest.title, components: manifest.components.map { RomPackageComponentManifest(id: $0.id, role: $0.role, file: $0.file, size: Int32($0.size), sha256: $0.sha256) })
             let entries = input.files.map { AppleRomArchiveEntry(path: $0.key, sha256: $0.value.sha256, bytes: $0.value.kotlinBytes) }
-            prepared = ApplePlayerFactory.shared.preparePackage(manifest: native, entries: entries)
+            prepared = ApplePlayerFactory.shared.preparePackageForMachine(manifest: native, entries: entries, machineId: machineId)
         } else { throw RomFailure(message: "ROMを読み込めませんでした。") }
-        guard let player = prepared.player, let internalRom = prepared.internalBytes(), let externalRom = prepared.externalBytes() else {
+        guard let player = prepared.player, let machineId = prepared.machineId else {
             throw RomFailure(message: prepared.errorMessage ?? "Sessionを生成できませんでした。")
         }
-        let components = [("internal", Data(kotlin: internalRom)), ("external", Data(kotlin: externalRom))]
-        let manifest = RomManifest(format: "pgp-rom-package", formatVersion: 1, machineId: "pc-1245", title: nil,
-            components: components.map { RomManifest.Component(id: $0.0, role: $0.0, file: "rom/\($0.0).bin", size: $0.1.count, sha256: $0.1.sha256) })
-        var files = Dictionary(uniqueKeysWithValues: components.map { ("rom/\($0.0).bin", $0.1) })
+        let components = prepared.components.map { ($0.id, $0.role, Data(kotlin: $0.doCopyBytes())) }
+        let manifest = RomManifest(format: "pgp-rom-package", formatVersion: 1, machineId: machineId, title: nil,
+            components: components.map { RomManifest.Component(id: $0.0, role: $0.1, file: "rom/\($0.0).bin", size: $0.2.count, sha256: $0.2.sha256) })
+        var files = Dictionary(uniqueKeysWithValues: components.map { ("rom/\($0.0).bin", $0.2) })
         files["manifest.json"] = try JSONEncoder().encode(manifest)
         return PreparedRom(player: player, archive: RomArchive.write(files), sourceName: input.sourceName, unlistedCount: input.unlistedCount)
     }
 }
 
-/// Single PC-1245 record: package and metadata are committed in one atomic file replacement.
+/// One record per machine: package and metadata are committed in one atomic file replacement.
 final class IosRomStore: Sendable {
     struct Record: Codable { let version: Int; let machineId: String; let sourceName: String; let archive: Data }
     let root: URL
     let write: @Sendable (Data, URL) throws -> Void
-    var recordURL: URL { root.appendingPathComponent("pc-1245.json") }
-    init(root: URL, write: @escaping @Sendable (Data, URL) throws -> Void = { try $0.write(to: $1, options: .atomic) }) {
+    let machineId: String
+    var recordURL: URL { root.appendingPathComponent(machineId + ".json") }
+    init(root: URL, machineId: String = AppleMachineCatalog.shared.defaultMachine.id, write: @escaping @Sendable (Data, URL) throws -> Void = { try $0.write(to: $1, options: .atomic) }) {
+        precondition(AppleMachineCatalog.shared.find(id: machineId) != nil)
+        self.machineId = AppleMachineCatalog.shared.find(id: machineId)!.romId
         self.root = root; self.write = write
     }
     static func applicationStore() -> IosRomStore {
@@ -231,15 +233,19 @@ final class IosRomStore: Sendable {
     func load() throws -> ReadRom? {
         guard FileManager.default.fileExists(atPath: recordURL.path) else { return nil }
         let record = try JSONDecoder().decode(Record.self, from: IosRomCodec.boundedRead(recordURL))
-        guard record.version == 1, record.machineId == "pc-1245" else { throw RomFailure(message: "保存ROMの機種・形式が不正です。") }
-        return try IosRomCodec.read(bytes: record.archive, name: record.sourceName)
+        guard record.version == 1, record.machineId == machineId else { throw RomFailure(message: "保存ROMの機種・形式が不正です。") }
+        let input = try IosRomCodec.read(bytes: record.archive, name: record.sourceName)
+        guard input.manifest?.machineId == machineId else { throw RomFailure(message: "保存ROMの機種が一致しません。") }
+        return input
     }
     func install(archive: Data, sourceName: String) throws {
+        let input = try IosRomCodec.read(bytes: archive, name: sourceName)
+        guard input.manifest?.machineId == machineId else { throw RomFailure(message: "保存先とROMの機種が一致しません。") }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         var directory = root
         var values = URLResourceValues(); values.isExcludedFromBackup = true
         try directory.setResourceValues(values)
-        let record = Record(version: 1, machineId: "pc-1245", sourceName: sourceName, archive: archive)
+        let record = Record(version: 1, machineId: machineId, sourceName: sourceName, archive: archive)
         try write(JSONEncoder().encode(record), recordURL)
     }
     func delete() throws {

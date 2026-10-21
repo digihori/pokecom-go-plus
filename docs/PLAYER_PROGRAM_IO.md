@@ -433,3 +433,7 @@ ROMはシリーズ単位で共有し、標準RAM・BASIC容量判定・DMPの許
 ROMで初期化された有効なBASIC開始pointerは尊重する。特に1401 ROM共用時の1402容量認識は全版で保証しない。
 125xはCore既存のRAM mirrorを維持する。今回の変更で未確定aliasを追加しない。
 セーブはBASICのみ、DMPはロードのみ。容量超過・範囲外・他モデル用入力は書込み前に拒否し、既存内容を保持する。
+
+## iOS複数機種対応（2026-10-21）
+
+iOSの現行対応は14モデル・10 ROMシリーズ。BASIC／DMPの解析・容量・許可RAM範囲は実行モデルの共有定義に従う。S1／S2、ROM保存・復元、失敗時の無変更を合成ROMとSimulatorで検証する。iOSはBASICとDMP双方を保存でき、AndroidのDMPロード専用方針とは区別する。最新の対応表・検証結果・実ROM／実機の未確認項目は[機種対応 手順8](IOS_MACHINE_SUPPORT_STEP8.md)を参照。

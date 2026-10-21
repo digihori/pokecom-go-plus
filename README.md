@@ -35,10 +35,14 @@ on October 15; see its [verification record (Japanese)](docs/ANDROID_PC1401_PROG
 PC-1350 reached its milestone on [October 16 (Japanese)](docs/ANDROID_PC1350_PROGRESS.md).
 These are dated milestones; development in the source tree may extend beyond the published preview.
 
-The PC-1245 iPhone app implements the home screen, ROM management, BASIC/DMP operations, audio and speed
-settings, GameController support, and physical keyboard input. Verification uses Simulator and synthetic data.
-Acceptance on physical devices, real file providers, actual-ROM audio/input, and the minimum iOS 16 runtime
-remains outstanding. See the [iPhone guide and verification records (Japanese)](iosApp/README.md).
+The iPhone app supports PC-1245, PC-1250/1251/1255, PC-1260/1261, PC-1350, PC-1401/1402,
+PC-1450, PC-1360/1360K, PC-1460, and PC-1470U through the shared Player implementation.
+It implements the home screen, ROM management, BASIC/DMP operations, audio and speed settings,
+GameController support, and physical keyboard input. Current machine regression checks use Simulator
+and original synthetic ROMs; the historical PC-1245 actual-ROM check is recorded separately.
+Environment-specific checks for physical devices, real file providers, peripherals, and the minimum iOS 16 runtime
+remain separately tracked. See the [iPhone guide and verification records (Japanese)](iosApp/README.md).
+The user confirmed operation across the integrated models, sound playback, and the updated home screen on October 21, 2026, completing this scope. Audio roughness remains a follow-up. The [home presentation update (Japanese)](docs/IOS_HOME_PRESENTATION_FIX.md) adds sorted tiles/list layouts and restricts landscape orientation to the emulator screen.
 A signed iOS release is not yet available.
 
 Main features include:
@@ -106,7 +110,7 @@ Studio development focuses on **macOS, Windows, and Linux**.
 Linux packages currently target x86_64; ARM64 Linux packages are not yet available.
 
 Player focuses on execution, without development tools such as a debugger, assembler, or disassembler.
-The Android milestones and iPhone limitations are described above. Other iOS machines and save states remain future work.
+The Android milestones and iPhone limitations are described above. iOS physical-device acceptance and save states remain future work.
 
 ## Repository layout
 
@@ -118,7 +122,7 @@ pokecom-go-plus/
 ├── playerShared/  Execution and display models shared by Android/iOS Player
 ├── desktopApp/    Pokecom GO Studio (Compose Desktop)
 ├── androidApp/    Pokecom GO Player for Android
-├── iosApp/        PC-1245 iPhone host
+├── iosApp/        Multi-machine iPhone host
 ├── docs/          Concepts, design, porting notes, and roadmap
 ├── local-data/    Local ROMs and other private data (ignored by Git)
 └── test-data/     Redistributable test data
@@ -320,7 +324,7 @@ See [Building from source (Japanese)](docs/BUILDING.md) for local DMG/MSI/DEB pa
   clicking after sound playback; a later [follow-up record (Japanese)](docs/TASK_REVIEW.md) reports improvement
   confirmed on October 13, with detailed checks still outstanding.
 - The PC-1245/1250 mirror behavior near `0xb000..0xbfff` needs further verification.
-- Player verification is machine- and device-specific. iOS physical-device acceptance, other iOS machines,
+- Player verification is machine- and device-specific. iOS physical-device and actual-ROM acceptance for the expanded machine set,
   and save states remain future work. The bundled privacy policy is a draft.
 
 See the [preview checklist (Japanese)](docs/PUBLIC_RELEASE_CHECKLIST.md) for recorded release checks.

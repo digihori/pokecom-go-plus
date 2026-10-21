@@ -38,7 +38,7 @@
 		"BE68C18CDC83A8E3C778204B" = {
 			"path" = "PokecomGOPlayer";
 			"isa" = "PBXGroup";
-			"children" = ("6E0126D99977F1728BB738D8", "7495E441FE2F8E2386797EA0", "B16271A5E83FFF411884B88C", "06271BAF49532C879AA3C58B", "AA0000000000000000000001", "AB0000000000000000000001", "AC0000000000000000000001", "AD0000000000000000000001");
+			"children" = ("6E0126D99977F1728BB738D8", "7495E441FE2F8E2386797EA0", "B16271A5E83FFF411884B88C", "06271BAF49532C879AA3C58B", "B10000000000000000000001", "B20000000000000000000001", "B30000000000000000000001", "B40000000000000000000001", "B50000000000000000000001", "B60000000000000000000001", "B00000000000000000000001", "AF0000000000000000000001", "AE0000000000000000000001", "AA0000000000000000000001", "AB0000000000000000000001", "AC0000000000000000000001", "AD0000000000000000000001");
 			"sourceTree" = "<group>";
 		};
 		"EFF7E6A0D837155469EB2071" = {
@@ -304,7 +304,7 @@
 		"86B67F838F73EF0635EB165B" = {
 			"isa" = "PBXResourcesBuildPhase";
 			"buildActionMask" = "2147483647";
-			"files" = ("AA0000000000000000000002");
+			"files" = ("AA0000000000000000000002", "AE0000000000000000000002", "AF0000000000000000000002", "B30000000000000000000002", "B40000000000000000000002", "B50000000000000000000002", "B60000000000000000000002", "B00000000000000000000002", "B10000000000000000000002", "B20000000000000000000002");
 			"runOnlyForDeploymentPostprocessing" = "0";
 		};
 		"38CC6D404D097B2DD3AB027A" = {
@@ -464,6 +464,25 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 			};
 		};
+        "B10000000000000000000001" = { isa = PBXFileReference; path = skin_pc1401.png; lastKnownFileType = image.png; sourceTree = "<group>"; };
+        "B10000000000000000000002" = { isa = PBXBuildFile; fileRef = B10000000000000000000001; };
+        "B20000000000000000000001" = { isa = PBXFileReference; path = skin_pc1450.png; lastKnownFileType = image.png; sourceTree = "<group>"; };
+        "B20000000000000000000002" = { isa = PBXBuildFile; fileRef = B20000000000000000000001; };
+        "B30000000000000000000001" = { isa = PBXFileReference; path = skin_pc1360.png; lastKnownFileType = image.png; sourceTree = "<group>"; };
+        "B30000000000000000000002" = { isa = PBXBuildFile; fileRef = B30000000000000000000001; };
+        "B40000000000000000000001" = { isa = PBXFileReference; path = skin_pc1460.png; lastKnownFileType = image.png; sourceTree = "<group>"; };
+        "B40000000000000000000002" = { isa = PBXBuildFile; fileRef = B40000000000000000000001; };
+        "B60000000000000000000001" = { isa = PBXFileReference; path = skin_pc1360k.png; lastKnownFileType = image.png; sourceTree = "<group>"; };
+        "B60000000000000000000002" = { isa = PBXBuildFile; fileRef = B60000000000000000000001; };
+        "B50000000000000000000001" = { isa = PBXFileReference; path = skin_pc1470u.png; lastKnownFileType = image.png; sourceTree = "<group>"; };
+        "B50000000000000000000002" = { isa = PBXBuildFile; fileRef = B50000000000000000000001; };
+        "B00000000000000000000001" = { isa = PBXFileReference; path = skin_pc1350.png; lastKnownFileType = image.png; sourceTree = "<group>"; };
+        "B00000000000000000000002" = { isa = PBXBuildFile; fileRef = B00000000000000000000001; };
+        "AF0000000000000000000001" = { isa = PBXFileReference; path = skin_pc1261.png; lastKnownFileType = image.png; sourceTree = "<group>"; };
+        "AF0000000000000000000002" = { isa = PBXBuildFile; fileRef = AF0000000000000000000001; };
+        "AE0000000000000000000001" = { isa = PBXFileReference; path = skin_pc1251.png; lastKnownFileType = image.png; sourceTree = "<group>"; };
+        "AE0000000000000000000002" = { isa = PBXBuildFile; fileRef = AE0000000000000000000001; };
+
 		"AA0000000000000000000001" = {
 			"path" = "skin_pc1245.png";
 			"isa" = "PBXFileReference";

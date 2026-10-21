@@ -1,6 +1,6 @@
 # Pokecom GO Player プライバシーポリシー（iOS・公開前の原文案）
 
-対象は現在のiPhone版PC-1245 Playerです。公開・適用開始日は未確定です。
+対象は現在のiPhone版Pokecom GO Playerです。公開・適用開始日は未確定です。
 
 ## 端末内に保持する情報
 

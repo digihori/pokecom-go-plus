@@ -15,6 +15,26 @@ private final class ManualFrames: PlayerFrameDriver {
 
 @MainActor
 final class PlayerHostTests: XCTestCase {
+    func testHomeLayoutDefaultsPersistsAndKeepsModelSelectionIndependent() {
+        let domain = "pgp-home-test-" + UUID().uuidString
+        let defaults = UserDefaults(suiteName: domain)!
+        defer { defaults.removePersistentDomain(forName: domain) }
+        let preferences = IosMachinePreferences(defaults: defaults)
+        XCTAssertEqual(preferences.homeLayout, .tiles)
+        let host = PlayerHost(player: nil, frames: ManualFrames(), machinePreferences: preferences)
+        host.setHomeLayout(.list)
+        XCTAssertEqual(host.homeLayout, .list)
+        XCTAssertEqual(IosMachinePreferences(defaults: defaults).homeLayout, .list)
+        preferences.select("pc-1250")
+        XCTAssertEqual(preferences.model(for: "pc-1251"), "pc-1250")
+        XCTAssertEqual(preferences.homeLayout, .list)
+        defaults.set("unknown", forKey: "home.layout")
+        XCTAssertEqual(preferences.homeLayout, .tiles)
+        XCTAssertEqual(IosMachinePreferences().homeLayout, .tiles)
+        XCTAssertEqual(AppleMachineCatalog.shared.homeMachines.map(\.id),
+            ["pc-1245", "pc-1251", "pc-1261", "pc-1350", "pc-1360", "pc-1360k", "pc-1401", "pc-1450", "pc-1460", "pc-1470u"])
+    }
+
     func testRunDoesNotScheduleFramesBeforeSceneActivation() {
         let frames = ManualFrames()
         let host = PlayerHost.structuralProbe(frames: frames)
@@ -239,7 +259,7 @@ final class PlayerHostTests: XCTestCase {
         try store.install(archive: prepared.archive, sourceName: prepared.sourceName)
         let before = try Data(contentsOf: store.recordURL)
         let failing = IosRomStore(root: root, write: { _, _ in throw RomFailure(message: "Injected write failure") })
-        XCTAssertThrowsError(try failing.install(archive: Data([0]), sourceName: "new"))
+        XCTAssertThrowsError(try failing.install(archive: prepared.archive, sourceName: "new"))
         XCTAssertEqual(try Data(contentsOf: store.recordURL), before)
         var corrupted = prepared.archive
         corrupted[50] ^= 1
@@ -250,9 +270,681 @@ final class PlayerHostTests: XCTestCase {
         XCTAssertThrowsError(try IosRomCodec.prepare(IosRomCodec.read(bytes: altered, name: "bad-hash.pgrom")))
         XCTAssertThrowsError(try RomArchive.read(RomArchive.write(["../rom.bin": Data([0]) ])))
         var unknown = try JSONSerialization.jsonObject(with: files["manifest.json"]!) as! [String: Any]
-        unknown["machineId"] = "pc-1401"
+        unknown["machineId"] = "pc-9999"
         tampered = files; tampered["manifest.json"] = try JSONSerialization.data(withJSONObject: unknown)
         XCTAssertThrowsError(try IosRomCodec.read(bytes: RomArchive.write(tampered), name: "other.pgrom"))
+    }
+
+    func testMachineMetadataAndStoredIdentityValidation() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = IosRomStore(root: root)
+        XCTAssertEqual(store.recordURL.lastPathComponent, "pc-1245.json")
+        let prepared = try IosRomCodec.prepare(IosRomCodec.read(bytes: Data(repeating: 0x4d, count: 0x8000), name: "synthetic.bin"))
+        XCTAssertEqual(prepared.player.machine.id, store.machineId)
+        XCTAssertEqual(prepared.player.machine.operatingModes, ["RUN", "PRO"])
+        try store.install(archive: prepared.archive, sourceName: "synthetic.bin")
+        XCTAssertEqual(try store.load()?.manifest?.machineId, store.machineId)
+        let corrupt = IosRomStore.Record(version: 1, machineId: "pc-1251", sourceName: "wrong", archive: prepared.archive)
+        try JSONEncoder().encode(corrupt).write(to: store.recordURL, options: .atomic)
+        XCTAssertThrowsError(try store.load())
+    }
+
+    func testSeriesSharedRomSelectionConfirmationAndIndependentRestoration() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let domain = "pgp-series-" + UUID().uuidString
+        let defaults = UserDefaults(suiteName: domain)!
+        defer { try? FileManager.default.removeItem(at: root); defaults.removePersistentDomain(forName: domain) }
+        let preferences = IosMachinePreferences(defaults: defaults)
+        var legacy = Data(repeating: 0x4d, count: 0x8000)
+        legacy[0] = 0x79; legacy[1] = 0; legacy[2] = 0
+        let input = try IosRomCodec.read(bytes: legacy, name: "synthetic.bin")
+        let old = try IosRomCodec.prepare(input)
+        let family = try IosRomCodec.prepare(input, machineId: "pc-1255")
+        let oldStore = IosRomStore(root: root)
+        let shared = IosRomStore(root: root, machineId: "pc-1250")
+        XCTAssertEqual(shared.recordURL.lastPathComponent, "pc-1251.json")
+        XCTAssertEqual(shared.recordURL, IosRomStore(root: root, machineId: "pc-1255").recordURL)
+        try oldStore.install(archive: old.archive, sourceName: "old.bin")
+        try shared.install(archive: family.archive, sourceName: "family.bin")
+        let saved = try Data(contentsOf: shared.recordURL)
+        for id in ["pc-1250", "pc-1251", "pc-1255"] {
+            let player = try IosRomCodec.prepare(XCTUnwrap(try shared.load()), machineId: id).player
+            XCTAssertEqual(player.machine.id, id)
+            XCTAssertFalse(player.skin.keyRegions.isEmpty)
+        }
+        XCTAssertThrowsError(try IosRomCodec.prepare(inputFromArchive(old.archive), machineId: "pc-1251"))
+        XCTAssertThrowsError(try shared.install(archive: old.archive, sourceName: "wrong"))
+        XCTAssertEqual(try Data(contentsOf: shared.recordURL), saved)
+        let frames = ManualFrames()
+        let host = PlayerHost(player: old.player, frames: frames, romStore: oldStore, startsAtHome: true, machinePreferences: preferences)
+        host.setActive(true)
+        host.requestMachineSelection("pc-1250")
+        XCTAssertEqual(host.machine.id, "pc-1245")
+        XCTAssertNil(host.pendingMachineId)
+        host.enterPlayer()
+        XCTAssertEqual(host.pendingMachineId, "pc-1250")
+        host.cancelMachineSelection()
+        XCTAssertEqual(host.machine.id, "pc-1245")
+        XCTAssertTrue(host.showHome)
+        host.enterPlayer(); host.confirmMachineSelection()
+        waitUntil { !host.isBusy }
+        XCTAssertEqual(host.machine.id, "pc-1250")
+        XCTAssertFalse(host.showHome)
+        frames.send(0)
+        XCTAssertEqual(host.status.runState, "RUNNING")
+        host.returnHome()
+        host.requestMachineSelection("pc-1255")
+        XCTAssertEqual(host.machine.id, "pc-1250")
+        XCTAssertEqual(preferences.runningMachineId, "pc-1250")
+        XCTAssertEqual(preferences.model(for: "pc-1251"), "pc-1255")
+        let restored = PlayerHost(player: nil, frames: ManualFrames(), romStore: oldStore, startsAtHome: true,
+                                  machinePreferences: IosMachinePreferences(defaults: defaults))
+        restored.restoreRom(); waitUntil { !restored.isBusy }
+        XCTAssertEqual(restored.selectedMachineId, "pc-1255")
+        XCTAssertEqual(restored.machine.id, "pc-1250")
+        XCTAssertEqual(restored.status.runState, "PAUSED")
+        // A failed switch preserves the old Session and the user's selected model.
+        try Data([0]).write(to: shared.recordURL)
+        host.enterPlayer(); host.confirmMachineSelection(); waitUntil { !host.isBusy }
+        XCTAssertEqual(host.machine.id, "pc-1250")
+        XCTAssertEqual(host.selectedMachineId, "pc-1255")
+        XCTAssertTrue(host.showHome)
+        try saved.write(to: shared.recordURL)
+        host.enterPlayer(); host.confirmMachineSelection(); waitUntil { !host.isBusy }
+        XCTAssertEqual(host.machine.id, "pc-1255")
+        XCTAssertEqual(try Data(contentsOf: shared.recordURL), saved)
+        host.returnHome(); host.requestMachineSelection("pc-1250")
+        host.openRomPanel(); host.requestRomDeletion(); host.cancelRomChange()
+        XCTAssertTrue(host.hasSession)
+        XCTAssertEqual(try Data(contentsOf: shared.recordURL), saved)
+        host.requestRomDeletion(); host.confirmRomDeletion(); waitUntil { !host.isBusy }
+        XCTAssertFalse(host.hasSession)
+        XCTAssertFalse(host.hasRom("pc-1251"))
+        XCTAssertTrue(host.hasRom("pc-1245"))
+    }
+
+    func testRunProToggleLeavesReserveInMenuAndKeepsFixedLcdPositions() throws {
+        for id in AppleMachineCatalog.shared.machines.filter { $0.id.hasPrefix("pc-12") }.map(\.id) {
+            let size = id.hasPrefix("pc-126") ? 0x10000 : 0x8000
+            let prepared = try IosRomCodec.prepare(IosRomCodec.read(bytes: Data(repeating: 0x4d, count: size), name: "synthetic.bin"), machineId: id)
+            let host = PlayerHost(player: prepared.player, frames: ManualFrames())
+            XCTAssertTrue(host.showsRunProToggle)
+            XCTAssertEqual(host.modeToggleLabel, "RUN")
+            host.toggleOperatingMode(); XCTAssertEqual(host.status.operatingMode, "PRO")
+            host.toggleOperatingMode(); XCTAssertEqual(host.status.operatingMode, "RUN")
+            if id != "pc-1245" {
+                XCTAssertTrue(host.operatingModes.contains("RSV"))
+                host.setOperatingMode("RSV")
+                XCTAssertEqual(host.status.operatingMode, "RSV")
+                XCTAssertEqual(host.modeToggleLabel, "RUN")
+                host.toggleOperatingMode(); XCTAssertEqual(host.status.operatingMode, "PRO")
+            }
+            let player = prepared.player
+            let view = PlayerSkinView(skin: player.skin, machine: player.machine)
+            view.frame = CGRect(x: 0, y: 0, width: 844, height: 338)
+            for mode in host.operatingModes {
+                host.setOperatingMode(mode)
+                view.update(lcd: player.snapshot().display, mode: .fullDevice, operatingMode: mode, pressedKeys: [], inputEpoch: 0, active: true)
+                view.layoutIfNeeded()
+                let elements = try XCTUnwrap(view.accessibilityElements as? [UIAccessibilityElement])
+                let names = id == "pc-1245" ? ["RUN", "PRO"] : ["RUN", "PRO", "RESERVE"]
+                let regions = try names.map { name in try XCTUnwrap(elements.first { $0.accessibilityIdentifier == "symbol_" + name }) }
+                for (index, element) in regions.enumerated() {
+                    XCTAssertEqual(element.accessibilityValue, names[index] == (mode == "RSV" ? "RESERVE" : mode) ? "点灯" : "消灯")
+                    if index > 0 { XCTAssertLessThan(regions[index - 1].accessibilityFrameInContainerSpace.maxX, element.accessibilityFrameInContainerSpace.minX) }
+                }
+                XCTAssertFalse(elements.contains { $0.accessibilityIdentifier == "operatingMode" })
+            }
+        }
+    }
+
+    private func pc1350Fixture() throws -> PreparedRom {
+        var bytes = Data(repeating: 0x4d, count: 0x10000)
+        bytes[0] = 0x79; bytes[1] = 0; bytes[2] = 0
+        return try IosRomCodec.prepare(IosRomCodec.read(bytes: bytes, name: "original.bin"), machineId: "pc-1350")
+    }
+
+    func testPc1350SmallViewBothShiftRegionsAndFourLineCrop() throws {
+        let prepared = try pc1350Fixture()
+        let player = prepared.player
+        let host = PlayerHost(player: player, frames: ManualFrames())
+        host.setActive(true)
+        XCTAssertFalse(host.showsRunProToggle)
+        XCTAssertTrue(host.operatingModes.isEmpty)
+        host.toggleOperatingMode(); XCTAssertEqual(host.status.operatingMode, "RUN")
+        let view = PlayerSkinView(skin: player.skin, machine: player.machine)
+        view.router.onPress = { host.press(keyName: $0, owner: $1) }
+        view.router.onRelease = { host.release(owner: $0) }
+        view.frame = CGRect(x: 0, y: 0, width: 667, height: 300)
+        func update(_ mode: PgpPlayer.PresentationMode) {
+            view.update(lcd: player.snapshot().display, mode: mode, operatingMode: "RUN", pressedKeys: host.pressedKeys, inputEpoch: 0, active: true)
+            view.layoutIfNeeded()
+        }
+        update(.fullDevice)
+        XCTAssertNotNil(UIImage(named: player.machine.skinImageName))
+        XCTAssertEqual(host.lcd?.logicalColumns, 150); XCTAssertEqual(host.lcd?.logicalRows, 32)
+        var elements = try XCTUnwrap(view.accessibilityElements as? [UIAccessibilityElement])
+        XCTAssertEqual(elements.filter { $0.accessibilityTraits.contains(.button) }.count, 62)
+        XCTAssertEqual(Set(elements.compactMap(\.accessibilityIdentifier)).count, elements.count)
+        for e in elements { XCTAssertTrue(view.bounds.contains(e.accessibilityFrameInContainerSpace)) }
+        let shifts = player.skin.keyRegions.filter { $0.key.name == "SHIFT" }
+        XCTAssertEqual(Set(shifts.map(\.id)), ["SHIFT_LEFT", "SHIFT_RIGHT"])
+        let left = try XCTUnwrap(shifts.first { $0.id == "SHIFT_LEFT" })
+        let right = try XCTUnwrap(shifts.first { $0.id == "SHIFT_RIGHT" })
+        func point(_ region: SkinKeyRegion) -> CGPoint {
+            let rect = view.screenRect(region.bounds); return CGPoint(x: rect.midX, y: rect.midY)
+        }
+        view.router.begin(owner: "left", point: point(left))
+        view.router.begin(owner: "right", point: point(right))
+        view.router.move(owner: "right", point: point(right))
+        XCTAssertEqual(view.router.owners["right"], "SHIFT_RIGHT")
+        view.router.end(owner: "left"); XCTAssertEqual(host.pressedKeys, ["SHIFT"])
+        update(.fullDevice)
+        elements = try XCTUnwrap(view.accessibilityElements as? [UIAccessibilityElement])
+        for id in ["key_SHIFT_LEFT", "key_SHIFT_RIGHT"] {
+            XCTAssertEqual(elements.first { $0.accessibilityIdentifier == id }?.accessibilityValue, "押下中")
+        }
+        view.router.move(owner: "right", point: CGPoint(x: -1, y: -1)); XCTAssertTrue(host.pressedKeys.isEmpty)
+        view.router.begin(owner: "right", point: point(right)); view.router.cancel(); XCTAssertTrue(host.pressedKeys.isEmpty)
+        update(.controllerDisplay)
+        XCTAssertTrue(view.bounds.contains(view.screenRect(player.skin.lcdContentRegion)))
+        XCTAssertEqual((view.accessibilityElements as? [UIAccessibilityElement])?.filter { $0.accessibilityTraits.contains(.button) }.count, 0)
+    }
+
+    func testPc1350PhysicalKeysAvailabilityAndSessionSwitchRelease() throws {
+        let input = IosPlayerInput()
+        let frames = ManualFrames()
+        let host = PlayerHost(player: try pc1350Fixture().player, frames: frames, input: input)
+        host.setActive(true); host.run(); frames.send(0)
+        input.bind("SOUTH", to: "MODE")
+        XCTAssertTrue(input.available("SOUTH"))
+        for (code, key) in [(59, "MODE"), (60, "KANA"), (73, "INSERT"), (76, "DELETE")] {
+            input.keyEvent(code: code, down: true)
+            XCTAssertTrue(host.pressedKeys.contains(key))
+            host.setInputFocus(false); XCTAssertTrue(host.pressedKeys.isEmpty)
+            input.keyEvent(code: code, down: false); host.setInputFocus(true)
+        }
+        let old = ApplePlayerFactory.shared.structuralProbe()
+        input.configure(player: old, receiving: false, epoch: 999)
+        XCTAssertFalse(input.available("SOUTH"))
+        XCTAssertEqual(input.bindings["SOUTH"], "MODE")
+        XCTAssertEqual(AppleInputCatalog.shared.keyForMachine(code: 76, machineId: "pc-1245"), "CLEAR")
+        XCTAssertNil(AppleInputCatalog.shared.keyForMachine(code: 59, machineId: "pc-1261"))
+    }
+
+    func testPc1350RomStoreAndActualProgramFilesRoundTrip() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let prepared = try pc1350Fixture()
+        let store = IosRomStore(root: root, machineId: "pc-1350")
+        try store.install(archive: prepared.archive, sourceName: "original.bin")
+        XCTAssertEqual(store.recordURL.lastPathComponent, "pc-1350.json")
+        XCTAssertThrowsError(try IosRomCodec.prepare(XCTUnwrap(try store.load()), machineId: "pc-1261"))
+        let host = PlayerHost(player: nil, frames: ManualFrames(), romStore: store)
+        host.restoreRom(); waitUntil { !host.isBusy }
+        XCTAssertEqual(host.machine.id, "pc-1350")
+        let source = root.appendingPathComponent("original.bas")
+        try Data("10 PRINT \"FOUR ROWS\"\n20 END\n".utf8).write(to: source)
+        host.openProgram(save: false); host.importProgram(source); waitUntil { !host.programBusy }
+        XCTAssertNil(host.programIssue)
+        host.closeProgram(); host.openProgram(save: true)
+        host.prepareProgramExport(basic: true, start: "", end: ""); waitUntil { !host.programBusy }
+        let url = try XCTUnwrap(host.exportURL)
+        let saved = try Data(contentsOf: url)
+        XCTAssertTrue(String(decoding: saved, as: UTF8.self).contains("FOUR ROWS"))
+        host.finishProgramExport(saved: true); host.closeProgram()
+        host.openProgram(save: false); host.importProgram(source); waitUntil { !host.programBusy }
+        XCTAssertNil(host.programIssue); host.closeProgram()
+        let dump = root.appendingPathComponent("original.dmp")
+        try Data("6000 12 34 56\n6010 AB CD\n".utf8).write(to: dump)
+        host.openProgram(save: false); host.importProgram(dump); waitUntil { !host.programBusy }
+        XCTAssertNil(host.programIssue); host.closeProgram(); host.openProgram(save: true)
+        host.prepareProgramExport(basic: false, start: "6000", end: "6011"); waitUntil { !host.programBusy }
+        XCTAssertNotNil(host.exportURL); host.finishProgramExport(saved: false); host.closeProgram()
+        let savedRecord = try Data(contentsOf: store.recordURL)
+        let failing = IosRomStore(root: root, machineId: "pc-1350", write: { _, _ in throw RomFailure(message: "Injected failure") })
+        XCTAssertThrowsError(try failing.install(archive: prepared.archive, sourceName: "replacement"))
+        XCTAssertEqual(try Data(contentsOf: store.recordURL), savedRecord)
+        host.openRomPanel(); host.requestRomDeletion(); host.cancelRomChange(); XCTAssertTrue(host.hasSession)
+        host.requestRomDeletion(); host.confirmRomDeletion(); waitUntil { !host.isBusy }
+        XCTAssertFalse(host.hasSession); XCTAssertFalse(host.hasSavedRom)
+    }
+
+    func testPc140xSharedPackageSelectionImportAndRestore() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let domain = "pgp-140x-" + UUID().uuidString
+        let defaults = UserDefaults(suiteName: domain)!
+        defer { try? FileManager.default.removeItem(at: root); defaults.removePersistentDomain(forName: domain) }
+        var bytes = Data(repeating: 0x4d, count: 0x10000)
+        bytes[0] = 0x79; bytes[1] = 0; bytes[2] = 0
+        let input = try IosRomCodec.read(bytes: bytes, name: "original.bin")
+        let preferences = IosMachinePreferences(defaults: defaults)
+        let store = IosRomStore(root: root, machineId: "pc-1402")
+        XCTAssertEqual(store.recordURL.lastPathComponent, "pc-1401.json")
+        XCTAssertEqual(store.recordURL, IosRomStore(root: root, machineId: "pc-1401").recordURL)
+        let normalized = try IosRomCodec.prepare(input, machineId: "pc-1402")
+        var files = try RomArchive.read(normalized.archive)
+        XCTAssertEqual(files["rom/internal.bin"]?.count, 8192)
+        XCTAssertEqual(files["rom/external.bin"]?.count, 32768)
+        for sourceId in ["pc-1402", "pc-1401"] {
+            var manifest = try JSONSerialization.jsonObject(with: files["manifest.json"]!) as! [String: Any]
+            manifest["machineId"] = sourceId
+            files["manifest.json"] = try JSONSerialization.data(withJSONObject: manifest)
+            for target in ["pc-1402", "pc-1401"] {
+                let prepared = try IosRomCodec.prepare(inputFromArchive(RomArchive.write(files)), machineId: target)
+                XCTAssertEqual(prepared.player.machine.id, target)
+                XCTAssertEqual(prepared.player.machine.characterRows, 1)
+                XCTAssertEqual(try RomArchive.read(prepared.archive)["rom/external.bin"], files["rom/external.bin"])
+            }
+            XCTAssertThrowsError(try IosRomCodec.prepare(inputFromArchive(RomArchive.write(files)), machineId: "pc-1251"))
+        }
+        files["rom/external.bin"]?[0] ^= 1
+        XCTAssertThrowsError(try IosRomCodec.prepare(inputFromArchive(RomArchive.write(files)), machineId: "pc-1402"))
+        let old = try IosRomCodec.prepare(input, machineId: "pc-1251")
+        XCTAssertThrowsError(try IosRomCodec.prepare(inputFromArchive(old.archive), machineId: "pc-1401"))
+        XCTAssertThrowsError(try IosRomCodec.prepare(IosRomCodec.read(bytes: Data(repeating: 0x4d, count: 0x8000), name: "short.bin"), machineId: "pc-1401"))
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let source = root.appendingPathComponent("original.bin")
+        try bytes.write(to: source)
+        let frames = ManualFrames()
+        let host = PlayerHost(player: nil, frames: frames, romStore: store, startsAtHome: true, machinePreferences: preferences)
+        host.requestMachineSelection("pc-1402")
+        host.importRom(source); waitUntil { !host.isBusy }
+        XCTAssertEqual(host.machine.id, "pc-1402")
+        XCTAssertTrue(host.hasRom("pc-1401"))
+        let saved = try Data(contentsOf: store.recordURL)
+        host.requestMachineSelection("pc-1401")
+        host.enterPlayer(); XCTAssertEqual(host.pendingMachineId, "pc-1401")
+        host.cancelMachineSelection(); XCTAssertEqual(host.machine.id, "pc-1402")
+        host.enterPlayer(); host.confirmMachineSelection(); waitUntil { !host.isBusy }
+        XCTAssertEqual(host.machine.id, "pc-1401")
+        host.returnHome(); host.requestMachineSelection("pc-1402")
+        let restored = PlayerHost(player: nil, frames: ManualFrames(), romStore: store, startsAtHome: true,
+                                  machinePreferences: IosMachinePreferences(defaults: defaults))
+        restored.restoreRom(); waitUntil { !restored.isBusy }
+        XCTAssertEqual(restored.machine.id, "pc-1401")
+        XCTAssertEqual(restored.selectedMachineId, "pc-1402")
+        XCTAssertEqual(restored.status.runState, "PAUSED")
+        host.openRomPanel(); host.importRom(source); waitUntil { !host.isBusy }
+        XCTAssertTrue(host.awaitingReplacement)
+        host.cancelRomChange(); XCTAssertEqual(try Data(contentsOf: store.recordURL), saved)
+        // A failed atomic replacement preserves the running alias and the common library.
+        let failing = IosRomStore(root: root, machineId: "pc-1401", write: { _, _ in throw RomFailure(message: "Injected write failure") })
+        let failureHost = PlayerHost(player: normalized.player, frames: ManualFrames(), romStore: failing)
+        failureHost.importRom(source); waitUntil { !failureHost.isBusy }
+        failureHost.confirmRomInstall(); waitUntil { !failureHost.isBusy }
+        XCTAssertEqual(failureHost.machine.id, "pc-1402")
+        XCTAssertEqual(try Data(contentsOf: store.recordURL), saved)
+        host.importRom(source); waitUntil { !host.isBusy }
+        host.confirmRomInstall(); waitUntil { !host.isBusy }
+        XCTAssertEqual(host.machine.id, "pc-1402")
+        host.openRomPanel(); host.requestRomDeletion(); host.cancelRomChange()
+        XCTAssertTrue(host.hasSession)
+        host.requestRomDeletion(); host.confirmRomDeletion(); waitUntil { !host.isBusy }
+        XCTAssertFalse(host.hasSession); XCTAssertFalse(host.hasRom("pc-1401"))
+    }
+
+    func testPc126xSharedPackageSelectionImportAndRestore() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let domain = "pgp-126x-" + UUID().uuidString
+        let defaults = UserDefaults(suiteName: domain)!
+        defer { try? FileManager.default.removeItem(at: root); defaults.removePersistentDomain(forName: domain) }
+        var bytes = Data(repeating: 0x4d, count: 0x10000)
+        bytes[0] = 0x79; bytes[1] = 0; bytes[2] = 0
+        let input = try IosRomCodec.read(bytes: bytes, name: "original.bin")
+        let preferences = IosMachinePreferences(defaults: defaults)
+        let store = IosRomStore(root: root, machineId: "pc-1260")
+        XCTAssertEqual(store.recordURL.lastPathComponent, "pc-1261.json")
+        XCTAssertEqual(store.recordURL, IosRomStore(root: root, machineId: "pc-1261").recordURL)
+        let normalized = try IosRomCodec.prepare(input, machineId: "pc-1260")
+        var files = try RomArchive.read(normalized.archive)
+        XCTAssertEqual(files["rom/internal.bin"]?.count, 8192)
+        XCTAssertEqual(files["rom/external.bin"]?.count, 32768)
+        for sourceId in ["pc-1260", "pc-1261"] {
+            var manifest = try JSONSerialization.jsonObject(with: files["manifest.json"]!) as! [String: Any]
+            manifest["machineId"] = sourceId
+            files["manifest.json"] = try JSONSerialization.data(withJSONObject: manifest)
+            for target in ["pc-1260", "pc-1261"] {
+                let prepared = try IosRomCodec.prepare(inputFromArchive(RomArchive.write(files)), machineId: target)
+                XCTAssertEqual(prepared.player.machine.id, target)
+                XCTAssertEqual(prepared.player.machine.characterRows, 2)
+                XCTAssertEqual(try RomArchive.read(prepared.archive)["rom/external.bin"], files["rom/external.bin"])
+            }
+            XCTAssertThrowsError(try IosRomCodec.prepare(inputFromArchive(RomArchive.write(files)), machineId: "pc-1251"))
+        }
+        files["rom/external.bin"]?[0] ^= 1
+        XCTAssertThrowsError(try IosRomCodec.prepare(inputFromArchive(RomArchive.write(files)), machineId: "pc-1260"))
+        let old = try IosRomCodec.prepare(input, machineId: "pc-1251")
+        XCTAssertThrowsError(try IosRomCodec.prepare(inputFromArchive(old.archive), machineId: "pc-1261"))
+        XCTAssertThrowsError(try IosRomCodec.prepare(IosRomCodec.read(bytes: Data(repeating: 0x4d, count: 0x8000), name: "short.bin"), machineId: "pc-1261"))
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let source = root.appendingPathComponent("original.bin")
+        try bytes.write(to: source)
+        let frames = ManualFrames()
+        let host = PlayerHost(player: nil, frames: frames, romStore: store, startsAtHome: true, machinePreferences: preferences)
+        host.requestMachineSelection("pc-1260")
+        host.importRom(source); waitUntil { !host.isBusy }
+        XCTAssertEqual(host.machine.id, "pc-1260")
+        XCTAssertTrue(host.hasRom("pc-1261"))
+        let saved = try Data(contentsOf: store.recordURL)
+        host.requestMachineSelection("pc-1261")
+        host.enterPlayer(); XCTAssertEqual(host.pendingMachineId, "pc-1261")
+        host.cancelMachineSelection(); XCTAssertEqual(host.machine.id, "pc-1260")
+        host.enterPlayer(); host.confirmMachineSelection(); waitUntil { !host.isBusy }
+        XCTAssertEqual(host.machine.id, "pc-1261")
+        host.returnHome(); host.requestMachineSelection("pc-1260")
+        let restored = PlayerHost(player: nil, frames: ManualFrames(), romStore: store, startsAtHome: true,
+                                  machinePreferences: IosMachinePreferences(defaults: defaults))
+        restored.restoreRom(); waitUntil { !restored.isBusy }
+        XCTAssertEqual(restored.machine.id, "pc-1261")
+        XCTAssertEqual(restored.selectedMachineId, "pc-1260")
+        XCTAssertEqual(restored.status.runState, "PAUSED")
+        host.openRomPanel(); host.importRom(source); waitUntil { !host.isBusy }
+        XCTAssertTrue(host.awaitingReplacement)
+        host.cancelRomChange(); XCTAssertEqual(try Data(contentsOf: store.recordURL), saved)
+        // A failed atomic replacement preserves the running alias and the common library.
+        let failing = IosRomStore(root: root, machineId: "pc-1261", write: { _, _ in throw RomFailure(message: "Injected write failure") })
+        let failureHost = PlayerHost(player: normalized.player, frames: ManualFrames(), romStore: failing)
+        failureHost.importRom(source); waitUntil { !failureHost.isBusy }
+        failureHost.confirmRomInstall(); waitUntil { !failureHost.isBusy }
+        XCTAssertEqual(failureHost.machine.id, "pc-1260")
+        XCTAssertEqual(try Data(contentsOf: store.recordURL), saved)
+        host.importRom(source); waitUntil { !host.isBusy }
+        host.confirmRomInstall(); waitUntil { !host.isBusy }
+        XCTAssertEqual(host.machine.id, "pc-1260")
+        host.openRomPanel(); host.requestRomDeletion(); host.cancelRomChange()
+        XCTAssertTrue(host.hasSession)
+        host.requestRomDeletion(); host.confirmRomDeletion(); waitUntil { !host.isBusy }
+        XCTAssertFalse(host.hasSession); XCTAssertFalse(host.hasRom("pc-1261"))
+    }
+
+    func testPc126xTwoRowSkinAndStatusLabels() throws {
+        let prepared = try IosRomCodec.prepare(IosRomCodec.read(bytes: Data(repeating: 0x4d, count: 0x10000), name: "synthetic.bin"), machineId: "pc-1261")
+        let player = prepared.player
+        let lcd = player.snapshot().display
+        XCTAssertEqual(lcd.logicalColumns, 143); XCTAssertEqual(lcd.logicalRows, 15)
+        XCTAssertEqual(lcd.logicalY(row: 7), 8)
+        XCTAssertNotNil(UIImage(named: player.machine.skinImageName))
+        let view = PlayerSkinView(skin: player.skin, machine: player.machine)
+        view.frame = CGRect(x: 0, y: 0, width: 844, height: 338)
+        view.update(lcd: lcd, mode: .fullDevice, operatingMode: "RUN", pressedKeys: [], inputEpoch: 0, active: true)
+        view.layoutIfNeeded()
+        let elements = try XCTUnwrap(view.accessibilityElements as? [UIAccessibilityElement])
+        let display = try XCTUnwrap(elements.first { $0.accessibilityIdentifier == "lcd" })
+        XCTAssertTrue(display.accessibilityLabel?.contains("24桁×2行") == true)
+        XCTAssertTrue(view.bounds.contains(display.accessibilityFrameInContainerSpace))
+        XCTAssertEqual(elements.first { $0.accessibilityIdentifier == "symbol_RESERVE" }?.accessibilityLabel, "RSV")
+        XCTAssertEqual(elements.first { $0.accessibilityIdentifier == "symbol_SMALL" }?.accessibilityLabel, "SML")
+        XCTAssertEqual(elements.filter { $0.accessibilityTraits.contains(.button) }.count, 52)
+        view.update(lcd: lcd, mode: .controllerDisplay, operatingMode: "RUN", pressedKeys: [], inputEpoch: 1, active: true)
+        view.layoutIfNeeded()
+        XCTAssertTrue(view.bounds.contains(view.screenRect(player.skin.lcdContentRegion)))
+        XCTAssertEqual((view.accessibilityElements as? [UIAccessibilityElement])?.filter { $0.accessibilityTraits.contains(.button) }.count, 0)
+    }
+
+    func testPc140xAnd1450SmallSkinPhysicalInputsAndProgramFiles() throws {
+        for id in ["pc-1401", "pc-1402", "pc-1450"] {
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at: root) }
+            var bytes = Data(repeating: 0x4d, count: 0x10000)
+            bytes[0] = 0x79; bytes[1] = 0; bytes[2] = 0
+            let prepared = try IosRomCodec.prepare(IosRomCodec.read(bytes: bytes, name: "original.bin"), machineId: id)
+            XCTAssertThrowsError(try IosRomCodec.prepare(inputFromArchive(prepared.archive), machineId: id == "pc-1450" ? "pc-1401" : "pc-1450"))
+            let store = IosRomStore(root: root, machineId: id)
+            try store.install(archive: prepared.archive, sourceName: "original.bin")
+            let domain = "pgp-14xx-files-" + UUID().uuidString
+            let defaults = UserDefaults(suiteName: domain)!
+            defer { defaults.removePersistentDomain(forName: domain) }
+            let preferences = IosMachinePreferences(defaults: defaults)
+            preferences.runningMachineId = id
+            let input = IosPlayerInput()
+            let frames = ManualFrames()
+            let host = PlayerHost(player: nil, frames: frames, romStore: store, machinePreferences: preferences, input: input)
+            host.restoreRom(); waitUntil { !host.isBusy }
+            XCTAssertEqual(host.machine.id, id)
+            XCTAssertFalse(host.showsRunProToggle)
+            XCTAssertTrue(host.operatingModes.isEmpty)
+            let originalMode = host.status.operatingMode
+            host.setOperatingMode("PRO"); host.setProgramMode(true)
+            XCTAssertEqual(host.status.operatingMode, originalMode)
+            let player = prepared.player
+            XCTAssertNotNil(UIImage(named: player.machine.skinImageName))
+            let view = PlayerSkinView(skin: player.skin, machine: player.machine)
+            view.frame = CGRect(x: 0, y: 0, width: 667, height: 300)
+            view.update(lcd: player.snapshot().display, mode: .fullDevice, operatingMode: "RUN", pressedKeys: [], inputEpoch: 0, active: true)
+            view.layoutIfNeeded()
+            let elements = try XCTUnwrap(view.accessibilityElements as? [UIAccessibilityElement])
+            XCTAssertEqual(elements.filter { $0.accessibilityTraits.contains(.button) }.count, player.skin.keyRegions.count)
+            XCTAssertEqual(Set(elements.compactMap(\.accessibilityIdentifier)).count, elements.count)
+            for e in elements { XCTAssertTrue(view.bounds.contains(e.accessibilityFrameInContainerSpace), e.accessibilityIdentifier ?? "") }
+            for name in ["CAL", "RUN", "PRO", "HYP", "STAT", "PRINT"] {
+                XCTAssertNotNil(elements.first { $0.accessibilityIdentifier == "symbol_" + name })
+            }
+            for (symbol, label) in [("PARENTHESES", "( )"), ("MEMORY", "M"), ("ERROR", "E")] + (id == "pc-1450" ? [("KANA_SMALL", "小")] : []) {
+                XCTAssertEqual(elements.first { $0.accessibilityIdentifier == "symbol_" + symbol }?.accessibilityLabel, label)
+            }
+            view.update(lcd: player.snapshot().display, mode: .controllerDisplay, operatingMode: "RUN", pressedKeys: [], inputEpoch: 1, active: true)
+            view.layoutIfNeeded()
+            XCTAssertTrue(view.bounds.contains(view.screenRect(player.skin.lcdContentRegion)))
+            XCTAssertEqual((view.accessibilityElements as? [UIAccessibilityElement])?.filter { $0.accessibilityTraits.contains(.button) }.count, 0)
+            host.setActive(true); host.run(); frames.send(0)
+            let codes: [(Int, String)] = [(59, "CAL"), (60, "BASIC")] + (id == "pc-1450" ? [(61, "KANA"), (62, "SMALL"), (63, "DAKUTEN"), (64, "LONG_VOWEL"), (65, "LOCK")] : [])
+            for (code, key) in codes {
+                input.keyEvent(code: code, down: true); XCTAssertTrue(host.pressedKeys.contains(key))
+                host.setInputFocus(false); XCTAssertTrue(host.pressedKeys.isEmpty)
+                input.keyEvent(code: code, down: false); host.setInputFocus(true)
+            }
+            input.bind("SOUTH", to: "CAL"); XCTAssertTrue(input.available("SOUTH"))
+            input.configure(player: ApplePlayerFactory.shared.structuralProbe(), receiving: false, epoch: 999)
+            XCTAssertFalse(input.available("SOUTH")); XCTAssertEqual(input.bindings["SOUTH"], "CAL")
+            host.pause()
+            let source = root.appendingPathComponent("original.bas")
+            try Data("10 PRINT 1\n20 END\n".utf8).write(to: source)
+            host.openProgram(save: false); host.importProgram(source); waitUntil { !host.programBusy }
+            XCTAssertNil(host.programIssue); host.closeProgram(); host.openProgram(save: true)
+            host.prepareProgramExport(basic: true, start: "", end: ""); waitUntil { !host.programBusy }
+            let exported = try Data(contentsOf: XCTUnwrap(host.exportURL))
+            XCTAssertTrue(String(decoding: exported, as: UTF8.self).contains("PRINT"))
+            host.finishProgramExport(saved: true); host.closeProgram()
+            let dump = root.appendingPathComponent("original.dmp")
+            let address = id == "pc-1450" ? "5000" : "4400"
+            try Data("\(address) 12 34\n".utf8).write(to: dump)
+            host.openProgram(save: false); host.importProgram(dump); waitUntil { !host.programBusy }
+            XCTAssertNil(host.programIssue); host.closeProgram(); host.openProgram(save: true)
+            host.prepareProgramExport(basic: false, start: address, end: address); waitUntil { !host.programBusy }
+            XCTAssertNotNil(host.exportURL); host.finishProgramExport(saved: false); host.closeProgram()
+            let saved = try Data(contentsOf: store.recordURL)
+            let failing = IosRomStore(root: root, machineId: id, write: { _, _ in throw RomFailure(message: "Injected failure") })
+            XCTAssertThrowsError(try failing.install(archive: prepared.archive, sourceName: "replacement"))
+            XCTAssertEqual(try Data(contentsOf: store.recordURL), saved)
+            host.openRomPanel(); host.requestRomDeletion(); host.cancelRomChange(); XCTAssertTrue(host.hasSession)
+            host.requestRomDeletion(); host.confirmRomDeletion(); waitUntil { !host.isBusy }; XCTAssertFalse(host.hasSession)
+        }
+    }
+
+    func testBankedPackagesStoreRestoreAndS2ProgramFiles() throws {
+        for id in ["pc-1360", "pc-1460", "pc-1470u", "pc-1360k"] {
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at: root) }
+            let archive = try PlayerHost.bankedProbeArchive(id)
+            let read = try IosRomCodec.read(bytes: archive, name: "original.pgrom")
+            let prepared = try IosRomCodec.prepare(read, machineId: id)
+            let files = try RomArchive.read(prepared.archive)
+            let count = id == "pc-1460" ? 4 : 8
+            XCTAssertEqual(prepared.player.machine.romBankCount, Int32(count))
+            XCTAssertFalse(prepared.player.machine.supportsLegacyRom)
+            XCTAssertEqual(files.count, count + 2 + (id == "pc-1360k" ? 4 : 0))
+            XCTAssertEqual(files["rom/internal.bin"]?.count, 8192)
+            for bank in 0..<count { XCTAssertEqual(files["rom/bank-\(bank).bin"]?.count, 16384) }
+            let originalFiles = try RomArchive.read(archive)
+            for (path, data) in files where path != "manifest.json" { XCTAssertEqual(data, originalFiles[path]) }
+            XCTAssertThrowsError(try IosRomCodec.prepare(read, machineId: id == "pc-1360" ? "pc-1460" : "pc-1360"))
+            XCTAssertThrowsError(try IosRomCodec.prepare(IosRomCodec.read(bytes: Data(repeating: 0x4d, count: 0x10000), name: "flat.bin"), machineId: id))
+            var bad = files; bad["rom/bank-0.bin"]?[0] ^= 1
+            XCTAssertThrowsError(try IosRomCodec.prepare(inputFromArchive(RomArchive.write(bad)), machineId: id))
+            bad = files; bad.removeValue(forKey: "rom/bank-0.bin")
+            XCTAssertThrowsError(try IosRomCodec.prepare(inputFromArchive(RomArchive.write(bad)), machineId: id))
+            var manifest = try JSONSerialization.jsonObject(with: files["manifest.json"]!) as! [String: Any]
+            var components = manifest["components"] as! [[String: Any]]
+            components[0]["role"] = "internal"; manifest["components"] = components
+            bad = files; bad["manifest.json"] = try JSONSerialization.data(withJSONObject: manifest)
+            XCTAssertThrowsError(try IosRomCodec.prepare(inputFromArchive(RomArchive.write(bad)), machineId: id))
+            let store = IosRomStore(root: root, machineId: id)
+            try store.install(archive: prepared.archive, sourceName: "original.pgrom")
+            XCTAssertEqual(store.recordURL.lastPathComponent, id + ".json")
+            let host = PlayerHost(player: nil, frames: ManualFrames(), romStore: store)
+            host.restoreRom(); waitUntil { !host.isBusy }
+            XCTAssertEqual(host.machine.id, id); XCTAssertTrue(host.operatingModes.isEmpty); XCTAssertFalse(host.showsRunProToggle)
+            XCTAssertEqual(host.status.runState, "PAUSED")
+            let source = root.appendingPathComponent("original.bas")
+            try Data("10 PRINT \"S2\"\n20 END\n".utf8).write(to: source)
+            host.openProgram(save: false); host.importProgram(source); waitUntil { !host.programBusy }
+            XCTAssertNil(host.programIssue); host.closeProgram(); host.openProgram(save: true)
+            host.prepareProgramExport(basic: true, start: "", end: ""); waitUntil { !host.programBusy }
+            let savedBasic = try Data(contentsOf: XCTUnwrap(host.exportURL))
+            XCTAssertTrue(String(decoding: savedBasic, as: UTF8.self).contains("S2"))
+            host.finishProgramExport(saved: true); host.closeProgram()
+            let dump = root.appendingPathComponent("original.dmp")
+            try Data("9000 12 34\n9010 AB CD\n".utf8).write(to: dump)
+            host.openProgram(save: false); host.importProgram(dump); waitUntil { !host.programBusy }
+            XCTAssertNil(host.programIssue); host.closeProgram(); host.openProgram(save: true)
+            host.prepareProgramExport(basic: false, start: "9000", end: "9011"); waitUntil { !host.programBusy }
+            let savedDump = try Data(contentsOf: XCTUnwrap(host.exportURL)); host.finishProgramExport(saved: false); host.closeProgram()
+            try Data("9000 99\n4000 56\n".utf8).write(to: dump)
+            host.openProgram(save: false); host.importProgram(dump); waitUntil { !host.programBusy }
+            XCTAssertNotNil(host.programIssue); host.closeProgram(); host.openProgram(save: true)
+            host.prepareProgramExport(basic: false, start: "9000", end: "9011"); waitUntil { !host.programBusy }
+            XCTAssertEqual(try Data(contentsOf: XCTUnwrap(host.exportURL)), savedDump)
+            host.finishProgramExport(saved: false); host.closeProgram()
+            let record = try Data(contentsOf: store.recordURL)
+            let failing = IosRomStore(root: root, machineId: id, write: { _, _ in throw RomFailure(message: "Injected failure") })
+            XCTAssertThrowsError(try failing.install(archive: prepared.archive, sourceName: "replacement"))
+            XCTAssertEqual(try Data(contentsOf: store.recordURL), record)
+            host.openRomPanel(); host.requestRomDeletion(); host.cancelRomChange(); XCTAssertTrue(host.hasSession)
+            host.requestRomDeletion(); host.confirmRomDeletion(); waitUntil { !host.isBusy }; XCTAssertFalse(host.hasSession)
+        }
+    }
+
+    func testBankedSkinsSmallLayoutPhysicalKeysAndDualShiftOwners() throws {
+        for id in ["pc-1360", "pc-1460", "pc-1470u", "pc-1360k"] {
+            let prepared = try IosRomCodec.prepare(inputFromArchive(PlayerHost.bankedProbeArchive(id)), machineId: id)
+            let player = prepared.player
+            let input = IosPlayerInput(), frames = ManualFrames()
+            let host = PlayerHost(player: player, frames: frames, input: input)
+            host.setActive(true); host.run(); frames.send(0); frames.send(10_000_000)
+            XCTAssertFalse(host.showsRunProToggle); XCTAssertTrue(host.operatingModes.isEmpty)
+            let view = PlayerSkinView(skin: player.skin, machine: player.machine)
+            view.frame = CGRect(x: 0, y: 0, width: 667, height: 300)
+            view.router.onPress = { host.press(keyName: $0, owner: $1) }
+            view.router.onRelease = { host.release(owner: $0) }
+            func update(_ mode: PgpPlayer.PresentationMode) {
+                view.update(lcd: player.snapshot().display, mode: mode, operatingMode: host.status.operatingMode, pressedKeys: host.pressedKeys, inputEpoch: host.inputEpoch, active: true)
+                view.layoutIfNeeded()
+            }
+            update(.fullDevice)
+            XCTAssertNotNil(UIImage(named: player.machine.skinImageName))
+            let elements = try XCTUnwrap(view.accessibilityElements as? [UIAccessibilityElement])
+            XCTAssertEqual(elements.filter { $0.accessibilityTraits.contains(.button) }.count, id == "pc-1360k" ? 65 : id == "pc-1360" ? 60 : 81)
+            XCTAssertEqual(Set(elements.compactMap(\.accessibilityIdentifier)).count, elements.count)
+            for element in elements { XCTAssertTrue(view.bounds.contains(element.accessibilityFrameInContainerSpace), element.accessibilityIdentifier ?? "") }
+            XCTAssertEqual(elements.filter { $0.accessibilityIdentifier?.hasPrefix("symbol_") == true }.count, id == "pc-1360k" ? 8 : id == "pc-1360" ? 6 : id == "pc-1460" ? 19 : 22)
+            if id == "pc-1470u" {
+                XCTAssertEqual(elements.first { $0.accessibilityIdentifier == "symbol_BATTERY" }?.accessibilityLabel, "BATT")
+                let shifts = player.skin.keyRegions.filter { $0.key.name == "SHIFT" }
+                XCTAssertEqual(Set(shifts.map(\.id)), ["SHIFT", "LOCK"])
+                for (index, region) in shifts.enumerated() {
+                    let rect = view.screenRect(region.bounds)
+                    view.router.begin(owner: "shift-\(index)", point: CGPoint(x: rect.midX, y: rect.midY))
+                }
+                view.router.end(owner: "shift-0"); XCTAssertTrue(host.pressedKeys.contains("SHIFT"))
+                view.router.end(owner: "shift-1"); XCTAssertFalse(host.pressedKeys.contains("SHIFT"))
+            }
+            let codes: [(Int, String)] = id == "pc-1360k" ? [(59, "MODE"), (60, "KANA"), (61, "SMALL"), (62, "KANJI"), (63, "HIRA_KATA"), (64, "KANJI_FIX"), (65, "KANJI_CONVERT"), (66, "YJ")] : id == "pc-1360" ? [(59, "MODE"), (60, "KANA"), (61, "SMALL"), (73, "INSERT"), (76, "DELETE")] :
+                [(59, "CAL"), (60, "BASIC"), (61, "KANA"), (62, "SMALL"), (63, "DAKUTEN"), (64, "LONG_VOWEL"), (65, id == "pc-1470u" ? "SHIFT" : "LOCK")] +
+                (id == "pc-1470u" ? [(42, "BACKSPACE"), (73, "INSERT"), (76, "DELETE")] : [])
+            for (code, key) in codes {
+                input.keyEvent(code: code, down: true); XCTAssertTrue(host.pressedKeys.contains(key), key)
+                host.setInputFocus(false); XCTAssertTrue(host.pressedKeys.isEmpty)
+                input.keyEvent(code: code, down: false); host.setInputFocus(true)
+            }
+            input.bind("SOUTH", to: ["pc-1360", "pc-1360k"].contains(id) ? "MODE" : "CAL"); XCTAssertTrue(input.available("SOUTH"))
+            input.configure(player: ApplePlayerFactory.shared.structuralProbe(), receiving: false, epoch: 999)
+            XCTAssertFalse(input.available("SOUTH"))
+            update(.controllerDisplay)
+            XCTAssertTrue(view.bounds.contains(view.screenRect(player.skin.lcdContentRegion)))
+            XCTAssertEqual((view.accessibilityElements as? [UIAccessibilityElement])?.filter { $0.accessibilityTraits.contains(.button) }.count, 0)
+        }
+    }
+
+    func testKanjiSelectorsHashesAndGeneratedGlyphReachLcd() throws {
+        let id = "pc-1360k"
+        let files = try RomArchive.read(PlayerHost.bankedProbeArchive(id))
+        let manifest = try JSONDecoder().decode(RomManifest.self, from: files["manifest.json"]!)
+        for selectors in [[], [0, 1], [0, 1, 2, 3], [0], [0, 2], [2, 3], [0, 1, 2]] as [[Int]] {
+            var subset = files
+            let allowed = selectors.map { "kanji-selector-\($0)" }
+            let components = manifest.components.filter { !$0.id.hasPrefix("kanji-selector-") || allowed.contains($0.id) }
+            for component in manifest.components where !components.contains(where: { $0.id == component.id }) {
+                subset.removeValue(forKey: component.file)
+            }
+            subset["manifest.json"] = try JSONEncoder().encode(RomManifest(format: manifest.format, formatVersion: manifest.formatVersion,
+                machineId: id, title: nil, components: components))
+            let read = try inputFromArchive(RomArchive.write(subset))
+            if [0, 2, 4].contains(selectors.count) && selectors == Array(0..<selectors.count) {
+                XCTAssertNoThrow(try IosRomCodec.prepare(read, machineId: id))
+            } else {
+                XCTAssertThrowsError(try IosRomCodec.prepare(read, machineId: id))
+            }
+        }
+        var damaged = files; damaged["rom/kanji-selector-0.bin"]?[0] ^= 1
+        XCTAssertThrowsError(try IosRomCodec.prepare(inputFromArchive(RomArchive.write(damaged)), machineId: id))
+        let prepared = try IosRomCodec.prepare(inputFromArchive(RomArchive.write(files)), machineId: id)
+        XCTAssertThrowsError(try IosRomCodec.prepare(inputFromArchive(RomArchive.write(files)), machineId: "pc-1360"))
+        let player = prepared.player
+        player.run(nowNanoseconds: 0); player.tick(nowNanoseconds: 10_000_000); player.pause()
+        let lcd = player.snapshot().display
+        XCTAssertTrue(lcd.isDotOn(column: 1, row: 3)); XCTAssertFalse(lcd.isDotOn(column: 1, row: 2))
+        XCTAssertTrue(lcd.symbols.contains(.s)); XCTAssertTrue(lcd.symbols.contains(.hiragana)); XCTAssertTrue(lcd.symbols.contains(.katakana))
+        XCTAssertEqual(PlayerSkinView.symbolLabel(.hiragana), "平")
+        XCTAssertEqual(PlayerSkinView.symbolLabel(.katakana), "片")
+        for start: Int32 in [0xc100, 0xc110] {
+            let dump = Data(kotlin: try XCTUnwrap(player.exportDump(start: start, end: start + 3).doCopyBytes()))
+            XCTAssertTrue(String(decoding: dump, as: UTF8.self).contains("40 41 42 43"))
+        }
+    }
+
+    private func inputFromArchive(_ archive: Data) throws -> ReadRom {
+        try IosRomCodec.read(bytes: archive, name: "synthetic.pgrom")
+    }
+
+    func testSeriesPackageIdentityAndHashMustValidateBeforeRetargeting() throws {
+        let input = try IosRomCodec.read(bytes: Data(repeating: 0x4d, count: 0x8000), name: "synthetic.bin")
+        let prepared = try IosRomCodec.prepare(input, machineId: "pc-1250")
+        var files = try RomArchive.read(prepared.archive)
+        let original = files["rom/internal.bin"]!
+        for sourceId in ["pc-1250", "pc-1251", "pc-1255"] {
+            var manifest = try JSONSerialization.jsonObject(with: files["manifest.json"]!) as! [String: Any]
+            manifest["machineId"] = sourceId
+            files["manifest.json"] = try JSONSerialization.data(withJSONObject: manifest)
+            let read = try IosRomCodec.read(bytes: RomArchive.write(files), name: "model.pgrom")
+            for target in ["pc-1250", "pc-1251", "pc-1255"] {
+                let normalized = try IosRomCodec.prepare(read, machineId: target)
+                XCTAssertEqual(normalized.player.machine.id, target)
+                XCTAssertEqual(try RomArchive.read(normalized.archive)["rom/internal.bin"], original)
+            }
+            XCTAssertThrowsError(try IosRomCodec.prepare(read, machineId: "pc-1245"))
+        }
+        files["rom/internal.bin"]?[0] ^= 1
+        XCTAssertThrowsError(try IosRomCodec.prepare(inputFromArchive(RomArchive.write(files)), machineId: "pc-1255"))
+        let domain = "pgp-invalid-model-" + UUID().uuidString
+        let defaults = UserDefaults(suiteName: domain)!
+        defer { defaults.removePersistentDomain(forName: domain) }
+        defaults.set("pc-1401", forKey: "machine.model.pc-1251")
+        defaults.set("invalid", forKey: "machine.running")
+        let preferences = IosMachinePreferences(defaults: defaults)
+        XCTAssertEqual(preferences.model(for: "pc-1251"), "pc-1251")
+        XCTAssertNil(preferences.runningMachineId)
     }
 
     func testDelayedReadCancelIgnoresStaleSuccessWhileNextReadFails() throws {

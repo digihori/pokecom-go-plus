@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 
 struct PlayerProbeView: View {
     @ObservedObject var host: PlayerHost
+    var updateOrientation: (Bool) -> Void = { _ in }
     @State private var information: String?
     @State private var playbackPanel: String?
     @State private var controllerPanel = false
@@ -40,25 +41,43 @@ struct PlayerProbeView: View {
             }
         }
         .sheet(isPresented: $controllerPanel) { ControllerSettingsPanel(input: host.input) }
+        .alert("機種を切り替えますか？", isPresented: Binding(get: { host.pendingMachineId != nil }, set: { if !$0 { host.cancelMachineSelection() } })) {
+            Button("切替", role: .destructive, action: host.confirmMachineSelection)
+            Button("キャンセル", role: .cancel, action: host.cancelMachineSelection)
+        } message: { Text("現在のRAMとロード済みプログラムは失われます。登録ROMは保持します。") }
         .onChange(of: information) { _ in host.releaseAllKeys() }
+        .onAppear { updateOrientation(machineScreenVisible) }
+        .onChange(of: machineScreenVisible) { updateOrientation($0) }
     }
 
     private var home: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("機種を選択").font(.headline)
-                    if !host.audioMessage.isEmpty { Text(host.audioMessage).font(.callout) }
-                    Text("PC-1245").font(.title2)
-                    Text(host.romSourceName ?? (host.hasSession ? "PC-1245 Session" : "ROM未登録"))
-                    if host.isBusy { ProgressView() }
-                    if host.hasSession {
-                        Button("プレイ", action: host.enterPlayer).buttonStyle(.borderedProminent)
-                            .accessibilityIdentifier("playPC1245").disabled(host.isBusy)
-                    } else {
-                        Button("ROMを登録", action: host.openRomPicker).buttonStyle(.borderedProminent)
-                            .accessibilityIdentifier("romImport").disabled(host.isBusy)
+                    HStack {
+                        Text("機種を選択").font(.headline)
+                        Spacer()
+                        ForEach(PlayerHomeLayout.allCases, id: \.self) { layout in
+                            Button { host.setHomeLayout(layout) } label: {
+                                Label(layout.label, systemImage: layout == .tiles ? "square.grid.2x2" : "list.bullet")
+                                    .font(.subheadline)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(host.homeLayout == layout ? .accentColor : .secondary)
+                            .accessibilityIdentifier("homeLayout-" + layout.rawValue)
+                            .accessibilityValue(host.homeLayout == layout ? "選択中" : "未選択")
+                            .accessibilityAddTraits(host.homeLayout == layout ? .isSelected : [])
+                        }
                     }
+                    if !host.audioMessage.isEmpty { Text(host.audioMessage).font(.callout) }
+                    LazyVGrid(columns: host.homeLayout == .tiles ? [GridItem(.adaptive(minimum: 160), spacing: 16, alignment: .top)] : [GridItem(.flexible())],
+                              alignment: .leading, spacing: 16) {
+                        ForEach(AppleMachineCatalog.shared.homeMachines, id: \.id) { series in
+                            machineCard(series)
+                                .id(series.id)
+                        }
+                    }.disabled(host.isBusy)
+                    if host.isBusy { ProgressView() }
                     Text("ROMは同梱していません。登録したROMはアプリ内に保存します。RAM・CPU状態はアプリ終了後に復元しません。")
                         .font(.callout)
                     if !host.romMessage.isEmpty { Text(host.romMessage) }
@@ -74,21 +93,72 @@ struct PlayerProbeView: View {
         }
     }
 
+    private var machineScreenVisible: Bool {
+        !host.showHome && !host.romPanelOpen && !host.programPanelOpen &&
+            information == nil && playbackPanel == nil && !controllerPanel
+    }
+
+    @ViewBuilder private func machineCard(_ series: AppleMachineInfo) -> some View {
+        let model = host.selectedModel(series.id)
+        Group {
+            if host.homeLayout == .tiles {
+                VStack(alignment: .leading, spacing: 12) {
+                    machineSummary(series)
+                    machineAction(series, model: model).frame(maxWidth: .infinity, alignment: .leading)
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                HStack(spacing: 16) {
+                    machineSummary(series).frame(maxWidth: .infinity, alignment: .leading)
+                    machineAction(series, model: model)
+                }
+            }
+        }.padding().frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.secondary.opacity(0.08)).cornerRadius(12)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("machineCard-" + series.id)
+    }
+
+    private func machineSummary(_ series: AppleMachineInfo) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if AppleMachineCatalog.shared.models(id: series.id).count > 1 {
+                Picker("機種", selection: Binding(get: { host.selectedModel(series.id) }, set: host.requestMachineSelection)) {
+                    ForEach(AppleMachineCatalog.shared.models(id: series.id), id: \.id) { machine in
+                        Text(machine.displayName).tag(machine.id)
+                    }
+                }.labelsHidden().accessibilityIdentifier("model-" + series.id)
+            } else { Text(series.displayName).font(.headline) }
+            Text(host.hasRom(series.id) ? "登録済み" : "ROM未登録").font(.subheadline)
+            if host.isRunningSeries(series.id) { Text("起動中：" + host.machine.displayName).font(.caption) }
+        }
+    }
+
+    @ViewBuilder private func machineAction(_ series: AppleMachineInfo, model: String) -> some View {
+        if host.hasRom(series.id) || (host.isRunningSeries(series.id) && host.machine.id == model) {
+            Button("プレイ") { host.playMachine(model) }.buttonStyle(.borderedProminent)
+                .accessibilityIdentifier(series.id == "pc-1245" ? "playPC1245" : "play-" + series.id)
+        } else {
+            Button("ROMを登録") { host.requestMachineSelection(model); host.openRomPicker() }.buttonStyle(.borderedProminent)
+                .accessibilityIdentifier(series.id == "pc-1245" ? "romImport" : "romImport-" + series.id)
+        }
+    }
+
     private var player: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
-                    Text("PC-1245").font(.headline)
+                    Text(host.machine.displayName).font(.headline)
                     Spacer(minLength: 0)
                     Button(action: host.toggleRunState) { Text(host.status.runState).font(.caption.monospaced()) }
                         .frame(minWidth: 80, minHeight: 44)
                         .accessibilityIdentifier("runState")
                         .disabled(host.status.runState == "FAULTED")
                     Spacer(minLength: 0)
-                    Button(host.status.operatingMode) {
-                        host.setOperatingMode(host.status.operatingMode == "RUN" ? "PRO" : "RUN")
+                    if host.showsRunProToggle {
+                    Button(host.modeToggleLabel) {
+                        host.toggleOperatingMode()
                     }.frame(minWidth: 44, minHeight: 44).background(Color(red: 0.1, green: 0.37, blue: 0.13))
                         .clipShape(Circle()).accessibilityIdentifier("pro")
+                    }
                     PlayerNativeMenu(host: host).frame(width: 44, height: 44)
                 }.lineLimit(1).minimumScaleFactor(0.7).padding(.horizontal, 8).frame(minHeight: 52)
                 if !host.audioMessage.isEmpty {
@@ -97,6 +167,7 @@ struct PlayerProbeView: View {
                 }
                 if let skin = host.skin, let lcd = host.lcd {
                     PlayerSkinSurface(host: host, skin: skin, lcd: lcd)
+                        .id(host.machine.id)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
@@ -120,8 +191,13 @@ private struct RomLibraryPanel: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("PC-1245").font(.title2)
-                    Text(host.romSourceName ?? (host.hasSavedRom ? "保存データを検証できません" : "未登録"))
+                    Picker("シリーズ", selection: Binding(get: { host.selectedMachine.romId }, set: { host.requestMachineSelection(host.selectedModel($0)) })) {
+                        ForEach(AppleMachineCatalog.shared.homeMachines, id: \.id) { series in
+                            Text(AppleMachineCatalog.shared.models(id: series.id).map { $0.displayName }.joined(separator: " / ")).tag(series.id)
+                        }
+                    }.disabled(host.awaitingReplacement || host.awaitingDeletion)
+                    Text(host.selectedMachine.displayName).font(.title2)
+                    Text(host.selectedRomSourceName ?? (host.hasSavedRom ? "保存データを検証できません" : "未登録"))
                         .accessibilityIdentifier("romSourceName")
                     Text(host.romMessage).accessibilityIdentifier("romMessage")
                     if host.isBusy { ProgressView() }
@@ -320,7 +396,7 @@ private struct PlayerSkinSurface: UIViewRepresentable {
     let skin: SkinDefinition
     let lcd: PlayerDisplayFrame
     func makeUIView(context: Context) -> PlayerSkinView {
-        let view = PlayerSkinView(skin: skin)
+        let view = PlayerSkinView(skin: skin, machine: host.machine)
         view.router.onPress = { [weak host] key, owner in host?.press(keyName: key, owner: owner) ?? false }
         view.router.onRelease = { [weak host] owner in host?.release(owner: owner) }
         return view
@@ -353,11 +429,11 @@ final class SkinTouchRouter {
         let local = CGPoint(x: CGFloat(p.skinX(screenX: Float(point.x))),
                             y: CGFloat(p.skinY(screenY: Float(point.y))))
         guard let key = skin.keyRegions.first(where: { $0.bounds.cgRect.contains(local) }) else { return }
-        if onPress(key.key.name, owner) { owners[owner] = key.key.name }
+        if onPress(key.key.name, owner) { owners[owner] = key.id }
     }
     func move(owner: String, point: CGPoint) {
         guard let name = owners[owner], let p = placement,
-              let key = skin.keyRegions.first(where: { $0.key.name == name }) else { return }
+              let key = skin.keyRegions.first(where: { $0.id == name }) else { return }
         let local = CGPoint(x: CGFloat(p.skinX(screenX: Float(point.x))),
                             y: CGFloat(p.skinY(screenY: Float(point.y))))
         if !p.viewport.cgRect.contains(point) || !key.bounds.cgRect.contains(local) { end(owner: owner) }
@@ -384,7 +460,8 @@ private final class SkinKeyAccessibility: UIAccessibilityElement {
 final class PlayerSkinView: UIView {
     let skin: SkinDefinition
     let router: SkinTouchRouter
-    private let image = UIImage(named: "skin_pc1245")
+    private let image: UIImage?
+    private let machine: AppleMachineInfo
     private var lcd: PlayerDisplayFrame?
     private var mode: PgpPlayer.PresentationMode = .fullDevice
     private var operatingMode = "RUN"
@@ -399,7 +476,9 @@ final class PlayerSkinView: UIView {
     private let activeColor = UIColor(red: 38/255, green: 53/255, blue: 44/255, alpha: 1)
     private let panelColor = UIColor(red: 183/255, green: 200/255, blue: 167/255, alpha: 1)
 
-    init(skin: SkinDefinition) {
+    init(skin: SkinDefinition, machine: AppleMachineInfo = AppleMachineCatalog.shared.defaultMachine) {
+        self.machine = machine
+        image = UIImage(named: machine.skinImageName)
         self.skin = skin
         router = SkinTouchRouter(skin: skin)
         super.init(frame: .zero)
@@ -413,7 +492,7 @@ final class PlayerSkinView: UIView {
             overlay.fillColor = UIColor.white.cgColor
             overlay.opacity = 0
             layer.addSublayer(overlay)
-            highlights[key.key.name] = overlay
+            highlights[key.id] = overlay
         }
     }
     required init?(coder: NSCoder) { fatalError("Use init(skin:)") }
@@ -486,7 +565,18 @@ final class PlayerSkinView: UIView {
         let angleNames = ["DE", "G", "RAD"]
         for region in skin.statusRegions where !angleNames.contains(region.symbol.name) {
             let on = lcd.enabled && lcd.symbols.contains(region.symbol)
-            drawLabel(region.symbol.name, in: region.bounds.cgRect, on: on, alignEnd: region.symbol == .shift)
+            if region.symbol == .s {
+                let rect = region.bounds.cgRect
+                let side = min(rect.width, rect.height)
+                let square = CGRect(x: rect.minX, y: rect.midY - side / 2, width: side, height: side)
+                (on ? activeColor : activeColor.withAlphaComponent(31/255)).setFill()
+                cg.fill(square)
+                drawFittedText(NSAttributedString(string: "S", attributes: [
+                    .font: UIFont.systemFont(ofSize: 20, weight: .semibold),
+                    .foregroundColor: panelColor]), in: square.insetBy(dx: side * 0.04, dy: side * 0.04), centered: true)
+                continue
+            }
+            drawLabel(Self.symbolLabel(region.symbol), in: region.bounds.cgRect, on: on, alignEnd: region.symbol == .shift)
         }
         let angleRegions = angleNames.compactMap { name in skin.statusRegions.first { $0.symbol.name == name } }
         if let first = angleRegions.first {
@@ -506,6 +596,21 @@ final class PlayerSkinView: UIView {
             drawLabel(operatingMode, in: modeBounds.cgRect, on: true)
         }
         cg.restoreGState()
+    }
+
+    static func symbolLabel(_ symbol: DisplaySymbol) -> String {
+        switch symbol {
+        case .reserve: return "RSV"
+        case .hiragana: return "平"
+        case .katakana: return "片"
+        case .small: return "SML"
+        case .kanaSmall: return "小"
+        case .memory: return "M"
+        case .parentheses: return "( )"
+        case .error: return "E"
+        case .battery: return "BATT"
+        default: return symbol.name
+        }
     }
 
     /// Skin glyphs fit fixed design rectangles; Dynamic Type affects controls, not LCD geometry.
@@ -532,7 +637,7 @@ final class PlayerSkinView: UIView {
 
     private func updateHighlights() {
         for key in skin.keyRegions {
-            guard let overlay = highlights[key.key.name] else { continue }
+            guard let overlay = highlights[key.id] else { continue }
             let target: Float = mode == .fullDevice && pressedKeys.contains(key.key.name) ? 0.28 : 0
             CATransaction.begin(); CATransaction.setDisableActions(true)
             overlay.path = UIBezierPath(rect: screenRect(key.bounds)).cgPath
@@ -555,14 +660,14 @@ final class PlayerSkinView: UIView {
         keyElements.removeAll(); symbolElements.removeAll()
         let display = UIAccessibilityElement(accessibilityContainer: self)
         display.accessibilityTraits = .staticText
-        display.accessibilityLabel = "PC-1245 16桁LCD"
+        display.accessibilityLabel = "\(machine.displayName) \(machine.characterColumns)桁×\(machine.characterRows)行LCD"
         display.accessibilityIdentifier = "lcd"
         display.accessibilityFrameInContainerSpace = screenRect(skin.lcdContentRegion)
         elements.append(display)
         for region in skin.statusRegions {
             let element = UIAccessibilityElement(accessibilityContainer: self)
             element.accessibilityTraits = .staticText
-            element.accessibilityLabel = region.symbol.name
+            element.accessibilityLabel = Self.symbolLabel(region.symbol)
             element.accessibilityIdentifier = "symbol_\(region.symbol.name)"
             element.accessibilityFrameInContainerSpace = screenRect(region.bounds)
             symbolElements[region.symbol.name] = element
@@ -579,8 +684,8 @@ final class PlayerSkinView: UIView {
             for key in skin.keyRegions {
                 let element = SkinKeyAccessibility(accessibilityContainer: self)
                 element.accessibilityTraits = .button
-                element.accessibilityLabel = key.key.name.replacingOccurrences(of: "NUM_", with: "")
-                element.accessibilityIdentifier = "key_\(key.key.name)"
+                element.accessibilityLabel = key.id == "SHIFT_LEFT" ? "SHIFT（左）" : key.id == "SHIFT_RIGHT" ? "SHIFT（右）" : key.key.name.replacingOccurrences(of: "NUM_", with: "")
+                element.accessibilityIdentifier = "key_\(key.id)"
                 element.accessibilityFrameInContainerSpace = screenRect(key.bounds)
                 element.activate = { [weak self] in
                     guard let self, self.router.enabled else { return false }
@@ -590,7 +695,7 @@ final class PlayerSkinView: UIView {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in self?.router.onRelease(owner) }
                     return true
                 }
-                keyElements[key.key.name] = element; elements.append(element)
+                keyElements[key.id] = element; elements.append(element)
             }
         }
         accessibilityElements = elements
@@ -599,8 +704,9 @@ final class PlayerSkinView: UIView {
 
     private func updateAccessibilityValues() {
         modeElement?.accessibilityLabel = operatingMode
-        for (name, element) in keyElements {
-            element.accessibilityValue = pressedKeys.contains(name) ? "押下中" : "解放"
+        for key in skin.keyRegions {
+            guard let element = keyElements[key.id] else { continue }
+            element.accessibilityValue = pressedKeys.contains(key.key.name) ? "押下中" : "解放"
         }
         for region in skin.statusRegions {
             symbolElements[region.symbol.name]?.accessibilityValue =
@@ -648,32 +754,36 @@ private struct PanelAppearance: UIViewControllerRepresentable {
     }
 }
 
-private struct HomeNativeMenu: UIViewRepresentable {
+private struct HomeNativeMenu: View {
     let isBusy: Bool
     let openRom: () -> Void
     let openPlayback: (String) -> Void
     let openController: () -> Void
     let openInformation: (String) -> Void
-    func makeUIView(context: Context) -> UIButton {
-        let button = UIButton(type: .system)
-        button.setImage(UIImage(systemName: "ellipsis"), for: .normal)
-        button.accessibilityLabel = "メニュー"
-        button.accessibilityIdentifier = "homeMenu"
-        button.showsMenuAsPrimaryAction = true
-        return button
-    }
-    func updateUIView(_ button: UIButton, context: Context) {
-        button.isEnabled = !isBusy
-        func action(_ title: String, _ perform: @escaping () -> Void) -> UIAction {
-            UIAction(title: title) { _ in perform() }
+
+    var body: some View {
+        Menu {
+            Menu("設定") {
+                Button("ROM管理", action: openRom)
+                Button("CPU速度") { openPlayback("CPU速度") }
+                Button("サウンド") { openPlayback("サウンド") }
+                Button("コントローラ設定", action: openController)
+            }
+            Menu("ヘルプ・情報") {
+                ForEach(["Playerとは", "Studioについて", "プライバシーポリシー", "バージョン・ライセンス"], id: \.self) { title in
+                    Button(title) { openInformation(title) }
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 20, weight: .semibold))
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(.primary)
+                .frame(width: 44, height: 44)
         }
-        button.menu = UIMenu(children: [
-            UIMenu(title: "設定", children: [action("ROM管理", openRom),
-                action("CPU速度") { openPlayback("CPU速度") }, action("サウンド") { openPlayback("サウンド") },
-                action("コントローラ設定", openController)]),
-            UIMenu(title: "ヘルプ・情報", children:
-                ["Playerとは", "Studioについて", "プライバシーポリシー", "バージョン・ライセンス"].map { title in
-                    action(title) { openInformation(title) }
-                })])
+        .buttonStyle(.plain)
+        .accessibilityLabel("メニュー")
+        .accessibilityIdentifier("homeMenu")
+        .disabled(isBusy)
     }
 }

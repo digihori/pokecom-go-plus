@@ -8,6 +8,10 @@ if [ "${1:-}" = "--unit" ]; then
     pgp_test_mode=unit
     pgp_scheme=PokecomGOPlayerUnitTests
     shift
+    # Device I/O can abort inside CoreAudio initialization on hosted runners,
+    # before an XCTest timeout can recover. Keep actual offline engine coverage
+    # in this suite; exercise live output in the full local suite instead.
+    set -- -skip-testing:PokecomGOPlayerTests/PlayerPlaybackHostTests/testLiveSimulatorAudioNodeConsumesSyntheticPCM "$@"
 fi
 if [ "$(uname -m)" != "arm64" ]; then
     echo "error: iOS CI requires an Apple Silicon runner." >&2

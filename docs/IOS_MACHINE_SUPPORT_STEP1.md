@@ -1,0 +1,55 @@
+# iOS 機種追加・手順1：複数機種の共通基盤
+
+更新日: 2026-10-21
+
+## 対象と仕様
+
+iOSのPC-1245固定処理を機種情報に接続する段階。公開対象は引き続きPC-1245のみ。
+PC-1251系以降の有効化、シリーズ共通ROM、モデル選択の保存は次段階で扱う。
+iPhone向けの既存要件を維持し、iPad対応は含めない。
+
+- `AppleMachineCatalog`をiOSの明示的な対応一覧とする。共有Playerが対応していても、
+  この一覧へ追加されるまではiOSのROM取込みを許可しない。
+- 機種名、LCDの桁・行数、入力キー、動作モードはCore/共有入力定義から取得する。
+  iOSのスキン画像名はApple向け機種情報で指定する。
+  PC-1245のRUN/PROのみという既存方針は維持し、RSVを公開しない。
+- ホームの機種選択とhostのSession切替入口を用意する。Sessionがある場合はRAM破棄の確認を表示し、
+  キャンセルでは従来Sessionを保持する。確定時はPause・入力解放・プログラム操作の無効化後、
+  機種別のROM保存領域から復元する。現在の選択肢はPC-1245の1件のみ。
+- ROM packageは固定の内部/外部2成分ではなく、検証済みRomSetの成分ID・role・コピーしたbytesから
+  正規化する。SwiftのZIP処理は共通の展開上限を担当し、機種別の構成・サイズ・hash検証は共有validatorへ渡す。
+- ROM保存は機種ID別の単一atomicレコード。保存先とレコードとpackageの機種を照合する。
+  PC-1245の保存先`rom-library/pc-1245.json`とversion 1の形式を維持するため、再登録は不要。
+  既存の取消・失敗時保護、保存成功後だけのSession公開を維持する。
+- タイトル、スキン画像、LCD accessibility説明、モードメニュー、モード循環は機種情報を参照する。
+  スキンViewは機種IDが変わる際に作り直す。表示配置・タッチ領域・LCD描画は既存の共有定義を使用する。
+- BASIC/DMP解析には実行Sessionの機種IDを渡し、exportのファイル名にも反映する。
+  解析の非同期結果には従来の世代番号とSession同一性の確認を維持する。
+- 全体コントローラ設定のキー候補はiOS対応機種の和集合とし、実配送時はSession固有の許可キーで制限する。
+
+legacy単体ROMの変換と合成probeは引き続きPC-1245専用。新しい機種の単体ROM形式は
+各追加段階で明示的に接続し、ファイルサイズだけで未知の機種を推定しない。
+シリーズ内でのROM共用・別名モデルへの再対応付けは手順2で実装する。
+
+## 検証
+
+JDK 21。通常のROM LibraryとSimulatorを操作せず、Swift/UIは使い捨てSimulatorで実施する。
+
+- `build :core:desktopTest :playerShared:iosSimulatorArm64Test`成功。
+  578 tasks中19実行、559 UP-TO-DATE。Core desktopの既存結果490件は失敗0で、今回はUP-TO-DATE。
+- 共有Player iOS Native 136件、失敗0。明示的な公開機種、RUN/PRO制限、ROM成分コピー境界、
+  機種IDを指定するBASIC解析を追加確認。
+- Swift単体36件、失敗0。既存packageの往復、保存失敗時保護に加え、既存保存先、機種情報、
+  保存レコードの機種不一致拒否を確認。書込み失敗注入テストは有効なpackageを使用して書込み処理へ到達させる。
+
+- UI回帰6件、失敗0。両横向きのController Display、コントローラ設定とメニュー取消、
+  ホームの実行意図・BASIC/DMP入出力・情報画面、Files選択/取消、音声/速度設定、タッチと回転を確認。
+  `iosApp/test-simulator.sh`全体が成功し、使い捨てSimulatorの終了処理まで完了した。
+  結果はGit対象外の`iosApp/build/CI-TestResults-20261021-074306.xcresult`に保持する。
+- `git diff --check`成功。
+
+最初の全体buildは既存テスト1件が旧エラー文言を期待して失敗した。
+未対応機種を拒否する新しい文言に期待値を更新し、上記の全体再実行で成功した。
+
+複数の公開機種を跨ぐ実際のSession切替・実ROM・実機・最低iOSの受入れは、
+今回の単一公開機種での自動検証とは区別する。追加機種の公開前に各段階で確認する。
