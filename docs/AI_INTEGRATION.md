@@ -679,3 +679,16 @@ MCP initializeのinstructionsで、メモリアドレス・PC・開始位置・�
 「`0xC500`（10進50432、BASIC入力は `CALL 50432`）」のように16進を先に示す。
 MCPのJSONアドレス引数は従来どおりintegerで、schemaは変更しない。
 AIへの案内方針であり応答書式の強制機構ではない。反映には最新版StudioとMCPの再接続が必要。
+
+## 18. CI追試とOS間パス照合の修正（2026-10-22）
+
+初回統合commitのCIではmacOS／Linux／Androidが成功し、WindowsのProject外リンク拒否テストが
+失敗した。`File.canonicalFile` のリンク解決に依存していたため、読取APIのProject境界を
+NIO `toRealPath()` で照合するよう修正。未作成ファイルの診断は既存の祖先を解決し、
+残りの相対要素を付けて範囲を検証する。既存の外部リンク拒否・メタデータのパス非公開・
+未作成ファイルのページ上限テストを維持する。
+
+iOSはSwift 49件が失敗0で `TEST SUCCEEDED`、結果artifactもアップロード済みだった。
+ジョブ全体の20分制限へGradleキャッシュ後処理中に到達し、cancelledとなった。
+アプリのテスト失敗とは区別し、iOSジョブを30分枠へ変更、キャッシュ自動整理を無効化して
+後処理でシステムGradleを追加起動しないよう調整した。

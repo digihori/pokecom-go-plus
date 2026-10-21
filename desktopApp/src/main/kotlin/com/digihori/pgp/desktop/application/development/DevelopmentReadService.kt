@@ -7,6 +7,9 @@ import com.digihori.pgp.desktop.application.debug.DebugContextService
 import com.digihori.pgp.desktop.project.*
 import com.digihori.pgp.desktop.runner.*
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.LinkOption.NOFOLLOW_LINKS
+import java.nio.file.Path
 import java.security.MessageDigest
 import kotlinx.serialization.json.*
 
@@ -308,8 +311,19 @@ internal class DesktopDevelopmentReadService(private val stateProvider: () -> De
 
     companion object {
         private fun relative(root: File?, file: File): String? = runCatching {
-            val base = root?.canonicalFile?.toPath() ?: return null
-            val path = file.canonicalFile.toPath()
+            val base = root?.toPath()?.toRealPath() ?: return null
+            // File.canonicalFile does not reliably follow Windows symlinks.
+            // Resolve the existing ancestor through NIO, retaining missing suffixes
+            // so diagnostics can still name not-yet-created project files.
+            var existing = file.toPath().toAbsolutePath()
+            val missing = mutableListOf<Path>()
+            while (!Files.exists(existing, NOFOLLOW_LINKS)) {
+                missing.add(existing.fileName ?: return null)
+                existing = existing.parent ?: return null
+            }
+            var path = existing.toRealPath()
+            for (part in missing.asReversed()) path = path.resolve(part)
+            path = path.normalize()
             if (!path.startsWith(base)) null else base.relativize(path).toString().replace(File.separatorChar, '/').takeIf { it.length <= 512 }
         }.getOrNull()
         private fun digest(text: String): String = MessageDigest.getInstance("SHA-256").digest(text.encodeToByteArray()).joinToString("") { "%02x".format(it.toInt() and 255) }

@@ -70,7 +70,7 @@ jobs:
   ios-player:
     name: Build and test (iOS unit tests)
     runs-on: macos-26
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       GRADLE_USER_HOME: ${{ github.workspace }}/.gradle-local
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
@@ -88,6 +88,10 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          # Swift tests already passed when the 20-minute job timed out in
+          # cleanup, which launched the runner's unrelated system Gradle.
+          cache-cleanup: never
 
       - name: Cache Kotlin Native toolchain
         uses: actions/cache@v4
