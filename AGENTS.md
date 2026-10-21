@@ -6,7 +6,7 @@
 - Port behavior and algorithms into PGP deliberately; do not copy
   platform-specific architecture.
 - Record source provenance and porting decisions in
-  `docs/PORTING_NOTES.md`.
+  `docs/development/PORTING_NOTES.md`.
 
 # Architecture rules
 

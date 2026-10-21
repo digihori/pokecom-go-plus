@@ -1,77 +1,32 @@
 # Debugger強化の区切りと残作業
 
-更新日: 2026-10-22
+> 旧URL向けの案内です。本文は新しい場所へ移動しました。
+> This page preserves an older URL. Follow the link below for the document.
+
+[docs/development/planning/DEBUGGER_FOLLOW_UP.md](development/planning/DEBUGGER_FOLLOW_UP.md)
+
+[ドキュメント目次 / Documentation index](README.md)
 
 ## 現在の区切り（2026-10-22）
 
-再開した作業順1〜4（Source連携・条件付きBreakpoint・Step Over／Out・設定保存）を実装済み。
-続くAI連携の作業順8〜12も実装し、今回の強化を一区切りとする。
-[AI連携の現在の到達点](AI_INTEGRATION.md#現在の到達点2026-10-22)と、
-[Debugger各機能の仕様](DEBUGGER.md)を参照。
-Load／Continue／Pauseの実接続とHELLO WORLD表示を確認済み。
-全機種での詳細デバッグ操作、Step Over／Outの未対応経路、各OSの包括的受入れは残る。
-以下は経緯と候補の記録であり、未実装項目の一括着手を意味しない。
+[移動先の節へ / Open this section](development/planning/DEBUGGER_FOLLOW_UP.md#現在の区切り2026-10-22)
 
 ## 今回の区切り
 
-ユーザー方針により、デバッグ機能の強化はTechnical Preview 0.5の範囲で一旦終了する。
-以下は記録用の候補であり、実装着手の依頼や確定した開発順ではない。
-再開時は対象ステップを指定してから、小さく実装・検証する。
-
-実装済み: 固定実行操作・停止理由と移動、レジスタ／メモリ差分、読み書き／bank履歴、
-ブレークポイント／複数監視の一覧・編集・有効切替、AI向け登録一覧の読み取り。
-既存のStep、Run To、逆アセンブル、メモリ表示、Trace、Checkpoint、MCPと連携している。
-[仕様](DEBUGGER.md)、[AI連携](AI_INTEGRATION.md)、[0.5公開記録](RELEASE_CHECKLIST_0.5.0-alpha.1.md)を参照。
+[移動先の節へ / Open this section](development/planning/DEBUGGER_FOLLOW_UP.md#今回の区切り)
 
 ## 再開時の候補
 
-優先度は利用効果と依存関係に基づく見直し用の提案。
-
-| 優先度 | 候補 | 小さな最初の範囲・前提 |
-|---|---|---|
-| 高 | ソース・symbol・label・listingと実行位置の連携 | 外部Assembler出力の行／symbol情報を確認し、ビルド結果1件から読取専用の位置表示を試す。ROM component・bank・論理アドレス・offsetを照合し、古いビルドや対応不明の位置を誤表示しない。Assembler自体の機能拡張は混ぜない |
-| 高 | 条件付きBreakpoint・ヒット回数条件 | 現在の登録モデルへ条件を段階追加。評価対象・回数を数えるタイミング・Reset／再開時の扱い・無効登録との関係・性能上限を先に定義。任意コード実行は導入しない |
-| 中 | Step Over／Step Out | 対象CPUの呼出し／復帰命令、割込み、スタック、bank切替を調査してから限定対応を判断。戻り先アドレスだけでは再帰／割込み／同一論理アドレスの別bankを区別できない。深さ追跡・途中Breakpoint／監視／Faultの優先度・中断と実行上限を設計。未対応経路は明示し、対応可能と断定しない |
-| 中 | デバッグ設定保存 | 登録・Trace設定等を機種／Project／ROM識別と結び付け、保存対象を限定。Session内IDの再生成、Resetとの違い、古い設定・互換性を定義。実Preferences／ROM Libraryへ意図せず書き込まない |
-| 中 | メモリ検索 | 現在の停止中Snapshotから範囲限定のbyte／数値検索を先行。読み取り不可範囲・bank・検索上限を明示 |
-| 中 | 停止しないログポイント | 停止登録と分離し、命令位置・値の記録を限定。記録件数・破棄・条件評価コスト、Trace／アクセス履歴との重複を整理 |
-| 低・別途評価 | メモリ編集 | RAMの限定範囲から検討。ROM／mirror／I/Oへの書込み、再開時の監視基準、履歴・確認・失敗時不変を設計。検索と同時導入しない |
-| 低・別途評価 | 履歴／Trace export・同時表示・Checkpoint比較 | 既存Checkpoint／Debug Contextを再利用し、ROM由来データの扱いと出力上限を定義。過去のCPU／メモリ復元、bankイベントと命令の厳密対応は現行履歴だけでは保証しない |
-| 別の権限設計 | AIから登録編集・実行操作 | Studio承認付きの登録・Trace・Pause・1命令Stepまで実装。Session ID／revision検証・操作履歴を追加し、既存tool名・schemaは維持。Load／Continueも別承認で実装（AI連携作業順12）。Load／Continue／Pauseは実接続確認済み。登録・Trace・Stepの詳細受入れは別途 |
+[移動先の節へ / Open this section](development/planning/DEBUGGER_FOLLOW_UP.md#再開時の候補)
 
 ## 残る確認
 
-- macOS本番Studioの詳細な停止／再開／Step／複数監視・focus操作確認は未記録。
-- Windows／Linux動作とWindows更新インストールはユーザー確認済み。全操作・全機種の実機一致を示すものではない。
-- 日英の隔離描画・自動操作、5環境CI、配布workflowと、iOS実機・署名確認を区別する。
-- AI実接続は停止中PC-1470Uの基本取得を確認。無効登録・編集後取得・実行中拒否・Reset保持は自動テストの確認。
+[移動先の節へ / Open this section](development/planning/DEBUGGER_FOLLOW_UP.md#残る確認)
 
 ## 再開時の原則・別件
 
-Core型付きエラー／code、停止・再開、MCP互換性を維持する。新UIは既存の日英基盤と「監視」表記を使う。
-Core commonMainへOS／UI／filesystem／時刻／thread APIを追加せず、Main.kt全体の再構成を混ぜない。
-保存データ・機種ID・HEX・ソース・外部ツールの生ログや識別子を翻訳しない。
-合成Sessionと既存の注入・隔離方法で検証し、実設定／ROM Libraryを保護する。
-ROM／ROM由来fixtureをGitへ追加しない。公開済みtag・履歴は変更しない。
-
-SHIFT TITLE、矢印の絵文字表示、容量依存RAMミラー、カード／RAM拡張、Project機種互換方針、
-Assembler機能拡張、Player全体ローカライズ、PC-1360K固有調査は別件として扱う。
+[移動先の節へ / Open this section](development/planning/DEBUGGER_FOLLOW_UP.md#再開時の原則別件)
 
 ## 2026-10-21: 強化再開
 
-ユーザー指示により、ソース連携→条件付きBreakpoint→Step Over／Out→設定保存の順で再開する。
-最初のソース連携を実装。[対応範囲と制限](DEBUGGER.md#16-ロード済みassemblyとソースの対応2026-10-21)を参照。
-本番の手動受入れは未確認。残る三項目とAI連携強化は後続とする。
-
-2026-10-21: 条件付きBreakpointとヒット回数条件を実装。単一比較、3種の回数条件、到達回数表示、
-Reset／Loadと有効切替の扱いを追加。[仕様と検証範囲](DEBUGGER.md#17-条件付きbreakpointヒット回数2026-10-21)。
-Step Over／Outと設定保存は未着手。本番の手動受入れは別途確認する。
-
-2026-10-21: 3番のStep Over／Step Outを限定実装。観測済みCALL／CALとRTNのフレームを追跡し、
-再帰・ROM bank・実行上限と既存停止条件を扱う。CASE経路と未観測スタックは対象外。
-[仕様と制限](DEBUGGER.md#18-step-overstep-out2026-10-21)。次は4番のデバッグ設定保存。
-
-2026-10-21: 4番のデバッグ設定保存を実装。機種・ROM・RAM構成・Projectの場所を照合し、
-Breakpoint／Watch／Trace設定を明示ファイルへ保存・復元する。自動復元と状態復元は対象外。
-[仕様と制限](DEBUGGER.md#19-デバッグ設定の保存復元2026-10-21)。最初の区切り1〜4の実装を完了。
-本番手動受入れは別途確認し、後続のAI連携強化は次の指示で着手する。
+[移動先の節へ / Open this section](development/planning/DEBUGGER_FOLLOW_UP.md#2026-10-21-強化再開)

@@ -174,7 +174,7 @@ StudioのPC-1360K ROMセット作成ダイアログには4つの`.bin`を指定�
 python3 tools/pc1360k-rom-dump/test_decode.py
 ```
 
-- [PC-1360K 漢字ROM解析とStudio対応](../../docs/machines/PC-1360K.md)
+- [PC-1360K 漢字ROM解析とStudio対応](../../docs/reference/machines/PC-1360K.md)
 
 ## 補足：吸い出し用BASICが行っていること
 

@@ -4269,9 +4269,9 @@ private val MAX_SOURCE_INFORMATION_HEIGHT = 420.dp
 private val PROJECT_TREE_SPLITTER_HEIGHT = 10.dp
 private val SCROLLBAR_CONTENT_GUTTER = 10.dp
 private const val REPOSITORY_URL: String = "https://github.com/digihori/pokecom-go-plus"
-private const val GETTING_STARTED_URL: String = "$REPOSITORY_URL/blob/main/docs/GETTING_STARTED.md"
-private const val PROJECTS_HELP_URL: String = "$REPOSITORY_URL/blob/main/docs/PROJECTS.md#command-history"
-private const val DEBUGGER_HELP_URL: String = "$REPOSITORY_URL/blob/main/docs/DEBUGGER.md"
+private const val GETTING_STARTED_URL: String = "$REPOSITORY_URL/blob/main/docs/guides/GETTING_STARTED.md"
+private const val PROJECTS_HELP_URL: String = "$REPOSITORY_URL/blob/main/docs/guides/PROJECTS.md#command-history"
+private const val DEBUGGER_HELP_URL: String = "$REPOSITORY_URL/blob/main/docs/guides/DEBUGGER.md"
 
 private fun Int.hex(width: Int): String = (this and if (width == 2) 0xff else 0xffff)
     .toString(16)

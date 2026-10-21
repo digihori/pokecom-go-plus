@@ -37,7 +37,7 @@ ROM、外部assembler、生成済みバイナリは同梱しない。
 アドレス案内は原則16進（開始 `0xC500`）。同梱BASICの `CALL 50432` はその10進表記。
 言語や機種に合う実行構文を使い、説明上の `0x` をそのままBASICへ入力するとは限らない。
 ユーザーによるHELLO WORLD表示確認済み。Load／Continue／Pauseの実接続結果は
-[AI連携記録](../../../docs/AI_INTEGRATION.md)を参照。
+[AI連携記録](../../../docs/reference/AI_INTEGRATION.md)を参照。
 
 ## メモリと制約
 

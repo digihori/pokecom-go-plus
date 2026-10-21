@@ -1,0 +1,443 @@
+# Pokecom GO Studio Debugger
+
+**ステータス:** 基本機能と強化作業順1〜4を実装済み。今回の強化は一区切り
+**更新日:** 2026-10-22
+
+## 1. 目的
+
+Pokecom GO Studio Debuggerは、SC61860プログラムと機種固有のメモリ動作を観測し、停止位置、CPU状態、
+メモリ変化、I/Oアクセス、ROM bankを照合するための開発機能である。
+
+DebuggerはCPUやMemory Busの可変内部状態をUIへ直接公開しない。CoreのSnapshot、メモリアクセスイベント、
+物理ROM位置などをDesktop Runnerが収集し、Studioが表示する。基本境界は
+[ARCHITECTURE.md](../reference/ARCHITECTURE.md#12-debugger-core)、公開Snapshotは[CORE_API.md](../reference/CORE_API.md)を参照する。
+
+## 2. 現在の機能
+
+現在のDebuggerウィンドウには次の機能がある。
+
+- CPUレジスタ表示とStep前後の変更項目
+- 複数の実行Breakpointと登録一覧・編集・有効切替
+- 一時的なRun to address
+- 現在PCまたは指定アドレスからのDisassembly
+- 機種別Memory Map
+- 読み取り専用Memory View
+- 複数範囲の値の変化を検出するMemory Change Watch
+- 複数範囲のCPUのRead／Writeを検出するMemory Access Watch
+- 読み書き／bank履歴の表示・絞込み・現在の表示への移動
+- 既定256命令、UIで容量変更可能なInstruction Trace
+- CPU、選択メモリ、Traceを含むDebug Checkpoint JSON出力
+- PC-1360の命令実行位置に対応する物理ROM component、bank、offsetの記録
+
+Debuggerは`Debug` → `Open Debugger`から独立ウィンドウとして開く。
+上部にはRun／Pause／Step、実行状態、次の命令位置（PC）、直近の命令位置（CURRENT_PC）、停止理由を表示する。
+本文をスクロールしても上部は残る。極端に高さを縮めた場合は上部自身もスクロールできる。
+
+幅1000dp以上では、左にCPU／Disassembly／Trace／保存操作、右にMemory／Memory Mapを配置し、
+左右を個別にスクロールできる。狭いウィンドウでは「実行」と「メモリ」のタブで切り替える。
+「登録」タブでブレークポイント／監視を管理する。「履歴」タブは広幅・狭幅のどちらからも開き、読み書き履歴／バンク切替履歴を切り替えて表示する。
+タブ切替と広幅／狭幅の配置変更では入力中のアドレス、監視範囲、Trace容量を画面内で保持する。
+これはデバッグ設定のファイル保存ではない。
+
+## 3. 実行制御と停止理由
+
+Studio Runnerは次の停止理由を区別する。
+
+| 停止理由 | 意味 |
+|---|---|
+| Reset | Sessionをresetした |
+| User Pause | ユーザーが実行を一時停止した |
+| Step Complete | 1命令のStepが完了した |
+| Breakpoint | PCが登録済みBreakpointへ到達した |
+| Run to Address | 一時的な実行先へ到達した |
+| Memory Changed | 監視範囲の値を変更した命令が完了した |
+| Memory Accessed | 監視範囲をReadまたはWriteした命令が完了した |
+| Fault | 未対応opcode等のCore Faultが発生した |
+
+BreakpointはDisassemblyのアドレス行から追加／解除する。複数アドレスを同時に登録できる。同じ位置から
+実行を再開したときは、そのBreakpointを1回だけ通過させて即時再停止を避ける。
+
+`Run to`は選択したDisassembly行を一時停止位置にする。永続Breakpointには追加しない。
+
+Debugger内のRun／Pause／Stepはメイン画面と同じ操作経路を使う。Run／Stepは停止中のみ、Pauseは実行中のみ有効。
+Fault時はRun／Stepを無効にし、復旧は既存のReset操作を使用する。
+Breakpoint、Run to、メモリ監視、Faultで停止した場合は「停止原因の命令へ」からその命令の論理アドレスを表示できる。
+メモリ監視では「監視先のメモリへ」から最初の変更／アクセス先を表示できる。これらの移動は実行を進めない。
+「PCを追従」で現在PCの表示へ戻る。自動停止時にはCPU表示も同じ更新で取得する。
+
+PCは次の命令位置、CURRENT_PCは直近に命令を取得した位置であり、監視で停止した命令位置とは表示を区別する。
+Faultでは次の命令を実行できることを意味しない。現在行の強調は表示範囲の先頭ではなくPCとの一致で判断する。
+
+## 4. CPU状態
+
+CPUパネルは`PC`と`CURRENT_PC`、`OP`、`DP`、`P`、`Q`、`R`、`Z`、`C`、
+内部RAM先頭の`I`、`J`、`A`、`B`、`XL`、`XH`、`YL`、`YH`、`K`、`L`、`M`、`N`、
+および`IA`、`IB`、`FO`、`OUTC`を表示する。
+
+Step時は直前と直後の`CpuSnapshot`を比較する。Run後のBreakpoint／Run to／監視／Fault、またはユーザーPauseでは
+前回停止時からの変化を比較する。値が変わったレジスタは背景色・太字・下線で強調し、変更前→後の値も表示する。
+I／J／A／B等は内部RAM全体をまとめて強調せず、個別のbyteを比較する。表示していない内部RAMやCPU項目の変化は
+従来の変更項目表示にも残す。これは値の差分であり、レジスタへのアクセス履歴ではない。
+
+実行中は強調を消し、次の停止まで前回停止時の基準を保持する。Reset、ROM／機種／Session切替、
+プログラムのロード／生成キーによる入力後は新しい基準を作り、以前の実行との差分を表示しない。
+比較基準（Step前後／前回停止時／基準なし／実行中）は日英で表示する。
+
+## 5. Disassembly
+
+Disassemblyは指定された論理アドレスからSC61860命令を順にdecodeする。既定では現在PCを追従し、任意の
+16-bitアドレスへ移動することもできる。
+
+各行には次を表示する。
+
+- 論理アドレス
+- 命令byte列
+- mnemonicとoperand
+- 現在行
+- Breakpoint状態
+
+指定範囲はAssembler向けのテキストとして保存できる。ロード済みAssemblyのラベル・ソース行との
+対応は[ソース連携](#16-ロード済みassemblyとソースの対応2026-10-21)を参照する。
+
+## 6. Memory MapとMemory View
+
+Memory MapはMachine Definitionに登録されたROM、RAM、VRAM、mirror領域を表示する。領域を選択すると
+Memory Viewがその開始アドレスへ移動する。
+
+Memory Viewは1行16byte、16行をHEXとASCIIで表示する。アドレスは16-bit空間内で折り返す。
+CPU表示の更新および停止原因からの移動時に同じアドレスの内容も再取得する。現状は読み取り専用で、
+メモリ編集UIは持たない。マシン語イメージのロード可否はDebuggerではなく各Emulator Sessionのメモリ規則に
+従う。
+
+表示中の256byteは停止時に比較し、変化したHEX値と対応するASCII文字を背景色・太字・下線で強調する。
+アクセシビリティ説明にはアドレスと変更前→後の値を含める。同値書込みや、Run中に変化して停止までに元へ戻った値は
+強調しない。ページを変えた場合は以前の値を推測せず、そのページの新しい基準を作る。
+実行中にページを変えた場合は次の停止で基準を作り、そこでは差分を出さない。
+
+物理ROMのcomponent／bank／offset、またはメモリの物理対応先が変わったbyteは比較から除外して件数を表示する。
+バンク切替によって別のROM内容が見えても書込みと混同しない。Coreのイベントは消費せず、監視／Trace／Checkpointとは
+別の表示用観測である。検証範囲は[ステップ2記録](../development/DEBUGGER_STEP2_VERIFICATION.md)を参照する。
+
+## 7. Memory Watch
+
+### 7.1 Change Watch
+
+Change Watchは指定範囲のbyte列を命令実行前後で比較し、値が変化した命令で停止する。
+
+- 監視可能範囲は最大4096byte
+- 停止時にアドレス、変更前、変更後、実行命令PCを記録する
+- Readは検出しない
+- 同じ値を書き込むWriteは検出しない
+
+### 7.2 Access Watch
+
+Access WatchはMemory Busが公開するアクセスイベントを使用し、指定範囲に対するCPUアクセスで停止する。
+
+- Readのみ、Writeのみ、Read／Writeのいずれかを選択できる
+- 同じ値を書き込むWriteも検出する
+- 値が変化しないI/O操作の調査に使用できる
+- 検出精度は機種のMemory Busがアクセスイベントを実装している範囲に依存する
+
+Change WatchとAccess Watchは目的が異なる。値の差分を調べる場合はChange Watch、アクセス自体を調べる場合は
+Access Watchを使用する。
+
+## 8. Instruction Trace
+
+Instruction Traceは明示的に有効化した場合だけ記録する。有効時は高速なまとめ実行ではなく命令単位で
+Sessionを進めるため、通常実行より負荷が高い。
+
+- 既定256命令のring buffer。16から65536命令までUIで変更できる
+- 容量超過時は最古の命令を破棄
+- resetまたは明示的なClearで消去
+- sequence、論理アドレス、命令byte、Disassemblyを保持
+- 命令実行前のDP、P、Q、R、D、Carry、Zeroを保持
+- 対応可能なアドレスでは物理ROM位置を保持
+
+UIは現在、主要レジスタだけを各Trace行へ表示する。保持している情報と画面へ表示する情報は同一とは限らない。
+
+## 9. ROM bank観測と履歴
+
+PC-1360は論理`0x4000..0x7fff`を、選択中の16KiB ROM bankへ割り当てる。Core Sessionは次を公開する。
+
+- 現在選択中のbank番号
+- bank切替イベント
+- 論理PCに対応する物理ROM component ID
+- component内offset
+
+Instruction TraceとCheckpointでは、bank領域の命令を例えば`bank-3+0123`のような物理位置として識別できる。
+内部ROMはbank番号を持たないcomponentとして記録する。
+
+PC-1460（4 bank）とPC-1470U（8 bank）も現在bank、物理ROM位置、bank切替イベントを公開する。
+「履歴」→「バンク切替履歴」では現在bank、旧／新bank、セレクタ値、イベント連番を新しい順に表示する。
+番号で旧・新bankのどちらかに一致するイベントを絞り込める。非bank機種では非対応と表示する。
+bankイベントには命令PCやTrace共通の命令番号がないため、特定の命令へ結び付けて表示しない。
+「現在のROM窓へ」は今のbankのメモリ表示へ移動する操作で、過去のbankを選択・復元しない。
+
+「読み書き履歴」は命令PC、アクセス先、R／W、値、イベント連番を新しい順に表示する。
+「絞込み」を開くとRead／Writeとアクセス先のHEX範囲を指定できる。命令PCの範囲指定ではない。
+空欄は制限なし、不正な範囲はエラーとし、全件へ暗黙に戻さない。命令フェッチも含むが、CPU内部RAMやポートI/Oを網羅しない。
+読み書き履歴の記録は従来どおりDebuggerを開いている間に有効。bank履歴はDebuggerを閉じている間もRunnerが収集する。
+
+各履歴は最大4096イベントを保持し、容量超過時は古いイベントを破棄する。保持件数、連番の範囲、破棄の有無を表示する。
+Resetで両方を消去する。Debuggerを閉じても保持済みの履歴は消さない。
+絞込み・タブ切替は表示だけを変更し、記録、監視、Trace、Debug Context／MCPへ渡す内容を変更しない。
+履歴リストは遅延描画し、UI取得はCPU表示の更新周期と手動更新に合わせる。新着時は先頭へ戻り、新しい記録を表示する。
+
+履歴から命令・メモリへ移動できるのは停止中／Fault時。移動先は現在のメモリとbankを使い、過去の状態を復元しない。
+説明・絞込みは開閉でき、入力条件は同じウィンドウ内で保持する。検証範囲は[ステップ3記録](../development/DEBUGGER_STEP3_VERIFICATION.md)を参照する。
+
+[PC-1360K](../reference/machines/PC-1360K.md)は通常の機種一覧から選択できる。
+漢字ROMは`0x3600=0..3`で選ぶ64 KiB×4の独立した読出し空間として実装し、
+READ／READMのAccess HistoryにはDPと読出し値を記録する。Memory表示は通常のメモリ空間を示す。
+FO経由のRAM bank処理、物理チップ選択とFポートの関係は未確定。
+
+## 10. Debug Checkpoint
+
+`Save Debug Checkpoint`は、その時点の解析情報を`pgp-debug-checkpoint` version 1 JSONとして保存する。
+
+主な内容は次のとおり。
+
+| 項目 | 内容 |
+|---|---|
+| machineId | 対象機種 |
+| capturedAt | 取得時刻 |
+| executedCycles | Runnerの累積実行cycle |
+| stopReason | 保存時の停止理由 |
+| cpu | CPUレジスタと内部RAM |
+| memory | ユーザーが指定した論理アドレス範囲とbyte列 |
+| trace | 保存時点のInstruction Trace |
+
+各Trace要素は利用可能な場合に`romComponent`、`romBank`、`romOffset`を含む。CheckpointはSave Stateではなく、
+実機結果や別実行との比較に使用する観測データである。Checkpointを読み戻して実行状態を復元する機能はない。
+
+## 11. 現在の制約
+
+- 狭いDebuggerでは実行側とメモリ側を同時表示できず、タブ切替が必要
+- Memory Viewから直接値を編集できない
+- 条件付きBreakpointは単一比較とヒット回数条件に対応（複合式・bank指定は未対応）
+- Breakpoint、Watch、Trace設定は対象照合付きファイルへ明示的に保存・復元できる（自動復元はしない）
+- ソース連携はロード済み内蔵Assembler／解析済みSC61 Listingに限定する
+- Traceのファイル出力はCheckpoint経由に限られる
+- 実機Checkpointとの自動比較ツールは未実装
+- 履歴に過去のCPU／メモリ／bankを復元する機能や、bankイベントと命令の厳密な対応付けはない
+
+## 12. UI再構成方針
+
+この節は記録時点の内容です。[Debugger初期配置案・強化候補の履歴](../development/DEBUGGER_DESIGN_HISTORY.md)へ分離しました。
+
+## 13. 今後の課題
+
+この節は記録時点の内容です。[Debugger初期配置案・強化候補の履歴](../development/DEBUGGER_DESIGN_HISTORY.md)へ分離しました。
+
+## 14. AI Debug Context
+
+AI連携では画面のスクリーンショットを主入力にせず、機種、停止理由、CPU、bank、Disassembly、Memory Watch、
+Breakpoint、直近Trace、Symbol／Source Mapを構造化して渡す。各Contextには`schemaVersion`とSession revisionを
+含め、取得後にResetや機種切替が行われた古いContextからの操作を拒否する。
+
+ROM由来データは必要な範囲のDisassemblyまたはbyte列に限定し、ROM全体をDebug Contextへ含めない。
+詳細な接続モデルと安全方針は[AI_INTEGRATION.md](../reference/AI_INTEGRATION.md)を参照する。
+
+初期のApplication Serviceと`pgp-debug-context` version 1 JSON serializerは実装済みである。Context取得は
+停止中またはFault状態に限定し、実行中の場合はSessionを自動停止せずエラーを返す。指定Memoryは合計
+4096byteまでとし、ROMおよびROM mirrorの生byteは含めない。Studio UIではMemory範囲、Disassembly件数、
+Memory Access／Bank／Trace件数を指定し、JSONをプレビューしてから保存できる。プレビュー欄は独立した
+縦スクロールとテキスト選択に対応する。同じApplication Serviceは、localhost限定・Bearer token認証付きの
+MCPの読み取りtoolからも利用する。承認付きの状態変更toolは[AI連携仕様](../reference/AI_INTEGRATION.md)を参照。
+
+## 15. 登録管理（ステップ4）
+
+「登録」タブでブレークポイントと監視を一覧表示し、追加・編集・削除・有効／無効を操作する。
+編集は停止中に行う。監視は値変更／読み取り／書込み／読み書きを複数登録できる。
+逆アセンブル行と同じ登録を使い、無効なブレークポイントを行から再有効化できる。
+登録IDは編集・切替で維持する。Resetは登録を保持し、値変更の基準を取り直す。
+新しいSessionには引き継がない。条件・ヒット回数は[追加仕様](#17-条件付きbreakpointヒット回数2026-10-21)を参照。保存は[設定保存](#19-デバッグ設定の保存復元2026-10-21)を参照。バンク指定は後続の範囲。
+
+全ROMバンクに共通の16bit論理アドレスを使う。ブレークポイントは256件、監視は64件まで。
+値変更監視は1件4096バイト以内、有効な範囲の合計も4096バイト以内（重複範囲は別々に数える）。
+上限・入力不正はUIで翻訳し、失敗時は既存登録を維持する。
+重複した監視への一致は停止情報へ一度だけ載せるが、実際に繰り返されたアクセスは保持する。
+読み書き監視の停止を値変更より優先し、その命令の値変更基準も更新する。
+MCP tool名・Debug Context schema・停止理由の形式は維持する。
+検証範囲は[ステップ4記録](../development/DEBUGGER_STEP4_VERIFICATION.md)を参照する。
+
+登録一覧は読み取り専用MCP tool `pgp_get_debug_registrations`からも取得できる。
+既存Debug Context version 1の応答を維持し、別形式のversion 1でSession ID／revisionと全登録を返す。
+取得は停止中／Fault時に限定する。登録の変更APIは追加しない。
+詳細は[AI連携](../reference/AI_INTEGRATION.md#登録状態の読み取り2026-10-14)を参照。
+
+## 16. ロード済みAssemblyとソースの対応（2026-10-21）
+
+ProjectのBuild & Loadが成功した際、同じ成果物のListing・ラベルをそのRunnerへ関連付ける。
+停止中のDisassemblyには、対応するソースのファイル名・行番号・本文とラベルを表示する。
+ソース行ボタンは既存の外部エディタ設定で開く。行指定に対応するエディタコマンドでは
+`{file}`／`{line}`を使用する。OS既定エディタでは行指定を保証しない。
+
+- 内蔵AssemblerとSC61の解析済みListingを対象とする。SC61のINCLUDEは既存parserが
+  一意に解決した位置だけを使う。汎用外部AssemblerのDMPからソース行を推測しない。
+- ソースのBuild時内容が現在のファイルと一致し、Listing行全体のbyte列と
+  公開された物理ROM位置（component／bank／offset）が現在メモリと一致する場合だけ表示する。
+  ソースが変わった場合は再Build・Loadが必要。行情報がない・曖昧な位置は表示しない。
+- 実行中はソース対応を表示しない。自己書換え等でbyteが違う行も表示しない。
+  これは現在値の一致確認であり、実行履歴や未公開のRAM bank構造を推定するものではない。
+- Buildやプレビューだけでは対応情報を置換しない。Load失敗は以前の対応情報を維持する。
+  Reset、別プログラムのLoad、新Sessionでは対応情報を破棄する。
+- 定数Symbolは実行ラベルに含めない。ソース編集、Breakpointのソース行からの登録、
+  AI向けSymbol APIは今回の対象外。
+
+合成ソースの自動テストで行番号、ラベル、命令byte変更、物理ROM位置の変更、
+ソース変更／削除、曖昧なListing、INCLUDE入力保持、Load失敗とResetを確認する。
+日英UIの隔離描画でソースリンク、エディタへ渡すファイル・行番号、古いリンクの拒否も確認する。
+本番Studio・実ROM・外部エディタによる手動受入れは別途確認する。
+
+## 17. 条件付きBreakpoint・ヒット回数（2026-10-21）
+
+「登録」→「ブレークポイント」で、任意の値条件とヒット回数条件を設定する。
+両方を指定した場合はAND、空欄はその条件なし。登録一覧に条件と現在の到達回数を表示する。
+不正入力は登録前に拒否し、既存定義・ID・回数を変更しない。有効切替と逆アセンブルからの
+再有効化では条件を維持する。ファイル保存は後続の設定保存で扱う。
+
+### 値条件
+
+単一の符号なし比較だけを使用する。任意コード、計算式、複合条件、Symbol名の評価は行わない。
+
+- 形式例：`A == 0x41`、`DP >= $C000`、`MEM[0xC000] != 0`
+- 左辺：`PC`、`DP`、`P`、`Q`、`R`、`D`、`C`、`Z`、`I`、`J`、`A`、`B`、
+  `XL`、`XH`、`YL`、`YH`、`K`、`L`、`M`、`N`、または`MEM[アドレス]`
+- 演算子：`==`、`!=`、`<`、`<=`、`>`、`>=`
+- 数値：10進、`0x`付き16進、`$`付き16進。大文字小文字は区別しない。
+- PC・DPとメモリアドレスは0〜65535、C・Zは0または1、それ以外の比較値は0〜255。
+  `MEM`は現在の論理メモリの1byteをSnapshotから読み、CPUのReadイベントやI/O命令を生成しない。
+- 入力は128文字以内。登録時に一度だけ解析し、到達時の評価は1比較・最大1byte読取りに限定する。
+
+### 回数条件とライフサイクル
+
+| 入力 | 動作 |
+|---|---|
+| `== 3` | 3回目の到達だけ停止候補にする |
+| `>= 3` | 3回目以降を停止候補にする |
+| `% 3` | 3、6、9回目…を停止候補にする |
+
+Nは1〜1000000000の10進整数、入力は32文字以内。
+値条件が偽でも、有効な登録アドレスへの到達は数える。回数条件を先に判定し、
+不一致ならCPU Snapshot／メモリの値条件を取得しない。到達回数はLong上限で飽和する。
+
+- Run中、登録アドレスの命令を実行する**前**に評価し、両条件を満たせば既存のBreakpoint理由で停止する。
+- Breakpoint／Run to停止後の再開は、既存どおり同じ命令位置を1回通過させる。その通過は再評価・加算しない。
+- 手動StepはBreakpointを評価せず、回数も加算しない。無効な登録も加算しない。
+- 同じ位置のRun toはBreakpointより優先し、その到達は加算しない。
+  値条件が偽の場合も通常の命令実行、Watch、Fault停止は継続する。
+- 通常のPause／Runと有効／無効切替は回数を保持する。
+  アドレス・値条件・回数条件の文字列変更、Reset、プログラムのLoad成功で回数を0にする。
+  Load失敗は回数を保持し、新Sessionは登録を持たない。
+- 論理アドレスは引き続き全ROM bank共通。bank指定条件は今回追加しない。
+
+既存の停止理由、Checkpoint、Debug Context version 1、MCP tool名と登録JSON version 1を維持する。
+登録JSON version 1は従来のID・アドレス・有効状態だけを返し、条件と回数は含まない。
+従来の登録JSONだけから無条件停止と推定しない。条件・回数を含む現在の読み取りAPIは[AI連携仕様](../reference/AI_INTEGRATION.md#12-読み取りapiの拡充2026-10-21作業順8)を参照する。
+
+検証時点・合成ROM／実ROMの区分は[検証履歴](../development/DEBUGGER_DESIGN_HISTORY.md)を参照。
+
+## 18. Step Over／Step Out（2026-10-21）
+
+Debugger上部にステップオーバー／ステップアウトを追加した。停止中だけ開始でき、実行中は
+既存のRunner tickで命令を進める。長い処理もUIの一時停止で中断できる。
+
+- **Step Over**：通常命令は1命令実行する。`CALL`（0x78）と短縮`CAL`（0xE0〜0xFF）は、
+  その呼出しに対応する`RTN`（0x37）が完了するまで実行する。CALL先のネスト・再帰を追跡する。
+- **Step Out**：実際に観測した最上位CALLフレームからのRTNまで実行する。
+  単一命令実行で観測していない過去の呼出しを、任意のスタック内容から復元しない。
+  フレームがない場合はボタンを無効にし、CALLのステップ実行またはDebuggerを開いた実行を案内する。
+
+### 追跡と停止の規則
+
+フレームにはSession内の一意ID、戻り先PC、呼出し前後のR、内部RAMの戻り先2byteと、
+戻り先の公開された物理ROM位置（component／bank／offset）を記録する。
+単に戻り先アドレスへ着いたという理由では完了しない。同じアドレスへ戻る再帰でも、
+対象フレームのRTNだけで完了する。bankが変わって同じ論理アドレスに別ROMが見える場合も
+完了扱いにしない。RAMの未公開bank構造は推定しない。
+
+- 命令ごとの実行時だけCALLを観測する。通常の高速まとめ実行を行った場合は追跡の連続性を破棄する。
+  Trace／監視等によって単一命令で進む場合も観測できる。
+- 通常のPUSH／POPによる一時データを許容するが、戻り先byteの変更、RTN時のR・戻り先・物理位置の不一致、
+  フレーム領域の重複／最大128フレーム超過では追跡を破棄する。
+  複数命令で戻り先を一時書換えして後から復元する特殊経路も、初回変更時に追跡不能とする。
+- `MVWP`は現行Coreで一命令内に呼出し相当の処理と復帰を完了するため、通常の一命令として扱う。
+- `CASE1`／`CASE2`は通常CALLとは異なる戻り先の構築・分岐を行う。複数命令のStep Over／Out中に出会うと、
+  その命令の実行前に未対応と表示して停止する。通常の手動StepやCASE自体のStep Overは一命令を実行し、
+  既存CALL追跡を破棄する。
+- 現行Coreに独立した非同期割込みの呼出しイベントはない。割込みを含む実機上の全経路に対応したとの保証はしない。
+  将来Coreへ割込みを追加する場合は、この追跡モデルも拡張する。
+
+### 中断と実行上限
+
+開始位置の命令は手動Stepと同様に実行し、その位置のBreakpointは1回だけ通過する。
+途中のBreakpoint（値／回数条件を含む）、メモリ監視、Faultは通常どおり停止し、Step Over／Outを解除する。
+RTN命令自体の監視停止も完了表示より優先する。
+完了先にあるBreakpointは、手動Stepと同様、次のRunでの評価対象とする。
+ユーザーPause、別のStep／Run to、生成キー列の即時実行も進行中の操作を解除し、
+通常のRunで以前のStep Over／Outを自動再開しない。
+
+各操作は最大100000命令または2000000サイクルで停止する。サイクル上限は一命令の完了単位で評価するため、
+最後の命令ぶんだけ超過し得る。上限到達後も、その時点で整合しているCALLフレームは保持し、
+ユーザーが次の操作を選べる。Reset、新Session、プログラムLoadで追跡を破棄する。
+
+UIに進行中／完了／上限／追跡不能／未対応経路／中断を日英で表示する。
+既存の停止理由形式は維持し、完了は`Step Complete`、上限・追跡不能・未対応は`User Pause`として扱う。
+Checkpointの停止理由とMCP／Debug Context version 1も従来形式を維持する。
+詳細なステップ操作状態は現在のUIに限定し、MCP version 1には含めない。
+
+検証時点・合成ROM／実ROMの区分は[検証履歴](../development/DEBUGGER_DESIGN_HISTORY.md)を参照。
+
+## 19. デバッグ設定の保存・復元（2026-10-21）
+
+Debuggerの「登録」タブに「設定を保存…」「設定を復元…」を追加した。
+停止中またはFault時に、利用者が明示的に選ぶ`.pgdebug.json`ファイルを使用する。
+通常起動、機種切替、Projectを開く操作では自動保存・自動復元しない。
+
+| 保存するもの | 内容 |
+|---|---|
+| Breakpoint | 論理アドレス、有効状態、値条件、ヒット回数条件 |
+| Watch | 論理アドレス範囲、種別、有効状態 |
+| Trace設定 | 有効状態と容量 |
+| 対象識別 | 機種、ROM内容のSHA-256識別値、現行RAM構成、Project manifestのcanonicalパスのSHA-256（Projectなしはnull） |
+
+ROM本体、メモリ、CPU、停止理由、監視基準値、到達回数、登録ID、Trace／アクセス／bank履歴、
+CALL追跡、ソース対応情報、認証情報、個人の絶対パスは保存しない。Save StateやCheckpointとは別形式である。
+
+### 対象の照合
+
+ROM識別値は、読み込んだ全componentのID・role・size・内容から順序を固定して生成する。
+同じ内容を再packageした場合や入力ファイルの移動で変わらず、bank ROM・漢字ROMの違いも含む。
+同じROMを共有するモデルでも、機種IDが異なる設定は復元しない。
+Projectは同じcanonical manifestパスのときだけ一致する。Projectなしの設定はProjectを閉じた状態だけで使う。
+Projectを移動／cloneした場合は別対象となり、今回のUIに照合を無視する機能はない。
+識別できないROMのSessionでは保存・復元を無効にし、ROM再読込みを案内する。
+
+### 復元時の振舞い
+
+復元はマージではなく、登録全体とTrace設定の置換である。実行中は拒否し、自動Pauseしない。
+保存ファイルの対象・version・型・登録上限・範囲・条件・有効な変更監視の合計容量・Trace容量を検証する。
+すべての変更監視の新しい基準値も現在のメモリから取得し、準備できた場合にだけ登録を置き換える。
+登録IDは現在のSessionで未使用の値へ再生成し、到達回数を0に戻す。
+Resetは引き続き現在の登録とIDを保持し、基準値と回数だけを取り直すので、設定復元とは区別する。
+
+復元してもCPU、RAM、現在の停止位置・停止理由を変更しない。Trace記録とアクセス／bank履歴は
+ファイルから復元せず、保持済みのTraceは復元後の容量以内に古い分だけ切り詰める。
+フォームに残っていた編集ID・未適用の入力を破棄し、Traceのボタンと容量表示も復元値へ同期する。
+新しいSessionには設定を引き継がず、必要な場合に明示的に復元する。
+
+### ファイル形式と失敗時
+
+形式名は`pgp-debug-settings`、`schemaVersion`は1。未知のversionは拒否し、暗黙に変換しない。
+現行versionの未知フィールド、型の違い、不正な登録や過大なファイルも拒否する。
+入力は最大256 KiB、既存のBreakpoint 256件・Watch 64件・有効な変更監視合計4096byte上限を適用する。
+従来のDebug Context／登録JSON／MCP toolの仕様は変更しない。
+
+保存は同じディレクトリの一時ファイルからatomic replaceする。atomic moveが使えない場合は
+保存失敗とし、非atomic上書きへフォールバックしない。`.pgdebug.json`以外への保存は拒否する。
+Project manifest、ROM Library、通常のPreferencesには書き込まない。
+対象不一致・入力不正・基準値取得失敗・メモリ追跡設定の準備失敗では、既存の登録・回数・Trace設定・revisionを保持する。
+ファイル選択中にSessionまたはProjectが変わった場合も操作をやり直す。
+
+検証時点・合成ROM／実ROMの区分は[検証履歴](../development/DEBUGGER_DESIGN_HISTORY.md)を参照。

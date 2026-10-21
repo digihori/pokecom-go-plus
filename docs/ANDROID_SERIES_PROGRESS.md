@@ -1,40 +1,24 @@
 # Android Player シリーズ内モデル選択
 
-更新日: 2026-10-20
-状態: 実装・自動検証・隔離エミュレータ確認済み。2026-10-20にユーザーよりPC-1250のMEM表示を一旦許容し、Android Player全体を一区切りとする意向を受領。個別モデル・機能の実機確認範囲は以下に分ける。
+> 旧URL向けの案内です。本文は新しい場所へ移動しました。
+> This page preserves an older URL. Follow the link below for the document.
+
+[docs/development/ANDROID_SERIES_PROGRESS.md](development/ANDROID_SERIES_PROGRESS.md)
+
+[ドキュメント目次 / Documentation index](README.md)
 
 ## 仕様
 
-- PC-1250／1251／1255、PC-1260／1261、PC-1401／1402をシリーズ単位のホームカードにまとめ、機種名のプルダウンから選ぶ。初期値は従来の1251／1261／1401。
-- タイル・リスト共通で、選択モデルをシリーズごとに保存する。選択変更だけでは動作中Session・RAMを変更せず、「プレイ」の確認後に新しい標準RAM構成で起動する。確認のキャンセルでは従来Sessionを保持する。
-- 起動中と選択モデルが異なる場合は「起動中：…」を表示する。`*`は実際の起動モデルに付け、カードの強調とホーム復帰時のスクロール対象は同じシリーズに対応させる。
-- ROMはシリーズ内で共用。既存のROM Library保存先pc-1251／pc-1261／pc-1401を維持し、再登録・移行は不要。実行モデルIDは別に保持して復元する。シリーズ内pgromのモデルIDを検証後に実行モデルへ対応させ、ROMバイトを変更しない。別シリーズは拒否する。
-- ROM管理はシリーズごとに1行。取込み・使用はホームの選択モデル、置換・削除はシリーズ共通ROMへ適用する。削除時は同シリーズの別名モデルで動作中でもSessionを破棄する。
-- キー・LCD・スキンはシリーズ内で共用し、タイトル・標準RAM・BASIC形式／容量・DMPロード範囲は実行モデルのCore定義を使用する。RAM拡張・セーブステートは追加しない。保存UIはBASICのみ。
-- Studio同様、PC-1401 ROMがPC-1402の容量を認識することは全版で保証しない。ROM版を既知hashで制限せず、容量認識のためROMをpatchしない。
+[移動先の節へ / Open this section](development/ANDROID_SERIES_PROGRESS.md#仕様)
 
 ## 受入れ区分
 
-| 区分 | 状況 |
-|---|---|
-| 実装済み | 3シリーズ7モデルのプルダウン、設定保存、共通ROM管理、Session切替・復元、キー／スキン／LCD、標準RAM構成 |
-| 自動検証済み | 125x→126x→140xの順で共有Player／Androidテスト成功。モデルID・RAM境界・既存mirror・BASIC往復と容量超過時無変更・キー・共有ROMの登録／復元／置換／削除／失敗ロールバック・別シリーズ拒否を確認。全体buildとCore desktopTestも成功 |
-| エミュレータ確認済み | 隔離API 36ホストの合成ROMで7モデルのプルダウン→確認→Session切替→タイトル／モード操作の表示→ホーム復帰、切替キャンセル、起動中モデルと独立した選択のプロセス再起動後復元、タイル／リスト表示を確認。1255／1260／1402の外部キー配送・解放、1402の背景復帰時PAUSED・held/queued=0、共通ROM削除のキャンセルと実行で同シリーズの起動中Sessionを破棄することも確認 |
-| 実機確認済み | ユーザーよりPC-1250選択時のMEMが1486ではなく3486になるとの報告があり、一旦許容して今回の対応を一区切りとした。7モデル全機能の網羅的な実機確認報告とは扱わない。従来機種とタブレット回転改善の実機受入れは維持 |
+[移動先の節へ / Open this section](development/ANDROID_SERIES_PROGRESS.md#受入れ区分)
 
 ## 検証と保留
 
-- JDK 21で`build :core:desktopTest :androidApp:assembleDebug --no-configuration-cache`を実行。初回はStudio側の旧仕様「追加モデルはPlayer対象外」のテストで失敗したため、実行対象とホームのシリーズ集約を区別する新仕様へ更新し、再実行で成功。
-- 最終チェック：Core desktop 462件、Studio 317件（既存skip 1）、共有Player desktop／Android各124件、Android unit 80件で失敗なし。`git diff --check`も成功。
-- AGENTS指定のStudio起動は一時HOME・メモリー内PreferencesFactoryで隔離して確認し、確認用プロセスだけを終了。通常ROM Library・設定、接続中の実機は検証対象にしない。
-- エミュレータの合成ROM確認と実ROMの容量認識・BASIC実行・音声聴感・実周辺機器の受入れを区別する。PC-1402のROM版依存は上記のとおり残る。
-- commit／pushは未実施。ROM・ROM由来fixtureは追加しない。
-
+[移動先の節へ / Open this section](development/ANDROID_SERIES_PROGRESS.md#検証と保留)
 
 ## 今回の区切りと既知の保留事項
 
-2026-10-20、ユーザーの判断でAndroid Playerの今回の対応を一区切りとする。
-PC-1250選択時にMEMが1486ではなく3486と表示される件は、一旦許容するが正常仕様と確定しない。
-PlayerはHARDWARE RAMを選択している。既存CoreではPC-1250のRAM mirrorを維持し、1251 ROMが1251と同じBASIC開始pointerを設定する検証結果がある。
-ROM版とCoreのmirror／容量判定の寄与は未切り分けであり、ROMのみが原因と断定しない。MEM値の修正・ROM patchは行っていない。
-細かな表示・操作調整と容量認識の追跡は必要に応じて後続で行う。commit／pushは指示時のみ。
+[移動先の節へ / Open this section](development/ANDROID_SERIES_PROGRESS.md#今回の区切りと既知の保留事項)

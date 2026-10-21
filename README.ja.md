@@ -10,8 +10,8 @@ Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向け�
 現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す
 マルチプラットフォーム開発環境です。
 
-将来はStudioのProject、Assembler、Debuggerをlocalhost MCP経由でAIから利用できるようにし、
-BASIC作成、既存マシン語の解析、実行中デバッグを安全な承認付き操作で支援することを目指します。
+開発中のStudioでは、localhost MCP経由で外部AIから機種仕様・開発状態を取得し、
+ソース差分・Build・Load・実行操作をStudio承認付きで行えます。接続方法と制限は[AI接続ガイド](docs/guides/AI_CONNECTION_GUIDE.md)を参照してください。
 
 PGPは次の2製品と共有Emulator Coreで構成します。
 
@@ -21,18 +21,34 @@ PGPは次の2製品と共有Emulator Coreで構成します。
 
 「Pokecom GO Plus」と「PGP」は、このプロジェクト全体を表す開発コードネームとして使用します。
 
+使い方は[ドキュメント総合目次](docs/README.md)、初回起動は[はじめに](docs/guides/GETTING_STARTED.md)を参照してください。
+
 ## 現在の状態
 
-プロジェクトは初期実装段階です。Pokecom GO StudioではPC-1245、PC-1250／1251／1255ファミリー、
-PC-1261／1350／1401を実装し、PC-1360／1360Kは実ROM起動、16KiB×8 ROMバンク、LCD、キー入力、S2 BASICに対応しています。PC-1360Kは漢字ROMを登録すると、かな入力・漢字変換も利用できます。
-macOSでは実ROMの起動、物理／画面キーボード入力、BASICと
-マシン語の入出力、LCD表示、サウンド出力まで動作確認済みです。WindowsではROM起動、キー入力、BASICと
-サウンド、Linux x86_64ではROM起動、基本操作、サウンド、tar.gz／DEB配布物を手動確認しています。
-Pokecom GO PlayerのPC-1245 Android版は、LCD／スキン入力、bas／dmp入出力、ROM管理、横向き・ノッチ対応、ゲームパッド割当に対応し、2026-10-12にユーザー動作確認済みです。PC-1401 Androidも今回の対応範囲を完了し、2026-10-15にユーザーが区切りを確認しました。検証範囲と残る機器別確認は[対応記録](docs/ANDROID_PC1401_PROGRESS.md)を参照してください。PC-1401のiOS対応状況は下記の機種対応記録を参照してください。PC-1350 Androidは[2026-10-16に今回の対応範囲をユーザー確認済み](docs/ANDROID_PC1350_PROGRESS.md)です。
+開発版のStudioとAndroid／iPhone版Playerは、次の14モデルに対応しています。
+PC-1360Kは漢字ROMを登録すると、かな入力・漢字変換も利用できます。
 
-開発中のiPhone版は、PC-1245、PC-1250／1251／1255、PC-1260／1261、PC-1350、PC-1401／1402、PC-1450、PC-1360／1360K、PC-1460、PC-1470Uの14モデルを実装しています。ホーム・ROM管理・BASIC/DMP・音声/速度・GameController/Physical入力を接続し、Simulatorと独自の合成ROMで回帰検証しています。実機・実provider・最低iOS 16など、環境別の詳細確認は別途管理しています。
-[現行操作と段階別の検証記録](iosApp/README.md)を参照してください。署名付きiOS配布の完了を意味しません。
-2026-10-21にユーザーが全対応機種の動作・音声再生・修正後のホーム画面を一通り確認し、今回の対応を完了としました。音声の途切れ感は今後の調整項目です。ホームの名前順・タイル／リスト・機種画面のみ横固定は[修正記録](docs/IOS_HOME_PRESENTATION_FIX.md)を参照してください。
+| 機種・シリーズ | Android Player | iPhone Player |
+| --- | --- | --- |
+| PC-1245 | 対応 | 対応 |
+| PC-1250・PC-1251・PC-1255 | 対応 | 対応 |
+| PC-1260・PC-1261 | 対応 | 対応 |
+| PC-1350 | 対応 | 対応 |
+| PC-1401・PC-1402 | 対応 | 対応 |
+| PC-1450 | 対応 | 対応 |
+| PC-1360・PC-1360K | 対応 | 対応 |
+| PC-1460 | 対応 | 対応 |
+| PC-1470U | 対応 | 対応 |
+
+Android Playerは2026-10-20に全体を一区切りとし、iPhone版も2026-10-21に全対応機種の動作・音声再生とホーム画面の修正をユーザーが確認しました。
+機種対応と環境別の詳細検証は区別し、[Androidの受入れ記録](docs/development/ANDROID_SERIES_PROGRESS.md)と
+[iPhoneの全体受入れ記録](docs/development/IOS_MACHINE_SUPPORT_STEP8.md)に未確認事項を残しています。
+iPhone版はiPhone専用・最低iOS 16で、署名付き配布は別工程です。音声の途切れ感は今後の調整項目です。
+現在の操作は[Androidヘルプ](docs/guides/PLAYER_HELP.md)・[iPhoneヘルプ](docs/guides/PLAYER_HELP_IOS.md)を参照してください。
+
+StudioはmacOSで実ROM起動、物理／画面キー、BASIC・マシン語入出力、LCD、音声を確認しています。
+WindowsではROM起動・キー・BASIC・音声、Linux x86_64ではROM起動・基本操作・音声・tar.gz／DEBを手動確認しています。
+公開済み配布版の対応範囲は[各版のリリースノート](docs/README.md#リリース情報)を参照してください。
 
 現在利用できる主な機能は次のとおりです。
 
@@ -59,7 +75,7 @@ RUN／PRO／RSV操作に集中する。右上の機種プルダウンでは、RO
 
 Assembly WorkspaceのAssembleは結果確認、Buildはファイル生成、Build & Loadは生成後の
 エミュレータへのロードを行います。式・EQU・データ定義、機種別配置、出力名と制約は
-[SC61860アセンブラガイド](docs/SC61860_ASSEMBLY.md)を参照してください。
+[SC61860アセンブラガイド](docs/guides/SC61860_ASSEMBLY.md)を参照してください。
 
 プロジェクトツリーはメイン画面左側、CPU、Disassembly、Memory、TraceはDebuggerウィンドウへ
 分離している。機種別ソフトウェアキーボードは実機のキー配列、SHIFT表記、予約語表記を反映する。
@@ -79,8 +95,9 @@ Assembly WorkspaceのAssembleは結果確認、Buildはファイル生成、Buil
 - Windows
 - Linux
 
-実行機能へ特化したPokecom GO PlayerはPC-1245／PC-1401／PC-1350 Android版の今回の開発範囲を完了しています。
-iPhone版は14モデルの実装・Simulator検証を進めており、実機受入れと署名付き配布は未完了です。Playerにはデバッガ、アセンブラ、逆アセンブラなどの開発機能を搭載しません。
+実行機能へ特化したPokecom GO Playerは、Android／iPhoneとも上記14モデルに対応しています。
+機種対応の完了と、端末・OS・ROM版別の確認、署名付き配布は区別して管理します。
+Playerにはデバッガ、アセンブラ、逆アセンブラなどの開発機能を搭載しません。
 
 ## リポジトリ構成
 
@@ -91,9 +108,9 @@ pokecom-go-plus/
 ├── controllerUi/  Studio／Android共通のコントローラー設定画面
 ├── playerShared/  Android／iOS Playerで共有する実行・表示モデル
 ├── desktopApp/    Pokecom GO Studio（現在のCompose Desktop実装）
-├── androidApp/    Pokecom GO Player（PC-1245／PC-1401／PC-1350 Android）
+├── androidApp/    Pokecom GO Player（14モデル対応Android）
 ├── iosApp/        Pokecom GO Player（複数機種対応iPhone host）
-├── docs/          構想・設計・移植記録・ロードマップ
+├── docs/          利用ガイド・技術資料・開発記録・リリース資料
 ├── local-data/    ローカルROM等（Git管理外）
 └── test-data/     再配布可能なテストデータ
 ```
@@ -118,7 +135,7 @@ DMG／MSI／DEBを生成する場合は、`jpackage`を含む完全なJDK 21が�
 ## ビルドとテスト
 
 公開ソースの取得、JDK設定、OS別ビルド、配布パッケージ生成、生成物の場所、典型的なエラーは
-[ソースからのビルド](docs/BUILDING.md)を正本とする。以下は日常的に使う起動・テスト手順の要約である。
+[ソースからのビルド](docs/reference/BUILDING.md)を正本とする。以下は日常的に使う起動・テスト手順の要約である。
 
 ### 起動前の準備
 
@@ -160,7 +177,7 @@ Linuxでは次を実行する。
 Windows／LinuxともCIによるビルドと自動テストは実施しているが、画面操作、音声、ファイル選択を含む
 手動スモークテストは公開前の確認項目である。
 
-### Android Player（PC-1245／PC-1401／PC-1350）
+### Android Player（14モデル対応）
 
 Android SDK 36とJDK 21を設定した環境でdebug APKを生成する。
 
@@ -170,20 +187,20 @@ Android SDK 36とJDK 21を設定した環境でdebug APKを生成する。
 
 生成先は`androidApp/build/outputs/apk/debug/androidApp-debug.apk`。
 `.pgrom`／選択機種のlegacy ROMを取り込み、機種別のアプリ専用領域へ保存する。
-PC-1401はホーム・ROM管理・Session切替・本体操作・BASIC／DMP入出力・ゲームパッドへの接続を完了。[機種別の検証範囲と未確認事項](docs/ANDROID_PC1401_PROGRESS.md)を参照。
+対応機種は上記の14モデルです。シリーズ内モデルの選択とROM共用は[Androidヘルプ](docs/guides/PLAYER_HELP.md)を参照。
 起動時はホームへROMを復元し、初回プレイとReset後はCPUを自動実行する。ROMは同梱しない。
 
-- スキン上の52キー、16桁LCDとSHIFT／DEF等、RUN／PRO、常時実行状態表示
+- 機種別のスキン・キー・LCD・シンボル、対応機種のモード操作、常時実行状態表示
 - 両方向の横向き、ノッチ・ナビゲーション領域回避、手動Controller Display
 - 画面内の階層メニュー、ROM取込み・置換・削除、ゲームパッド割当
-- `.bas`／`.dmp`の拡張子自動判定ロード、BASIC全体／指定RAM範囲のセーブ
+- `.bas`／`.dmp`の拡張子自動判定ロード、BASIC全体のセーブ（AndroidのDMPはロード専用）
 - BASIC／dmpロード成功後はCPUを自動再開。失敗・キャンセル後はPAUSED
 - ホームの設定／ヘルプ・情報、Playerとは／Studioについて／バージョン・ライセンス、プライバシー原文案の同梱表示
 - 外部キーボードのPhysical入力、左上状態表示のRun/Pause切替
 
-現在の選択対象はPC-1245／PC-1401／PC-1350。Project、Assembler、Debugger、WAV、セーブステートは搭載しない。AndroidにはサウンドON／OFFとCPU速度5段階を追加。実機の音質などの未確認事項は[音声・速度対応記録](docs/PLAYER_AUDIO_SPEED_PROGRESS.md)を参照。
-操作と制限は[Android Playerガイド](docs/PLAYER_PROGRAM_IO.md)を参照。
-PC-1245の0.4時点の動作はユーザー確認済み。現在の追加変更の検証範囲は上記ガイド、Technical Preview 0.4の公開状況は[公開チェックリスト](docs/RELEASE_CHECKLIST_0.4.0-alpha.1.md)を参照。
+Project、Assembler、Debugger、WAV、セーブステートは搭載しない。AndroidにはサウンドON／OFFとCPU速度5段階を追加。実機の音質などの未確認事項は[音声・速度対応記録](docs/development/PLAYER_AUDIO_SPEED_PROGRESS.md)を参照。
+操作と制限は[Android Playerガイド](docs/guides/PLAYER_PROGRAM_IO.md)を参照。
+現行の受入れ状況は[Android全体の記録](docs/development/ANDROID_SERIES_PROGRESS.md)、公開済みの版は[リリース情報](docs/README.md#リリース情報)を参照。
 
 ### BASICテキストの読み込み
 
@@ -192,11 +209,11 @@ ROM起動後にUTF-8の`.bas`ファイルを指定して読み込める。通常
 手軽な互換入力として利用できる。
 
 文字コード、予約語、特殊文字の割り当てには機種差がある。対応する表記と現在の制約は
-`docs/BASIC_TEXT_FORMAT.md`を参照する。
+`docs/reference/BASIC_TEXT_FORMAT.md`を参照する。
 
 ### WAV変換と解析（Studio専用）
 
-[操作ガイド・診断・実機確認表](docs/WAV_TOOL_GUIDE.md)。
+[操作ガイド・診断・実機確認表](docs/guides/WAV_TOOL_GUIDE.md)。
 
 `Tools` → `WAV Tool`でOLD BASIC（02/12）、OLD Binary（62）、S1 BASIC（07/17）、S2 BASIC（27/37）、S1/S2 Binary（67）を変換できる。
 Encodeは既存の`.bas`／単一連続領域の`.dmp`・Intel HEX（`.hex`／`.ihx`）、またはProjectツリーの選択項目から`Create WAV…`で指定する。
@@ -210,7 +227,7 @@ WAVのエンコード形式はBASICパスワードなし／あり・マシン語
 S1/S2 BASICは転送名は印字可能ASCIIを使用する。7文字を超える場合は先頭7文字へ短縮し、レポートに記録する。対象機種の選択UIは設けず、Projectの機種とファイルから形式・BASIC／マシン語を初期選択する。Project情報は初期選択にだけ使用し、Decode結果は`.bas`として保存できる。
 S2はCP932日本語・行参照・形式共通語彙に対応。通常はtype 27を使い、保護付き選択は転送type 37を指定する（パスワード文字列の新規設定は行わない）。新codecは合成テスト済みで、PGPでの実機往復は未確認。
 Playerには搭載せず、ROMのCSAVE/CLOADやDecodeからの
-エミュレータ直接ロードとも連動しない。操作・対応範囲は[WAV操作方針](docs/WAV_OPERATIONS.md)参照。
+エミュレータ直接ロードとも連動しない。操作・対応範囲は[WAV操作方針](docs/development/WAV_OPERATIONS.md)参照。
 
 ### ROMセットの作成
 
@@ -222,7 +239,7 @@ PC-1261／1350／1401が32 KiB、PC-1360／1360Kが128 KiB（bank 0〜7の順に
 
 作成後の`Register in ROM Library`で登録・起動できる。登録は後から`Manage ROMs…`でも行える。
 元のROMと生成物はリポジトリへ追加せず、`local-data/`などGit管理外の場所に保存する。
-詳しい操作は[導入ガイドのROMセット作成手順](docs/GETTING_STARTED.md#43-romダンプからpgromを作る)を参照。
+詳しい操作は[導入ガイドのROMセット作成手順](docs/guides/GETTING_STARTED.md#43-romダンプからpgromを作る)を参照。
 
 既存のPokecom GO用32/64KiBイメージは、ROM Libraryから互換入力として直接登録できる。
 
@@ -255,7 +272,7 @@ Playerの共有層テスト、Android固有テスト、APK生成を行う。CI�
 合成データだけを使用する。
 iOSはアプリビルド・Swift単体テストを通常CIで実行する。Native専用テストは手動フロー、UI操作はローカルで別途検証する。
 
-ローカルでのDMG／MSI／DEB生成方法は[ソースからのビルド](docs/BUILDING.md)を参照する。
+ローカルでのDMG／MSI／DEB生成方法は[ソースからのビルド](docs/reference/BUILDING.md)を参照する。
 
 Coreの共通テストだけを実行する場合：
 
@@ -324,9 +341,9 @@ Desktopアプリを起動する場合：
   Windowsでは、サウンドを使用したプログラムの終了後もクリックノイズが鳴り続けることがある。
   オーディオラインの終了判定と無音バッファ処理は今後の改善項目である。
 - PC-1245／1250の`0xb000..0xbfff`周辺のミラー仕様は再確認が必要である。
-- PlayerはPC-1245／PC-1401／PC-1350 Androidに対応する。[検証範囲と機器別の未確認事項](docs/ANDROID_PC1401_PROGRESS.md)は別途記録する。PC-1350 Androidは[2026-10-16に今回の対応範囲をユーザー確認済み](docs/ANDROID_PC1350_PROGRESS.md)。iOSは14モデルを実装し、[全体受入れ記録](docs/IOS_MACHINE_SUPPORT_STEP8.md)に自動検証・実ROM・実機の確認範囲を分ける。実機受入れとセーブステートは後続。Android音声出力・CPU速度は[対応記録](docs/PLAYER_AUDIO_SPEED_PROGRESS.md)の検証範囲を参照。情報画面は静的同梱。プライバシーポリシーは公開前の原文案である。
+- PlayerはAndroid／iPhoneとも上記14モデルに対応する。機種・端末・ROM版別の確認範囲は[Android受入れ](docs/development/ANDROID_SERIES_PROGRESS.md)・[iOS受入れ](docs/development/IOS_MACHINE_SUPPORT_STEP8.md)を参照。セーブステートは未実装。情報画面は静的同梱で、プライバシーポリシーは公開前の原文案である。
 
-公開版に向けた確認状況は[Technical Preview公開チェックリスト](docs/PUBLIC_RELEASE_CHECKLIST.md)を参照する。
+公開済み各版の説明と過去の確認記録は[ドキュメント目次](docs/README.md#リリース情報)を参照する。
 
 ## フィードバック
 
@@ -335,44 +352,21 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 
 ## ドキュメント
 
-- [はじめに](docs/GETTING_STARTED.md)
-- [ソースからのビルド](docs/BUILDING.md)
-- [プロジェクト構想](docs/PGP_CONCEPT.md)
-- [アーキテクチャ](docs/ARCHITECTURE.md)
-- [Emulator Core公開API](docs/CORE_API.md)
-- [Debugger](docs/DEBUGGER.md)
-- [AI連携構想](docs/AI_INTEGRATION.md)
-- [SC61860機種世代](docs/MACHINE_FAMILIES.md)
-- [PC-1245機種定義](docs/machines/PC-1245.md)
-- [PC-1350機種定義](docs/machines/PC-1350.md)
-- [PC-1360次期機種定義](docs/machines/PC-1360.md)
-- [PC-1360Kと漢字ROM](docs/machines/PC-1360K.md)
-- [PGP ROMパッケージ形式](docs/ROM_PACKAGE.md)
-- [Golden Test Data形式](docs/GOLDEN_TEST_DATA.md)
-- [外部エディタ連携とプロジェクト形式](docs/PROJECTS.md)
-- [SC61860 Assembler／Disassembler](docs/SC61860_ASSEMBLY.md)
-- [WAV操作方針と実装範囲](docs/WAV_OPERATIONS.md)
-- [OLD WAV形式](docs/WAV_OLD_FORMAT.md)
-- [S1／S2 WAV仕様と作者確認](docs/WAV_S1_S2_FORMAT.md)
-- [iPhone Playerの操作・ビルド・検証状況](iosApp/README.md)
-- [単独で使える補助ツール集（バイナリー／DMP変換・ROM吸い出し）](tools/README.md)
-- [ロードマップ](docs/ROADMAP.md)
-- [Technical Preview公開チェックリスト](docs/PUBLIC_RELEASE_CHECKLIST.md)
-- [Technical Preview 0.6 alpha 2 Release Notes](docs/RELEASE_NOTES_0.6.0-alpha.2.md)
-- [Technical Preview 0.6 Release Notes](docs/RELEASE_NOTES_0.6.0-alpha.1.md)
-- [Technical Preview 0.5 Release Notes](docs/RELEASE_NOTES_0.5.0-alpha.1.md)
-- [Technical Preview 0.4 Release Notes](docs/RELEASE_NOTES_0.4.0-alpha.1.md)
-- [Technical Preview 0.3 Release Notes](docs/RELEASE_NOTES_0.3.0-alpha.1.md)
-- [Technical Preview 0.2 Release Notes](docs/RELEASE_NOTES_0.2.0-alpha.1.md)
-- [Technical Preview 0.1 Release Notes](docs/RELEASE_NOTES_0.1.0-alpha.1.md)
-- [移植記録](docs/PORTING_NOTES.md)
-- [第三者ソフトウェア通知](THIRD_PARTY_NOTICES.md)
+[ドキュメント総合目次](docs/README.md)から、操作ガイド・技術資料・リリース情報・開発記録へ進めます。
+
+- [Studioを始める・ROMを登録する](docs/guides/GETTING_STARTED.md)
+- [Project・Build & Load](docs/guides/PROJECTS.md)／[Assembler](docs/guides/SC61860_ASSEMBLY.md)／[Debugger](docs/guides/DEBUGGER.md)
+- [WAV Tool](docs/guides/WAV_TOOL_GUIDE.md)／[AI接続](docs/guides/AI_CONNECTION_GUIDE.md)
+- [Android Player](docs/guides/PLAYER_HELP.md)／[iPhone Player](docs/guides/PLAYER_HELP_IOS.md)
+- [単独で使える補助ツール](tools/README.md)
+- [ソースからのビルド](docs/reference/BUILDING.md)
+- [リリース情報](docs/README.md#リリース情報)／[開発記録・初期設計](docs/README.md#開発記録初期設計)
 
 ## ライセンス
 
 本プロジェクトは[MIT License](LICENSE)の下で公開します。
 
 Pokecom GO等から移植するコード・仕様・画像については、由来と権利を確認し、
-[PORTING_NOTES.md](docs/PORTING_NOTES.md)へ記録します。
+[PORTING_NOTES.md](docs/development/PORTING_NOTES.md)へ記録します。
 
 WAVのBASIC変換は個別機種で制限せず、形式単位の上位仕様を使用する。Decodeは信号とヘッダーから自動判別し、形式・機種指定は不要。

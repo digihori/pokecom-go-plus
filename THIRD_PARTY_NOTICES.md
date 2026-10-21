@@ -70,7 +70,7 @@ The gamepad integration uses published APIs; no emulator behavior was ported fro
 
 Pokecom GO is a reference implementation by the same copyright holder as Pokecom GO Plus.
 Its CPU, machine, keyboard, display, and BASIC behavior was restructured for the PGP architecture.
-Per-feature source revisions and design decisions are recorded in `docs/PORTING_NOTES.md`.
+Per-feature source revisions and design decisions are recorded in `docs/development/PORTING_NOTES.md`.
 Pokecom GO is not a runtime or build dependency of this repository.
 
 ## pcwav

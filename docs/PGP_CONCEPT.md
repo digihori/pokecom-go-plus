@@ -1,835 +1,192 @@
 # Pokecom GO Plus（PGP）プロジェクト構想書
 
-**文書名:** PGP_CONCEPT.md\
-**ステータス:** 構想段階\
-**プロジェクト全体の開発コードネーム:** Pokecom GO Plus（PGP）
+> 旧URL向けの案内です。本文は新しい場所へ移動しました。
+> This page preserves an older URL. Follow the link below for the document.
 
-**製品名:** Pokecom GO Studio／Pokecom GO Player
+[docs/development/PGP_CONCEPT.md](development/PGP_CONCEPT.md)
+
+[ドキュメント目次 / Documentation index](README.md)
 
 ## 1. プロジェクト概要
 
-**Pokecom GO Plus（PGP）**は、レトロなポケットコンピュータ（ポケコン）のプログラムを
-現代の環境で作成・実行・解析し、最終的に本物のポケコン実機で動作させることを目的とした、
-**マルチプラットフォームの統合ポケコン開発環境**である。
-
-PGPにとって実機は、過去の資産を再現するための参考資料にとどまらず、プログラムの最終的な
-実行ターゲットである。現代のPCで効率よくプログラムを作り、エミュレータで十分に検証し、
-転送可能な形へ変換したうえで実機へ送り、当時のハードウェア上で完成させるところまでを
-一つの開発フローとして扱う。
-
-一方、すべての利用者が常に正常な実機を使用できるとは限らない。液晶が薄くなった、表示できなくなった、
-キーや周辺回路が故障したといった理由で、実機を所有していても使い続けることが難しい場合がある。
-Android／iOS向けの**Pokecom GO Player**は、そのような実機の代替としても利用できることを目指す。
-モバイル端末上でポケコンを手に持って操作する感覚を擬似的に再現し、LCD、キー配置、外観などのUIも
-可能な範囲で実機へ近づける。既存のPokecom GOが持つ、実機を模した見た目と操作感を踏襲する位置付けである。
-
-これに対し、デスクトップ向けの**Pokecom GO Studio**は実機の外観を再現するためのアプリではなく、
-ポケコンプログラムを作るための開発環境である。画面を実機の筐体へ似せることよりも、ソースコードの入出力、
-デバッグ、メモリ確認、アセンブル／逆アセンブル、文字パターン編集、WAV変換など、実機だけでは難しい作業や
-開発時の困りごとを解決することを優先する。
-
-したがってPGPは、単なるポケコンエミュレータではない。Studioで開発し、Playerで実機に近い操作感を確認し、
-最終的に実機で動かす、次の一連の流れを支える環境を目指す。
-
-``` text
-ソースコード
-    ↓
-外部テキストエディタで編集
-    ↓
-PGP
- ├─ Pokecom GO Studio
- │   ├─ エミュレータ
- │   ├─ デバッガ
- │   ├─ アセンブラ／ディスアセンブラ
- │   ├─ 5×7ドットキャラクタエディタ
- │   └─ WAV変換
- │
- ├─ プログラムデータ ─→ Pokecom GO Player
- │                       └─ 実機に近い表示と操作による実行確認
- │
- └─ WAV等の転送データ ─→ ポケコン実機
-                          └─ 最終的な実機動作
-```
-
-代表的な利用方法として、昔のコンピュータ雑誌に掲載されていたプログラムをテキスト化し、エミュレータで実行・デバッグした後、完成したプログラムを実機へ転送して動作させることを想定する。
-
-「Pokecom GO Plus」はプロジェクト全体の**開発コードネーム**である。デスクトップ向け
-開発環境を**Pokecom GO Studio**、Android／iOS向け実行環境を
-**Pokecom GO Player**として提供する。
-
-------------------------------------------------------------------------
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#1-プロジェクト概要)
 
 ## 2. 背景とコンセプト
 
-1980～90年代には、PiO、ベーシックマガジン、I/O、Oh!MZなどの雑誌に、多数のBASICプログラムやマシン語プログラムが掲載されていた。
-
-当時の基本的な利用方法は、
-
-``` text
-雑誌のプログラムリスト
-        ↓
-ポケコンへ手入力
-        ↓
-RUN
-```
-
-というものだった。
-
-PGPでは、この体験を現代の開発環境で再構成・発展させる。
-
-大きく次の2つの用途を想定する。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#2-背景とコンセプト)
 
 ### 昔のプログラムを復活させる
 
--   雑誌掲載プログラムをOCRまたは手作業でテキスト化する。
--   対応するポケコンのエミュレータへ読み込む。
--   入力ミスやプログラム上の問題をデバッグする。
--   完成したプログラムを実機へ転送する。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#昔のプログラムを復活させる)
 
 ### 現在、新しいポケコンプログラムを作る
 
--   現代のPC上でBASICやアセンブリソースを書く。
--   エミュレータ上で動作確認する。
--   デバッグやアセンブルを行う。
--   最終的に実機へ転送する。
-
-PGPの中心的な考え方は、
-
-> **現代のPCをレトロなポケコンのクロス開発環境として使い、実機も重要な実行ターゲットとして扱う。**
-
-ことである。
-
-------------------------------------------------------------------------
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#現在新しいポケコンプログラムを作る)
 
 ## 3. 既存プロジェクトとの関係
 
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#3-既存プロジェクトとの関係)
+
 ### 3.1 Pokecom GO
 
-Pokecom GOは既存のAndroidポケコンエミュレータである。
-
-PGPは**Pokecom GOの新バージョンではない**。
-
-Pokecom
-GOは今後もAndroidアプリとして維持し、基本的には保守および必要な修正を行う。
-
-一方、Pokecom
-GOで既に開発しているエミュレーション技術は、PGPの重要な出発点とする。
-
-``` text
-Pokecom GO
- ├─ Android UI／Android固有処理
- │      └─ Pokecom GO側に残す
- │
- └─ エミュレーション技術／コアロジック
-             ↓
-        分析・切り分け
-             ↓
-        PGP向けに再設計
-             ↓
-          PGP Core
-```
-
-既存コードをそのままコピーするのではなく、まず、
-
--   再利用可能なエミュレータロジック
--   Android依存部分
--   マルチプラットフォーム化にあたり再設計した方がよい部分
-
-に分類する。
-
-PGPはPokecom GOとは**別のGitリポジトリ**で開発する。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#31-pokecom-go)
 
 ## 4. 対象プラットフォーム
 
-PGPのメイン環境は現代のデスクトップPCとする。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#4-対象プラットフォーム)
 
 ### デスクトップ
 
--   macOS
--   Windows
--   Linux
-
-デスクトップ版の製品名は**Pokecom GO Studio**とする。エミュレータだけでなく、
-デバッグや開発支援を含む最も充実した機能を提供する。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#デスクトップ)
 
 ### モバイル
 
--   Android
--   iOS
-
-モバイル版の製品名は**Pokecom GO Player**とする。Playerはエミュレータの再生・操作に特化し、
-デバッガ、アセンブラ、ディスアセンブラなどの開発環境は搭載しない。機能範囲は既存Pokecom GOに
-準拠する。
-
-PCで作成したプログラムをクラウドストレージ等で受け渡しし、スマートフォン上で実行できるようにする。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#モバイル)
 
 ## 5. 主な利用シナリオ
 
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#5-主な利用シナリオ)
+
 ### 5.1 雑誌掲載プログラムの復活
 
-``` text
-昔の雑誌
-    ↓
-OCR／手入力
-    ↓
-GAME.BAS
-    ↓
-外部テキストエディタ
-    ↓
-PGP Emulator
-    ↓
-実行・デバッグ・修正
-    ↓
-WAV出力
-    ↓
-ポケコン実機
-```
-
-可能な限り、ソースコードはPGP独自形式ではなく通常のテキストファイルとして扱う。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#51-雑誌掲載プログラムの復活)
 
 ### 5.2 新しいBASICプログラムの開発
 
-``` text
-VS Code／Vim／その他エディタ
-    ↓
-GAME.BAS
-    ↓
-PGP
- ├─ 読み込み
- ├─ 実行
- ├─ デバッグ
- └─ エクスポート
-    ↓
-ポケコン実機
-```
-
-PGPは、実機上で直接プログラムを入力する不便さまで再現するのではなく、**現代的なクロス開発環境**として利用する。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#52-新しいbasicプログラムの開発)
 
 ### 5.3 マシン語プログラムの開発
 
-``` text
-GAME.ASM
-    ↓
-Assembler
-    ↓
-Machine Code
-   ├─→ Emulator
-   ├─→ Debugger
-   └─→ WAV等
-            ↓
-       ポケコン実機
-```
-
-既存のマシン語コードについては、逆アセンブルして解析できるようにする。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#53-マシン語プログラムの開発)
 
 ### 5.4 PCとモバイルの連携
 
-``` text
-PC
- ↓
-Google Drive等のクラウドストレージ
- ↓
-Android／iPhone
- ↓
-PGP Emulator
-```
-
-クラウドストレージはファイル受け渡し手段として扱い、PGP
-Coreが特定のクラウドサービスへ依存しないようにする。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#54-pcとモバイルの連携)
 
 ### 5.5 AIによる開発・解析支援
 
-Pokecom GO Studioが持つProject、Assembler、Debugger、Emulator Sessionを構造化されたツールとして
-外部AIへ公開し、BASIC作成、マシン語解析、実行中デバッグを対話的に進められるようにする。
-
-AIを単なるコード生成チャットとして扱わず、Studioが返す機種定義、Memory Map、Diagnostics、
-Disassembly、Symbol、Trace、CPU Snapshotを根拠に仮説を立て、ユーザーの承認後にBuildやデバッグ操作を
-実行する共同開発者として位置付ける。
-
-初期接続はlocalhost限定のMCPを想定する。AIサービスへの認証とモデル選択は外部AIクライアントへ任せ、
-StudioとCoreを特定AIベンダーへ依存させない。詳細は[AI_INTEGRATION.md](AI_INTEGRATION.md)を参照する。
-
-------------------------------------------------------------------------
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#55-aiによる開発解析支援)
 
 ## 6. 想定機能
 
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#6-想定機能)
+
 ### 6.1 エミュレータ
 
-PGPの基盤となる機能。
-
-Pokecom GOの既存実装を分析し、利用可能な部分を出発点とする。
-
-複数のポケコン機種を扱える構造を前提とする。
-
-代表的な構成要素：
-
-``` text
-CPU
-Memory
-ROM
-RAM
-LCD
-Keyboard
-BASIC環境
-Peripheral
-機種固有設定
-```
-
-OSやUIに依存する処理は、可能な限りエミュレータコアから分離する。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#61-エミュレータ)
 
 ### 6.2 BASICプログラム
 
-初期機能として、
-
--   BASICソースの読み込み
--   エミュレータへのロード
--   プログラム実行
--   保存／エクスポート
-
-を扱う。
-
-将来的には、機種ごとのBASIC方言の違いや変換機能なども検討する。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#62-basicプログラム)
 
 ### 6.3 アセンブラ
 
-過去に開発した自作ツール／コードを必要に応じて利用し、PGPへ統合する。
-
-想定機能：
-
--   ソースコードのアセンブル
--   ラベル
--   シンボル
--   マシン語生成
--   エラー表示
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#63-アセンブラ)
 
 ### 6.4 ディスアセンブラ
 
-次の対象を逆アセンブルできるようにする。
-
--   読み込んだバイナリ
--   エミュレータ上のメモリ
--   デバッグ中のコード
-
-デバッガとの連携を前提とする。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#64-ディスアセンブラ)
 
 ### 6.5 デバッガ
 
-将来的に次の機能を検討する。
-
--   Run / Stop
--   Single Step
--   Breakpoint
--   CPUレジスタ表示
--   メモリ表示
--   Disassembly表示
--   CPU Trace
--   機種固有状態の表示
-
-デバッグロジック自体はUIから分離し、PGP Core側で扱える設計を目指す。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#65-デバッガ)
 
 ### 6.6 WAV変換
 
-過去に開発したポケコン向けWAV変換機能を、利用可能な範囲でPGPへ統合する。
-
-基本的な出力フロー：
-
-``` text
-BASIC／Machine Code
-        ↓
-     WAV Encoder
-        ↓
-     WAVファイル／音声
-        ↓
-     ポケコン実機
-```
-
-将来的には逆方向も扱いたい。
-
-``` text
-ポケコン実機
-      ↓
-   WAV録音
-      ↓
-   WAV Decoder
-      ↓
-BASIC／Binaryデータ
-```
-
-フォーマットや転送プロトコルは機種依存となるため、拡張可能な構造とする。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#66-wav変換)
 
 ### 6.7 5×7ドットキャラクタエディタ
 
-ポケコンで使用する5×7ドットのユーザー定義キャラクタを、GUI上で作成・編集できる機能を提供する。
-
-これは一般的なテキストエディタではなく、**ポケコン開発に特化した視覚的な開発ツール**としてPGPに含める。
-
-イメージ：
-
-``` text
-5×7 Character Editor
-
-    1 2 3 4 5
-  ┌───────────┐
-1 │ □ ■ ■ ■ □ │
-2 │ ■ □ □ □ ■ │
-3 │ ■ □ □ □ ■ │
-4 │ ■ ■ ■ ■ ■ │
-5 │ ■ □ □ □ ■ │
-6 │ ■ □ □ □ ■ │
-7 │ ■ □ □ □ ■ │
-  └───────────┘
-```
-
-想定機能：
-
--   マウス／タップによるドットON/OFF
--   Clear
--   Invert
--   Copy / Paste
--   複数キャラクタの編集
--   バイト列／HEX表現の表示
--   エミュレータLCD上でのプレビュー
--   対象機種に応じたデータ生成
--   BASICのDATA文等への変換
--   アセンブラ用データ定義への変換
--   必要に応じてバイナリデータ生成
-
-想定フロー：
-
-``` text
-ドット編集
-    ↓
-キャラクタデータ生成
-   ├─→ BASICソース／DATA
-   ├─→ ASMデータ
-   └─→ Emulatorでプレビュー
-             ↓
-          WAV出力
-             ↓
-          実機
-```
-
-初期段階では5×7を中心とし、将来的に機種固有の文字サイズや形式にも対応できる設計を検討する。
-
-------------------------------------------------------------------------
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#67-57ドットキャラクタエディタ)
 
 ## 7. テキスト編集の方針
 
-PGPでは**本格的な汎用テキストエディタを開発しない**。
-
-ユーザーは、
-
--   Visual Studio Code
--   Vim
--   Emacs
--   Sublime Text
--   その他任意のテキストエディタ
-
-を利用する。
-
-PGPは通常のソースファイルを扱う。
-
-将来的には、
-
-``` text
-外部エディタ
-    ↓
-Save
-    ↓
-PGPがファイル変更を検出
-    ↓
-Reload
-    ↓
-EmulatorをReset／Run
-```
-
-という連携を検討する。
-
-VS Code
-Extension等の開発も将来的には考えられるが、初期開発対象とはしない。
-
-------------------------------------------------------------------------
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#7-テキスト編集の方針)
 
 ## 8. 技術構成案
 
-現時点での第一候補：
-
--   **Kotlin Multiplatform**
--   UIには必要に応じて **Compose Multiplatform**
-
-PGP Coreをプラットフォーム非依存とする。
-
-``` text
-                PGP Emulator Core
-                       │
-        ┌──────────────┼──────────────┐
-        │              │              │
-  GO Studio       GO Player       GO Player
-        │
-   ┌────┼────┐
-   │    │    │
- macOS Win  Linux
-```
-
-PGP Coreの構成イメージ：
-
-``` text
-PGP Core
- ├─ Emulator Core
- ├─ Machine Definitions
- ├─ BASIC Program Handling
- ├─ Assembler
- ├─ Disassembler
- ├─ Debugger Core
- ├─ WAV Codec
- └─ Character Data / Conversion
-```
-
-プラットフォーム側では、
-
--   UI
--   ファイルダイアログ
--   音声デバイス
--   Clipboard
--   クラウド／ファイルプロバイダ連携
--   OS固有パッケージング
-
-などを扱う。
-
-すべてのプラットフォームに、すべての機能を実装することは必須としない。
-
-------------------------------------------------------------------------
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#8-技術構成案)
 
 ## 9. Pokecom GO Studio First
 
-初期開発はPokecom GO Studioを優先する。
-
-最初の開発・動作確認環境は **Apple Silicon搭載macOS** を想定する。
-
-ただし、CoreにmacOS依存コードを持ち込まない。
-
-現時点での展開イメージ：
-
-``` text
-macOS
-  ↓
-Windows／Linux
-  ↓
-Android
-  ↓
-iOS
-```
-
-実際の順序は開発状況に応じて変更する。
-
-------------------------------------------------------------------------
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#9-pokecom-go-studio-first)
 
 ## 10. ライセンス方針
 
-PGPは新規のオープンソースプロジェクトとして開始する。
-
-現時点では **MIT License** を第一候補とする。
-
-方針：
-
--   新規作成コードおよび作者自身が権利を持つコードを利用する。
--   Pokecom
-    GOや過去の自作ツールから、作者自身が権利を持つコードを必要に応じて利用・再設計する。
--   ROMイメージなど第三者が権利を持つデータは、再配布可能であることが明確でない限りPGPリポジトリや配布物に含めない。
--   外部ライブラリについてもライセンス互換性を確認する。
-
-------------------------------------------------------------------------
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#10-ライセンス方針)
 
 ## 11. Gitリポジトリと配布
 
-PGPはPokecom GOとは別の新規Gitリポジトリとする。
-
-仮リポジトリ名：
-
-``` text
-pokecom-go-plus
-```
-
-将来的な文書構成例：
-
-``` text
-README.md
-LICENSE
-AGENTS.md
-
-docs/
- ├─ PGP_CONCEPT.md
- ├─ ARCHITECTURE.md
- └─ ROADMAP.md
-```
-
--   `PGP_CONCEPT.md`：何を、なぜ作るのか
--   `ARCHITECTURE.md`：どのような構造で実装するのか
--   `ROADMAP.md`：どの順序で開発するのか
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#11-gitリポジトリと配布)
 
 ### バイナリ配布
 
-一般利用者にソースからのビルドを要求しない。
-
-GitHub
-Releases等を利用して、各プラットフォーム向けの実行ファイルを提供することを想定する。
-
-``` text
-PGP v0.x.x
-
-Assets
- ├─ Windows版
- ├─ macOS Apple Silicon版
- ├─ macOS Intel版（必要なら）
- ├─ Linux版
- └─ Source code
-```
-
-ヘビーユーザーや開発参加者はソースからビルドできるようにする。
-
-将来的にはGitHub Actionsによる、
-
-``` text
-Tag／Release
-      ↓
-CI Build
- ├─ Windows
- ├─ macOS
- └─ Linux
-      ↓
-GitHub Release
-```
-
-の自動化も検討する。
-
-Pokecom GO Playerは成熟後にGoogle Play／App Storeでの配布を検討する。
-
-------------------------------------------------------------------------
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#バイナリ配布)
 
 ## 12. 開発コードネーム
 
-現時点の開発コードネーム：
-
-> **Pokecom GO Plus**
-
-略称：
-
-> **PGP**
-
-プロジェクト全体の内部名称として使用する。公開アプリケーション名は
-**Pokecom GO Studio**および**Pokecom GO Player**とする。
-
-PGPは「Pretty Good
-Privacy」の略称として広く知られているため、現時点では内部的な略称として扱う。
-
-Studio／Player以外のツールや配布形式の名称は、必要になった段階で検討する。
-
-------------------------------------------------------------------------
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#12-開発コードネーム)
 
 ## 13. 初期開発方針
 
-最初から構想全体を実装しようとしない。
-
-まず既存のPokecom GOを分析する。
-
-PGPの実装やPokecom GOの大規模変更を行う前に、次を整理する。
-
-1.  Pokecom GOの現在のアーキテクチャ
-2.  Android依存部分
-3.  Emulator Coreとして再利用可能な部分
-4.  PGPでは再設計した方がよい部分
-5.  Kotlin Multiplatform化する際の問題点
-6.  PGPの初期モジュール／ディレクトリ構成案
-7.  最小の初期マイルストーン
-
-既に開始しているPokecom
-GOリファクタリングのためのコード分析結果を、この目的に再利用する。
-
-初期の技術的マイルストーンは小さく設定する。
-
-``` text
-Pokecom GOを分析
-       ↓
-PGP Coreを設計
-       ↓
-PGP新規プロジェクト作成
-       ↓
-1機種分を移植／再構成
-       ↓
-macOS Desktop上で起動
-       ↓
-BASICプログラムを読み込み実行
-```
-
-その後の展開例：
-
-``` text
-Emulator基盤
-       ↓
-外部BASICソース読み込み
-       ↓
-Windows／Linux対応
-       ↓
-Debugger
-       ↓
-Assembler／Disassembler
-       ↓
-5×7 Character Editor
-       ↓
-WAV転送機能
-       ↓
-Android／iOS
-```
-
-この順序は暫定であり、設計・開発状況に応じて変更する。
-
-------------------------------------------------------------------------
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#13-初期開発方針)
 
 ## 14. 設計原則
 
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#14-設計原則)
+
 ### Coreを独立させる
 
-エミュレータや開発ロジックを、Android、Desktop
-UI、ファイルダイアログ、クラウドAPIなどへ不用意に依存させない。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#coreを独立させる)
 
 ### 通常のファイルを優先する
 
-BASICやASMソースは、PGP以外でも普通のツールで扱える形式を基本とする。
-
-明確なメリットがない限り、独自プロジェクト形式に閉じ込めない。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#通常のファイルを優先する)
 
 ### 汎用ツールを再発明しない
 
-テキストエディタなど、既に優れたツールが存在するものは新たに開発しない。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#汎用ツールを再発明しない)
 
 ### ポケコン固有のツールを作る
 
-次のようなポケコン開発固有の機能はPGPで提供する。
-
--   Emulator
--   Debugger
--   Assembler / Disassembler
--   WAV変換
--   機種固有データ変換
--   5×7ドットキャラクタエディタ
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#ポケコン固有のツールを作る)
 
 ### 実機を重要なターゲットとして扱う
 
-エミュレータだけで完結させない。
-
-現代の開発環境で作ったソフトウェアを、最終的に当時の実機へ戻して動かせることをPGPの特徴とする。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#実機を重要なターゲットとして扱う)
 
 ### 小さく育てる
 
-PGPの構想自体は大きいが、開発は小さく検証可能な単位で進める。
-
-------------------------------------------------------------------------
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#小さく育てる)
 
 ## 15. プロジェクトビジョン
 
-PGPは、次の3つをつなぐ環境を目指す。
-
-``` text
-昔の雑誌／過去のソフトウェア
-              │
-              ↓
-         現代のPC
-              │
-        PGP開発環境
-              │
-       ┌──────┴──────┐
-       ↓             ↓
-   Emulator        実機
-```
-
-プロジェクトの中心的なビジョンは、
-
-> **昔の雑誌に載っていたプログラムも、今新しく書いたプログラムも、現代のPCで開発・デバッグし、最後は本物のポケコンで動かせる環境を作る。**
-
-ことである。
-
-PGPは単なるポケコンエミュレータではなく、
-
-> **レトロなポケットコンピュータのための現代的なクロス開発環境**
-
-を目指す。
-
-
-------------------------------------------------------------------------
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#15-プロジェクトビジョン)
 
 ## 16. 追加構想：海外への展開と開発・利用基盤の整備
 
-2026-10-20、ユーザーからの追加構想として記録する。以下は目指す姿と検討事項であり、
-実装済み・公開済み・対応保証を意味しない。開発順序は未確定とし、個別タスクへ分解して進める。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#16-追加構想海外への展開と開発利用基盤の整備)
 
 ### 16.1 公開・コミュニティへの発信
 
-ベースとなったPokecom GOは口コミなどで海外にも広がっている。現在の国内中心のXでの発信を
-継続しながら、既存利用者や海外のポケコン関係者へ今回のプロジェクトを届ける方法を検討する。
-
-- Pokecom GOとの関係、Studio／Playerの役割、現在試せる内容を英語で紹介する。
-- GitHubを共通の案内先とし、デモ動画、節目の英語投稿、既存コミュニティへの紹介を発信候補とする。
-- 試用報告・質問・不具合報告を受け付ける導線を用意する。
-- 発信先、運用頻度、紹介文は別途検討する。今回の記録を投稿・外部連絡の実施とは扱わない。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#161-公開コミュニティへの発信)
 
 ### 16.2 ドキュメントの多言語対応
 
-海外の利用者が概要を理解し、導入できる入口を先に整える。
-
-- GitHubの入口は英語の`README.md`と日本語の`README.ja.md`を基本案とし、相互リンクを置く。
-- 現在の日本語READMEを基に、製品紹介、対応機種・環境、配布物、起動手順、ROMの準備、
-  既知制限、問い合わせ先を英語で案内する。READMEの実際の分割・翻訳は後続作業とする。
-- 詳細文書は優先度に応じて翻訳し、未翻訳のリンクには日本語文書であることを示す。
-- 原文の管理、翻訳の配置・命名、更新同期、翻訳状況の表示方法を検討する。
-- アプリUIのローカライズと、利用・設計ドキュメントの翻訳は別の作業として管理する。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#162-ドキュメントの多言語対応)
 
 ### 16.3 実機ROMの吸い出し支援
 
-現在提供しているPC-1360K漢字ROMの吸い出し支援を出発点に、内部ROMなども含め、
-仕組み・手順・必要機材・ツールを体系的に整理して提供する。
-
-- ROMを読み出す原理、機種ごとのメモリ配置・bank、転送と保存の流れを説明する。
-- 機種別に必要機材、実行プログラム、操作手順、出力形式、取得結果の検証方法をまとめる。
-- 吸い出しツールと手順書をセットで提供し、Studioへの取込みまで案内する。
-- 対応機種と提供順、既存ツールの再利用範囲、実機確認条件は別途調査する。
-- 提供対象は手順とツールであり、ROMイメージはリポジトリや配布物へ含めない。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#163-実機romの吸い出し支援)
 
 ### 16.4 プラットフォーム拡張の方針と仕組み
 
-Studioの基本環境はmacOS／Windows／Linuxを軸としつつ、他環境へ拡張できる仕組みを検討する。
-Android／iOS Playerの対応とは分けて管理する。
-
-- ARM Linux、BSD、Linux化したポメラなどを調査候補とする。CPU構成や依存ライブラリの
-  可用性は個別に確認し、現段階で動作可能とは断定しない。
-- OSとCPUアーキテクチャごとに、正式対応、検証済み配布物、利用者の動作報告、
-  ソースからのビルド案内の範囲を区別する。
-- OS固有処理・依存関係、ビルド設定、パッケージ生成、CIを調査し、移植・配布の追加方法を整理する。
-- Chromebookは既存Linux版Studio／Android版Playerの手順整備で扱える範囲と、
-  権限・ファイル共有・転送など実装修正が必要な範囲を切り分ける。[後続項目](ROADMAP.md#chromeos対応将来対応2026-10-20記録)と連携する。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#164-プラットフォーム拡張の方針と仕組み)
 
 ### 16.5 AI連携：解析支援と制作支援
 
-現在のCodexでの利用に加え、Claude Codeへの対応を目指す。
-共通の連携基盤を使いながら、クライアントごとの接続手順と検証結果を整備する。
-
-1. **既存マシン語の解析支援**：PC-1360Kの調査のように、既存プログラムの実行、
-   制御フロー、メモリアクセス、bank、入出力を追い、根拠と未確定事項を示して動作を説明する。
-2. **要求仕様からの制作支援**：ユーザーの仕様からマシン語プログラムを生成し、
-   アセンブル、ロード、実行、観測、修正を繰り返して完成へ近づける。
-   デジタルインベーダーやパックマンのCoffee Break風デモを具体的な利用イメージとする。
-
-既存の読み取り専用MCPで可能なこと、ソース生成や外部ビルドで進められること、
-Studio側に新たな操作APIが必要なことを分けて設計する。
-クライアント対応や生成結果の動作は未検証であり、既存の読み取り専用APIを実行・変更APIへ無断で広げない。
-詳細は[AI連携構想](AI_INTEGRATION.md)と[Debugger後続候補](DEBUGGER_FOLLOW_UP.md)へ接続する。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#165-ai連携解析支援と制作支援)
 
 ### 16.6 ソースコードの設計ドキュメント
 
-現在の実装を対象に、全体から詳細へ段階的に読める設計解説を整備する。
-
-- 全体：システム構成、責務の境界、主要なデータ・制御の流れ、設計意図。
-- モジュール：Core、Studio、共有Player、Android／iOS host等の役割、機能セット、依存関係、公開境界。
-- 個別機能：主要な型・API・処理の流れ、状態遷移、機種差、検証方法と制約。
-
-[アーキテクチャ](ARCHITECTURE.md)、[Core API](CORE_API.md)、既存の機能別文書を基に、
-現行実装との対応と不足を棚卸しする。実装済み仕様と将来構想を区別し、文書間の導線と更新方針を整える。
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#166-ソースコードの設計ドキュメント)

@@ -25,7 +25,7 @@ BASICではpayload末尾の後に物理trailer `FF`を1 byte追加してPCMを�
 - BASICは最後のchunkが120 bytesでもchunk checksumを付けず、その120 bytesをtail計算へ含める。
 - `s2basic-type37`は同じsource/bodyのtypeを変更する例で、password文字列を設定する例ではない。
 
-期待値の根拠と未確認範囲は[参照動作仕様](../../../docs/WAV_S1_S2_FORMAT.md)を参照。
+期待値の根拠と未確認範囲は[参照動作仕様](../../../docs/reference/WAV_S1_S2_FORMAT.md)を参照。
 特にBinaryの最大長・他機種の実機往復まで確認済みという意味ではない。
 
 ## 固定データの検証

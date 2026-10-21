@@ -1,5 +1,12 @@
 # iOS Player host — PC-1245 / PC-125x / PC-126x / PC-1350 / PC-140x / PC-1450 / PC-1360 / PC-1460 / PC-1470U / PC-1360K
 
+## 利用者向けの入口と記録の読み方
+
+現在の導入・操作・制限は[同梱iPhoneヘルプ](../docs/guides/PLAYER_HELP_IOS.md)を参照してください。
+本書は開発者向けのビルド手順と、日付別の実装・受入れ記録です。2026-10-12／17時点の
+PC-1245単体の説明を、現在の対応機種全体の制限として読み替えないでください。
+全体受入れは[2026-10-21の記録](../docs/development/IOS_MACHINE_SUPPORT_STEP8.md)へまとめています。
+
 iPhone専用・最低iOS 16。SwiftUI/UIKit hostからPgpPlayer static frameworkを使用する。
 共有Session接続、実行制御、スキン/LCD/タッチ入力、表示切替、ROM管理に加え、
 ホーム・階層メニュー・BASIC/DMPロード/セーブと静的同梱の情報画面を接続した。
@@ -7,7 +14,7 @@ iPhone専用・最低iOS 16。SwiftUI/UIKit hostからPgpPlayer static framework
 同Sessionのホーム往復は実行意図を保ち、通常背景復帰は停止する。
 合成表示はDEBUGのSimulator probe専用。共有PCMの音声出力・CPU速度5段階・設定保存を接続。GameController・Physical入力と全体コントローラ設定を接続。実周辺機器の受入れは未実施。
 
-最新の外部入力・検証区分は[手順4](../docs/IOS_PLAYER_STEP4.md)。音声・速度は [手順3](../docs/IOS_PLAYER_STEP3.md)、ホーム・入出力は [手順2](../docs/IOS_PLAYER_STEP2.md) を参照。
+最新の外部入力・検証区分は[手順4](../docs/development/IOS_PLAYER_STEP4.md)。音声・速度は [手順3](../docs/development/IOS_PLAYER_STEP3.md)、ホーム・入出力は [手順2](../docs/development/IOS_PLAYER_STEP2.md) を参照。
 以下に残る2026-10-12の暫定導線・件数・配布情報は当時の段階別記録。
 
 ## ホーム表示・画面方向の修正（2026-10-21）
@@ -15,28 +22,28 @@ iPhone専用・最低iOS 16。SwiftUI/UIKit hostからPgpPlayer static framework
 ホームは機種名順で、初期表示はタイル。タイル／リストを切り替えられ、形式は保存する。
 機種画面だけ横固定とし、ホーム・設定・ROM管理・入出力・情報画面は縦／横に対応する。
 ホームの3点メニューはSwiftUIの標準Menuで表示し、ROM管理から戻った際のアイコン消失を修正・回帰確認済み。
-[実装・検証記録](../docs/IOS_HOME_PRESENTATION_FIX.md)を参照。
+[実装・検証記録](../docs/development/IOS_HOME_PRESENTATION_FIX.md)を参照。
 ユーザーから全対応機種の動作・音声再生と、修正後のホーム画面を一通り確認した旨を受領し、今回の対応を完了とした。音声の途切れ感の調整は後続とする。
 
 ## 全機種の受入れ状況（2026-10-21）
 
 対応14モデル・ROM保存10シリーズ。対応表、全体回帰の結果、実ROM・実機の未確認項目は
-[機種対応 手順8](../docs/IOS_MACHINE_SUPPORT_STEP8.md)を最新記録とする。
+[機種対応 手順8](../docs/development/IOS_MACHINE_SUPPORT_STEP8.md)を最新記録とする。
 全機種のiOS接続を実装済みだが、今回の自動検証は独自の合成ROMを用いる。
 ユーザーの動作確認とは別に、自動検証の範囲を記録する。端末・OS・ROM版・周辺機器別の
 詳細と、最低iOS 16・署名付き配布の受入れは別途管理する。2026-10-12のPC-1245実ROM起動・計算の過去記録は末尾に保持する。
 
 ## バンク機種の追加（2026-10-21）
 
-[手順6](../docs/IOS_MACHINE_SUPPORT_STEP6.md)でPC-1360・PC-1460・PC-1470Uを追加。
+[手順6](../docs/development/IOS_MACHINE_SUPPORT_STEP6.md)でPC-1360・PC-1460・PC-1470Uを追加。
 Studioが作成する内部8 KiB＋16 KiB×8／4／8バンクのpgromを検証・保存する。
 25桁×4行／24桁×1行／24桁×2行LCD、S2 BASIC/DMP、固有キーとPhysical入力を接続する。
 右上RUN/PROと動作モードメニューは、引き続きPC-1245／1251系／1261系だけに表示する。
-[手順7](../docs/IOS_MACHINE_SUPPORT_STEP7.md)でPC-1360Kと漢字ROMの検証・固有キー・平／片／反転S表示を追加。ユーザーは対応機種一通りを確認済み。漢字変換手順・ROM版ごとの詳細は未記録。
+[手順7](../docs/development/IOS_MACHINE_SUPPORT_STEP7.md)でPC-1360Kと漢字ROMの検証・固有キー・平／片／反転S表示を追加。ユーザーは対応機種一通りを確認済み。漢字変換手順・ROM版ごとの詳細は未記録。
 
 ## PC-1401系・PC-1450の追加（2026-10-21）
 
-[手順5](../docs/IOS_MACHINE_SUPPORT_STEP5.md)でPC-1401／1402とPC-1450を追加。
+[手順5](../docs/development/IOS_MACHINE_SUPPORT_STEP5.md)でPC-1401／1402とPC-1450を追加。
 16桁×1行LCD、関数キーと日本語入力キー、S1 BASIC/DMP、64 KiB単体ROM／pgromを接続する。
 PC-1401／1402はシリーズ内ROMを共用し、モデル別標準RAMでSessionを生成する。
 本体CAL／BASICキーを既存Coreへ配送し、LCDシンボルはROMの表示に従う。
@@ -44,34 +51,34 @@ PC-1401／1402はシリーズ内ROMを共用し、モデル別標準RAMでSessio
 
 ## PC-1350の追加（2026-10-21）
 
-[手順4](../docs/IOS_MACHINE_SUPPORT_STEP4.md)でPC-1350を追加。25桁×4行LCD、62タッチ領域、
+[手順4](../docs/development/IOS_MACHINE_SUPPORT_STEP4.md)でPC-1350を追加。25桁×4行LCD、62タッチ領域、
 S1 BASIC/DMP、64 KiB単体ROM／pgromを共有定義へ接続する。
 MODEキーでROM側のモードを操作し、直接のRUN/PROボタンや動作モードメニューは表示しない。
 左右SHIFTの領域IDと保持所有権、固有Physicalキー、機種別の割当可否にも対応する。
 
 ## LCDモード位置・右上トグルの修正（2026-10-21）
 
-[修正記録](../docs/IOS_MODE_INDICATORS_FIX.md)：PC-1245／1251系のLCDモードを左からRUN/PRO/RSVの
+[修正記録](../docs/development/IOS_MODE_INDICATORS_FIX.md)：PC-1245／1251系のLCDモードを左からRUN/PRO/RSVの
 固定位置へ統一（PC-1245はRUN/PROのみ）。右上トグルはPC-1245／1251系／1261系に限定し、RUN/PROのみを切り替える。RSVはメニューから選ぶ。
 以下の段階別記録にある旧トグルの操作記述より、この修正と現在の同梱ヘルプを優先する。
 
 ## PC-1261系の追加（2026-10-21）
 
-[手順3：PC-1260／1261](../docs/IOS_MACHINE_SUPPORT_STEP3.md)で2モデルを追加。
+[手順3：PC-1260／1261](../docs/development/IOS_MACHINE_SUPPORT_STEP3.md)で2モデルを追加。
 24桁×2行LCD、RUN/PRO/RSV、S1 BASICとDMPを既存共有定義へ接続した。
 ホームのPC-1261系カードと共通ROM保存先`pc-1261.json`を使い、単体ROMは64 KiBのみ受け付ける。
 選択・実行モデルの独立保存、プレイ時の切替確認は手順2と同じ。
 
 ## PC-1251系の追加（2026-10-21）
 
-[手順2：PC-1250／1251／1255](../docs/IOS_MACHINE_SUPPORT_STEP2.md)で3モデルを追加。
+[手順2：PC-1250／1251／1255](../docs/development/IOS_MACHINE_SUPPORT_STEP2.md)で3モデルを追加。
 ホームのシリーズカードでモデルを選択し、ROMをシリーズ共用する。選択変更と起動中Sessionは独立し、
 「プレイ」の確認後に新しい標準RAM構成へ切り替える。PC-125xはRUN/PRO/RSVに対応する。
 以下の2026-10-17以前のPC-1245限定という記述と検証件数は当時の記録。
 
 ## 機種追加の共通基盤（2026-10-21）
 
-[手順1：複数機種の共通基盤](../docs/IOS_MACHINE_SUPPORT_STEP1.md)として、
+[手順1：複数機種の共通基盤](../docs/development/IOS_MACHINE_SUPPORT_STEP1.md)として、
 iOS向け機種カタログ、機種別ROM保存、機種情報に基づく表示・モード・プログラム解析と
 Session切替の入口を追加した。手順1の時点ではPC-1245のみを公開し、既存保存ROMとの互換性を維持した。
 PC-1251系の公開とシリーズ共通ROMは上記の手順2で追加した。
@@ -83,14 +90,14 @@ PC-1245のRUN/PROのみを扱い、RSV・他機種・iPadは含めない。
 
 | 段階 | 対応・記録 |
 | --- | --- |
-| 1 | [標準Files picker、コピー読込み、取得取消・失敗時の保護](../docs/IOS_PICKER_STEP1.md) |
-| 2 | [ホーム・階層メニュー、BASIC/DMP、静的情報本文](../docs/IOS_PLAYER_STEP2.md) |
-| 3 | [共有PCM、音声出力、速度5段階、設定保存](../docs/IOS_PLAYER_STEP3.md) |
-| 4 | [GameController、Physical入力、全体コントローラ設定](../docs/IOS_PLAYER_STEP4.md) |
+| 1 | [標準Files picker、コピー読込み、取得取消・失敗時の保護](../docs/development/IOS_PICKER_STEP1.md) |
+| 2 | [ホーム・階層メニュー、BASIC/DMP、静的情報本文](../docs/development/IOS_PLAYER_STEP2.md) |
+| 3 | [共有PCM、音声出力、速度5段階、設定保存](../docs/development/IOS_PLAYER_STEP3.md) |
+| 4 | [GameController、Physical入力、全体コントローラ設定](../docs/development/IOS_PLAYER_STEP4.md) |
 
 最新の確認: 全体build・Core desktop 436件、Android unit 43件、共有Player desktop/Android各60件、
 共有Player iOS Native 70件、hostInput desktop/Android/iOS Native各12件、Swift33件、UI6件が成功。
-CoreのUP-TO-DATE、Swift/UIの分割再実行や途中の失敗は[手順4の検証表](../docs/IOS_PLAYER_STEP4.md#検証)に区別する。
+CoreのUP-TO-DATE、Swift/UIの分割再実行や途中の失敗は[手順4の検証表](../docs/development/IOS_PLAYER_STEP4.md#検証)に区別する。
 署名なしiPhone向けビルドは成功したが、実機実行やiOS 16 runtime検証を意味しない。
 
 以下の操作案内は現在の実装を示す。過去の提案・環境・件数は各段階の記録として読む。
@@ -136,7 +143,7 @@ env JAVA_HOME="$(/usr/libexec/java_home -v 21)" \
   同Sessionのホーム往復は実行意図を保つ。明示Pause後は停止を維持する。
   通常の背景復帰はPAUSEDで入力を解放する。ResetはRUNモードへ戻してCPUを自動実行する。
 - ホームは機種選択と「設定」「ヘルプ・情報」。設定順はROM管理→CPU速度→サウンド→コントローラ設定。
-  案内・ライセンスはビルド時同梱。利用者向け操作は[同梱ヘルプ](../docs/PLAYER_HELP_IOS.md)を参照。
+  案内・ライセンスはビルド時同梱。利用者向け操作は[同梱ヘルプ](../docs/guides/PLAYER_HELP_IOS.md)を参照。
 - PlayerタイトルバーはPC-1245・CPU実行状態・RUN/PROボタン・3点メニュー。
   状態表示をタップしてRun/Pause。「エミュレータ操作」にもRun/Pause/Resetを残す。
   「プログラム」はロード/セーブ、「動作モード」はRUN/PRO、「表示」は通常/Controller Display。

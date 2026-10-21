@@ -1,7 +1,7 @@
 # PC-1360K 4KiB取得一覧
 
 > この文書は個別実験の経過記録です。「未取得」「未実装」等は各記述時点の状態を示します。
-> 現在のまとめは[PC-1360K 漢字ROM解析とStudio対応](../../machines/PC-1360K.md)、
+> 現在のまとめは[PC-1360K 漢字ROM解析とStudio対応](../../reference/machines/PC-1360K.md)、
 > 吸い出し用BASICの使い方は[配布用手順書](../../../tools/pc1360k-rom-dump/README.md)を参照してください。
 
 2026-10-18。selector 0/1と16ビットDPで指定する論理範囲の取得一覧。

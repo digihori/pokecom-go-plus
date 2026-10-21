@@ -16,34 +16,41 @@ PGP consists of two products and a shared emulator core:
 - **PGP Emulator Core** — The Kotlin Multiplatform core shared by Studio and Player.
 
 “Pokecom GO Plus” and “PGP” are development code names for the project as a whole.
-Future AI integration aims to expose Studio's Project, Assembler, and Debugger through localhost MCP,
-supporting BASIC development, machine-code analysis, and debugging with explicit approval for changes.
+The development version of Studio exposes machine and development context through localhost MCP,
+with Studio approval for source patches, Build, Load, and execution changes. See the [AI connection guide (Japanese)](docs/guides/AI_CONNECTION_GUIDE.md) for setup and limits.
+
+For usage, see the [documentation index](docs/README.en.md) or start with [Getting started](docs/guides/GETTING_STARTED.md). Detailed guides are mostly in Japanese.
 
 ## Current status
 
-The project is in early development. Studio implements PC-1245, the PC-1250/1251/1255 family,
-and PC-1261/1350/1401. PC-1360/1360K support includes booting user-supplied ROMs, eight 16 KiB ROM banks,
-LCD output, keyboard input, and S2 BASIC. Registering a kanji ROM enables kana input and kanji conversion on PC-1360K.
+The development versions of Studio and Android/iPhone Player support the following 14 models.
+Registering a kanji ROM enables kana input and kanji conversion on PC-1360K.
 
-On macOS, testing with actual ROMs covers booting, physical and on-screen keyboards, BASIC and machine-code
-file operations, LCD output, and sound. Manual checks on Windows cover ROM booting, keyboard input, BASIC,
-and sound. Linux x86_64 checks cover ROM booting, basic operation, sound, and tar.gz/DEB packages.
-These checks do not establish complete compatibility across every machine, ROM revision, or peripheral.
+| Machine or series | Android Player | iPhone Player |
+| --- | --- | --- |
+| PC-1245 | Supported | Supported |
+| PC-1250, PC-1251, PC-1255 | Supported | Supported |
+| PC-1260, PC-1261 | Supported | Supported |
+| PC-1350 | Supported | Supported |
+| PC-1401, PC-1402 | Supported | Supported |
+| PC-1450 | Supported | Supported |
+| PC-1360, PC-1360K | Supported | Supported |
+| PC-1460 | Supported | Supported |
+| PC-1470U | Supported | Supported |
 
-The PC-1245 Android Player scope was user-confirmed on October 12, 2026. PC-1401 reached its agreed milestone
-on October 15; see its [verification record (Japanese)](docs/ANDROID_PC1401_PROGRESS.md).
-PC-1350 reached its milestone on [October 16 (Japanese)](docs/ANDROID_PC1350_PROGRESS.md).
-These are dated milestones; development in the source tree may extend beyond the published preview.
+The Android scope reached its agreed milestone on October 20, 2026. On October 21, the user confirmed
+operation across the integrated iPhone models, sound playback, and the updated home screen.
+Machine integration and environment-specific coverage remain distinct; see the
+[Android acceptance record](docs/development/ANDROID_SERIES_PROGRESS.md) and
+[iOS acceptance record](docs/development/IOS_MACHINE_SUPPORT_STEP8.md), both in Japanese.
+The iPhone app requires iOS 16 or later and targets iPhone. Signed distribution is a separate step;
+audio roughness remains a follow-up. For operation, use the [Android help](docs/guides/PLAYER_HELP.md)
+or [iPhone help](docs/guides/PLAYER_HELP_IOS.md).
 
-The iPhone app supports PC-1245, PC-1250/1251/1255, PC-1260/1261, PC-1350, PC-1401/1402,
-PC-1450, PC-1360/1360K, PC-1460, and PC-1470U through the shared Player implementation.
-It implements the home screen, ROM management, BASIC/DMP operations, audio and speed settings,
-GameController support, and physical keyboard input. Current machine regression checks use Simulator
-and original synthetic ROMs; the historical PC-1245 actual-ROM check is recorded separately.
-Environment-specific checks for physical devices, real file providers, peripherals, and the minimum iOS 16 runtime
-remain separately tracked. See the [iPhone guide and verification records (Japanese)](iosApp/README.md).
-The user confirmed operation across the integrated models, sound playback, and the updated home screen on October 21, 2026, completing this scope. Audio roughness remains a follow-up. The [home presentation update (Japanese)](docs/IOS_HOME_PRESENTATION_FIX.md) adds sorted tiles/list layouts and restricts landscape orientation to the emulator screen.
-A signed iOS release is not yet available.
+Studio checks with actual ROMs on macOS cover booting, physical and on-screen keys, BASIC and machine-code
+file operations, LCD output, and sound. Manual Windows checks cover booting, keys, BASIC, and sound;
+Linux x86_64 checks cover booting, basic operation, sound, and tar.gz/DEB packages.
+For published-build support, check the [release notes for that version](docs/README.en.md#releases).
 
 Main features include:
 
@@ -77,7 +84,7 @@ The Android preview APK uses a debug signature, not a production store signature
 Your operating system may display a security warning. Packages include the MIT license and third-party
 notices; releases provide SHA-256 checksums.
 
-The detailed [getting started guide](docs/GETTING_STARTED.md) is currently in Japanese.
+The detailed [getting started guide](docs/guides/GETTING_STARTED.md) is currently in Japanese.
 
 ## Workspace
 
@@ -94,7 +101,7 @@ The project tree appears on the left. CPU, Disassembly, Memory, and Trace views 
 Machine-specific keyboards reflect the original layouts, SHIFT legends, and keyword labels.
 
 In Assembly Workspace, **Assemble** previews results, **Build** writes output files, and **Build & Load**
-also loads them into the emulator. See the [SC61860 assembler guide (Japanese)](docs/SC61860_ASSEMBLY.md)
+also loads them into the emulator. See the [SC61860 assembler guide (Japanese)](docs/guides/SC61860_ASSEMBLY.md)
 for expressions, EQU, data definitions, memory placement, output names, and restrictions.
 
 ## Relationship to Pokecom GO
@@ -110,7 +117,7 @@ Studio development focuses on **macOS, Windows, and Linux**.
 Linux packages currently target x86_64; ARM64 Linux packages are not yet available.
 
 Player focuses on execution, without development tools such as a debugger, assembler, or disassembler.
-The Android milestones and iPhone limitations are described above. iOS physical-device acceptance and save states remain future work.
+Android and iPhone Player support the 14 models listed above. Device/OS/ROM-specific coverage and signed distribution are tracked separately. Save states are not implemented.
 
 ## Repository layout
 
@@ -145,7 +152,7 @@ Use JDK 21 for normal builds and execution. Android Studio's bundled JBR can be 
 do not use Java 25. Creating DMG/MSI/DEB packages requires a full JDK 21 with `jpackage`;
 the current Android Studio JBR alone cannot create these packages.
 
-See [Building from source (Japanese)](docs/BUILDING.md) for complete setup, platform-specific packaging,
+See [Building from source (Japanese)](docs/reference/BUILDING.md) for complete setup, platform-specific packaging,
 output locations, and troubleshooting. Gradle does not need to be installed separately.
 
 ### Run Studio
@@ -176,7 +183,7 @@ On Linux, or for a direct Gradle launch on macOS:
 Windows and Linux have CI builds and automated tests. Manual coverage of UI operations, sound,
 and file selection varies by platform and release; see the verification records.
 
-### Build Android Player
+### Build Android Player (14 models)
 
 With Android SDK 36 and JDK 21 configured:
 
@@ -185,7 +192,7 @@ With Android SDK 36 and JDK 21 configured:
 ```
 
 Output: `androidApp/build/outputs/apk/debug/androidApp-debug.apk`.
-Import a `.pgrom` package or a supported legacy ROM for the selected machine; ROMs are stored in private app storage.
+All 14 models listed above are selectable. Import a `.pgrom` package or a supported legacy ROM for the selected machine; ROMs are stored in private app storage.
 Banked machines may require a Studio-created `.pgrom`; see the machine-specific documentation.
 ROMs are restored to the home screen at startup, and the CPU runs automatically on first play and after Reset.
 
@@ -193,11 +200,10 @@ Player features include machine-specific skins and LCD symbols, landscape layout
 handling, manual Controller Display, hierarchical menus, ROM replacement/deletion, gamepad mappings,
 and physical keyboard input. PC-1245 has 52 skin keys and a 16-character LCD; other machines have their own layouts.
 
-Program loading detects `.bas`/`.dmp` by extension. The documented file operations include BASIC export
-and selected RAM-range export where supported. Successful loading resumes the CPU; failure or cancellation leaves it paused.
+Program loading detects `.bas`/`.dmp` by extension. Android exports whole BASIC programs; DMP is load-only. Successful loading resumes the CPU; failure or cancellation leaves it paused.
 The app includes settings, help, product information, version/license notices, and a draft privacy policy.
 Android also provides sound on/off and five CPU speed settings.
-See the [Player guide](docs/PLAYER_PROGRAM_IO.md) and [audio/speed verification record](docs/PLAYER_AUDIO_SPEED_PROGRESS.md),
+See the [Player guide](docs/guides/PLAYER_PROGRAM_IO.md) and [audio/speed verification record](docs/development/PLAYER_AUDIO_SPEED_PROGRESS.md),
 both currently in Japanese, for machine-specific behavior and limits.
 Project, Assembler, Debugger, WAV tools, and save states are outside the current Player scope.
 
@@ -207,11 +213,11 @@ After booting a ROM, load a UTF-8 `.bas` file. The tokenizer normally converts i
 allowing lines longer than the original interactive input limit and escaped special characters.
 Input through the ROM's own editor is also available as a compatibility option.
 Character encodings, keywords, and special characters vary by machine;
-see [BASIC text format (Japanese)](docs/BASIC_TEXT_FORMAT.md).
+see [BASIC text format (Japanese)](docs/reference/BASIC_TEXT_FORMAT.md).
 
 ### WAV conversion and analysis (Studio only)
 
-[Step-by-step guide and hardware verification checklist (Japanese)](docs/WAV_TOOL_GUIDE.md).
+[Step-by-step guide and hardware verification checklist (Japanese)](docs/guides/WAV_TOOL_GUIDE.md).
 
 Open `Tools` → `WAV Tool` to convert OLD BASIC (02/12), OLD Binary (62), S1 BASIC (07/17), S2 BASIC (27/37), and S1/S2 Binary (67).
 Encode an existing `.bas`, or a `.dmp` / Intel HEX (`.hex` / `.ihx`) containing one contiguous region, or choose `Create WAV…` from the project tree.
@@ -228,7 +234,7 @@ There is no target-machine picker. Project launch selects the initial dialect an
 S2 supports Japanese CP932 text and line references, with format-wide vocabulary, without individual machine restrictions.
 Type 27 is the default; the protected BASIC option selects type 37 without setting a password string. The new S1/S2 codec has passed synthetic tests; hardware round trips are unverified.
 The tool does not integrate with ROM CSAVE/CLOAD or directly load decoded data into the emulator.
-See [WAV operations and scope (Japanese)](docs/WAV_OPERATIONS.md).
+See [WAV operations and scope (Japanese)](docs/development/WAV_OPERATIONS.md).
 
 ### Create a ROM set
 
@@ -244,7 +250,7 @@ The tool validates the inputs and creates a `.pgrom` v1 package with a manifest 
 Use `Register in ROM Library` afterward, or register it later through `Manage ROMs…`.
 Keep source ROMs and generated packages outside Git, for example under `local-data/`.
 Existing Pokecom GO 32/64 KiB images can also be registered as compatible legacy inputs.
-See the [ROM set creation guide (Japanese)](docs/GETTING_STARTED.md#43-romダンプからpgromを作る).
+See the [ROM set creation guide (Japanese)](docs/guides/GETTING_STARTED.md#43-romダンプからpgromを作る).
 
 ### Build and test
 
@@ -307,7 +313,7 @@ and UI interactions are verified locally.
 Running `.github/workflows/release.yml` manually creates Studio and Android Player packages,
 retained as workflow artifacts for 14 days. Release tags such as `v0.6.0-alpha.2` use those packages
 to publish a GitHub prerelease. Verify release candidates before creating tags.
-See [Building from source (Japanese)](docs/BUILDING.md) for local DMG/MSI/DEB packaging.
+See [Building from source (Japanese)](docs/reference/BUILDING.md) for local DMG/MSI/DEB packaging.
 
 ## Known limitations
 
@@ -321,13 +327,12 @@ See [Building from source (Japanese)](docs/BUILDING.md) for local DMG/MSI/DEB pa
 - ROM import guidance and bulk selection of banked ROM components remain provisional.
 - ROM-driven BASIC input retains the original per-line input limit; use the tokenizer for longer lines.
 - Sound may differ from the hardware or break up with some programs. The Japanese README records Windows
-  clicking after sound playback; a later [follow-up record (Japanese)](docs/TASK_REVIEW.md) reports improvement
+  clicking after sound playback; a later [follow-up record (Japanese)](docs/development/planning/TASK_REVIEW.md) reports improvement
   confirmed on October 13, with detailed checks still outstanding.
 - The PC-1245/1250 mirror behavior near `0xb000..0xbfff` needs further verification.
-- Player verification is machine- and device-specific. iOS physical-device and actual-ROM acceptance for the expanded machine set,
-  and save states remain future work. The bundled privacy policy is a draft.
+- Android and iPhone Player support the 14 models above. Verification details remain machine- and device-specific; see the Android/iOS acceptance records. Save states are not implemented. The bundled privacy policy is a draft.
 
-See the [preview checklist (Japanese)](docs/PUBLIC_RELEASE_CHECKLIST.md) for recorded release checks.
+See the [documentation index](docs/README.en.md#releases) for versioned release notes and historical checklists.
 
 ## Feedback
 
@@ -336,47 +341,21 @@ Do not attach ROM images, secrets, or data you do not have permission to redistr
 
 ## Documentation
 
-Most detailed documentation is currently in **Japanese**. The links below retain the existing documents;
-their translation will be handled separately. See the [Japanese README](README.ja.md) for the original overview.
+Use the [documentation index](docs/README.en.md) to find guides, technical references, releases, and development records.
+Most detailed documents are in Japanese; the index provides English navigation.
 
-- [Getting started](docs/GETTING_STARTED.md)
-- [Building from source](docs/BUILDING.md)
-- [Project concept](docs/PGP_CONCEPT.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Emulator Core public API](docs/CORE_API.md)
-- [Debugger](docs/DEBUGGER.md)
-- [AI integration](docs/AI_INTEGRATION.md)
-- [SC61860 machine families](docs/MACHINE_FAMILIES.md)
-- [PC-1245 machine definition](docs/machines/PC-1245.md)
-- [PC-1350 machine definition](docs/machines/PC-1350.md)
-- [PC-1360 machine definition](docs/machines/PC-1360.md)
-- [PC-1360K and kanji ROM](docs/machines/PC-1360K.md)
-- [PC-1360K kanji ROM extraction tools](tools/pc1360k-rom-dump/README.md)
-- [PGP ROM package format](docs/ROM_PACKAGE.md)
-- [Golden test data format](docs/GOLDEN_TEST_DATA.md)
-- [External editors and project format](docs/PROJECTS.md)
-- [SC61860 assembler/disassembler](docs/SC61860_ASSEMBLY.md)
-- [WAV operations and scope](docs/WAV_OPERATIONS.md)
-- [OLD WAV format](docs/WAV_OLD_FORMAT.md)
-- [S1/S2 WAV specification and author confirmation](docs/WAV_S1_S2_FORMAT.md)
-- [iPhone Player operation, building, and verification](iosApp/README.md)
-- [Standalone utility tools (binary/DMP conversion and ROM extraction; Japanese guide)](tools/README.md)
-- [Roadmap](docs/ROADMAP.md)
-- [Technical Preview checklist](docs/PUBLIC_RELEASE_CHECKLIST.md)
-- [Technical Preview 0.6 alpha 2 release notes](docs/RELEASE_NOTES_0.6.0-alpha.2.md)
-- [Technical Preview 0.6 release notes](docs/RELEASE_NOTES_0.6.0-alpha.1.md)
-- [Technical Preview 0.5 release notes](docs/RELEASE_NOTES_0.5.0-alpha.1.md)
-- [Technical Preview 0.4 release notes](docs/RELEASE_NOTES_0.4.0-alpha.1.md)
-- [Technical Preview 0.3 release notes](docs/RELEASE_NOTES_0.3.0-alpha.1.md)
-- [Technical Preview 0.2 release notes](docs/RELEASE_NOTES_0.2.0-alpha.1.md)
-- [Technical Preview 0.1 release notes](docs/RELEASE_NOTES_0.1.0-alpha.1.md)
-- [Porting notes](docs/PORTING_NOTES.md)
-- [Third-party software notices](THIRD_PARTY_NOTICES.md)
+- [Getting started and ROM registration](docs/guides/GETTING_STARTED.md).
+- [Projects and Build & Load](docs/guides/PROJECTS.md), [assembler](docs/guides/SC61860_ASSEMBLY.md), [Debugger](docs/guides/DEBUGGER.md).
+- [WAV Tool](docs/guides/WAV_TOOL_GUIDE.md), [AI connection](docs/guides/AI_CONNECTION_GUIDE.md).
+- [Android Player](docs/guides/PLAYER_HELP.md), [iPhone Player](docs/guides/PLAYER_HELP_IOS.md).
+- [Standalone tools](tools/README.md).
+- [Building from source](docs/reference/BUILDING.md).
+- [Releases](docs/README.en.md#releases), [development records and initial designs](docs/README.en.md#development-records-and-initial-designs).
 
 ## License
 
 This project is released under the [MIT License](LICENSE).
 The provenance and rights of code, specifications, and images ported from Pokecom GO and other sources
-are reviewed and recorded in [PORTING_NOTES.md](docs/PORTING_NOTES.md).
+are reviewed and recorded in [PORTING_NOTES.md](docs/development/PORTING_NOTES.md).
 
 WAV BASIC conversion uses the upper format specification rather than individual machine restrictions. Decode automatically detects the validated format; it does not require format or machine selection.

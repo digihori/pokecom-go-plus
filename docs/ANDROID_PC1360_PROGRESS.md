@@ -1,83 +1,36 @@
 # Android PC-1360 Player 対応記録
 
-更新日: 2026-10-20
-状態: Androidホーム・ROM管理・Session・スキン・入力・入出力へ接続済み。
-LCD・シンボル修正を含む今回の範囲は、2026-10-20にユーザーから実機確認「概ねOK」の報告を受領し、一区切りとする。
-以下の未実施・確認待ちの記述は各段階の履歴であり、最新の受入れ状況は本節を参照。
+> 旧URL向けの案内です。本文は新しい場所へ移動しました。
+> This page preserves an older URL. Follow the link below for the document.
+
+[docs/development/ANDROID_PC1360_PROGRESS.md](development/ANDROID_PC1360_PROGRESS.md)
+
+[ドキュメント目次 / Documentation index](README.md)
 
 ## 受入れ区分
 
-| 区分 | 状況 |
-|---|---|
-| 実装済み | 60キー・スキン・4行LCD・6シンボル、ホーム・ROM管理・Session、S2 BASIC保存／再ロードとDMPロード、共通実行・音声・ゲームパッド |
-| 自動検証済み | 機種別キー・LCD・S2入出力・メモリ境界・ROM管理・ゲームパッド・速度／停止復帰を検証。最終チェック結果は後続節 |
-| エミュレータ確認済み | 合成LCD・6シンボル、60キー押下／解放、隔離実ROM起動・初回RAM確認・BASICロードとRUNによるPC1360表示 |
-| 実機確認済み | 2026-10-20、ユーザーから今回の範囲について「概ねOK」の報告。端末・周辺機器・個別機能ごとの網羅結果は未採取 |
+[移動先の節へ / Open this section](development/ANDROID_PC1360_PROGRESS.md#受入れ区分)
 
 ## 既存Core／Studioの確認
 
-- 内部ROMは0000〜1FFFの8 KiB。4000〜7FFFの16 KiB窓へ8バンクを切り替える。
-  3400の下位3bitで選択する既存Coreを再利用する。
-- AndroidはStudioが生成する機種別の`.pgrom`を登録する。内部ROM＋bank-0〜7を保持し、
-  単一flat画像を推測で解釈しない。従来の2ファイルlegacy取込みはStudioで行う。
-- 通常RAMは8000〜FFFF。2000〜3FFFはCoreで書込可能でも、PlayerのDMPでは制御／LCD領域として拒否する。
-- S2 BASICの標準開始8030、start/end pointer FFD7／FFD9、格納上限FFD7未満。
-  Coreの有効開始pointerを尊重する。DMPはBASIC／管理情報を上書きできる点に注意する。
-- CPUは256,000 cycles/s。自動キー保持15,360 cycles、解放間隔25,600 cyclesを既存機種定義から使う。
-- モードは本体MODEキーで切替え、LCDのRUN／PRO bitを表示する。
-  CoreのsetOperatingModeはROMのモードを変えないため、右上RUN／PROボタンや動作モードメニューを追加しない。
-- LCDはPC-1350同様150×32ドット、25桁×4行（6×8セル、隙間込み）。
-  VRAMは2800、2A00、2C00、2E00、3000を基点とする20ブロック。
-- シンボルは303Cのbit1=SHIFT、bit2=DEF、bit3=RUN、bit4=PRO、bit6=カナ、bit0=SML。
-  PC-1350のbit定義をそのまま流用しない。
+[移動先の節へ / Open this section](development/ANDROID_PC1360_PROGRESS.md#既存corestudioの確認)
 
 ## スキン・入力
 
-- 配置済み1426×615画像を確認。PC-1350と異なる上部操作キーと下段キーの位置を定義する。
-- 指定どおり画面SHIFTは左のみ。PC-1350の右SHIFT領域を流用しない。
-- 右端はコンマ／コロン、除算／セミコロンのSHIFTでそれぞれ<、>、(、)。乗算のSHIFTは¥。
-- LCDと左側縦並びのRUN／PRO／カナ／SML／SHIFT／DEFは、提示した合成プレビューをユーザーが承認した。
-- 外部キーはF2=MODE、F3=カナ、F4=SML、Insert=INS、Delete=DEL。通常の文字・数字・SHIFTは既存経路を使う。
-- ゲームパッドは既存の機種別割当・入力所有権・停止／モーダル／切断時の解放を再利用する。
+[移動先の節へ / Open this section](development/ANDROID_PC1360_PROGRESS.md#スキン入力)
 
 ## 検証方法と残項目
 
-- 独自のLIDP／LIA／STD命令とchecker模様でLCD・シンボルを確認し、ROM由来fixtureを追加しない。
-- Debug専用Skin／ROM／Inputホストは通常のROM Library・設定からnamespaceを分ける。
-- ローカルROM回帰テストでは初回Y・ENTER・CLEAR後にS2 BASICをロードし、RUNでPOKEしたRAM値を検証する。
-- 初回RAM確認を済ませる前のBASICロードは、後続のROM初期化で消去される。初期化後にロードして確認する。
-- 実機でのタッチ・外部キーボード・ゲームパッド・音声・速度・背景復帰の受入れはユーザー確認待ち。
-- RAM拡張・セーブステート・iOS機能追加、PC-1450以降の有効化は対象外。commit／pushは未実施。
+[移動先の節へ / Open this section](development/ANDROID_PC1360_PROGRESS.md#検証方法と残項目)
 
 ## 最終チェック（2026-10-20）
 
-- JDK 21（21.0.11）で`build :core:desktopTest :androidApp:assembleDebug`が成功。
-  Core desktop 459件、共有Player desktop／Android各104件、iOS Simulator 114件、Android unit 62件が失敗なし。
-  環境変数が必要な任意のROM解析テストまで実施したとは扱わない。
-- `desktopApp:run`の起動を確認後、起動した検証プロセスを明示終了（Gradleの終了コード143）。
-  Android機能追加に伴うStudioの実装変更はない。
-- 差分形式チェックが成功。通常AndroidのROM Library・設定は検証ホストから分離。
-- 実コントローラ・実キーボード機器の網羅確認、音声の聴感、Android実機での受入れは未実施。
-  自動テストのPCM出力・速度比・入力所有権・停止復帰と区別する。
+[移動先の節へ / Open this section](development/ANDROID_PC1360_PROGRESS.md#最終チェック2026-10-20)
 
 ### エミュレータ追加確認
 
-自作BASICをロードしてRUN、LCDのPC1360表示を確認。BASIC専用セーブの標準ピッカーで新規保存し、
-S2形式から復元されたテキスト（行番号後のコロンを含む）を照合した。
-その保存BASICをPC-1360Kでロード・実行する受渡しも確認した。DMP境界の機種別判定は自動テストで確認した。
-
-同梱ヘルプ更新後の`androidApp:assembleDebug`も成功。最終APKに最新の機種・ROM形式・外部キー案内を反映した。
+[移動先の節へ / Open this section](development/ANDROID_PC1360_PROGRESS.md#エミュレータ追加確認)
 
 ## LCD再配置・下段左寄せシンボル（2026-10-20）
 
-- ユーザー承認済みのプレビューに従い、LCDを幅857・高さ約182.83へ拡大し、
-  LCDそのものをパネルの左右・上下中央に配置。従来比約9.9%拡大、150:32の縦横比を維持する。
-- シンボルはLCD下の同じ高さに左寄せでまとめる。均等配置にせず、文字領域ごとに16の間隔を置く。
-  通常表示・LCD拡大表示で同じ設計座標を使い、キー領域は変更しない。
-- この節は以前の「左側縦並び」の配置を更新する。配置案のユーザー承認と、修正後の実機確認は区別する。
-- 自動検証済み：中央配置・縦横比・左寄せ・パネル内の収まり・ラベル非重複。
-  JDK 21の全体build・Core desktopTestが成功。Core desktop 462件、共有Player desktop／Android各105件、
-  iOS Simulator 115件、Android unit 62件が失敗なし。
-- エミュレータ確認済み：合成LCDで3機種の通常表示とLCD拡大表示、下段シンボルの収まりを確認。
-  ROM Library・設定を分離したDebug専用ホストを使用する。
-- 今回の再配置後の実機確認は未実施。以前の実機確認をこの配置へ読み替えない。commit／pushは未実施。
+[移動先の節へ / Open this section](development/ANDROID_PC1360_PROGRESS.md#lcd再配置下段左寄せシンボル2026-10-20)

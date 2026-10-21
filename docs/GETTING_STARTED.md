@@ -1,265 +1,92 @@
 # Pokecom GO Studio はじめに
 
-このガイドでは、Pokecom GO Studio Technical PreviewのROM LibraryへROMを登録し、対応機種を起動して
-BASICプログラムを実行するまでを説明する。
+> 旧URL向けの案内です。本文は新しい場所へ移動しました。
+> This page preserves an older URL. Follow the link below for the document.
+
+[docs/guides/GETTING_STARTED.md](guides/GETTING_STARTED.md)
+
+[ドキュメント目次 / Documentation index](README.md)
 
 ## 1. 用意するもの
 
-- Pokecom GO Studioの配布物、またはJDK 21を用意したソースツリー
-- 所有する対応機種から正当に取得したROMイメージ
-- 必要に応じて、UTF-8で保存したBASICソース（`.bas`）
-
-ROMイメージはPGPのリポジトリおよび配布物には含まれない。ROMをGitHub Issueなどへ
-添付しないこと。
-
-現在の対応機種は次のとおり。
-
-- PC-1245
-- PC-1250
-- PC-1251
-- PC-1255
-- PC-1350
-- PC-1360
-- PC-1360K
-
-PC-1250／1251／1255は同じROM系統を使い、主な違いであるRAM容量は機種選択と
-`Hardware RAM`／`Expanded RAM`で切り替える。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#1-用意するもの)
 
 ## 2. アプリを起動する
 
-配布物を使う場合は、展開したアプリまたはインストールしたPokecom GO Studioを起動する。
-
-- macOS: `.app`またはDMG内のアプリ
-- Windows: ZIP内の`PokecomGOStudio.exe`またはMSIでインストールしたアプリ
-- Linux x86_64: tar.gz内の`bin/PokecomGOStudio`またはDEBでインストールしたアプリ
-
-ソースツリーから起動する場合は次を実行する。
-
-JDK設定、テスト、OS別パッケージ生成を含む詳しい手順は[ソースからのビルド](BUILDING.md)を参照する。
-
-```bash
-./gradlew :desktopApp:run
-```
-
-Windowsでは次を使用する。
-
-```powershell
-.\gradlew.bat :desktopApp:run
-```
-
-登録したROMはアプリ専用領域へコピーされる。次回起動時は、前回使用した機種と保存済みROMを
-自動的に復元するため、元ファイルを再選択する必要はない。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#2-アプリを起動する)
 
 ### 2.1 画面構成
 
-メインウィンドウはLCD、ソフトウェアキーボード、実行操作を表示する。ファイル操作と開発機能は画面上部の
-メニューバーから開く。
-
-- `File`: ROMの登録・管理、ROM set作成
-- `Project`: Projectの新規作成、Open、Assembly Workspace表示、Build & Load
-- `Program`: BASIC／マシン語の単発入出力、Quick Assemble
-- `Emulator`: Run／Pause／Step／ResetとRAM profile
-- `Debug`: Debugger、Debug Checkpoint
-
-プロジェクトを開くとメイン画面左側へファイルツリーとBuild操作を表示する。CPU、Memory、
-Disassembly、Traceは`Debug` → `Open Debugger`で開く独立Debuggerウィンドウへ表示する。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#21-画面構成)
 
 ### 2.2 アセンブリソースを確認・ビルドする
 
-プロジェクトへ`.asm`を追加し、`Project` → `Open Assembly Workspace`を開く。
-Assembleはスクロール付きの結果欄を更新する。BuildはDMP・Listing・Mapを`build/`へ保存し、
-Build & Loadは保存後にエミュレータへロードする。単一の`src/pacman.asm`なら出力は
-`build/pacman.dmp`、`build/pacman.lst`、`build/pacman.map`となる。
-ボタン下のEmulator表示でロード状態を確認する。ロード後のプログラム実行はポケコン側で開始する。
-Show memory layoutで配置可能な領域を確認できる。
-
-対応する式・疑似命令、機種別配置と検証範囲は[SC61860アセンブラガイド](SC61860_ASSEMBLY.md)を参照。
-単発変換のQuick AssembleはDMP保存のみで、結果プレビューの改善は今後の課題。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#22-アセンブリソースを確認ビルドする)
 
 ## 3. 機種を選ぶ
 
-画面右上の機種プルダウンには全対応機種が表示される。ROM登録済みの機種だけを選択でき、選択すると
-保存済みROMへ切り替えて自動RUNする。未登録機種は`ROM not registered`として無効表示される。
-
-PC-1250／1251／1255は同じPC-1251系ROMを共有する。ROM管理画面で一度登録すれば3機種すべてを
-選択でき、機種切替時は同じROMから各モデルのRAM構成を持つSessionを生成する。
-
-PC-1250／1251／1255では次のRAMモードも選べる。
-
-- `Hardware RAM`: 選択した実機と同じRAM範囲
-- `Expanded RAM`: PC-1255相当の拡張RAM範囲
-
-エミュレータならではの互換性を優先する現在の既定値は`Expanded RAM`である。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#3-機種を選ぶ)
 
 ## 4. ROMを登録する
 
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#4-romを登録する)
+
 ### 4.1 Pokecom GO形式のROMイメージ
 
-`File`メニューの`Register ROM…`または`Manage ROMs…`を開き、対象機種の`Register…`を選ぶ。
-次の従来形式は検証済み`.pgrom`へ変換され、アプリ専用領域へ保存される。
-
-- 32KiBのアドレス空間イメージ
-- Pokecom GO互換の64KiBアドレス空間イメージ
-
-PC-1245の例では、`0x0000..0x1fff`から内部ROM 8KiB、`0x4000..0x7fff`から
-外部ROM 16KiBを取り出す。64KiB形式の後半にあるダミー領域はROMとして使用しない。
-
-`.bin`には機種IDがないため、ROM管理画面の正しい機種または機種ファミリーから登録する。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#41-pokecom-go形式のromイメージ)
 
 ### 4.2 `.pgrom`パッケージ
 
-ROM Libraryで対象機種または機種ファミリーの`Register…`を押し、`.pgrom`を選択する。パッケージ内の
-機種ID、各ROMのサイズ、SHA-256を検証し、有効なSessionを生成できる場合だけ保存して起動する。
-
-`.pgrom`の中身を確認するだけなら、一般的なZIPツールで展開できる。内容を変更して
-再圧縮するとmanifestのサイズやSHA-256と一致しなくなるため、編集には使用しない。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#42-pgromパッケージ)
 
 ### 4.3 ROMダンプから`.pgrom`を作る
 
-`File` → `Create ROM Set…`で専用ウィンドウを開く。必要なROMサイズは対象機種によって異なる。
-
-| 対象機種 | 内部ROM | 外部ROM |
-|---|---:|---:|
-| PC-1245／1250／1251／1255 | 8 KiB（8192 byte） | 16 KiB（16384 byte） |
-| PC-1261／1350／1401 | 8 KiB（8192 byte） | 32 KiB（32768 byte） |
-| PC-1360／1360K | 8 KiB（8192 byte） | 128 KiB（131072 byte、8バンク連結） |
-
-操作手順：
-
-1. `Machine`で対象機種を選ぶ。初期値はメイン画面の選択機種。
-2. `Internal ROM`の欄をクリックし、ファイル選択ダイアログで内部ROMを指定する。
-3. `External ROM`の欄をクリックし、外部ROMを指定する。
-4. `Destination folder and file name (.pgrom)`の欄をクリックし、保存ダイアログで
-   作成先のフォルダとファイル名を指定する。`.pgrom`拡張子は省略すると補完される。
-5. 選択内容を確認し、`Create`を押す。保存先に既存ファイルがある場合は
-   `Replace`で上書きを確認する。`Cancel`で取り消せる。
-6. 成功すると保存先と`Register in ROM Library`ボタンが表示される。
-   このボタンで登録すると対象機種へ切り替わり、自動的にRUNする。
-   作成だけで終える場合は`Close`で閉じる。後から`Manage ROMs…`で登録してもよい。
-
-内部ROM・外部ROMは選択時にサイズを確認する。必要な項目が揃い、ROMのサイズが一致すると
-`Create`が有効になる。サイズ不一致は該当欄に表示される。機種を変更すると選択内容はクリアされる。
-作成に失敗しても選択内容は保持されるため、修正して再実行できる。
-
-PC-1360／1360Kの外部ROM欄では、bank 0からbank 7までを番号順に連結した128 KiBのファイルを選ぶ。
-個別の16 KiBバンクファイルを選択・連結するUIはまだない。
-PC-1360Kでは追加の漢字ROM欄にselector 0〜3の各64 KiBファイルを指定する。
-かな漢字変換には4つすべてが必要。詳細は[PC-1360K](machines/PC-1360K.md)を参照。
-
-ファイル名はROMの判定に使用しない。PGPがサイズを検証し、manifestとSHA-256を自動生成する。
-元のROMファイルは変更せず、作成先として入力ROM自身を指定することもできない。
-ROMと生成した`.pgrom`は`local-data/`などGit管理外の場所に保存する。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#43-romダンプからpgromを作る)
 
 ## 5. エミュレータを動かす
 
-ROMの登録、機種切替、起動時復元に成功すると自動的にRUNする。メイン画面の`Pause`で停止できる。
-
-- `Run`: CPU実行を開始
-- `Pause`: CPU実行を一時停止
-- `Reset`: 機種をリセットして停止
-- `Step`: 停止中にCPU命令を1つ実行
-- `RUN`: BASICの実行モード（PC-1245／1251系のみ表示）
-- `PRO`: BASICの編集モード（PC-1245／1251系のみ表示）
-- `RSV`: 予約語登録モード（PC-1251系のみ表示）
-
-画面キーボードは実機の配列とSHIFT操作を再現する。PCの物理キーボードも使用できる。
-ポケコンのSHIFTは、原則としてSHIFTキーを押して状態を点灯させ、その後に対象キーを押す。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#5-エミュレータを動かす)
 
 ### ゲームコントローラー
 
-OSでUSB／Bluetoothコントローラーを接続してから、Studioの`Settings…`内の`Controller`を開く。
-Android Playerでは3点メニューの`コントローラー設定`を開く。ROM登録前も画面右上から開ける。
-
-1. コントローラー入力を有効にする。1台なら自動選択され、複数接続時は使用する1台を選ぶ。
-2. 図の十字キー・ABXY・L1/R1をクリック／タップし、ポケコンのキーを選ぶ。
-3. 例えば「左」に`4`を選ぶ。変更は自動保存される。設定は1つだけ保存し、以前の割当を上書きする。
-
-ボタンを押している間は割当キーを保持し、離すと解放する。実際の入力はCPU実行中に有効になる。
-設定中は押したボタンが図で点灯し、ポケコンには入力されない。
-ABXYの印字が異なる機器は図の上下左右の位置で選ぶ。アナログスティック・トリガーは使用しない。
-機種を切り替えても同じ割当を使い、その機種にないキーは入力せず設定画面に`利用不可`と表示する。
-ゲームパッド操作はStudioのコマンド履歴には記録しない。キーボードの履歴操作は従来どおり使用できる。
-StudioとPlayerの設定はそれぞれのアプリ内に保存される。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#ゲームコントローラー)
 
 ## 6. BASICソースを読み込む
 
-長い行や特殊文字を含む通常の開発用途では、Tokenizer方式の`Load BASIC`を使用する。
-
-1. ROMを起動する。
-2. `Program` → `Load BASIC…`を選ぶ。
-3. UTF-8の`.bas`ファイルを選ぶ。
-4. 対応機種ではメイン画面の`RUN`へ切り替える。
-5. 停止している場合は`Run`でCPU実行を開始する。
-6. 実機と同様に`RUN`コマンドを入力する。
-
-`Load BASIC`はテキストを機種用の中間コードへ変換し、プログラム領域へ直接配置する。
-長い1行を実機ROMの編集バッファへ入力する制限を受けない。
-
-`Program` → `Type BASIC through ROM…`は、テキストをキー操作へ変換して実機ROMの編集処理に入力する互換方式である。
-実機に近く手軽だが、1行入力長の上限があるため、長い行には使用しない。
-
-特殊文字のエスケープ表記やテキスト仕様は[BASICテキスト形式](BASIC_TEXT_FORMAT.md)を参照する。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#6-basicソースを読み込む)
 
 ### Studioの外部編集とロード元表示
 
-`Settings…` → `External editor`で、ツリーの`Edit`ボタンと診断行から開くエディタを設定する。
-`Use OS text editor`でOS標準のテキストエディタを使うか、コマンドを入力して
-`Apply editor setting`を押す。例えば`code --goto "{file}:{line}"`でVS Codeを指定できる。
-空白を含む実行ファイルのパスは引用符で囲む。`{file}`を省略すると、ソースのパスを末尾へ追加する。
-コマンドはシェル展開せず直接実行する。保存した設定は従来の`PGP_EDITOR`環境変数より優先される。
-macOSでは`code`がアプリのPATHにない場合も、`/Applications`または`~/Applications`のVS Codeを
-自動検出するため、ターミナル用のcodeコマンドをインストールする必要はない。
-
-ツリーでBASIC・ASMなどのテキストソースを選び、`Edit`で開く。バイナリでは無効になる。
-外部で保存した変更は監視により検出され、選択中の`Source information`も約500ms間隔で更新される。
-
-ソフトキー下の左寄せの表示は、最後に正常にロードしたプログラムの出所を示す。
-`Build & Load`では`Project: NAME`、単体のロードでは`Standalone: FILE（プロジェクト外）`となる。
-機械語ロードとROM経由のBASIC入力は追加ロードとして表示する。
-単体ロードではプロジェクトBASICの変更追跡を解除し、`Build & Load`で復帰する。
-キャンセルや失敗では表示を切り替えない。初回ロード前は非表示で、ROMロードやResetで表示を解除する。
-
-`Project` → `Close Project`はツリーとファイル監視を閉じる。エミュレーターとロード済みプログラムは
-保持する。閉じたプロジェクトや現在とは別のプロジェクトからロードしたプログラムには
-`現在のプロジェクト外`と表示する。ファイルの削除やプロジェクトへの書き戻しは行わない。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#studioの外部編集とロード元表示)
 
 ## 7. よくあるエラー
 
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#7-よくあるエラー)
+
 ### ROMサイズが正しくない
 
-内部ROMは8192 byte、外部ROMは16384 byteである必要がある。ファイルのヘッダー、
-チェックサム、吸い出しツール独自の付加データが含まれていないか確認する。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#romサイズが正しくない)
 
 ### `.pgrom`の検証に失敗する
 
-ZIP内の`manifest.json`、componentサイズ、SHA-256、機種IDのいずれかが一致していない。
-手作業で修正せず、元のROMファイルから`Create ROM Set`で作り直す。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#pgromの検証に失敗する)
 
 ### 従来形式ROMを登録しても動かない
 
-ROM Libraryで正しい機種または機種ファミリーの`Register…`を押したか確認する。PC-1245用ROMを
-PC-1251系として登録することはできない。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#従来形式romを登録しても動かない)
 
 ### `Load BASIC`が失敗する
 
-エラーメッセージに示された行番号や文字を確認する。UTF-8で保存されているか、対象機種で
-未対応の予約語・特殊文字を使っていないか、プログラム領域の容量を超えていないか確認する。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#load-basicが失敗する)
 
 ### Windowsでボタン表示が壊れる
 
-Apple Silicon MacのVMware上にあるWindows ARM64でx64版をエミュレーション実行した環境では、
-Direct3D／OpenGL描画のhover表示が壊れる現象を確認している。Windows配布版は互換性を優先して
-Software描画を既定としている。ネイティブWindows x64で再確認するまでの暫定措置である。
-描画方式を比較する場合だけ`PGP_RENDER_API=DIRECT3D`または`OPENGL`を指定する。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#windowsでボタン表示が壊れる)
 
 ### 音に途切れやクリックノイズがある
 
-サウンドは初期実装である。WindowsではBASICをBREAKした後もクリックノイズが続く場合がある。
-アプリを終了すると音声出力ラインも終了する。音声ラインの停止条件は今後改善する。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#音に途切れやクリックノイズがある)
 
 ## 8. ROMの保管
 
-ROM、`.pgrom`、ROMから生成した検証データは公開リポジトリへコミットしない。
-ソースツリーで管理する場合はGit対象外の`local-data/`を使用できる。
-
-形式の詳細は[PGP ROM Package Format](ROM_PACKAGE.md)を参照する。
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#8-romの保管)

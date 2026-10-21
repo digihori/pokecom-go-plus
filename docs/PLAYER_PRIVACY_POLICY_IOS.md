@@ -1,29 +1,28 @@
 # Pokecom GO Player プライバシーポリシー（iOS・公開前の原文案）
 
-対象は現在のiPhone版Pokecom GO Playerです。公開・適用開始日は未確定です。
+> 旧URL向けの案内です。本文は新しい場所へ移動しました。
+> This page preserves an older URL. Follow the link below for the document.
+
+[docs/guides/PLAYER_PRIVACY_POLICY_IOS.md](guides/PLAYER_PRIVACY_POLICY_IOS.md)
+
+[ドキュメント目次 / Documentation index](README.md)
 
 ## 端末内に保持する情報
 
-登録ROMのコピー、機種、元ファイル名、整合性検証用ハッシュをアプリ専用Libraryへ保存します。ROM Libraryはバックアップ対象外です。実行中のRAM・CPU状態はメモリ上だけに保持し、アプリやプロセス終了後には復元しません。
+[移動先の節へ / Open this section](guides/PLAYER_PRIVACY_POLICY_IOS.md#端末内に保持する情報)
 
 ## ファイルの読込みと保存
 
-ROM・BASIC・DMPは、利用者がiOS標準ドキュメントピッカーで選んだファイルを読み込みます。ROMはアプリ内にコピーを保存し、元のURLへ継続的にアクセスしません。プログラムの保存先も利用者が選択します。保存データを一時ファイルに準備し、標準ドキュメントピッカーでコピーを書き出します。他アプリへ共有する機能はありません。
-
-クラウドを選択すると、iCloud DriveやGoogle DriveなどのFile Providerが通信・認証・同期を行う場合があります。Player自身の通信とは別です。各提供元のプライバシーポリシーも確認してください。保存完了はクラウド同期完了を保証しません。
+[移動先の節へ / Open this section](guides/PLAYER_PRIVACY_POLICY_IOS.md#ファイルの読込みと保存)
 
 ## 通信と外部リンク
 
-Player独自のログイン・アカウント・同期・広告・利用解析・ROMやプログラムの自動送信はありません。アプリ自身がネットワークで本文やデータを取得する処理はありません。
-
-案内文・ライセンスはビルド時に静的同梱します。本文更新はアプリ更新で反映します。Studio案内の外部リンクを利用すると外部ブラウザ等がGitHubへ通信します。
+[移動先の節へ / Open this section](guides/PLAYER_PRIVACY_POLICY_IOS.md#通信と外部リンク)
 
 ## 音声・入力
 
-CPUが生成したPCMを端末の音声出力で再生します。消音モードに従い、他アプリの音声と共存します。サウンドON/OFFとCPU速度はアプリ内の設定に保存します。音声データを外部送信せず、マイク・録音・背景音声再生は利用しません。OSが接続済みのゲームパッド・Physical外部キーボードを取得します。パッドの有効状態とキー割当だけをアプリ設定に保存し、物理機器IDやキーストロークの履歴は保存・外部送信しません。独自のBluetooth通信・ペアリング・ログインは追加していません。
+[移動先の節へ / Open this section](guides/PLAYER_PRIVACY_POLICY_IOS.md#音声入力)
 
 ## 削除と問合せ
 
-ホームの「設定」→「ROM管理」で登録ROMを削除できます。アンインストールでもアプリ専用データを失います。外部へセーブしたファイルは保存先で別途削除してください。
-
-問合せ先の候補はプロジェクトのGitHub Issuesです。受付方針・公開ポリシーの適用開始は別途判断します。ROM、プログラム、個人情報を不用意に公開しないでください。
+[移動先の節へ / Open this section](guides/PLAYER_PRIVACY_POLICY_IOS.md#削除と問合せ)

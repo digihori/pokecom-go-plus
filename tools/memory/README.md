@@ -37,7 +37,7 @@ python3 tools/memory/pgp_memory.py info program.dmp
 アドレス範囲超過を検出します。検証だけならこのコマンドを使えます。
 機種別のRAM書込み可否や、プログラムが正常動作するかは判定しません。
 
-入力は[PGP DMP仕様](../../docs/MACHINE_CODE_FORMATS.md)に従い、コメント、コロン区切り、
+入力は[PGP DMP仕様](../../docs/reference/MACHINE_CODE_FORMATS.md)に従い、コメント、コロン区切り、
 連続16進表記、順不同の行、UTF-8 BOM、LF／CRLF／CR改行を受け付けます。
 任意の行末チェックサム`:XX`は書式だけを確認して読み飛ばし、値の検算はしません。
 Intel HEXは対象外です。

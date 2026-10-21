@@ -23,3 +23,18 @@ python3 scripts/generate-s2-cp932.py
 
 再生成は`core/src/commonMain/kotlin/com/digihori/pgp/core/emulator/machine/pc1360/S2JapaneseText.kt`を
 上書きします。変更差分を確認してください。通常のStudioビルドでは実行しません。
+
+## Windows向け開発補助
+
+以下は`docs/`から移動した開発用スクリプトです。リポジトリ直下から実行します。
+Studio利用者が実行する必要はありません。
+
+| ファイル | 用途 |
+| --- | --- |
+| [sync-from-mac.cmd](sync-from-mac.cmd) | Mac側のソースをWindowsへ同期する起動用ラッパー |
+| [sync-from-mac.ps1](sync-from-mac.ps1) | ソース同期の本体。対象・除外・失敗時の扱いは[ビルド手順](../docs/reference/BUILDING.md)を参照 |
+| [test-sync-from-mac.ps1](test-sync-from-mac.ps1) | 一時フォルダー内の合成データで同期処理を検証 |
+| [inspect-msi.ps1](inspect-msi.ps1) | Windows InstallerのCOM APIでMSIのプロパティを検査 |
+
+同期の実行前に`PGP_SYNC_SOURCE`・`PGP_SYNC_DESTINATION`等の設定と対象パスを確認し、
+`sync-from-mac.cmd /preview`で内容を確認してください。MSI検査はWindows上で実行します。

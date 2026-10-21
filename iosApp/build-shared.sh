@@ -19,7 +19,7 @@ cd "$SRCROOT/.."
 pgp_information_dir="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/PlayerInformation"
 mkdir -p "$pgp_information_dir/licenses"
 for pgp_document in PLAYER_HELP_IOS.md PLAYER_PRIVACY_POLICY_IOS.md PLAYER_STUDIO_GUIDE.md; do
-    cp "docs/$pgp_document" "$pgp_information_dir/$pgp_document"
+    cp "docs/guides/$pgp_document" "$pgp_information_dir/$pgp_document"
 done
 cp LICENSE THIRD_PARTY_NOTICES.md "$pgp_information_dir/"
 cp docs/licenses/*.txt "$pgp_information_dir/licenses/"

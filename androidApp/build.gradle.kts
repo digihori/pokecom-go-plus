@@ -7,9 +7,9 @@ plugins {
 }
 
 val preparePlayerLegalResources by tasks.registering(Sync::class) {
-    from(rootProject.layout.projectDirectory.file("docs/PLAYER_PRIVACY_POLICY.md"))
-    from(rootProject.layout.projectDirectory.file("docs/PLAYER_HELP.md"))
-    from(rootProject.layout.projectDirectory.file("docs/PLAYER_STUDIO_GUIDE.md"))
+    from(rootProject.layout.projectDirectory.file("docs/guides/PLAYER_PRIVACY_POLICY.md"))
+    from(rootProject.layout.projectDirectory.file("docs/guides/PLAYER_HELP.md"))
+    from(rootProject.layout.projectDirectory.file("docs/guides/PLAYER_STUDIO_GUIDE.md"))
     from(rootProject.layout.projectDirectory.file("LICENSE"))
     from(rootProject.layout.projectDirectory.file("THIRD_PARTY_NOTICES.md"))
     from(rootProject.layout.projectDirectory.dir("docs/licenses")) { into("licenses") }
