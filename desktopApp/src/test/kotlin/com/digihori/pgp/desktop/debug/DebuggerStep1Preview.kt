@@ -42,7 +42,9 @@ internal fun renderDebuggerStep1Previews(directory: File) {
                                 DebuggerControls(true, state, runner.cpuSnapshot(), reason, {}, {}, {},
                                     { memory = false; navigation = ++revision to null },
                                     { memory = false; navigation = ++revision to it },
-                                    { memory = true; memoryStart = it; revision++ }, strings)
+                                    { memory = true; memoryStart = it; revision++ }, strings,
+                                    onStepOver = {}, onStepOut = {}, canStepOut = runner.canStepOut,
+                                    stepStatus = runner.debugStepStatus)
                             }, {
                                 CpuRegisterPanel(runner.cpuSnapshot(), setOf(CpuField.PC), strings)
                                 DisassemblyPanel(runner, runner.cpuSnapshot(), keyboard, {}, strings, navigation)

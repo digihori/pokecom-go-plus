@@ -52,6 +52,10 @@ internal fun DebuggerControls(
     onStopInstruction: (Int) -> Unit,
     onStopMemory: (Int) -> Unit,
     strings: StudioStrings = StudioStrings.system,
+    onStepOver: (() -> Unit)? = null,
+    onStepOut: (() -> Unit)? = null,
+    canStepOut: Boolean = false,
+    stepStatus: DebuggerStepStatus = DebuggerStepStatus.IDLE,
 ) {
     val location = stopReason?.location()
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -59,8 +63,17 @@ internal fun DebuggerControls(
             Button(onRun, enabled = hasSession && state == RunnerState.PAUSED) { Text(strings.text("emulator.run")) }
             Button(onPause, enabled = hasSession && state == RunnerState.RUNNING) { Text(strings.text("emulator.pause")) }
             Button(onStep, enabled = hasSession && state == RunnerState.PAUSED) { Text(strings.text("emulator.step")) }
+            onStepOver?.let { action ->
+                Button(action, enabled = hasSession && state == RunnerState.PAUSED) { Text(strings.text("debug.step.over")) }
+            }
+            onStepOut?.let { action ->
+                Button(action, enabled = hasSession && state == RunnerState.PAUSED && canStepOut) { Text(strings.text("debug.step.out")) }
+            }
             Text(strings.text(if (hasSession) "runner.${state.name}" else "debug.noCpu"), modifier = Modifier.align(Alignment.CenterVertically))
         }
+        if (stepStatus != DebuggerStepStatus.IDLE) Text(strings.text("debug.step.status.${stepStatus.name}"))
+        if (onStepOut != null && hasSession && state == RunnerState.PAUSED && !canStepOut)
+            Text(strings.text("debug.step.noFrameHint"), style = MaterialTheme.typography.bodySmall)
         SelectionContainer {
             Column {
                 Text(strings.text("debug.nextPc", snapshot?.programCounter?.debugHex() ?: "----"), fontFamily = FontFamily.Monospace)

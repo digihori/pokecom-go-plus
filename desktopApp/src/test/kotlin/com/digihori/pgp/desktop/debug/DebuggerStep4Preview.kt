@@ -23,7 +23,7 @@ internal fun renderDebuggerStep4Previews(directory: File) {
             val strings = StudioStrings(language)
             val runner = debuggerTestRunner()
             if (scenario != "empty") {
-                runner.saveBreakpoint(null, 0xc000)
+                runner.saveBreakpoint(null, 0xc000, condition = "A == 0x41", hitCondition = ">= 3")
                 runner.saveBreakpoint(null, 0xc010, false)
                 runner.saveWatch(null, 0xc000, 0xc00f, DebuggerWatchKind.CHANGE)
                 runner.saveWatch(null, 0xc010, 0xc01f, DebuggerWatchKind.READ_WRITE, false)
@@ -36,7 +36,10 @@ internal fun renderDebuggerStep4Previews(directory: File) {
                             DebuggerLayout(0, false, {
                                 DebuggerControls(true, runner.state, null, null, {}, {}, {}, {}, {}, {}, strings)
                             }, { Text("CPU / Disassembly") }, { Text("Memory") }, strings,
-                                registrations = { DebuggerRegistrationPanel(runner, DesktopKeyboardInput(), strings = strings, initialWatch = scenario == "watches") })
+                                registrations = {
+                                    DebuggerSettingsPanel(true, scenario != "running", strings.text("debug.settings.scope", "pc-1245", "Test Project"), null, {}, {}, strings)
+                                    DebuggerRegistrationPanel(runner, DesktopKeyboardInput(), strings = strings, initialWatch = scenario == "watches")
+                                })
                         }
                     }
                 }

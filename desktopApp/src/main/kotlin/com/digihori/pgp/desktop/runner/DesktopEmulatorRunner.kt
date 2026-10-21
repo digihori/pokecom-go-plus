@@ -28,6 +28,10 @@ import com.digihori.pgp.desktop.input.DesktopCommandHistory
 import com.digihori.pgp.input.HostKeyState
 import com.digihori.pgp.input.GamepadButton
 import com.digihori.pgp.core.source.machine.AddressedMemoryImage
+import com.digihori.pgp.desktop.debug.DebuggerSettingsApplyResult
+import com.digihori.pgp.desktop.debug.DebuggerSettingsError
+import com.digihori.pgp.desktop.debug.DebuggerCallTracker
+import com.digihori.pgp.desktop.debug.DebuggerStepStatus
 import com.digihori.pgp.desktop.debug.DebuggerRegistrationStore
 import com.digihori.pgp.desktop.debug.DebuggerRegistrationResult
 import com.digihori.pgp.desktop.debug.DebuggerRegistrationError
@@ -59,7 +63,11 @@ internal class DesktopEmulatorRunner(
     private val memoryBytesProvider: (Int, Int) -> ByteArray = { start, length ->
         session.memorySnapshot(start, length).copyBytes()
     },
+    private val debugStepInstructionLimit: Long = 100_000L,
+    private val debugStepCycleLimit: Long = 2_000_000L,
+    val debugRomFingerprint: String? = null,
 ) : DesktopKeyInputSink {
+    init { require(debugStepInstructionLimit > 0 && debugStepCycleLimit > 0) }
     override val machineId get() = session.machineId
     val memoryLayout get() = session.memoryLayout
     private val hostKeys = HostKeyState(session::pressKey, session::releaseKey)
@@ -94,12 +102,40 @@ internal class DesktopEmulatorRunner(
     private var previousTimeNanoseconds: Long? = null
     private var requestedOperatingMode: OperatingMode = OperatingMode.RUN
     private val operatingMode: OperatingMode get() = session.currentOperatingMode() ?: requestedOperatingMode
-    private val registrations = DebuggerRegistrationStore(memoryBytesProvider)
+    private var registrations = DebuggerRegistrationStore(readBytes = memoryBytesProvider)
     private val executionBreakpoints: Set<Int> get() = registrations.enabledBreakpointAddresses
     var registrationRevision: Long = 0
         private set
     private var breakpointToSkipOnce: Int? = null
     private var temporaryRunToAddress: Int? = null
+    private val callTracker = DebuggerCallTracker()
+    private data class StepPlan(val out: Boolean, var frame: Long?, val single: Boolean = false,
+        var instructions: Long = 0, var cycles: Long = 0)
+    private var stepPlan: StepPlan? = null
+    var debugStepStatus: DebuggerStepStatus = DebuggerStepStatus.IDLE
+        private set
+    val canStepOut: Boolean get() = state == RunnerState.PAUSED && callTracker.top != null
+
+    fun stepOver(): Boolean = startDebugStep(out = false)
+    fun stepOut(): Boolean = startDebugStep(out = true)
+
+    private fun startDebugStep(out: Boolean): Boolean {
+        if (state != RunnerState.PAUSED) return false
+        if (out && callTracker.top == null) { debugStepStatus = DebuggerStepStatus.NO_FRAME; return false }
+        val pc = session.cpuSnapshot().programCounter
+        val single = !out && !DebuggerCallTracker.isCall(memoryByte(pc))
+        val frame = if (out) callTracker.top?.id else null
+        run()
+        stepPlan = StepPlan(out, frame, single)
+        debugStepStatus = if (out) DebuggerStepStatus.OUT_RUNNING else DebuggerStepStatus.OVER_RUNNING
+        // Like Step Into, the starting instruction is executed even when it has a breakpoint.
+        breakpointToSkipOnce = pc
+        return true
+    }
+
+    private fun interruptDebugStep() {
+        if (stepPlan != null) { stepPlan = null; debugStepStatus = DebuggerStepStatus.INTERRUPTED }
+    }
     private var instructionTraceEnabled: Boolean = false
     private var instructionTraceCapacity: Int = DEFAULT_INSTRUCTION_TRACE_CAPACITY
     private val instructionTrace: ArrayDeque<DesktopInstructionTraceEntry> = ArrayDeque()
@@ -112,11 +148,17 @@ internal class DesktopEmulatorRunner(
     private var nextMemoryAccessSequence: Long = 0
     private var nextBankSequence: Long = 0
     private var lastStepMemoryAccesses: List<MemoryAccess> = emptyList()
+    var debugTargetGeneration: Long = 0
+        private set
+
+    fun signalDebugSettingsChange() { debugSettingsRevision++ }
+
     var sessionRevision: Long = 0
         private set
 
     fun run() {
         if (state != RunnerState.PAUSED) return
+        debugStepStatus = DebuggerStepStatus.IDLE
         breakpointToSkipOnce = when (val reason = stopReason) {
             is DebuggerStopReason.Breakpoint -> reason.address
             is DebuggerStopReason.RunToAddress -> reason.address
@@ -130,6 +172,7 @@ internal class DesktopEmulatorRunner(
     }
 
     fun pause() {
+        interruptDebugStep()
         val previousState = state
         val previousReason = stopReason
         applyTransition(keyInputQueue.cancel())
@@ -145,11 +188,24 @@ internal class DesktopEmulatorRunner(
         if (state != previousState || stopReason != previousReason) sessionRevision++
     }
 
+    var sourceMap: com.digihori.pgp.desktop.project.DesktopDebugSourceMap? = null
+        private set
+
+    fun attachSourceMap(sources: List<com.digihori.pgp.desktop.project.DesktopAssemblySourceResult>) {
+        sourceMap = com.digihori.pgp.desktop.project.DesktopDebugSourceMap.create(sources, ::resolveRomLocation)
+    }
+
     fun reset() {
+        debugTargetGeneration++
+        stepPlan = null
+        debugStepStatus = DebuggerStepStatus.IDLE
+        callTracker.clear()
+        sourceMap = null
         keyInputQueue.cancel()
         hostKeys.releaseAll()
         inputEpoch++
         session.reset()
+        registrations.resetHitCounts()
         planner.reset()
         previousTimeNanoseconds = null
         requestedOperatingMode = OperatingMode.RUN
@@ -169,11 +225,52 @@ internal class DesktopEmulatorRunner(
         sessionRevision++
     }
 
+    var debugSettingsRevision: Long = 0
+        private set
+
+    /** Prepare all definitions and current-value baselines before replacing live registrations. */
+    fun restoreDebugSettings(settings: com.digihori.pgp.desktop.debug.DebuggerSavedSettings): DebuggerSettingsApplyResult {
+        if (state == RunnerState.RUNNING) return DebuggerSettingsApplyResult.Failure(DebuggerSettingsError.RUNNING)
+        if (settings.traceCapacity !in MIN_INSTRUCTION_TRACE_CAPACITY..MAX_INSTRUCTION_TRACE_CAPACITY)
+            return DebuggerSettingsApplyResult.Failure(DebuggerSettingsError.TRACE)
+        if (settings.target.machineId != machineId.value || settings.target.romSha256 != debugRomFingerprint ||
+            settings.target.memoryConfiguration != memoryLayout.pc1251MemoryMode.name)
+            return DebuggerSettingsApplyResult.Failure(DebuggerSettingsError.TARGET)
+        val candidate = DebuggerRegistrationStore(registrations.nextRegistrationId, memoryBytesProvider)
+        for (entry in settings.breakpoints) {
+            val result = candidate.saveBreakpoint(null, entry.address, entry.enabled, entry.condition, entry.hitCondition)
+            if (result is DebuggerRegistrationResult.Failure) return DebuggerSettingsApplyResult.Failure(DebuggerSettingsError.REGISTRATIONS)
+        }
+        for (entry in settings.watches) {
+            val result = candidate.saveWatch(null, entry.start, entry.end, entry.kind, entry.enabled)
+            if (result is DebuggerRegistrationResult.Failure) return DebuggerSettingsApplyResult.Failure(DebuggerSettingsError.REGISTRATIONS)
+        }
+        val oldTracing = debugObservationEnabled || hasMemoryAccessWatch
+        val newTracing = debugObservationEnabled || candidate.hasAccessWatch
+        if (oldTracing != newTracing) {
+            try { session.setMemoryAccessTracing(newTracing) }
+            catch (_: Exception) {
+                runCatching { session.setMemoryAccessTracing(oldTracing) }
+                return DebuggerSettingsApplyResult.Failure(DebuggerSettingsError.REGISTRATIONS)
+            }
+        }
+        registrations = candidate
+        instructionTraceEnabled = settings.traceEnabled
+        instructionTraceCapacity = settings.traceCapacity
+        while (instructionTrace.size > instructionTraceCapacity) instructionTrace.removeFirst()
+        temporaryRunToAddress = null
+        breakpointToSkipOnce = null
+        debugSettingsRevision++
+        registrationRevision++
+        sessionRevision++
+        return DebuggerSettingsApplyResult.Success
+    }
+
     fun breakpointRegistrations(): List<DebuggerBreakpoint> = registrations.breakpoints()
     fun watchRegistrations(): List<DebuggerWatch> = registrations.watches()
 
-    fun saveBreakpoint(id: Long?, address: Int, enabled: Boolean = true): DebuggerRegistrationResult =
-        registrationChanged(registrations.saveBreakpoint(id, address, enabled))
+    fun saveBreakpoint(id: Long?, address: Int, enabled: Boolean = true, condition: String? = null, hitCondition: String? = null): DebuggerRegistrationResult =
+        registrationChanged(registrations.saveBreakpoint(id, address, enabled, condition, hitCondition))
 
     fun removeBreakpoint(id: Long): DebuggerRegistrationResult = registrationChanged(registrations.removeBreakpoint(id))
 
@@ -297,6 +394,7 @@ internal class DesktopEmulatorRunner(
 
     fun runToAddress(address: Int) {
         if (state == RunnerState.FAULTED) return
+        interruptDebugStep()
         temporaryRunToAddress = address and 0xffff
         if (state == RunnerState.PAUSED) run()
     }
@@ -312,6 +410,7 @@ internal class DesktopEmulatorRunner(
 
     fun step(): StepResult {
         pause()
+        debugStepStatus = DebuggerStepStatus.IDLE
         val instructionAddress = if (hasMemoryWatch || hasMemoryAccessWatch) {
             programCounterProvider() and 0xffff
         } else 0
@@ -335,9 +434,13 @@ internal class DesktopEmulatorRunner(
     fun drainAudioSamples(): AudioPcmSnapshot = session.drainAudioSamples()
 
     fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult {
+        debugTargetGeneration++
         val resumeAfterLoad = state == RunnerState.RUNNING
         pause()
         val result = session.loadBasicProgram(program)
+        if (result is BasicProgramLoadResult.Success) registrations.resetHitCounts()
+        callTracker.clear()
+        sourceMap = null
         sessionRevision++
         refreshMemoryWatchBaseline()
         if (resumeAfterLoad && state != RunnerState.FAULTED) run()
@@ -345,10 +448,14 @@ internal class DesktopEmulatorRunner(
     }
 
     fun loadProgramImage(program: ByteArray?, image: AddressedMemoryImage?): com.digihori.pgp.core.api.ProgramImageLoadResult {
+        debugTargetGeneration++
         val resumeAfterLoad = state == RunnerState.RUNNING
         pause()
         val result = session.loadProgramImage(program, image)
         if (result is com.digihori.pgp.core.api.ProgramImageLoadResult.Success) {
+            sourceMap = null
+            registrations.resetHitCounts()
+            callTracker.clear()
             sessionRevision++
             refreshMemoryWatchBaseline()
         }
@@ -359,9 +466,13 @@ internal class DesktopEmulatorRunner(
     fun basicProgramSnapshot(): BasicProgramSnapshotResult = session.basicProgramSnapshot()
 
     fun loadMemoryImage(image: AddressedMemoryImage): MemoryImageLoadResult {
+        debugTargetGeneration++
         val resumeAfterLoad = state == RunnerState.RUNNING
         pause()
         val result = session.loadMemoryImage(image)
+        if (result is MemoryImageLoadResult.Success) registrations.resetHitCounts()
+        callTracker.clear()
+        sourceMap = null
         sessionRevision++
         refreshMemoryWatchBaseline()
         if (resumeAfterLoad && state != RunnerState.FAULTED) run()
@@ -430,6 +541,7 @@ internal class DesktopEmulatorRunner(
 
     /** Runs a complete generated key sequence without host-time pacing. */
     fun runKeySequenceImmediately(keys: Iterable<PocketKey>): RunResult {
+        interruptDebugStep()
         check(state != RunnerState.FAULTED) { "Cannot run input while the emulator is faulted" }
         val resumeAfterInput = state == RunnerState.RUNNING
         applyTransition(keyInputQueue.cancel())
@@ -445,7 +557,7 @@ internal class DesktopEmulatorRunner(
             if (!session.isOperatingModeTransitionPending()) applyTransition(keyInputQueue.start())
             val requestedCycles = if (session.isOperatingModeTransitionPending()) 4_096L else keyInputQueue.limitCycles(Long.MAX_VALUE)
             val partialResult = runSessionCycles(requestedCycles)
-            check(partialResult.executedCycles > 0) { "Session made no progress" }
+            check(partialResult.executedCycles > 0 || status is ExecutionStatus.Faulted) { "Session made no progress" }
             executedCycles += partialResult.executedCycles
             executedInstructions += partialResult.executedInstructions
             status = partialResult.status
@@ -471,6 +583,8 @@ internal class DesktopEmulatorRunner(
             state = RunnerState.FAULTED
             stopReason = DebuggerStopReason.Fault(status.fault)
             temporaryRunToAddress = null
+            interruptDebugStep()
+            callTracker.clear()
         } else if (resumeAfterInput) {
             previousTimeNanoseconds = clock.nowNanoseconds()
         } else {
@@ -484,7 +598,7 @@ internal class DesktopEmulatorRunner(
 
     fun setOperatingMode(mode: OperatingMode) {
         session.setOperatingMode(mode)
-        if (operatingMode != mode) sessionRevision++
+        if (operatingMode != mode) { sessionRevision++; debugTargetGeneration++ }
         if (operatingMode != mode) {
             applyTransition(keyInputQueue.cancel())
             hostKeys.releaseAll()
@@ -532,6 +646,7 @@ internal class DesktopEmulatorRunner(
                 applyTransition(keyInputQueue.advance(partialResult.executedCycles))
             }
             if (partial.stopReason != null) {
+                interruptDebugStep()
                 applyTransition(keyInputQueue.cancel())
                 state = RunnerState.PAUSED
                 previousTimeNanoseconds = null
@@ -539,7 +654,7 @@ internal class DesktopEmulatorRunner(
                 stopReason = partial.stopReason
                 break
             }
-            check(partialResult.executedCycles > 0) { "Session made no progress" }
+            check(partialResult.executedCycles > 0 || status is ExecutionStatus.Faulted) { "Session made no progress" }
         }
         val result = RunResult(executedCycles, executedInstructions, status)
         if (status is ExecutionStatus.Faulted) {
@@ -549,6 +664,8 @@ internal class DesktopEmulatorRunner(
             planner.reset()
             stopReason = DebuggerStopReason.Fault(status.fault)
             temporaryRunToAddress = null
+            interruptDebugStep()
+            callTracker.clear()
         }
         return RunnerTick(budget, result)
     }
@@ -557,8 +674,9 @@ internal class DesktopEmulatorRunner(
         if (
             executionBreakpoints.isEmpty() && temporaryRunToAddress == null &&
             !instructionTraceEnabled && !hasMemoryWatch && !hasMemoryAccessWatch &&
-            !debugObservationEnabled
+            !debugObservationEnabled && stepPlan == null
         ) {
+            callTracker.clear()
             val result = session.runCycles(cycleBudget)
             collectBankEvents()
             if (result.executedInstructions > 0) sessionRevision += result.executedInstructions
@@ -568,7 +686,7 @@ internal class DesktopEmulatorRunner(
         var instructions = 0L
         var status: ExecutionStatus = ExecutionStatus.Ready
         while (cycles < cycleBudget && status !is ExecutionStatus.Faulted) {
-            val needsProgramCounter = temporaryRunToAddress != null ||
+            val needsProgramCounter = stepPlan != null || temporaryRunToAddress != null ||
                 executionBreakpoints.isNotEmpty() || hasMemoryWatch || hasMemoryAccessWatch
             val pc = if (needsProgramCounter) programCounterProvider() and 0xffff else 0
             if (temporaryRunToAddress != null || executionBreakpoints.isNotEmpty()) {
@@ -579,12 +697,19 @@ internal class DesktopEmulatorRunner(
                         stopReason = DebuggerStopReason.RunToAddress(pc),
                     )
                 }
-                if (pc in executionBreakpoints && pc != breakpointToSkipOnce) {
+                if (pc in executionBreakpoints && pc != breakpointToSkipOnce && registrations.breakpointHit(pc, session::cpuSnapshot)) {
+                    sessionRevision++
                     return BreakpointRunResult(
                         RunResult(cycles, instructions, status),
                         stopReason = DebuggerStopReason.Breakpoint(pc),
                     )
                 }
+            }
+            val plan = stepPlan
+            if (plan != null && !plan.single && memoryByte(pc) in listOf(0x7a, 0x69)) {
+                stepPlan = null
+                debugStepStatus = DebuggerStepStatus.UNSUPPORTED_FLOW
+                return BreakpointRunResult(RunResult(cycles, instructions, status), DebuggerStopReason.UserPause)
             }
             breakpointToSkipOnce = null
             val step = stepSession()
@@ -595,12 +720,32 @@ internal class DesktopEmulatorRunner(
             if (watchStop != null) {
                 return BreakpointRunResult(RunResult(cycles, instructions, status), stopReason = watchStop)
             }
+            if (plan != null && status !is ExecutionStatus.Faulted) {
+                plan.instructions++
+                plan.cycles += step.cycles
+                val result = when {
+                    !plan.single && lastCallEvent.lost -> DebuggerStepStatus.FRAME_LOST
+                    plan.single || (plan.frame != null && lastCallEvent.returned == plan.frame) ->
+                        if (plan.out) DebuggerStepStatus.OUT_COMPLETE else DebuggerStepStatus.OVER_COMPLETE
+                    plan.instructions >= debugStepInstructionLimit || plan.cycles >= debugStepCycleLimit -> DebuggerStepStatus.LIMIT
+                    else -> null
+                }
+                if (plan.frame == null && !plan.single) plan.frame = lastCallEvent.entered
+                if (result != null) {
+                    stepPlan = null
+                    debugStepStatus = result
+                    return BreakpointRunResult(RunResult(cycles, instructions, status),
+                        if (result == DebuggerStepStatus.OVER_COMPLETE || result == DebuggerStepStatus.OUT_COMPLETE)
+                            DebuggerStopReason.StepComplete else DebuggerStopReason.UserPause)
+                }
+            }
         }
         return BreakpointRunResult(RunResult(cycles, instructions, status))
     }
 
     private fun runSessionCycles(cycleBudget: Long): RunResult {
         if (!instructionTraceEnabled && !debugObservationEnabled) {
+            callTracker.clear()
             val result = session.runCycles(cycleBudget)
             collectBankEvents()
             if (result.executedInstructions > 0) sessionRevision += result.executedInstructions
@@ -618,7 +763,13 @@ internal class DesktopEmulatorRunner(
         return RunResult(cycles, instructions, status)
     }
 
+    private var lastCallEvent = DebuggerCallTracker.Event()
+
     private fun stepSession(): StepResult {
+        val beforeCall = session.cpuSnapshot()
+        val opcode = memoryByte(beforeCall.programCounter)
+        val callInstruction = if (DebuggerCallTracker.isCall(opcode)) Sc61860InstructionDecoder.decode(beforeCall.programCounter, ::memoryByte) else null
+        val returnRom = callInstruction?.let { session.resolveRomLocation(it.nextAddress) }
         val instructionAddress = if (debugObservationEnabled || hasMemoryAccessWatch) {
             programCounterProvider() and 0xffff
         } else {
@@ -631,6 +782,11 @@ internal class DesktopEmulatorRunner(
             nextTraceSequence++
         }
         val result = session.step()
+        lastCallEvent = if (result.status is ExecutionStatus.Faulted) {
+            callTracker.clear()
+            DebuggerCallTracker.Event(lost = true)
+        } else callTracker.observe(beforeCall, session.cpuSnapshot(), opcode, callInstruction?.targetAddress,
+            returnRom, session::resolveRomLocation)
         sessionRevision++
         lastStepMemoryAccesses = if (debugObservationEnabled || hasMemoryAccessWatch) {
             session.drainMemoryAccesses()

@@ -160,6 +160,7 @@ import com.digihori.pgp.desktop.mcp.DesktopMcpStartResult
 import com.digihori.pgp.desktop.mcp.PgpMcpToolAdapter
 import com.digihori.pgp.desktop.project.DesktopProjectChangeTracker
 import com.digihori.pgp.desktop.project.DesktopProjectApplyResult
+import com.digihori.pgp.desktop.project.DesktopProjectArtifact
 import com.digihori.pgp.desktop.project.DesktopProjectArtifactLoader
 import com.digihori.pgp.desktop.project.DesktopProjectBuildError
 import com.digihori.pgp.desktop.project.DesktopProjectBuildResult
@@ -392,11 +393,64 @@ private fun FrameWindowScope.App(
     var mcpLastRequest by remember { mutableStateOf<DesktopMcpRequestSummary?>(null) }
     val debugContextServiceReference = remember { AtomicReference<com.digihori.pgp.desktop.application.debug.DebugContextService?>() }
     SideEffect { debugContextServiceReference.set(debugContextService) }
+    val developmentStateReference = remember { AtomicReference<com.digihori.pgp.desktop.application.development.DevelopmentReadState?>() }
+    val developmentReadService = remember {
+        com.digihori.pgp.desktop.application.development.DesktopDevelopmentReadService {
+            developmentStateReference.get() ?: throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("NOT_READY")
+        }
+    }
+    var developmentReviewRevision by remember { mutableStateOf(0) }
+    val developmentAppliedCallback = remember { AtomicReference<((String) -> Unit)?>(null) }
+    val developmentBuildCallback = remember { AtomicReference<((String) -> Unit)?>(null) }
+    val developmentChangeService = remember {
+        com.digihori.pgp.desktop.application.development.DevelopmentChangeService(
+            stateProvider = { developmentStateReference.get() ?: throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("NOT_READY") },
+            onChange = { developmentReviewRevision++; showMcpServerWindow = true },
+            onApplied = { developmentAppliedCallback.get()?.invoke(it) },
+            onBuild = { id -> (developmentBuildCallback.get() ?: throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("NOT_READY"))(id) },
+        )
+    }
+    val projectBuildRegistry = remember {
+        com.digihori.pgp.desktop.application.development.ProjectBuildRegistry(
+            { developmentStateReference.get() ?: throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("NOT_READY") },
+            { developmentChangeService.projectRevision(ignoreBusy = true) },
+        )
+    }
+    val executionLoadCallback = remember { AtomicReference<((DesktopProjectWorkspace, DesktopEmulatorRunner, DesktopProjectArtifact) -> DesktopProjectApplyResult)?>(null) }
+    val executionContinueCallback = remember { AtomicReference<((DesktopProjectWorkspace, DesktopEmulatorRunner) -> Unit)?>(null) }
+    var executionReviewRevision by remember { mutableStateOf(0) }
+    val executionChangeService = remember {
+        com.digihori.pgp.desktop.application.execution.ExecutionChangeService(
+            stateProvider = { developmentStateReference.get() ?: throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("NOT_READY") },
+            registry = projectBuildRegistry,
+            contentRevision = { developmentChangeService.projectRevision() },
+            onChange = { executionReviewRevision++; showMcpServerWindow = true },
+            onLoad = { workspace, active, artifact -> (executionLoadCallback.get() ?: throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("NOT_READY"))(workspace, active, artifact) },
+            onContinue = { workspace, active -> (executionContinueCallback.get() ?: throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("NOT_READY"))(workspace, active) },
+        )
+    }
+    val debugPauseCallback = remember { AtomicReference<((DesktopEmulatorRunner) -> Unit)?>(null) }
+    val debugStepCallback = remember { AtomicReference<((DesktopEmulatorRunner) -> Unit)?>(null) }
+    val debugRefreshCallback = remember { AtomicReference<((DesktopEmulatorRunner) -> Unit)?>(null) }
+    var debugReviewRevision by remember { mutableStateOf(0) }
+    val debugChangeService = remember {
+        com.digihori.pgp.desktop.application.debug.DebugChangeService(
+            stateProvider = { developmentStateReference.get() ?: throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("NOT_READY") },
+            onChange = { debugReviewRevision++; showMcpServerWindow = true },
+            onPause = { active -> (debugPauseCallback.get() ?: throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("NOT_READY"))(active) },
+            onStep = { active -> (debugStepCallback.get() ?: throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("NOT_READY"))(active) },
+            onSettingsChanged = { active -> debugRefreshCallback.get()?.invoke(active) },
+        )
+    }
     val mcpServer = remember {
         DesktopMcpServer(
             adapter = PgpMcpToolAdapter(
                 serviceProvider = debugContextServiceReference::get,
                 applicationDispatcher = AwtMcpApplicationDispatcher,
+                developmentProvider = { developmentReadService },
+                changesProvider = { developmentChangeService },
+                debugChangesProvider = { debugChangeService },
+                executionProvider = { executionChangeService },
             ),
             onRequest = { request -> EventQueue.invokeLater { mcpLastRequest = request } },
         )
@@ -405,6 +459,7 @@ private fun FrameWindowScope.App(
         onDispose { mcpServer.stop() }
     }
     var focusRestoreRequest by remember { mutableLongStateOf(0L) }
+    var debuggerSettingsNotice by remember { mutableStateOf<String?>(null) }
     var projectWorkspace by remember { mutableStateOf<DesktopProjectWorkspace?>(null) }
     var projectChangeTracker by remember { mutableStateOf<DesktopProjectChangeTracker?>(null) }
     var projectTree by remember { mutableStateOf<DesktopProjectTreeSnapshot?>(null) }
@@ -428,6 +483,7 @@ private fun FrameWindowScope.App(
     var closeWavToolRequested by remember { mutableStateOf(false) }
     var wavToolInput by remember { mutableStateOf<WavToolInput?>(null) }
     var assemblyPreview by remember { mutableStateOf(emptyList<DesktopAssemblySourceResult>()) }
+    var lastProjectBuildErrors by remember { mutableStateOf(emptyList<DesktopProjectBuildError>()) }
     var assemblyDiagnostics by remember { mutableStateOf(emptyList<DesktopAssemblyDiagnostic>()) }
     var currentAssemblerSettings by remember { mutableStateOf(DesktopUiPreferences.assemblerSettings()) }
     var assemblyStatus by remember { mutableStateOf(uiText("assembly.notAssembled")) }
@@ -493,6 +549,7 @@ private fun FrameWindowScope.App(
     var selectedProjectSourcePath by remember { mutableStateOf<String?>(null) }
     var hostKeyInputMode by remember { mutableStateOf(DesktopUiPreferences.hostKeyInputMode()) }
     SideEffect { keyboardInput.setInputMode(hostKeyInputMode) }
+    LaunchedEffect(runner, projectWorkspace?.manifestFile?.absolutePath) { debuggerSettingsNotice = null }
     val audioPlayer = remember { DesktopAudioPlayer() }
     val romHistory = remember { DesktopRomHistory() }
     val romLibrary = remember { DesktopRomLibrary() }
@@ -562,7 +619,7 @@ private fun FrameWindowScope.App(
                 }
                 runner?.pause()
                 audioPlayer.stop()
-                val newRunner = DesktopEmulatorRunner(result.session).apply { setExecutionSpeed(executionSpeed) }
+                val newRunner = DesktopEmulatorRunner(result.session, debugRomFingerprint = result.romFingerprint).apply { setExecutionSpeed(executionSpeed) }
                 selectedMachineId = result.session.machineId
                 runner = newRunner
                 keyboardInput.attach(newRunner)
@@ -686,6 +743,7 @@ private fun FrameWindowScope.App(
                 changedAssemblySources = emptySet()
                 assemblyPreview = emptyList()
                 assemblyDiagnostics = emptyList()
+                lastProjectBuildErrors = emptyList()
                 assemblyStatus = uiText("assembly.notAssembled")
                 projectRuntimeStatus = ProjectRuntimeStatus.NOT_BUILT
                 if (resetBasicTracking) {
@@ -722,6 +780,7 @@ private fun FrameWindowScope.App(
         changedAssemblySources = emptySet()
         assemblyPreview = emptyList()
         assemblyDiagnostics = emptyList()
+        lastProjectBuildErrors = emptyList()
         assemblyStatus = uiText("assembly.notAssembled")
         projectRuntimeStatus = ProjectRuntimeStatus.NOT_BUILT
         showAssemblyWorkspace = false
@@ -777,6 +836,7 @@ private fun FrameWindowScope.App(
 
     suspend fun assembleWorkspaceWork() {
         val workspace = projectWorkspace ?: return
+        lastProjectBuildErrors = emptyList()
         val result = DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, projectMemoryLayout(workspace), currentAssemblerSettings)
         check(projectWorkspace === workspace) { uiText("assembly.projectChanged") }
         when (result) {
@@ -788,6 +848,7 @@ private fun FrameWindowScope.App(
             is DesktopAssemblyWorkspaceResult.Success -> {
                 assemblyPreview = result.sources
                 assemblyDiagnostics = emptyList()
+                lastProjectBuildErrors = emptyList()
                 changedAssemblySources = emptySet()
                 val bytes = result.sources.sumOf { it.image.byteCount }
                 assemblyStatus = uiText("assembly.previewReady" , (bytes).toString(), (result.sources.size).toString())
@@ -807,12 +868,15 @@ private fun FrameWindowScope.App(
 
     suspend fun buildProjectOutputsWork(): DesktopProjectBuildResult.Success? {
         val workspace = projectWorkspace ?: return null
+        lastProjectBuildErrors = emptyList()
+        val buildStamp = projectBuildRegistry.begin(workspace)
         val layout = projectMemoryLayout(workspace)
         val assembly = DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, layout, currentAssemblerSettings)
         val built = withContext(Dispatchers.IO) { DesktopProjectBuilder.build(workspace, layout, compiledAssembly = assembly) }
         check(projectWorkspace === workspace) { uiText("assembly.buildProjectChanged") }
         return when (built) {
             is DesktopProjectBuildResult.Failure -> {
+                lastProjectBuildErrors = built.errors
                 projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
                 assemblyStatus = uiText("assembly.buildFailedNoLoad")
                 when (assembly) {
@@ -820,13 +884,14 @@ private fun FrameWindowScope.App(
                         assemblyDiagnostics = assembly.diagnostics
                         assemblyStatus = uiText("assembly.buildFailedPreview")
                     }
-                    is DesktopAssemblyWorkspaceResult.Success -> Unit
+                    is DesktopAssemblyWorkspaceResult.Success -> assemblyDiagnostics = emptyList()
                 }
                 val machineName = runner?.machineId?.displayName() ?: workspace.definition.machineId.displayName()
                 showError(built.errors.joinToString("\n") { it.message(machineName) })
                 null
             }
             is DesktopProjectBuildResult.Success -> {
+                assemblyDiagnostics = emptyList()
                 val output = runCatching { withContext(Dispatchers.IO) { DesktopProjectBuildOutputWriter.write(workspace, built.artifact) } }
                     .getOrElse {
                         if (it is CancellationException) throw it
@@ -836,8 +901,10 @@ private fun FrameWindowScope.App(
                         return null
                     }
                 check(projectWorkspace === workspace) { uiText("assembly.changedWhileSaving") }
+                projectBuildRegistry.publish(buildStamp, built.artifact)
                 assemblyPreview = built.artifact.assemblySources
                 assemblyDiagnostics = emptyList()
+                lastProjectBuildErrors = emptyList()
                 changedAssemblySources = emptySet()
                 assemblyStatus = if (output == null) uiText("assembly.built") else uiText("assembly.builtPath", output.path)
                 projectRuntimeStatus = ProjectRuntimeStatus.BUILT_NOT_LOADED
@@ -845,6 +912,46 @@ private fun FrameWindowScope.App(
                 built
             }
         }
+    }
+
+    fun applyProjectArtifact(workspace: DesktopProjectWorkspace, activeRunner: DesktopEmulatorRunner, artifact: DesktopProjectArtifact): DesktopProjectApplyResult {
+        check(runner === activeRunner && projectWorkspace === workspace) { uiText("assembly.changedBeforeLoad") }
+        val applied = DesktopProjectArtifactLoader.load(activeRunner, artifact)
+        when (applied) {
+            is DesktopProjectApplyResult.BasicFailure -> {
+                projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
+                assemblyStatus = uiText("assembly.loadFailed" , (applied.error.message()))
+                showError(applied.error.message())
+            }
+            is DesktopProjectApplyResult.MemoryFailure -> {
+                projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
+                assemblyStatus = uiText("assembly.loadFailed" , (applied.error.message()))
+                showError(applied.error.message())
+            }
+            is DesktopProjectApplyResult.Success -> {
+                loadedProgramLabel = uiText("project.programLabel" , (workspace.definition.name))
+                loadedProjectManifest = workspace.manifestFile.absolutePath
+                projectRuntimeStatus = ProjectRuntimeStatus.UP_TO_DATE
+                changedProjectSources = emptySet()
+                projectChangeTracker = DesktopProjectChangeTracker(workspace)
+                val summary = uiText("assembly.loadedSummary" , (applied.basicByteCount).toString(), (applied.memoryByteCount).toString(), (applied.memorySegmentCount).toString())
+                assemblyStatus = uiText("assembly.loaded" , (activeRunner.machineId.displayName()), (summary))
+                message = uiText("assembly.startHelp" , (assemblyStatus))
+                runnerState = activeRunner.state
+                display = activeRunner.displaySnapshot()
+                cpu = activeRunner.cpuSnapshot()
+                resetDebuggerComparison()
+                requestedToneHz = activeRunner.audioSnapshot().frequencyHz
+                projectBasicBaseline = if (artifact.copyBasicProgram() != null) {
+                    (activeRunner.basicProgramSnapshot() as? BasicProgramSnapshotResult.Success)
+                        ?.copyBytes()
+                } else {
+                    null
+                }
+                projectBasicModified = false
+            }
+        }
+        return applied
     }
 
     suspend fun buildProjectWork() {
@@ -860,45 +967,21 @@ private fun FrameWindowScope.App(
         }
         buildProjectOutputsWork()?.let { built ->
                 check(runner === activeRunner && projectWorkspace === workspace) { uiText("assembly.changedBeforeLoad") }
-                when (val applied = DesktopProjectArtifactLoader.load(activeRunner, built.artifact)) {
-                    is DesktopProjectApplyResult.BasicFailure -> {
-                        projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
-                        assemblyStatus = uiText("assembly.loadFailed" , (applied.error.message()))
-                        showError(applied.error.message())
-                    }
-                    is DesktopProjectApplyResult.MemoryFailure -> {
-                        projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
-                        assemblyStatus = uiText("assembly.loadFailed" , (applied.error.message()))
-                        showError(applied.error.message())
-                    }
-                    is DesktopProjectApplyResult.Success -> {
-                        loadedProgramLabel = uiText("project.programLabel" , (workspace.definition.name))
-                        loadedProjectManifest = workspace.manifestFile.absolutePath
-                        projectRuntimeStatus = ProjectRuntimeStatus.UP_TO_DATE
-                        changedProjectSources = emptySet()
-                        projectChangeTracker = DesktopProjectChangeTracker(workspace)
-                        val summary = uiText("assembly.loadedSummary" , (applied.basicByteCount).toString(), (applied.memoryByteCount).toString(), (applied.memorySegmentCount).toString())
-                        assemblyStatus = uiText("assembly.loaded" , (activeRunner.machineId.displayName()), (summary))
-                        message = uiText("assembly.startHelp" , (assemblyStatus))
-                        runnerState = activeRunner.state
-                        display = activeRunner.displaySnapshot()
-                        cpu = activeRunner.cpuSnapshot()
-                        resetDebuggerComparison()
-                        requestedToneHz = activeRunner.audioSnapshot().frequencyHz
-                        projectBasicBaseline = if (built.artifact.copyBasicProgram() != null) {
-                            (activeRunner.basicProgramSnapshot() as? BasicProgramSnapshotResult.Success)
-                                ?.copyBytes()
-                        } else {
-                            null
-                        }
-                        projectBasicModified = false
-                    }
-                }
+                applyProjectArtifact(workspace, activeRunner, built.artifact)
         }
     }
 
+
+    SideEffect { executionLoadCallback.set { workspace, active, artifact -> applyProjectArtifact(workspace, active, artifact) } }
+
     val assemblyScope = androidx.compose.runtime.rememberCoroutineScope()
     var assemblyBusy by remember { mutableStateOf(false) }
+    com.digihori.pgp.desktop.application.development.PublishDevelopmentReadState(developmentStateReference) {
+        com.digihori.pgp.desktop.application.development.DevelopmentReadState(
+            runner, debugContextService, projectWorkspace, currentAssemblerSettings, assemblyPreview.toList(),
+            assemblyDiagnostics.toList(), lastProjectBuildErrors.toList(), projectRuntimeStatus.name,
+            changedProjectSources.toSet(), assemblyBusy)
+    }
     var assemblyJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     fun startAssembly(action: suspend () -> Unit) {
         if (assemblyBusy) return
@@ -918,6 +1001,22 @@ private fun FrameWindowScope.App(
     fun assembleWorkspace() = startAssembly { assembleWorkspaceWork() }
     fun buildProjectOutputs() = startAssembly { buildProjectOutputsWork() }
     fun buildProject() = startAssembly { buildProjectWork() }
+
+    SideEffect {
+        developmentAppliedCallback.set { sourceId ->
+            changedProjectSources = changedProjectSources + sourceId
+            changedAssemblySources = changedAssemblySources + sourceId
+            projectRuntimeStatus = ProjectRuntimeStatus.SOURCE_CHANGED
+        }
+        developmentBuildCallback.set { operationId ->
+            if (assemblyBusy) throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("BUSY")
+            startAssembly {
+                var succeeded = false
+                try { succeeded = buildProjectOutputsWork() != null }
+                finally { developmentChangeService.completeBuild(operationId, succeeded) }
+            }
+        }
+    }
 
     fun openProjectFromDisk() {
         selectAndRestoreFocus(restoreMainWindowFocus = false) { selectProjectDirectory(ownerWindow) }
@@ -1072,6 +1171,37 @@ private fun FrameWindowScope.App(
         startAssembly { quickAssembleWork(source) }
     }
 
+    fun debugSettingsFile(save: Boolean) {
+        val active = runner ?: return
+        val workspace = projectWorkspace
+        val revision = active.sessionRevision
+        try {
+            val captured = com.digihori.pgp.desktop.debug.DebuggerSettingsFiles.capture(active, workspace?.manifestFile)
+            val file = selectAndRestoreFocus {
+                selectFile(ownerWindow, uiText(if (save) "debug.settings.save" else "debug.settings.restore"),
+                    if (save) "debug-settings.pgdebug.json" else "*.pgdebug.json", if (save) FileDialog.SAVE else FileDialog.LOAD)
+            } ?: return
+            if (runner !== active || projectWorkspace !== workspace || active.sessionRevision != revision)
+                throw com.digihori.pgp.desktop.debug.DebuggerSettingsException(com.digihori.pgp.desktop.debug.DebuggerSettingsError.CHANGED)
+            if (save) {
+                com.digihori.pgp.desktop.debug.DebuggerSettingsFiles.write(file, captured)
+            } else {
+                val settings = com.digihori.pgp.desktop.debug.DebuggerSettingsFiles.read(file)
+                com.digihori.pgp.desktop.debug.DebuggerSettingsFiles.restore(active, workspace?.manifestFile, settings)
+                cpu = active.cpuSnapshot()
+            }
+            val notice = uiText(if (save) "debug.settings.saved" else "debug.settings.restored")
+            debuggerSettingsNotice = notice
+            message = notice
+        } catch (error: Exception) {
+            val code = (error as? com.digihori.pgp.desktop.debug.DebuggerSettingsException)?.code
+                ?: com.digihori.pgp.desktop.debug.DebuggerSettingsError.IO
+            val text = uiText("debug.settings.error.${code.name}")
+            debuggerSettingsNotice = text
+            showError(text)
+        }
+    }
+
     fun runEmulator() {
         runner?.let { debuggerComparison = comparisonTracker.running(it) }
         runner?.run()
@@ -1079,6 +1209,13 @@ private fun FrameWindowScope.App(
         changedCpuFields = emptySet()
         debuggerStopReason = runner?.stopReason
         message = uiText("main.running", executionSpeed.uiLabel())
+    }
+
+    SideEffect {
+        executionContinueCallback.set { workspace, active ->
+            if (runner !== active || projectWorkspace !== workspace || active.state != RunnerState.PAUSED) throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("STALE_SESSION")
+            runEmulator()
+        }
     }
 
     fun pauseEmulator() {
@@ -1126,6 +1263,32 @@ private fun FrameWindowScope.App(
         debuggerStopReason = runner?.stopReason
         requestedToneHz = runner?.audioSnapshot()?.frequencyHz ?: 0
         message = uiText("main.stepped", result.cycles.toString())
+    }
+
+    SideEffect {
+        debugPauseCallback.set { active ->
+            if (runner !== active) throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("STALE_SESSION")
+            pauseEmulator()
+        }
+        debugStepCallback.set { active ->
+            if (runner !== active) throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("STALE_SESSION")
+            stepEmulator()
+        }
+        debugRefreshCallback.set { active ->
+            if (runner === active) { cpu = active.cpuSnapshot(); debuggerStopReason = active.stopReason }
+        }
+    }
+
+    fun stepOverOrOut(out: Boolean) {
+        val active = runner ?: return
+        if (active.state != RunnerState.PAUSED) return
+        if (if (out) active.stepOut() else active.stepOver()) {
+            debuggerComparison = comparisonTracker.running(active)
+            changedCpuFields = emptySet()
+        }
+        runnerState = active.state
+        cpu = active.cpuSnapshot()
+        debuggerStopReason = active.stopReason
     }
 
     fun setMode(mode: OperatingMode) {
@@ -1747,6 +1910,10 @@ private fun FrameWindowScope.App(
                                     onRun = ::runEmulator,
                                     onPause = ::pauseEmulator,
                                     onStep = ::stepEmulator,
+                                    onStepOver = { stepOverOrOut(false) },
+                                    onStepOut = { stepOverOrOut(true) },
+                                    canStepOut = runner?.canStepOut == true,
+                                    stepStatus = runner?.debugStepStatus ?: com.digihori.pgp.desktop.debug.DebuggerStepStatus.IDLE,
                                     onFollowPc = { navigateInstruction(null) },
                                     onStopInstruction = { navigateInstruction(it) },
                                     onStopMemory = ::navigateToMemory,
@@ -1767,6 +1934,7 @@ private fun FrameWindowScope.App(
                                             snapshot = cpu,
                                             keyboardInput = keyboardInput,
                                             navigation = disassemblyNavigation,
+                                            onOpenSource = { file, line -> openExternalSource(file, line) },
                                             onSaveRange = {
                                                 disassemblyStartAddress = (cpu?.programCounter ?: 0).hex(4)
                                                 disassemblyEndAddress = ((cpu?.programCounter ?: 0) + 0xff)
@@ -1777,7 +1945,7 @@ private fun FrameWindowScope.App(
                                         )
                                     }
                                 }
-                                DebuggerSection { SelectionContainer { InstructionTracePanel(runner, executedCycles, keyboardInput) } }
+                                DebuggerSection { SelectionContainer { InstructionTracePanel(runner, executedCycles, keyboardInput, settingsRevision = runner?.debugSettingsRevision ?: 0L) } }
                                 DebuggerSection {
                                     Button(
                                         enabled = runner != null && cpu != null,
@@ -1839,6 +2007,15 @@ private fun FrameWindowScope.App(
                                 }
                             },
                             registrations = {
+                                DebuggerSection {
+                                    com.digihori.pgp.desktop.debug.DebuggerSettingsPanel(
+                                        available = runner?.debugRomFingerprint != null,
+                                        paused = runner != null && runnerState != RunnerState.RUNNING,
+                                        scope = uiText("debug.settings.scope", runner?.machineId?.value ?: "—",
+                                            projectWorkspace?.definition?.name ?: uiText("debug.settings.noProject")),
+                                        notice = debuggerSettingsNotice,
+                                        onSave = { debugSettingsFile(true) }, onRestore = { debugSettingsFile(false) })
+                                }
                                 DebuggerSection { DebuggerRegistrationPanel(runner, keyboardInput, executionRevision = cpu) }
                             },
                         )
@@ -1861,6 +2038,21 @@ private fun FrameWindowScope.App(
                         contentPadding = 16.dp,
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
+                        val executionReview = remember(executionReviewRevision) { executionChangeService.review() }
+                        val executionOperations = remember(executionReviewRevision) { executionChangeService.history() }
+                        com.digihori.pgp.desktop.application.execution.ExecutionReviewPanel(
+                            executionReview, executionOperations, executionChangeService::approve, executionChangeService::reject,
+                        )
+                        val debugReview = remember(debugReviewRevision) { debugChangeService.review() }
+                        val debugOperations = remember(debugReviewRevision) { debugChangeService.history() }
+                        com.digihori.pgp.desktop.application.debug.DebugReviewPanel(
+                            debugReview, debugOperations, debugChangeService::approve, debugChangeService::reject,
+                        )
+                        val review = remember(developmentReviewRevision) { developmentChangeService.review() }
+                        val operations = remember(developmentReviewRevision) { developmentChangeService.history() }
+                        com.digihori.pgp.desktop.application.development.DevelopmentReviewPanel(
+                            review, operations, developmentChangeService::approve, developmentChangeService::reject,
+                        )
                         McpServerPanel(
                             port = mcpPort,
                             onPortChange = { mcpPort = it; mcpServerError = null },
@@ -1881,7 +2073,7 @@ private fun FrameWindowScope.App(
                                     }
                                 }
                             },
-                            onStop = { mcpServer.stop(); mcpServerInfo = null; mcpLastRequest = null },
+                            onStop = { executionChangeService.reject(); debugChangeService.reject(); developmentChangeService.reject(); mcpServer.stop(); mcpServerInfo = null; mcpLastRequest = null },
                             onCopyUrl = { mcpServerInfo?.let { copyToClipboard(it.url); message = uiText("mcp.copiedUrl") } },
                             onCopyToken = { mcpServerInfo?.let { copyToClipboard(it.token); message = uiText("mcp.copiedToken") } },
                             onCopyConfiguration = { mcpServerInfo?.let { copyToClipboard(codexMcpConfiguration(it)); message = uiText("mcp.copiedConfig") } },
@@ -2799,6 +2991,7 @@ internal fun DisassemblyPanel(
     onSaveRange: () -> Unit,
     strings: StudioStrings = StudioStrings.system,
     navigation: Pair<Int, Int?>? = null,
+    onOpenSource: (File, Int) -> Unit = { _, _ -> },
 ) {
     var customStartAddress by rememberSaveable(runner) { mutableStateOf<Int?>(null) }
     var addressText by rememberSaveable(runner) { mutableStateOf("") }
@@ -2828,7 +3021,16 @@ internal fun DisassemblyPanel(
         modifier = Modifier.fillMaxWidth().widthIn(max = 900.dp),
         horizontalAlignment = Alignment.Start,
     ) {
+        val sourceMap = runner?.sourceMap
+        val sourcesUnchanged = sourceMap?.sourcesUnchanged() == true
+        val sourceMappingEnabled = sourcesUnchanged && runner.state != RunnerState.RUNNING
         Text(strings.text("debug.disassembly"), style = MaterialTheme.typography.labelLarge)
+        Text(strings.text(when {
+            sourceMap == null -> "debug.source.none"
+            !sourcesUnchanged -> "debug.source.stale"
+            runner.state == RunnerState.RUNNING -> "debug.source.running"
+            else -> "debug.source.loaded"
+        }))
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -2872,6 +3074,7 @@ internal fun DisassemblyPanel(
             Column(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
             lines.forEach { line ->
                 val address = line.instruction.address
+                val sourceRow = if (sourceMappingEnabled) sourceMap.resolve(address, runner::memoryByte, runner::resolveRomLocation) else null
                 val isCurrent = address == snapshot?.programCounter
                 val marker = if (isCurrent) ">" else " "
                 Row(
@@ -2896,10 +3099,21 @@ internal fun DisassemblyPanel(
                     ) { Text(strings.text("debug.runTo")) }
                     Text(
                         "$marker${address.hex(4)}  " +
-                            "${line.byteText.padEnd(DISASSEMBLY_BYTE_COLUMN_WIDTH)}  ${line.instructionText}",
+                            "${line.byteText.padEnd(DISASSEMBLY_BYTE_COLUMN_WIDTH)}  ${line.instructionText}" +
+                            sourceRow?.labels?.takeIf { it.isNotEmpty() }?.joinToString(", ", "  ; ").orEmpty(),
                         fontFamily = FontFamily.Monospace,
                         color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.Unspecified,
                     )
+                }
+                sourceRow?.let { row ->
+                    TextButton(onClick = {
+                        if (sourceMap != null && sourceMap.sourcesUnchanged() && runner.state != RunnerState.RUNNING &&
+                            sourceMap.resolve(address, runner::memoryByte, runner::resolveRomLocation) == row) {
+                            onOpenSource(row.location.file, row.location.line)
+                        }
+                    }) {
+                        Text("${row.location.file.name}:${row.location.line}  ${row.location.text}", fontFamily = FontFamily.Monospace)
+                    }
                 }
             }
             }
@@ -3015,14 +3229,15 @@ internal fun InstructionTracePanel(
     executionRevision: Long,
     keyboardInput: DesktopKeyboardInput,
     strings: StudioStrings = StudioStrings.system,
+    settingsRevision: Long = runner?.debugSettingsRevision ?: 0L,
 ) {
-    var enabled by remember(runner) { mutableStateOf(runner?.isInstructionTraceEnabled() == true) }
+    var enabled by remember(runner, settingsRevision) { mutableStateOf(runner?.isInstructionTraceEnabled() == true) }
     var localRevision by remember(runner) { mutableStateOf(0) }
-    var capacityText by rememberSaveable(runner) {
+    var capacityText by rememberSaveable(runner, settingsRevision) {
         mutableStateOf((runner?.instructionTraceCapacity() ?: DesktopEmulatorRunner.DEFAULT_INSTRUCTION_TRACE_CAPACITY).toString())
     }
-    var capacityError by rememberSaveable(runner) { mutableStateOf(false) }
-    val entries = remember(runner, executionRevision, localRevision) {
+    var capacityError by rememberSaveable(runner, settingsRevision) { mutableStateOf(false) }
+    val entries = remember(runner, executionRevision, localRevision, settingsRevision) {
         runner?.instructionTrace().orEmpty().takeLast(INSTRUCTION_TRACE_VISIBLE_LINES).asReversed()
     }
 
@@ -3574,7 +3789,7 @@ internal fun codexMcpConfiguration(info: DesktopMcpServerInfo): String = """
     [mcp_servers.pokecom_go_studio]
     url = "${info.url}"
     http_headers_helper = "${tomlEscape(info.headerHelperCommand)}"
-    enabled_tools = ["pgp_get_capabilities", "pgp_get_debug_context", "pgp_get_debug_registrations"]
+    enabled_tools = ["pgp_get_capabilities", "pgp_get_debug_context", "pgp_get_debug_registrations", "pgp_get_machine_spec", "pgp_get_development_context", "pgp_get_source", "pgp_propose_source_patch", "pgp_build_project", "pgp_get_operation", "pgp_propose_debug_action", "pgp_get_debug_operation", "pgp_get_build_artifact", "pgp_propose_load", "pgp_propose_continue", "pgp_get_execution_operation"]
     default_tools_approval_mode = "auto"
 """.trimIndent()
 

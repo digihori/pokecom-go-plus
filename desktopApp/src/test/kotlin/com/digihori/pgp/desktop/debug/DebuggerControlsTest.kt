@@ -7,6 +7,8 @@ import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.semantics.*
 import com.digihori.pgp.core.api.*
 import com.digihori.pgp.core.source.machine.*
+import com.digihori.pgp.desktop.project.*
+import java.nio.file.Files
 import com.digihori.pgp.desktop.DisassemblyPanel
 import com.digihori.pgp.desktop.MemoryViewPanel
 import com.digihori.pgp.desktop.input.DesktopKeyboardInput
@@ -19,6 +21,90 @@ import kotlin.test.*
 
 @OptIn(ExperimentalComposeUiApi::class)
 class DebuggerControlsTest {
+    @Test fun stepOverOutControlsRespectFramesStateAndCancellationInBothLanguages() = onUiThread {
+        for (language in StudioLanguage.entries) {
+            val strings = StudioStrings(language)
+            val runner = debuggerTestRunner(byteArrayOf(0x78, 0, 6, 0x33, 0x33, 0x33, 2, 7, 0x37)).apply {
+                setExecutionSpeed(DesktopExecutionSpeed.UNLIMITED)
+            }
+            var refresh by mutableStateOf(0)
+            val scene = ImageComposeScene(1100, 550) {
+                refresh
+                PgpStudioTheme {
+                    DebuggerControls(true, runner.state, runner.cpuSnapshot(), runner.stopReason,
+                        { runner.run(); refresh++ }, { runner.pause(); refresh++ }, { runner.step(); refresh++ }, {}, {}, {}, strings,
+                        onStepOver = { runner.stepOver(); refresh++ }, onStepOut = { runner.stepOut(); refresh++ },
+                        canStepOut = runner.canStepOut, stepStatus = runner.debugStepStatus)
+                }
+            }
+            try {
+                scene.frames()
+                assertTrue(scene.button(strings.text("debug.step.out")).config.contains(SemanticsProperties.Disabled))
+                assertTrue(strings.text("debug.step.noFrameHint") in scene.texts())
+                scene.click(strings.text("debug.step.over")); scene.frames()
+                assertEquals(RunnerState.RUNNING, runner.state)
+                assertTrue(scene.button(strings.text("debug.step.over")).config.contains(SemanticsProperties.Disabled))
+                assertTrue(strings.text("debug.step.status.OVER_RUNNING") in scene.texts())
+                scene.click(strings.text("emulator.pause")); scene.frames()
+                assertEquals(DebuggerStepStatus.INTERRUPTED, runner.debugStepStatus)
+                runner.step(); refresh++; scene.frames()
+                assertFalse(scene.button(strings.text("debug.step.out")).config.contains(SemanticsProperties.Disabled))
+                scene.click(strings.text("debug.step.out")); runner.tick(); refresh++; scene.frames()
+                assertEquals(3, runner.cpuSnapshot().programCounter)
+                assertTrue(strings.text("debug.step.status.OUT_COMPLETE") in scene.texts())
+                for (status in DebuggerStepStatus.entries.filter { it != DebuggerStepStatus.IDLE })
+                    assertTrue(strings.text("debug.step.status.${status.name}").isNotBlank())
+            } finally { scene.close() }
+        }
+    }
+
+    @Test fun loadedSourceLinksOpenExactLineInBothLanguagesAndRejectStaleClicks() = onUiThread {
+        val root = Files.createTempDirectory("pgp-debug-source-ui-").toFile()
+        try {
+            val file = root.resolve("main.asm")
+            val original = "# Header\nORG 0xC500\nENTRY: LIA 7\nRTN\n"
+            val manifest = root.resolve("pgp-project.json").apply { writeText("""{
+                "format":"pgp-project", "formatVersion":1, "name":"Test", "machineId":"pc-1245",
+                "sources":[{"id":"main","type":"assembly","path":"main.asm"}]
+            }""") }
+            for (language in StudioLanguage.entries) {
+                file.writeText(original)
+                val workspace = assertIs<DesktopProjectOpenResult.Success>(DesktopProjectWorkspaceLoader.open(manifest)).workspace
+                val artifact = assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(workspace)).artifact
+                val runner = debuggerTestRunner()
+                assertIs<DesktopProjectApplyResult.Success>(DesktopProjectArtifactLoader.load(runner, artifact))
+                val strings = StudioStrings(language)
+                var opened: Pair<java.io.File, Int>? = null
+                var refresh by mutableStateOf(0)
+                val scene = ImageComposeScene(1100, 850) {
+                    refresh
+                    PgpStudioTheme {
+                        DisassemblyPanel(runner, runner.cpuSnapshot(), DesktopKeyboardInput(), {}, strings,
+                            1 to 0xc500, { target, line -> opened = target to line })
+                    }
+                }
+                try {
+                    scene.frames()
+                    val link = scene.texts().first { it.startsWith("main.asm:3") }
+                    assertTrue(scene.texts().any { it.contains("; ENTRY") })
+                    val before = runner.cpuSnapshot().programCounter
+                    val revision = runner.sessionRevision
+                    scene.click(link)
+                    assertEquals(file to 3, opened)
+                    assertEquals(before, runner.cpuSnapshot().programCounter)
+                    assertEquals(revision, runner.sessionRevision)
+                    opened = null
+                    file.appendText("; changed\n")
+                    scene.click(link)
+                    assertNull(opened)
+                    refresh++; scene.frames()
+                    assertTrue(strings.text("debug.source.stale") in scene.texts())
+                    assertFalse(scene.texts().any { it.startsWith("main.asm:3") })
+                } finally { scene.close() }
+            }
+        } finally { root.deleteRecursively() }
+    }
+
     @Test fun stopLocationsDistinguishInstructionFromAccessAndDoNotGuessForPause() {
         assertEquals(DebuggerStopLocation(0x1234), DebuggerStopReason.Breakpoint(0x1234).location())
         assertEquals(DebuggerStopLocation(0x1234), DebuggerStopReason.RunToAddress(0x1234).location())

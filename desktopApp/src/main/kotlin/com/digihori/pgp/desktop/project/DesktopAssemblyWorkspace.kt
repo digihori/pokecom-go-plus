@@ -22,6 +22,8 @@ internal data class DesktopAssemblySourceResult(
     val consoleLog: String = "",
     val externalListing: String? = null,
     val symbolLocations: Map<String, DesktopSc61SourceLocation> = emptyMap(),
+    val sourceSnapshots: Map<File, String> = emptyMap(),
+    val sourceLocations: Map<Int, DesktopSc61SourceLocation> = emptyMap(),
 )
 
 internal data class DesktopAssemblyDiagnostic(
@@ -31,6 +33,7 @@ internal data class DesktopAssemblyDiagnostic(
     val sourceText: String?,
     val file: File = source.file,
     val consoleLog: String = "",
+    val externalTool: Boolean = false,
 )
 
 internal sealed interface DesktopAssemblyWorkspaceResult {
@@ -44,9 +47,11 @@ internal object DesktopAssemblyWorkspaceCompiler {
         if (!settings.external) return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { compile(workspace, layout, validatePlacement = false) }
         val assembled = mutableMapOf<String, Sc61860AssemblyResult>()
         val logs = mutableMapOf<String, String>()
+        val inputSnapshots = mutableMapOf<String, Map<File, String>>()
         val externalListings = mutableMapOf<String, DesktopSc61Listing>()
         val externalDiagnostics = mutableMapOf<String, DesktopSc61SourceLocation>()
         for (source in workspace.sources.filter { it.definition.type == ProjectSourceType.ASSEMBLY }) {
+            inputSnapshots[source.definition.id] = DesktopDebugSourceMap.captureInputs(source.file)
             when (val result = DesktopConfiguredExternalAssembler.assemble(settings, source.file, layout)) {
                 is DesktopExternalAssemblyResult.Failure -> {
                     result.location?.let { externalDiagnostics[source.definition.id] = it }
@@ -69,13 +74,15 @@ internal object DesktopAssemblyWorkspaceCompiler {
                     val location = externalDiagnostics[it.source.definition.id] ?: externalListings[it.source.definition.id]?.rows
                         ?.filter { row -> row.location != null && row.location.line == it.line && row.location.text == it.sourceText }
                         ?.mapNotNull { row -> row.location }?.distinct()?.singleOrNull()
-                    val withLog = it.copy(consoleLog = logs[it.source.definition.id].orEmpty())
+                    val withLog = it.copy(consoleLog = logs[it.source.definition.id].orEmpty(), externalTool = true)
                     if (location == null) withLog else withLog.copy(line = location.line, file = location.file, sourceText = location.text)
                 })
                 is DesktopAssemblyWorkspaceResult.Success -> result.copy(sources = result.sources.map {
                     val listing = externalListings[it.source.definition.id]
                     it.copy(consoleLog = logs[it.source.definition.id].orEmpty(), externalListing = listing?.raw,
-                        symbolLocations = listing?.symbolLocations.orEmpty())
+                        symbolLocations = listing?.symbolLocations.orEmpty(),
+                        sourceLocations = listing?.rows.orEmpty().groupBy { row -> row.address }.mapNotNull { (address, rows) -> rows.singleOrNull()?.location?.let { address to it } }.toMap(),
+                        sourceSnapshots = inputSnapshots[it.source.definition.id].orEmpty())
                 })
             }
         }
@@ -123,6 +130,7 @@ internal object DesktopAssemblyWorkspaceCompiler {
                             } }
                             results += DesktopAssemblySourceResult(
                                 source, assembled.image, assembled.symbols, assembled.listing,
+                                sourceSnapshots = mapOf(source.file to text),
                             )
                         }
                     }

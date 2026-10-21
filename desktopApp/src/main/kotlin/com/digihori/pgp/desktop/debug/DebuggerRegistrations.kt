@@ -3,7 +3,10 @@ package com.digihori.pgp.desktop.debug
 import com.digihori.pgp.core.api.MemoryAccess
 import com.digihori.pgp.core.api.MemoryAccessKind
 
-internal data class DebuggerBreakpoint(val id: Long, val address: Int, val enabled: Boolean = true)
+internal data class DebuggerBreakpoint(
+    val id: Long, val address: Int, val enabled: Boolean = true,
+    val condition: String = "", val hitCondition: String = "", val hitCount: Long = 0,
+)
 internal enum class DebuggerWatchKind {
     CHANGE, READ, WRITE, READ_WRITE;
     fun matches(kind: MemoryAccessKind): Boolean = this == READ_WRITE ||
@@ -11,7 +14,7 @@ internal enum class DebuggerWatchKind {
 }
 internal data class DebuggerWatch(val id: Long, val range: IntRange, val kind: DebuggerWatchKind, val enabled: Boolean = true)
 internal enum class DebuggerRegistrationError {
-    ADDRESS, RANGE, DUPLICATE_ADDRESS, NOT_FOUND, BREAKPOINT_LIMIT, WATCH_LIMIT, WATCH_BYTES_LIMIT, OBSERVATION_FAILED,
+    CONDITION, HIT_CONDITION, ADDRESS, RANGE, DUPLICATE_ADDRESS, NOT_FOUND, BREAKPOINT_LIMIT, WATCH_LIMIT, WATCH_BYTES_LIMIT, OBSERVATION_FAILED,
 }
 internal sealed interface DebuggerRegistrationResult {
     data class Success(val id: Long) : DebuggerRegistrationResult
@@ -19,9 +22,13 @@ internal sealed interface DebuggerRegistrationResult {
 }
 
 /** Session-local registrations. Copies cross the UI boundary; baselines are never exported. */
-internal class DebuggerRegistrationStore(private val readBytes: (Int, Int) -> ByteArray) {
-    private var nextId = 0L
+internal class DebuggerRegistrationStore(initialId: Long = 0L, private val readBytes: (Int, Int) -> ByteArray) {
+    private var nextId = initialId
+    val nextRegistrationId: Long get() = nextId
     private val breakpoints = linkedMapOf<Long, DebuggerBreakpoint>()
+    private val conditions = mutableMapOf<Long, DebuggerBreakpointCondition>()
+    private val hitConditions = mutableMapOf<Long, DebuggerBreakpointHitCondition>()
+    private val hitCounts = mutableMapOf<Long, Long>()
     private val watches = linkedMapOf<Long, DebuggerWatch>()
     private val baselines = mutableMapOf<Long, ByteArray>()
     private val activeAddresses = mutableSetOf<Int>()
@@ -29,16 +36,26 @@ internal class DebuggerRegistrationStore(private val readBytes: (Int, Int) -> By
     val hasChangeWatch: Boolean get() = watches.values.any { it.enabled && it.kind == DebuggerWatchKind.CHANGE }
     val hasAccessWatch: Boolean get() = watches.values.any { it.enabled && it.kind != DebuggerWatchKind.CHANGE }
 
-    fun breakpoints(): List<DebuggerBreakpoint> = breakpoints.values.sortedBy { it.address }
+    fun breakpoints(): List<DebuggerBreakpoint> = breakpoints.values.sortedBy { it.address }.map { it.copy(hitCount = hitCounts[it.id] ?: 0) }
     fun watches(): List<DebuggerWatch> = watches.values.toList()
 
-    fun saveBreakpoint(id: Long?, address: Int, enabled: Boolean): DebuggerRegistrationResult {
+    fun saveBreakpoint(id: Long?, address: Int, enabled: Boolean, condition: String? = null, hitCondition: String? = null): DebuggerRegistrationResult {
         if (address !in 0..0xffff) return failure(DebuggerRegistrationError.ADDRESS)
         if (id != null && id !in breakpoints) return failure(DebuggerRegistrationError.NOT_FOUND)
         if (breakpoints.values.any { it.id != id && it.address == address }) return failure(DebuggerRegistrationError.DUPLICATE_ADDRESS)
         if (id == null && breakpoints.size >= MAX_BREAKPOINTS) return failure(DebuggerRegistrationError.BREAKPOINT_LIMIT)
+        val old = breakpoints[id]
+        val conditionText = (condition ?: old?.condition.orEmpty()).trim()
+        val hitText = (hitCondition ?: old?.hitCondition.orEmpty()).trim()
+        val parsed = if (conditionText.isEmpty()) null else DebuggerBreakpointCondition.parse(conditionText)
+            ?: return failure(DebuggerRegistrationError.CONDITION)
+        val parsedHit = if (hitText.isEmpty()) null else DebuggerBreakpointHitCondition.parse(hitText)
+            ?: return failure(DebuggerRegistrationError.HIT_CONDITION)
         val savedId = id ?: nextId++
-        breakpoints[savedId] = DebuggerBreakpoint(savedId, address, enabled)
+        if (old == null || old.address != address || old.condition != conditionText || old.hitCondition != hitText) hitCounts.remove(savedId)
+        if (parsed == null) conditions.remove(savedId) else conditions[savedId] = parsed
+        if (parsedHit == null) hitConditions.remove(savedId) else hitConditions[savedId] = parsedHit
+        breakpoints[savedId] = DebuggerBreakpoint(savedId, address, enabled, conditionText, hitText)
         activeAddresses.clear()
         activeAddresses.addAll(breakpoints.values.filter { it.enabled }.map { it.address })
         return DebuggerRegistrationResult.Success(savedId)
@@ -47,7 +64,20 @@ internal class DebuggerRegistrationStore(private val readBytes: (Int, Int) -> By
     fun removeBreakpoint(id: Long): DebuggerRegistrationResult {
         val old = breakpoints.remove(id) ?: return failure(DebuggerRegistrationError.NOT_FOUND)
         activeAddresses.remove(old.address)
+        conditions.remove(id); hitConditions.remove(id); hitCounts.remove(id)
         return DebuggerRegistrationResult.Success(id)
+    }
+
+    fun resetHitCounts() { hitCounts.clear() }
+
+    /** Called once per enabled PC encounter, before execution, excluding resume's skipped encounter. */
+    fun breakpointHit(address: Int, cpu: () -> com.digihori.pgp.core.api.CpuSnapshot): Boolean {
+        val entry = breakpoints.values.firstOrNull { it.enabled && it.address == address } ?: return false
+        val previous = hitCounts[entry.id] ?: 0
+        val count = if (previous == Long.MAX_VALUE) previous else previous + 1
+        hitCounts[entry.id] = count
+        if (hitConditions[entry.id]?.matches(count) == false) return false
+        return conditions[entry.id]?.matches(cpu) { readBytes(it, 1).single().toInt() and 255 } ?: true
     }
 
     fun saveWatch(id: Long?, start: Int, end: Int, kind: DebuggerWatchKind, enabled: Boolean): DebuggerRegistrationResult {

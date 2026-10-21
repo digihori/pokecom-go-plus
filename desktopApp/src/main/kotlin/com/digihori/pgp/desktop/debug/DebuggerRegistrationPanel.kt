@@ -35,16 +35,19 @@ internal fun DebuggerRegistrationPanel(
     executionRevision: Any? = null, strings: StudioStrings = StudioStrings.system,
     initialWatch: Boolean = false,
 ) {
-    var watchSelected by rememberSaveable(runner) { mutableStateOf(initialWatch) }
-    var bpId by rememberSaveable(runner) { mutableStateOf<Long?>(null) }
-    var bpAddress by rememberSaveable(runner) { mutableStateOf("") }
-    var bpEnabled by rememberSaveable(runner) { mutableStateOf(true) }
-    var watchId by rememberSaveable(runner) { mutableStateOf<Long?>(null) }
-    var start by rememberSaveable(runner) { mutableStateOf("C000") }
-    var end by rememberSaveable(runner) { mutableStateOf("C0FF") }
-    var kind by rememberSaveable(runner) { mutableStateOf(DebuggerWatchKind.CHANGE) }
-    var watchEnabled by rememberSaveable(runner) { mutableStateOf(true) }
-    var error by rememberSaveable(runner) { mutableStateOf<DebuggerRegistrationError?>(null) }
+    var watchSelected by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf(initialWatch) }
+    var bpId by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf<Long?>(null) }
+    var bpAddress by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf("") }
+    var showConditionHelp by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf(false) }
+    var bpCondition by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf("") }
+    var bpHitCondition by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf("") }
+    var bpEnabled by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf(true) }
+    var watchId by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf<Long?>(null) }
+    var start by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf("C000") }
+    var end by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf("C0FF") }
+    var kind by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf(DebuggerWatchKind.CHANGE) }
+    var watchEnabled by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf(true) }
+    var error by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf<DebuggerRegistrationError?>(null) }
     var localRevision by remember { mutableStateOf(0) }
     val canEdit = runner != null && runner.state != RunnerState.RUNNING
     val breakpoints = remember(runner, executionRevision, runner?.registrationRevision, localRevision) { runner?.breakpointRegistrations().orEmpty() }
@@ -63,9 +66,20 @@ internal fun DebuggerRegistrationPanel(
         if (!canEdit) Text(strings.text(if (runner == null) "debug.noCpu" else "debug.registration.pause"))
         if (!watchSelected) {
             Text(if (bpId == null) strings.text("debug.registration.new") else strings.text("debug.registration.editing", bpId.toString()))
+            Text(strings.text("debug.breakpoint.examples"), style = MaterialTheme.typography.bodySmall)
+            TextButton(onClick = { showConditionHelp = !showConditionHelp }) {
+                Text(strings.text(if (showConditionHelp) "debug.breakpoint.hideHelp" else "debug.breakpoint.showHelp"))
+            }
+            if (showConditionHelp) Text(strings.text("debug.breakpoint.conditionHelp"), style = MaterialTheme.typography.bodySmall)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(bpAddress, { bpAddress = it; error = null }, label = { Text(strings.text("debug.addressHex")) },
                     readOnly = !canEdit, singleLine = true, modifier = Modifier.widthIn(max = 180.dp).onFocusChanged { keyboardInput.setEnabled(!it.isFocused) })
+                OutlinedTextField(bpCondition, { bpCondition = it; error = null }, label = { Text(strings.text("debug.breakpoint.condition")) },
+                    placeholder = { Text("A == 0x41") }, readOnly = !canEdit, singleLine = true,
+                    modifier = Modifier.widthIn(max = 240.dp).onFocusChanged { keyboardInput.setEnabled(!it.isFocused) })
+                OutlinedTextField(bpHitCondition, { bpHitCondition = it; error = null }, label = { Text(strings.text("debug.breakpoint.hitCondition")) },
+                    placeholder = { Text(">= 3") }, readOnly = !canEdit, singleLine = true,
+                    modifier = Modifier.widthIn(max = 260.dp).onFocusChanged { keyboardInput.setEnabled(!it.isFocused) })
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(bpEnabled, { bpEnabled = it }, enabled = canEdit,
                         modifier = Modifier.semantics { contentDescription = strings.text("debug.registration.formEnabled") })
@@ -74,7 +88,7 @@ internal fun DebuggerRegistrationPanel(
                 Button(enabled = canEdit, onClick = {
                     val address = parseHexAddress(bpAddress)
                     if (address == null) error = DebuggerRegistrationError.ADDRESS
-                    else if (result(runner?.saveBreakpoint(bpId, address, bpEnabled))) bpId = null
+                    else if (result(runner?.saveBreakpoint(bpId, address, bpEnabled, bpCondition, bpHitCondition))) bpId = null
                 }) { Text(strings.text(if (bpId == null) "debug.registration.add" else "common.apply")) }
                 if (bpId != null) TextButton({ bpId = null; error = null }) { Text(strings.text("common.cancel")) }
             }
@@ -82,6 +96,8 @@ internal fun DebuggerRegistrationPanel(
             Text(strings.text("debug.registration.count", breakpoints.count { it.enabled }.toString(), breakpoints.size.toString()))
             if (breakpoints.isEmpty()) Text(strings.text("debug.registration.empty"))
             else RegistrationRows(breakpoints, { it.id }) { entry ->
+                Text(strings.text("debug.breakpoint.ruleSummary", entry.condition.ifBlank { "—" },
+                    entry.hitCondition.ifBlank { "—" }, entry.hitCount.toString()), fontFamily = FontFamily.Monospace)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(entry.enabled, { enabled ->
                         if (result(runner?.setBreakpointEnabled(entry.id, enabled)) && bpId == entry.id) bpEnabled = enabled
@@ -93,7 +109,7 @@ internal fun DebuggerRegistrationPanel(
                 }
                 FlowRow {
                     TextButton(enabled = canEdit, onClick = {
-                        bpId = entry.id; bpAddress = entry.address.historyHex(4); bpEnabled = entry.enabled; error = null
+                        bpId = entry.id; bpAddress = entry.address.historyHex(4); bpEnabled = entry.enabled; bpCondition = entry.condition; bpHitCondition = entry.hitCondition; error = null
                     }, modifier = Modifier.semantics { contentDescription = strings.text("debug.registration.editBreakpoint", entry.address.historyHex(4)) }) { Text(strings.text("debug.registration.edit")) }
                     TextButton(enabled = canEdit, onClick = {
                         if (result(runner?.removeBreakpoint(entry.id)) && bpId == entry.id) bpId = null

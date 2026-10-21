@@ -44,6 +44,18 @@ import com.digihori.pgp.input.GamepadSettings
 
 /** Isolated visual check: no preferences, ROM library, real ROM, credentials or native input backend. */
 fun main(args: Array<String>) {
+    if (args.firstOrNull() == "--execution-review") {
+        com.digihori.pgp.desktop.application.execution.renderExecutionReviews(File(args.getOrElse(1) { "build/execution-review" }))
+        return
+    }
+    if (args.firstOrNull() == "--debug-review") {
+        com.digihori.pgp.desktop.application.debug.renderDebugReviews(File(args.getOrElse(1) { "build/debug-review" }))
+        return
+    }
+    if (args.firstOrNull() == "--development-review") {
+        com.digihori.pgp.desktop.application.development.renderDevelopmentReviews(File(args.getOrElse(1) { "build/development-review" }))
+        return
+    }
     if (args.firstOrNull() == "--assembler-profiles") {
         com.digihori.pgp.desktop.project.renderAssemblerProfilePreviews(File(args.getOrElse(1) { "build/assembler-profiles-preview" }))
         return

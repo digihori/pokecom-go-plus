@@ -15,6 +15,72 @@ import kotlin.test.*
 
 @OptIn(ExperimentalComposeUiApi::class)
 class DebuggerRegistrationPanelTest {
+    @Test fun restoredSettingsDiscardOldEditIdsAndSynchronizeTraceControls() = ui {
+        for (language in StudioLanguage.entries) {
+            val strings = StudioStrings(language)
+            val loaded = assertIs<com.digihori.pgp.desktop.rom.DesktopRomLoadResult.Success>(
+                com.digihori.pgp.desktop.rom.DesktopRomLoader.loadPc1245LegacyImage(ByteArray(0x10000)))
+            val runner = com.digihori.pgp.desktop.runner.DesktopEmulatorRunner(loaded.session, debugRomFingerprint = loaded.romFingerprint)
+            runner.saveBreakpoint(null, 0xc000)
+            val originalId = runner.breakpointRegistrations().single().id
+            val saved = DebuggerSettingsFiles.capture(runner, null).copy(traceEnabled = true, traceCapacity = 16)
+            var refresh by mutableStateOf(0)
+            val scene = ImageComposeScene(1100, 1300) {
+                refresh
+                PgpStudioTheme {
+                    androidx.compose.foundation.layout.Column {
+                        DebuggerRegistrationPanel(runner, DesktopKeyboardInput(), strings = strings)
+                        com.digihori.pgp.desktop.InstructionTracePanel(runner, 0, DesktopKeyboardInput(), strings, runner.debugSettingsRevision)
+                    }
+                }
+            }
+            try {
+                scene.frames()
+                scene.click(strings.text("debug.registration.editBreakpoint", "C000")); scene.frames()
+                scene.edit(0, "FFFF") // Unapplied draft must not survive replacement of the old registration ID.
+                DebuggerSettingsFiles.restore(runner, null, saved)
+                refresh++; scene.frames()
+                assertTrue(scene.nodes().any { it.config.getOrNull(SemanticsProperties.Text).orEmpty().any { text -> text.text == strings.text("debug.registration.add") } })
+                assertTrue(runner.breakpointRegistrations().single().id > originalId)
+                assertEquals(0xc000, runner.breakpointRegistrations().single().address)
+                assertTrue(scene.nodes().any { it.config.getOrNull(SemanticsProperties.EditableText)?.text == "16" })
+                assertTrue(scene.nodes().any { it.config.getOrNull(SemanticsProperties.Text).orEmpty().any { text -> text.text == strings.text("debug.disable") } })
+                assertFalse(scene.nodes().any { it.config.getOrNull(SemanticsProperties.EditableText)?.text == "FFFF" })
+            } finally { scene.close() }
+        }
+    }
+
+    @Test fun conditionalRulesEditClearAndRejectInvalidInputInBothLanguages() = ui {
+        for (language in StudioLanguage.entries) {
+            val strings = StudioStrings(language)
+            val runner = debuggerTestRunner()
+            val scene = ImageComposeScene(900, 1100) {
+                PgpStudioTheme { DebuggerRegistrationPanel(runner, DesktopKeyboardInput(), strings = strings) }
+            }
+            try {
+                scene.frames()
+                scene.edit(0, "C000"); scene.edit(1, "A == 0x41"); scene.edit(2, "% 3")
+                scene.click(strings.text("debug.registration.add")); scene.frames()
+                val original = runner.breakpointRegistrations().single()
+                assertEquals("A == 0x41", original.condition)
+                assertEquals("% 3", original.hitCondition)
+                scene.click(strings.text("debug.registration.toggleBreakpoint", "C000")); scene.frames()
+                assertEquals(original.copy(enabled = false), runner.breakpointRegistrations().single())
+                scene.click(strings.text("debug.registration.editBreakpoint", "C000")); scene.frames()
+                assertTrue(scene.nodes().any { it.config.getOrNull(SemanticsProperties.EditableText)?.text == "% 3" })
+                scene.edit(1, "A == 256"); scene.click(strings.text("common.apply")); scene.frames()
+                assertTrue(DebuggerRegistrationError.CONDITION.display(strings) in scene.texts())
+                assertEquals(original.copy(enabled = false), runner.breakpointRegistrations().single())
+                scene.edit(1, ""); scene.edit(2, "% 0"); scene.click(strings.text("common.apply")); scene.frames()
+                assertTrue(DebuggerRegistrationError.HIT_CONDITION.display(strings) in scene.texts())
+                scene.edit(2, ""); scene.click(strings.text("common.apply")); scene.frames()
+                assertEquals("", runner.breakpointRegistrations().single().condition)
+                assertEquals("", runner.breakpointRegistrations().single().hitCondition)
+                assertEquals(original.id, runner.breakpointRegistrations().single().id)
+            } finally { scene.close() }
+        }
+    }
+
     @Test fun breakpointAddEditToggleDeleteAndDuplicateErrorWorkInBothLanguages() = ui {
         for (language in StudioLanguage.entries) {
             val strings = StudioStrings(language)

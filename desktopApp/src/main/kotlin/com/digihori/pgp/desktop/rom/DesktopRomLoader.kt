@@ -62,7 +62,7 @@ internal object DesktopRomLoader {
                 is CreateSessionResult.Failure -> DesktopRomLoadResult.Failure(
                     DesktopRomLoadError.SessionCreation(created.error),
                 )
-                is CreateSessionResult.Success -> DesktopRomLoadResult.Success(created.session)
+                is CreateSessionResult.Success -> DesktopRomLoadResult.Success(created.session, com.digihori.pgp.desktop.debug.DebuggerSettingsFiles.romFingerprint(imported.romSet))
             }
         }
     }
@@ -81,7 +81,7 @@ internal object DesktopRomLoader {
                 is CreateSessionResult.Failure -> DesktopRomLoadResult.Failure(
                     DesktopRomLoadError.SessionCreation(created.error),
                 )
-                is CreateSessionResult.Success -> DesktopRomLoadResult.Success(created.session)
+                is CreateSessionResult.Success -> DesktopRomLoadResult.Success(created.session, com.digihori.pgp.desktop.debug.DebuggerSettingsFiles.romFingerprint(read.romSet))
             }
         }
 
@@ -109,7 +109,7 @@ internal object DesktopRomLoader {
                     is CreateSessionResult.Failure -> DesktopRomLoadResult.Failure(
                         DesktopRomLoadError.SessionCreation(created.error),
                     )
-                    is CreateSessionResult.Success -> DesktopRomLoadResult.Success(created.session)
+                    is CreateSessionResult.Success -> DesktopRomLoadResult.Success(created.session, com.digihori.pgp.desktop.debug.DebuggerSettingsFiles.romFingerprint(read.romSet))
                 }
             }
         }
@@ -117,7 +117,7 @@ internal object DesktopRomLoader {
 }
 
 internal sealed interface DesktopRomLoadResult {
-    data class Success(val session: EmulatorSession) : DesktopRomLoadResult
+    data class Success(val session: EmulatorSession, val romFingerprint: String? = null) : DesktopRomLoadResult
     data class Failure(val error: DesktopRomLoadError) : DesktopRomLoadResult
 }
 

@@ -23,9 +23,12 @@ internal object DesktopProjectArtifactLoader {
         return when (val loaded = runner.loadProgramImage(artifact.copyBasicProgram(), artifact.memoryImage)) {
             is com.digihori.pgp.core.api.ProgramImageLoadResult.BasicFailure -> DesktopProjectApplyResult.BasicFailure(loaded.error)
             is com.digihori.pgp.core.api.ProgramImageLoadResult.MemoryFailure -> DesktopProjectApplyResult.MemoryFailure(loaded.error)
-            is com.digihori.pgp.core.api.ProgramImageLoadResult.Success -> DesktopProjectApplyResult.Success(
+            is com.digihori.pgp.core.api.ProgramImageLoadResult.Success -> {
+                runner.attachSourceMap(artifact.assemblySources)
+                DesktopProjectApplyResult.Success(
                 loaded.basicByteCount, loaded.memorySegmentCount, loaded.memoryByteCount,
             )
+            }
         }
     }
 }

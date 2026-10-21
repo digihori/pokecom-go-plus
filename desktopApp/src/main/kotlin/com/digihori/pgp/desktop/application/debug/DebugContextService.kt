@@ -15,6 +15,7 @@ import java.time.Instant
 import java.util.UUID
 
 internal interface DebugContextService {
+    fun sessionIdentity(): DebugSessionContext? = null
     fun capabilities(): DebugContextCapabilities
     fun registrations(): DebugRegistrationsResult
     fun capture(request: DebugContextRequest): DebugContextResult
@@ -26,6 +27,9 @@ internal class DesktopDebugContextService(
     private val capturedAtProvider: () -> String = { Instant.now().toString() },
     private val executedCyclesProvider: () -> Long? = { null },
 ) : DebugContextService {
+    override fun sessionIdentity(): DebugSessionContext = DebugSessionContext(sessionId, runner.sessionRevision,
+        runner.machineId.value, runner.state.name.lowercase(), null)
+
     override fun capabilities(): DebugContextCapabilities = DebugContextCapabilities(
         format = DebugContextV1.FORMAT,
         schemaVersion = DebugContextV1.SCHEMA_VERSION,

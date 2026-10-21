@@ -104,7 +104,7 @@ internal class DesktopMcpServer(
             if (!exchange.remoteAddress.address.isLoopbackAddress) {
                 sendText(exchange, 403, "Forbidden")
             } else if (exchange.requestMethod == "GET" && exchange.requestURI.path == "/") {
-                sendText(exchange, 200, "Pokecom GO Studio read-only MCP server")
+                sendText(exchange, 200, "Pokecom GO Studio MCP server")
             } else {
                 sendText(exchange, 404, "Not Found")
             }
@@ -171,8 +171,13 @@ internal class DesktopMcpServer(
             })
             put(
                 "instructions",
-                "Read-only access to the active paused Pokecom GO Studio emulator session. " +
-                    "ROM bytes are not exposed through memory ranges; use bounded disassembly and trace data.",
+                "Bounded Studio development/debug reads and registered source text. Source patches and built-in builds require local Studio UI approval. " +
+                    "Debug actions require local approval; Step executes one instruction and may change RAM/I/O. Load and Continue also require separate local approval; no direct memory-write tool. Debug reads require a paused session. " +
+                    "ROM bytes are not exposed through memory ranges; use bounded disassembly and trace data. " +
+                    "Present memory addresses, PC values, entry points and address ranges to the user in hexadecimal by default (0xC500, four uppercase hex digits for 16-bit addresses). " +
+                    "Use the target language and machine supported syntax in executable code and keyboard input; do not assume BASIC accepts 0x or &H. " +
+                    "If decimal input is required, show the hexadecimal address first and explain the decimal equivalent, e.g. 0xC500 (decimal 50432; BASIC input: CALL 50432). " +
+                    "Keep JSON address arguments as integers according to each tool schema; this presentation preference does not change the protocol.",
             )
         }).also { onRequest(DesktopMcpRequestSummary(Instant.now().toString(), method, null, true)) }
 

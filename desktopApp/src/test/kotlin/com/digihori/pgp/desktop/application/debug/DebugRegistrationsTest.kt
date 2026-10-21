@@ -8,6 +8,21 @@ import kotlinx.serialization.json.*
 import kotlin.test.*
 
 class DebugRegistrationsTest {
+    @Test fun conditionalRegistrationsKeepVersionOneJsonShapeAndReadsAreSideEffectFree() {
+        val runner = debuggerTestRunner()
+        assertIs<DebuggerRegistrationResult.Success>(runner.saveBreakpoint(null, 0, condition = "A == 7", hitCondition = "% 3"))
+        val service = DesktopDebugContextService(runner, "conditional-test")
+        val revision = runner.sessionRevision
+        val before = runner.breakpointRegistrations()
+        val snapshot = assertIs<DebugRegistrationsResult.Success>(service.registrations()).snapshot
+        val json = snapshot.toJson()
+        assertEquals(1, json.getValue("schemaVersion").jsonPrimitive.int)
+        assertEquals(setOf("id", "address", "enabled"), json.getValue("breakpoints").jsonArray.single().jsonObject.keys)
+        assertEquals("A == 7", snapshot.breakpoints.single().condition)
+        assertEquals(before, runner.breakpointRegistrations())
+        assertEquals(revision, runner.sessionRevision)
+    }
+
     @Test fun capturesEveryKindDisabledEntriesAndStableSessionWithoutMutatingExecution() {
         val runner = debuggerTestRunner()
         runner.saveBreakpoint(null, 0xc001, false)

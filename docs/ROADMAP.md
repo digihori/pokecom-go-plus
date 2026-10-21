@@ -3,14 +3,16 @@
 このロードマップは方向性を示すものであり、リリース日を保証するものではない。
 各段階は小さな動作確認とテストを完了してから次へ進む。
 
-## 当面の開発優先順位（2026-10-21）
+## 当面の開発状況（2026-10-22）
 
-iOSの実装を先に進め、AIによるマシン語生成は進め方の記録に留める。
-Studioは、ユーザーの認識としてデバッグ機能の充実を除き概ね一区切りとする。
-この方針は既存の未完了項目を一括で完了扱いにするものではない。
-AI生成の再開時は1機種・1アセンブラの`HELLO WORLD`から始め、Studioが持つ機種仕様の取得と
-手動Build・Load・実行を確認し、必要なAPIを段階追加する。
-[進め方の記録](AI_INTEGRATION.md#11-マシン語生成の進め方と当面の優先順位2026-10-21)を参照。
+iOS複数機種対応に続き、デバッグ強化の作業順1〜4とAI連携強化の作業順8〜12を実装し、
+今回の作業を一区切りとする。Source差分・Build・Load・Continue・Pauseの承認付きMCP経路と、
+PC-1245 HELLO WORLD表示を確認した。AIからのアドレス案内は原則16進とする。
+[AI連携の到達点と検証範囲](AI_INTEGRATION.md#現在の到達点2026-10-22)、
+[Debuggerの残作業](DEBUGGER_FOLLOW_UP.md)を参照。
+
+次の機能追加の順序は未確定。実利用で得られる不具合・操作性を基に判断する。
+既存の未完了項目や機種／OSごとの未確認事項を一括で完了扱いにするものではない。
 
 ## 追加構想の整理（2026-10-20）
 
@@ -591,3 +593,53 @@ Pokecom GOを基準とする。
 iOS PlayerへAndroidと同じ14モデル・10 ROMシリーズを接続。ホームのモデル選択、共用ROM、モデル別RAM、スキン・LCD・キー、BASIC／DMP、バンクROMとPC-1360K漢字ROMを実装した。RUN／PROトグル・動作モードメニューは1245／1251系／1261系のみに限定する。[全体受入れ記録](IOS_MACHINE_SUPPORT_STEP8.md)を現在の機種対応状況とし、過去のPC-1245固定・機種追加予定の記述は段階別履歴とする。実ROM・実iPhone・最低OS・実周辺機器・署名付き配布の未確認事項を継続する。
 
 2026-10-21追記: iOSの全対応機種・音声再生と、ホームの名前順／タイル・リスト／機種画面のみ横固定／ROM管理後の3点メニュー修正をユーザーが確認し、今回の対応を完了とした。音声の途切れ感の調整、環境別の詳細受入れと署名付き配布は後続。[確認記録](IOS_HOME_PRESENTATION_FIX.md)。
+
+## 2026-10-21: デバッグ強化の再開
+
+iOSの今回の区切り後、ユーザー方針によりデバッグ強化を再開する。
+作業順はソース・Symbol・Listing連携、条件付きBreakpoint／ヒット回数、Step Over／Out、設定保存。
+その後AI連携を強化する。ソース連携の実装範囲は[Debugger仕様](DEBUGGER.md#16-ロード済みassemblyとソースの対応2026-10-21)を参照。
+
+2026-10-21追記: 2番の条件付きBreakpoint／ヒット回数を実装。停止前の単一比較と到達回数条件、
+日英UI、回数のReset／Load規則を追加。次は3番のStep Over／Out。
+
+2026-10-21追記: 3番のStep Over／Outを限定実装。観測済みCALLフレーム、RTNの整合確認、
+既存停止条件での中断と実行上限を追加。CASE経路は未対応として明示する。次は4番の設定保存。
+
+2026-10-21追記: 4番のデバッグ設定保存を実装。対象照合付きの明示ファイル入出力で
+Breakpoint／Watch／Trace設定を保存・復元する。最初の区切り1〜4の実装が完了。
+本番手動受入れと、後続のAI連携強化は別途進める。
+
+## 2026-10-21: AI連携強化・読み取りAPI
+
+作業順8として機種仕様と開発Contextの読み取り専用MCPを追加。既存3ツールは互換維持し、
+Project・Assembler・Diagnostics・Symbol／Listing・条件付き登録・Step状態を範囲限定で取得する。
+[仕様と制限](AI_INTEGRATION.md#12-読み取りapiの拡充2026-10-21作業順8)。
+HELLO WORLD確認は下記の作業順9へ進めた。Source変更・Build・Load・実行操作の自動化は後続。
+
+2026-10-21: AI連携作業順9のPC-1245 / 内蔵assembler HELLO WORLDサンプルを追加。
+仕様APIへPC-1245のLCD直接描画仕様を追加し、共通Build/Load、全画素、CALL/RTN、ローカル実ROMを検証。
+手順・制約は `test-data/assembly/pc1245-hello/README.md` を参照。
+
+2026-10-21: 作業順9のMCP実接続確認も完了。機種仕様取得後の再生成版について、
+ユーザーのBuild/Load後にproject・診断・symbols/listingを取得し、RAM 147 bytesがビルド出力と全一致。
+詳細は `docs/AI_INTEGRATION.md` の作業順9追試を参照。
+
+2026-10-21: AI連携作業順10を実装。登録済みUTF-8 source取得、revision付き差分提案、Studio上の
+変更前後確認・承認、内蔵Buildのみの要求、operation状態取得を追加した。
+共通Build診断を使った構文エラー修正の往復をテストし、Loadや実行の自動化は後続に残す。
+範囲・制約・接続更新手順は `docs/AI_INTEGRATION.md` 第14節を参照。
+
+2026-10-21: 作業順10の実接続で差分APPLIEDとBuild SUCCEEDEDを確認。
+検出したCompose状態通知の不整合は回帰テスト付きで修正し、再起動後に
+BUILT_NOT_LOADED・診断0件・assembly freshness=current・metadataRevision更新を確認した。
+
+2026-10-22: AI連携作業順11を実装。Studio承認付きのBreakpoint / Watch編集、命令Trace設定、
+Pause、1命令Stepを追加。Session ID / revisionとReset・Load等の世代を検証し、古い要求を拒否する。
+既存9ツールを維持し、提案・operation取得の2ツールを追加。Load / Continueは12番に残す。
+操作範囲と接続手順は `docs/AI_INTEGRATION.md` 第15節を参照。
+
+2026-10-22: AI連携作業順12を実装。成功したBuildのメモリ内成果物を停止中にLoadし、
+現在PCからContinueする提案・Studio承認・履歴を追加。公開toolは15。内容とSessionの鮮度を
+再検証し、BASIC管理ポインタを含む書込み計画を表示。合成・HTTP検証と実ROM受入れを区別する。
+[仕様と制限](AI_INTEGRATION.md#16-作業順12-studio承認付きload--continue2026-10-22)。

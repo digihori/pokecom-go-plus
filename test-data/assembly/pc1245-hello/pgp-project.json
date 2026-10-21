@@ -1,0 +1,8 @@
+{
+  "format": "pgp-project", "formatVersion": 1,
+  "name": "PC-1245 Assembly HELLO WORLD", "machineId": "pc-1245",
+  "sources": [
+    {"id": "main", "type": "basic", "path": "src/main.bas"},
+    {"id": "hello", "type": "assembly", "path": "src/hello.asm"}
+  ]
+}

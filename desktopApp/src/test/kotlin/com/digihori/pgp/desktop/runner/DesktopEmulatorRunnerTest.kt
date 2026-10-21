@@ -778,8 +778,10 @@ class DesktopEmulatorRunnerTest {
         override fun setOperatingMode(mode: OperatingMode) {
             recordedOperatingMode = mode
         }
-        override fun cpuSnapshot(): CpuSnapshot = unsupported()
-        override fun memorySnapshot(startAddress: Int, length: Int): MemorySnapshot = unsupported()
+        // Call-frame observation now uses the same immutable snapshots as the debugger.
+        private val snapshotFixture by lazy { com.digihori.pgp.desktop.localization.debuggerTestRunner() }
+        override fun cpuSnapshot(): CpuSnapshot = snapshotFixture.cpuSnapshot()
+        override fun memorySnapshot(startAddress: Int, length: Int): MemorySnapshot = snapshotFixture.memorySnapshot(startAddress, length)
         override fun displaySnapshot(): DisplaySnapshot = unsupported()
         override fun audioSnapshot(): AudioSnapshot = unsupported()
         override fun drainAudioSamples(): AudioPcmSnapshot = unsupported()

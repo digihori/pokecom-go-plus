@@ -24,14 +24,14 @@ import kotlin.test.assertTrue
 
 class DesktopMcpServerTest {
     @Test
-    fun adapterPublishesOnlyReadOnlyToolsAndValidatesArguments() {
+    fun adapterMarksOnlyProposalToolsAsMutationsAndValidatesArguments() {
         val adapter = PgpMcpToolAdapter({ FakeDebugContextService() })
         val tools = adapter.tools()
 
-        assertEquals(setOf(PgpMcpToolAdapter.GET_CAPABILITIES, PgpMcpToolAdapter.GET_DEBUG_CONTEXT, PgpMcpToolAdapter.GET_DEBUG_REGISTRATIONS), tools.map {
+        assertEquals(setOf(PgpMcpToolAdapter.GET_CAPABILITIES, PgpMcpToolAdapter.GET_DEBUG_CONTEXT, PgpMcpToolAdapter.GET_DEBUG_REGISTRATIONS, PgpMcpToolAdapter.GET_MACHINE_SPEC, PgpMcpToolAdapter.GET_DEVELOPMENT_CONTEXT, "pgp_get_source", "pgp_propose_source_patch", "pgp_build_project", "pgp_get_operation", DebugChangeMcp.PROPOSE, DebugChangeMcp.OPERATION, ExecutionChangeMcp.ARTIFACT, ExecutionChangeMcp.LOAD, ExecutionChangeMcp.CONTINUE, ExecutionChangeMcp.OPERATION), tools.map {
             it.jsonObject.getValue("name").jsonPrimitive.content
         }.toSet())
-        assertTrue(tools.all {
+        assertTrue(tools.filter { it.jsonObject.getValue("name").jsonPrimitive.content !in setOf("pgp_propose_source_patch", "pgp_build_project", DebugChangeMcp.PROPOSE, ExecutionChangeMcp.LOAD, ExecutionChangeMcp.CONTINUE) }.all {
             it.jsonObject.getValue("annotations").jsonObject.getValue("readOnlyHint").jsonPrimitive.content == "true"
         })
 
@@ -59,7 +59,11 @@ class DesktopMcpServerTest {
     fun streamableHttpRequiresBearerTokenAndServesMcpMethods() {
         val summaries = mutableListOf<DesktopMcpRequestSummary>()
         val server = DesktopMcpServer(
-            adapter = PgpMcpToolAdapter({ FakeDebugContextService() }),
+            adapter = PgpMcpToolAdapter({ FakeDebugContextService() }, developmentProvider = {
+                com.digihori.pgp.desktop.application.development.DesktopDevelopmentReadService {
+                    com.digihori.pgp.desktop.application.development.DevelopmentReadState()
+                }
+            }),
             token = "test-token",
             credentialStore = TemporaryCredentialStore(),
             onRequest = summaries::add,
@@ -82,7 +86,7 @@ class DesktopMcpServerTest {
             )
             val tools = Json.parseToJsonElement(toolsResponse.body()).jsonObject
                 .getValue("result").jsonObject.getValue("tools").jsonArray
-            assertEquals(3, tools.size)
+            assertEquals(15, tools.size)
 
             val callResponse = post(
                 info.url,
@@ -103,11 +107,19 @@ class DesktopMcpServerTest {
             assertEquals("pgp-debug-registrations", registrations.getValue("structuredContent").jsonObject.getValue("format").jsonPrimitive.content)
             assertEquals("http-session", registrations.getValue("structuredContent").jsonObject.getValue("session").jsonObject.getValue("id").jsonPrimitive.content)
             assertTrue(summaries.any { it.toolName == PgpMcpToolAdapter.GET_DEBUG_REGISTRATIONS && it.succeeded })
+            val spec = result(post(info.url, info.token, """{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"pgp_get_machine_spec","arguments":{"machineId":"pc-1245"}}}"""))
+            assertEquals("pgp-machine-spec", spec.getValue("structuredContent").jsonObject.getValue("format").jsonPrimitive.content)
+            val development = result(post(info.url, info.token, """{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"pgp_get_development_context","arguments":{}}}"""))
+            assertEquals("pgp-development-context", development.getValue("structuredContent").jsonObject.getValue("format").jsonPrimitive.content)
+            assertTrue(summaries.any { it.toolName == PgpMcpToolAdapter.GET_MACHINE_SPEC && it.succeeded })
+            assertTrue(summaries.any { it.toolName == PgpMcpToolAdapter.GET_DEVELOPMENT_CONTEXT && it.succeeded })
         } finally {
             server.stop()
         }
         assertFalse(server.isRunning)
     }
+
+    private fun result(response: HttpResponse<String>) = Json.parseToJsonElement(response.body()).jsonObject.getValue("result").jsonObject
 
     private fun post(url: String, token: String?, body: String): HttpResponse<String> {
         val builder = HttpRequest.newBuilder(URI(url))

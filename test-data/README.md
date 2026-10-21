@@ -19,3 +19,8 @@ test-data/
 
 [S1／S2参照vector](wav/s1-s2/README.md)に、独自BASIC／合成byteから生成した固定rawとPCM期待値を置く。
 ROMや録音は含まず、製品codec追加前の仕様確認データとして管理する。
+
+## Assembly acceptance sample
+
+- [`assembly/pc1245-hello`](assembly/pc1245-hello/README.md): PC-1245 / built-in SC61860 assembler、
+  HELLO WORLDのBuild・Load・表示・RTN確認。ROMは含まない。
