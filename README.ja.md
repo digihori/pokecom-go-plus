@@ -355,6 +355,7 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 - [OLD WAV形式](docs/WAV_OLD_FORMAT.md)
 - [S1／S2 WAV仕様と作者確認](docs/WAV_S1_S2_FORMAT.md)
 - [iPhone Playerの操作・ビルド・検証状況](iosApp/README.md)
+- [単独で使える補助ツール集（バイナリー／DMP変換・ROM吸い出し）](tools/README.md)
 - [ロードマップ](docs/ROADMAP.md)
 - [Technical Preview公開チェックリスト](docs/PUBLIC_RELEASE_CHECKLIST.md)
 - [Technical Preview 0.6 alpha 2 Release Notes](docs/RELEASE_NOTES_0.6.0-alpha.2.md)

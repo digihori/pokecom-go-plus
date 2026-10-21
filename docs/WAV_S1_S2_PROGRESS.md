@@ -118,7 +118,7 @@ S2実機も同じ手順で別途確認する。
   quote／REM内の数字・キーワードはtextとして保持する。
 - 半角カナとCP932の2-byte日本語へ対応。CoreにOS charset APIを持ち込まず、
   Python標準ライブラリのcp932から生成した11280 pairの固定表を利用する。
-  `python3 tools/generate-s2-cp932.py --verify`で再現性を確認できる。
+  `python3 scripts/generate-s2-cp932.py --verify`で再現性を確認できる。
   波ダッシュ等の6互換文字はCP932の正規化に従う。表現不能なUnicodeはエラーにする。
 - text出力は同じ機種へ再コンパイルし全byte一致を確認する。未定義tokenや文字変換の損失、
   信号破損、転送checksum不一致ではプログラム保存を出さず、取得済みPCM/raw・位置・診断を残す。

@@ -360,6 +360,7 @@ their translation will be handled separately. See the [Japanese README](README.j
 - [OLD WAV format](docs/WAV_OLD_FORMAT.md)
 - [S1/S2 WAV specification and author confirmation](docs/WAV_S1_S2_FORMAT.md)
 - [iPhone Player operation, building, and verification](iosApp/README.md)
+- [Standalone utility tools (binary/DMP conversion and ROM extraction; Japanese guide)](tools/README.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Technical Preview checklist](docs/PUBLIC_RELEASE_CHECKLIST.md)
 - [Technical Preview 0.6 alpha 2 release notes](docs/RELEASE_NOTES_0.6.0-alpha.2.md)

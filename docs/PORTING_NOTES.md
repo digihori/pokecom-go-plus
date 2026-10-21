@@ -2998,7 +2998,7 @@ JDK 21 clean build, Core desktop tests and Android debug packaging passed withou
 - 既存Coreの機種別S2 codecを拡張。ON GOTO/GOSUBリスト、THEN、0..65535範囲、quote／REMを扱う。
   PC-1360系とPC-1470Uの語彙表は分離したまま使用する。
 - CP932 pair表はPython標準ライブラリのcp932 codecから独立生成した文字コード対応データ。
-  `tools/generate-s2-cp932.py`で再生成・照合可能。実行時の外部依存やCoreのOS charset APIはない。
+  `scripts/generate-s2-cp932.py`で再生成・照合可能。実行時の外部依存やCoreのOS charset APIはない。
   JVM windows-31jとの割当済みpair比較、11件の独立S2 vector、機種別byte往復・破損で検証する。
 - StudioのS2 BASICとtype選択・機種選択を有効化し、既存の波形/raw/診断/.bas保存へ接続。
   Player UI・音声I/Oを変更しない。実機往復は未確認、ROMや録音由来データの追加はない。
@@ -3114,3 +3114,18 @@ Core・共有Player・Androidの既存機種定義に対するApple接続14モ�
 ホーム修正の検証は全体build・Native143・Swift49が成功。iPhone 17 Proの対象UI5ケースは新規期待値修正後の再実行を含め成功し、SE3のOSダーク／ライト2ケースも成功。Release unsignedコンパイルと同梱文書も確認した。
 
 2026-10-21、ユーザーがホーム修正後も一通り確認し、今回のiOS機種対応・ホーム修正の完了を受領。文書の現行状態を14モデル・10 ROMシリーズへ統一し、旧計画・検証件数を履歴として区別した。音声の途切れ感は後続。
+
+## Standalone pcwav distribution scripts (2026-10-22)
+
+- Source: digihori/pcwav, revision `14e1ef53596f0d8791b6d14965061f63846d11a7`.
+- User requested bundling the standalone encoder/decoder under `tools/pcwav/`.
+  Generated both version 0.5 scripts with upstream `build.pl` in a temporary copy;
+  the reference checkout was not modified. Added the missing Common::parse_num
+  function to both bundled scripts: decimal/0x hexadecimal input, rejecting invalid
+  or negative values. Upstream address/skip options otherwise fail at runtime.
+- No Studio integration or build-time dependency was added. The PC-1360K transfer
+  guide now uses the bundled scripts. Ordinary ROM extraction programs remain future work.
+- The source revision has no explicit license notice or LICENSE file; no license
+  was invented for these files. Provenance and checksums are recorded in the tool README.
+- Validation uses synthetic BASIC/binary WAV round trips and Perl syntax checks;
+  this does not establish new real-device compatibility.

@@ -30,7 +30,7 @@ ROM本体や実機録音は同梱しない。ページとSC6976S／SC6976Tの物
 
 - PC-1360K実機と、カセットインターフェース等の再生／録音接続環境。
 - BASICのWAV化と上記のBASIC復元には、Pokecom GO作者提供の[pcwav](https://github.com/digihori/pcwav)を推奨する。
-  実行にはPerlが必要。pcwav本体はこのツールセットには含めない。
+  実行にはPerlが必要。[同梱の配布用スクリプト](../pcwav/README.md)を使える。
 - 録音には[Audacity](https://www.audacityteam.org/)を推奨する。
 - 本番のROM録音の復元にはPython 3.10以降と付属の[decode.py](decode.py)を使う。追加パッケージやpcwavは不要。
 
@@ -44,31 +44,19 @@ ROM本体や実機録音は同梱しない。ページとSC6976S／SC6976Tの物
 
 ### pcwavの準備と事前確認用コマンド
 
-以下は`pcwav`と`pokecom-go-plus`を同じ親ディレクトリに置く例。
-既存のpcwavがある場合は、コマンドのパスをその配置に合わせる。
-
-```text
-work/
-  pcwav/
-  pokecom-go-plus/
-```
-
-pcwavのリポジトリ直下で以下を実行すると、`dist/pcwav-encode.pl`と`dist/pcwav-decode.pl`が生成される。
-
-```sh
-perl build.pl
-```
+配布用pcwavスクリプトを`tools/pcwav/`に同梱しています。別リポジトリの取得・ビルドは不要です。
+Perlの実行環境は各自で用意してください。
 
 以降のコマンドは、すべて`pokecom-go-plus`のリポジトリ直下で実行する。
 
 ```sh
-perl ../pcwav/dist/pcwav-encode.pl s1basic tools/pc1360k-rom-dump/transfer-test.bas transfer-test.wav
+perl tools/pcwav/pcwav-encode.pl s1basic tools/pc1360k-rom-dump/transfer-test.bas transfer-test.wav
 ```
 
 このWAVで`CLOAD`・`RUN`を確認し、実機の`CSAVE`を録音したファイルを`transfer-test-recorded.wav`として、次を実行する。
 
 ```sh
-perl ../pcwav/dist/pcwav-decode.pl s1basic transfer-test-recorded.wav transfer-test-decoded.bas
+perl tools/pcwav/pcwav-decode.pl s1basic transfer-test-recorded.wav transfer-test-decoded.bas
 ```
 
 WindowsでもPython／Perlの実行方法とパスを環境に合わせる。`python3`がない環境では`py -3`などを使う。
@@ -104,7 +92,7 @@ READ(LDPC)を使う機械語をDATA行から配置するので、別途アセン
 ## 吸い出し用BASICの転送と実行
 
 ```sh
-perl ../pcwav/dist/pcwav-encode.pl s1basic tools/pc1360k-rom-dump/pc1360k-kanji-dump.bas pc1360k-kanji-dump.wav
+perl tools/pcwav/pcwav-encode.pl s1basic tools/pc1360k-rom-dump/pc1360k-kanji-dump.bas pc1360k-kanji-dump.wav
 ```
 
 1. 吸い出し用WAVを再生し、実機で新しいプログラムとして`CLOAD`する。
@@ -304,7 +292,7 @@ PRINT PEEK (&D010);PEEK (&D011);PEEK (&D012);PEEK (&D013)
 BASIC自体の転送は従来のWAV／`CLOAD`を使える。
 
 ```sh
-perl ../pcwav/dist/pcwav-encode.pl s1basic tools/pc1360k-rom-dump/pc1360k-kanji-dump-ce140f.bas pc1360k-kanji-dump-ce140f.wav
+perl tools/pcwav/pcwav-encode.pl s1basic tools/pc1360k-rom-dump/pc1360k-kanji-dump-ce140f.bas pc1360k-kanji-dump-ce140f.wav
 ```
 
 ASCIIソースからのロードをサポートする互換機器では、その機器の手順で本ソースを転送してもよい。
