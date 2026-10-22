@@ -23,6 +23,13 @@ Android Player setup pages are available in [English](https://digihori.github.io
 
 For usage, see the [documentation index](docs/README.en.md) or start with [Getting started](docs/guides/GETTING_STARTED.md). Detailed guides are mostly in Japanese.
 
+## Next release candidate
+
+Studio **0.7.0-alpha.1** is being prepared alongside Android Player. See the
+[release notes](docs/releases/notes/RELEASE_NOTES_0.7.0-alpha.1.md) and
+[release checklist](docs/releases/checklists/RELEASE_CHECKLIST_0.7.0-alpha.1.md).
+This candidate has not yet been published.
+
 ## Current status
 
 The development versions of Studio and Android/iPhone Player support the following 14 models.
@@ -313,7 +320,7 @@ iOS app builds and Swift unit tests run in regular CI; Native-only tests use a m
 and UI interactions are verified locally.
 
 Running `.github/workflows/release.yml` manually creates Studio and Android Player packages,
-retained as workflow artifacts for 14 days. Release tags such as `v0.6.0-alpha.2` use those packages
+retained as workflow artifacts for 14 days. Release tags such as `v0.7.0-alpha.1` use those packages
 to publish a GitHub prerelease. Verify release candidates before creating tags.
 See [Building from source (Japanese)](docs/reference/BUILDING.md) for local DMG/MSI/DEB packaging.
 

@@ -25,6 +25,13 @@ Android Playerの初回設定は[日本語](https://digihori.github.io/pokecom-g
 
 使い方は[ドキュメント総合目次](docs/README.md)、初回起動は[はじめに](docs/guides/GETTING_STARTED.md)を参照してください。
 
+## 次回リリース候補
+
+Android Playerに合わせてStudio **0.7.0-alpha.1**を準備中です。
+[リリースノート](docs/releases/notes/RELEASE_NOTES_0.7.0-alpha.1.md)と
+[チェックリスト](docs/releases/checklists/RELEASE_CHECKLIST_0.7.0-alpha.1.md)を参照してください。
+候補版はまだ公開していません。
+
 ## 現在の状態
 
 開発版のStudioとAndroid／iPhone版Playerは、次の14モデルに対応しています。
@@ -265,7 +272,7 @@ OSのセキュリティ警告が表示される可能性がある。ROMイメー
 Releaseには各ファイルのSHA-256チェックサムを掲載する。
 
 `.github/workflows/release.yml`をGitHub Actionsから手動実行すると、Studioを3環境、PlayerをAndroid環境で
-テストして配布物を生成し、14日間保持されるworkflow artifactとして取得できる。`v0.6.0-alpha.2` tagをpushした場合は、
+テストして配布物を生成し、14日間保持されるworkflow artifactとして取得できる。`v0.7.0-alpha.1` tagをpushした場合は、
 同じ成果物を使ってprereleaseのGitHub Releaseを自動作成する。公開候補の検証が完了するまではtagを作成しない。
 
 GitHubへpushした場合とPull Requestを更新した場合は、GitHub ActionsがmacOS、Windows、
