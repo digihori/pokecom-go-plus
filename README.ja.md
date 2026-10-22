@@ -25,6 +25,8 @@ Android Playerの初回設定は[日本語](https://digihori.github.io/pokecom-g
 
 使い方は[ドキュメント総合目次](docs/README.md)、初回起動は[はじめに](docs/guides/GETTING_STARTED.md)を参照してください。
 
+Android Playerは[Google Play](https://play.google.com/store/apps/details?id=com.digihori.pgp.player)で公開しています。ROMは同梱していません。
+
 ## 次回リリース候補
 
 Android Playerに合わせてStudio **0.7.0-alpha.1**を準備中です。

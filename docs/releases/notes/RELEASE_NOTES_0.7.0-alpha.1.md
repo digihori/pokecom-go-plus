@@ -9,7 +9,7 @@
 
 Playerで使うROMを準備し、PCではプログラムを作成・解析するためのTechnical Previewです。
 Android Player `0.7.0-alpha.1`のGoogle Play初公開に合わせたStudioの更新です。
-Google Play版は審査へ送信済みであり、本ノート作成時点で公開完了を意味しません。
+Android Playerは[Google Play](https://play.google.com/store/apps/details?id=com.digihori.pgp.player)で公開済みです（2026-10-23 JSTに掲載を確認）。
 
 ### PlayerとつながるROM・プログラムの準備
 
@@ -66,8 +66,9 @@ Google Play版は審査へ送信済みであり、本ノート作成時点で公
 
 ## English
 
-This Studio preview accompanies the first Google Play submission of Android Player
-`0.7.0-alpha.1`. Submission does not mean the Play version is already available.
+This Studio preview accompanies Android Player `0.7.0-alpha.1`, now available on
+[Google Play](https://play.google.com/store/apps/details?id=com.digihori.pgp.player)
+(listing verified October 23, 2026 JST).
 Prepare ROM packages for Player and create, run and inspect programs on your desktop.
 
 ### Highlights

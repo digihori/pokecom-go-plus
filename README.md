@@ -23,6 +23,8 @@ Android Player setup pages are available in [English](https://digihori.github.io
 
 For usage, see the [documentation index](docs/README.en.md) or start with [Getting started](docs/guides/GETTING_STARTED.md). Detailed guides are mostly in Japanese.
 
+Android Player is now available on [Google Play](https://play.google.com/store/apps/details?id=com.digihori.pgp.player). Supply your own lawfully obtained ROMs.
+
 ## Next release candidate
 
 Studio **0.7.0-alpha.1** is being prepared alongside Android Player. See the
