@@ -1,11 +1,11 @@
 # Technical Preview 0.7 alpha 1 release checklist
 
-Status: preparation, not published. Started 2026-10-22 (JST).
+Status: publication in progress; owner authorized release after completing operation checks on 2026-10-23 (JST).
 Previous release: `v0.6.0-alpha.2`. Do not rewrite previous tags or assets.
 
 ## Version and scope
 
-- Project/runtime/tag: `0.7.0-alpha.1` / planned `v0.7.0-alpha.1`.
+- Project/runtime/tag: `0.7.0-alpha.1` / `v0.7.0-alpha.1`.
 - Studio native package: `1.5.0`; preserve Windows UpgradeCode
   `D173EFD1-57EF-3753-A618-92481F262D95`.
 - Android Player: `0.7.0-alpha.1`, versionCode `9`; Google Play release verified on October 23, 2026 JST. Do not change its version or store release in this task.
@@ -19,23 +19,36 @@ Previous release: `v0.6.0-alpha.2`. Do not rewrite previous tags or assets.
 - [x] Advance native package version and MSI inspection expectation together.
 - [x] JDK 21 full `./gradlew build` succeeds, including runtime-version regression.
 - [x] Local macOS application and DMG generated; bundled version, icon and legal resources inspected.
-- [ ] Candidate commit CI passes for macOS, Windows, Linux, Android and iOS unit tests.
-- [ ] Manual packaging workflow produces macOS/Windows/Linux distributions and Android debug APK.
-- [ ] Verify package versions, expected filenames and SHA-256 checksums for candidate artifacts.
+- [x] Candidate commit CI passes for macOS, Windows, Linux, Android and iOS unit tests.
+- [x] Manual packaging workflow produces macOS/Windows/Linux distributions and Android debug APK.
+- [x] Verify package versions, expected filenames and SHA-256 checksums for candidate artifacts.
 
 ## User-facing acceptance
 
-- [ ] Exact candidate Studio: launch, About `0.7.0-alpha.1`, ROM registration and input/audio smoke test.
-- [ ] Exact candidate Studio: create a `.pgrom`, transfer it to Player and boot the corresponding model.
-- [ ] Windows/Linux packaged application smoke tests, or clearly record unverified environments.
-- [ ] Review release notes, unsigned-distribution warnings and known limitations.
+- [x] Owner completed overall operation checks and authorized release on 2026-10-23 JST; version metadata was independently inspected. Individual GUI test steps were not itemized.
+- [x] DMG-installed Studio: create a `.pgrom`, transfer it to Player, register it and boot the corresponding model (owner confirmed 2026-10-23 JST; see acceptance record below).
+- [x] Windows/Linux packaged application smoke tests: owner reported both OK on 2026-10-23 JST (see acceptance record below).
+- [x] Review release notes, unsigned-distribution warnings and known limitations.
 
 Earlier development tests and user confirmations are not exact-candidate acceptance.
 An artifact being generated does not verify its GUI or physical-device behavior.
 
+### Owner acceptance: Studio to Player (2026-10-23 JST)
+
+- Owner confirmed that Studio installed from the DMG could create a ROM package and that Player could register it and boot.
+- This verifies the Studio-to-Player ROM package workflow. The tested model, Player platform and exact DMG checksum were not recorded in the report; do not infer coverage of all models or a later rebuilt artifact.
+- Owner subsequently reported overall operation checks complete and authorized release; this does not imply exhaustive model coverage.
+
+### Owner acceptance: Windows and Linux (2026-10-23 JST)
+
+- Owner confirmed that Linux and Windows application operation checks were OK.
+- Linux deb installation emitted the APT `_apt` access notification when reading from Downloads under a home directory with mode 700. Owner confirmed that home-directory permission; the notification was discussed separately from application operation.
+- Linux application-menu classification under “Other” and the English Windows setup wizard are recorded in the roadmap as formal-release follow-ups, not blockers for this Technical Preview.
+- OS/distribution versions, exact artifact checksums and individual test operations were not specified in the report; this records the owner's smoke-test result without claiming exhaustive coverage.
+
 ## Publication (only after preparation and acceptance)
 
-- [ ] Confirm final release candidate commit and CI.
+- [x] Confirm final code candidate commit and CI; release preparation commit changes documentation only.
 - [ ] Remove the release-note preparation notice, then create and push annotated `v0.7.0-alpha.1` tag; workflow publishes GitHub prerelease.
 - [ ] Verify uploaded assets and checksum lists against downloaded packages.
 - [ ] Change README latest-release banner and remove preparation notices after publication.
@@ -100,3 +113,10 @@ An artifact being generated does not verify its GUI or physical-device behavior.
   and the regenerated DMG mounted to see the new icon.
 - New local DMG SHA-256: `50d961a0104620d3fc74b94bcc2baa89e771c8089907ee2902aad971bada9521`.
 - Earlier CI artifacts predate this packaging correction and remain superseded.
+
+## Final candidate verification (2026-10-23 JST)
+
+- Code and packaging candidate: `498f47580bcb8b96e6d56a3e9fdbe5e06027e163`; subsequent release preparation changes are documentation only.
+- [Final code CI](https://github.com/digihori/pokecom-go-plus/actions/runs/39853425177) and [manual packaging](https://github.com/digihori/pokecom-go-plus/actions/runs/39856190181) succeeded, including both macOS corrections.
+- Owner confirmed macOS Studio-to-Player ROM workflow and Windows/Linux operation, then authorized publication.
+- Verified four final workflow archive digests and all seven package checksums; packaged runtime is `0.7.0-alpha.1`, macOS/Debian native version is `1.5.0`.

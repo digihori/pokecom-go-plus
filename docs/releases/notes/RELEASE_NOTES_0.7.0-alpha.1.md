@@ -1,8 +1,6 @@
 # Pokecom GO Studio Technical Preview 0.7 (alpha 1)
 
-公開準備中 / Release candidate — not yet published.
-
-予定Git tag / Planned Git tag: `v0.7.0-alpha.1`
+Git tag: `v0.7.0-alpha.1`
 比較対象 / Changes since: `v0.6.0-alpha.2`
 
 ## 日本語
