@@ -1,6 +1,6 @@
 # Technical Preview 0.7 alpha 1 release checklist
 
-Status: publication in progress; owner authorized release after completing operation checks on 2026-10-23 (JST).
+Status: published 2026-10-23 07:08 JST. Owner authorized release after completing operation checks.
 Previous release: `v0.6.0-alpha.2`. Do not rewrite previous tags or assets.
 
 ## Version and scope
@@ -49,11 +49,11 @@ An artifact being generated does not verify its GUI or physical-device behavior.
 ## Publication (only after preparation and acceptance)
 
 - [x] Confirm final code candidate commit and CI; release preparation commit changes documentation only.
-- [ ] Remove the release-note preparation notice, then create and push annotated `v0.7.0-alpha.1` tag; workflow publishes GitHub prerelease.
-- [ ] Verify uploaded assets and checksum lists against downloaded packages.
-- [ ] Change README latest-release banner and remove preparation notices after publication.
-- [ ] Verify Player setup links reach the published compatible Studio release.
-- [ ] Record release URL, candidate SHA, CI and packaging runs, and publication time here.
+- [x] Remove the release-note preparation notice, then create and push annotated `v0.7.0-alpha.1` tag; workflow publishes GitHub prerelease.
+- [x] Verify uploaded assets and checksum lists against downloaded packages.
+- [x] Change README latest-release banner and remove preparation notices after publication.
+- [x] Verify Player setup links reach the published compatible Studio release.
+- [x] Record release URL, candidate SHA, CI and packaging runs, and publication time here.
 
 ## Local verification (2026-10-22 JST)
 
@@ -120,3 +120,13 @@ An artifact being generated does not verify its GUI or physical-device behavior.
 - [Final code CI](https://github.com/digihori/pokecom-go-plus/actions/runs/39853425177) and [manual packaging](https://github.com/digihori/pokecom-go-plus/actions/runs/39856190181) succeeded, including both macOS corrections.
 - Owner confirmed macOS Studio-to-Player ROM workflow and Windows/Linux operation, then authorized publication.
 - Verified four final workflow archive digests and all seven package checksums; packaged runtime is `0.7.0-alpha.1`, macOS/Debian native version is `1.5.0`.
+
+## Publication record (2026-10-23 JST)
+
+- Published at 07:08 JST: [v0.7.0-alpha.1](https://github.com/digihori/pokecom-go-plus/releases/tag/v0.7.0-alpha.1), GitHub prerelease.
+- Annotated tag targets `f006e8650c4b0d3a734cdbbc916f56548e0a5715`; changes since tested code candidate `498f475` are documentation only.
+- [Tagged packaging and publication workflow](https://github.com/digihori/pokecom-go-plus/actions/runs/39862370657): all four platform packaging jobs succeeded; publication completed.
+- [Release commit CI](https://github.com/digihori/pokecom-go-plus/actions/runs/39862370650): all five platform jobs succeeded, including iOS unit tests.
+- Downloaded all 11 public assets (7 packages and 4 checksum lists). GitHub asset digests and every package SHA-256 matched. These are newly generated tag-build artifacts, not byte-identical to earlier candidate builds.
+- English/Japanese README banners now identify 0.7 alpha 1; both published Player setup guides link directly to this compatible Studio release. Release-body guide links use absolute URLs into the release tag.
+- Google Play Player release/signing and existing release tags/assets were not changed.

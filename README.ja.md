@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
 
-> **[Technical Preview 0.6 (alpha 2)](https://github.com/digihori/pokecom-go-plus/releases/tag/v0.6.0-alpha.2)** — PC-1360Kの漢字対応・ROM吸い出しツールとAndroid Playerを更新した早期評価版です。
+> **[Technical Preview 0.7 (alpha 1)](https://github.com/digihori/pokecom-go-plus/releases/tag/v0.7.0-alpha.1)** — Android Player向けのROM作成、デバッグ・WAVツール・Studio承認付きAI連携を整備した早期評価版です。
 
 Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向けプログラムを
 現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す
@@ -27,12 +27,11 @@ Android Playerの初回設定は[日本語](https://digihori.github.io/pokecom-g
 
 Android Playerは[Google Play](https://play.google.com/store/apps/details?id=com.digihori.pgp.player)で公開しています。ROMは同梱していません。
 
-## 次回リリース候補
+## 現在のリリース
 
-Android Playerに合わせてStudio **0.7.0-alpha.1**を準備中です。
+Android Playerに合わせてStudio **0.7.0-alpha.1**を公開しました。
 [リリースノート](docs/releases/notes/RELEASE_NOTES_0.7.0-alpha.1.md)と
 [チェックリスト](docs/releases/checklists/RELEASE_CHECKLIST_0.7.0-alpha.1.md)を参照してください。
-候補版はまだ公開していません。
 
 ## 現在の状態
 

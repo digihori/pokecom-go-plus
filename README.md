@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
 
-> **[Technical Preview 0.6 (alpha 2)](https://github.com/digihori/pokecom-go-plus/releases/tag/v0.6.0-alpha.2)** — An early preview with PC-1360K kanji support, ROM extraction tools, and Android Player updates.
+> **[Technical Preview 0.7 (alpha 1)](https://github.com/digihori/pokecom-go-plus/releases/tag/v0.7.0-alpha.1)** — Prepare ROM packages for Android Player, with improved debugging, WAV tools and Studio-approved AI integration.
 
 Pokecom GO Plus (PGP) is a multiplatform development environment for vintage pocket computers.
 It aims to help you write, run, and analyze programs on a modern PC, then transfer them to the original hardware.
@@ -25,12 +25,11 @@ For usage, see the [documentation index](docs/README.en.md) or start with [Getti
 
 Android Player is now available on [Google Play](https://play.google.com/store/apps/details?id=com.digihori.pgp.player). Supply your own lawfully obtained ROMs.
 
-## Next release candidate
+## Current release
 
-Studio **0.7.0-alpha.1** is being prepared alongside Android Player. See the
+Studio **0.7.0-alpha.1** is available alongside Android Player. See the
 [release notes](docs/releases/notes/RELEASE_NOTES_0.7.0-alpha.1.md) and
 [release checklist](docs/releases/checklists/RELEASE_CHECKLIST_0.7.0-alpha.1.md).
-This candidate has not yet been published.
 
 ## Current status
 
