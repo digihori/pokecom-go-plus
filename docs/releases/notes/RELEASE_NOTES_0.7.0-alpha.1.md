@@ -42,6 +42,7 @@ Android Playerは[Google Play](https://play.google.com/store/apps/details?id=com
   重複して表示されていたStudioメニューを解消しました。
 - StudioとPlayerのアプリアイコンを追加しました。Studioは柔らかいシルバー、
   Playerは黄・赤キーを使ったコントラストの強いデザインです。
+  MacのDMGをマウントしたディスクにもStudioアイコンを設定します。
 - Android／iPhone Playerで全14モデルの統合とホーム画面・入力・音声対応を進めました。
   機種対応と端末・OSごとの詳細検証は別に管理しています。
 
@@ -96,7 +97,8 @@ Prepare ROM packages for Player and create, run and inspect programs on your des
   generic DMP tools. Supply external tools and their runtimes separately.
 - Standalone memory utilities and pcwav tools in the repository’s `tools/` directory
   (run separately, not integrated into the Studio application), with MIT notices; a CE-140F variant
-  of the PC-1360K kanji ROM extraction helper; new Studio and Player icons.
+  of the PC-1360K kanji ROM extraction helper; new Studio and Player icons, including
+  the mounted macOS DMG volume.
 - Android/iPhone Player integration across all models. Per-device/OS verification remains distinct.
 
 ### Downloads and limitations

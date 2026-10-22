@@ -38,3 +38,19 @@ Studio利用者が実行する必要はありません。
 
 同期の実行前に`PGP_SYNC_SOURCE`・`PGP_SYNC_DESTINATION`等の設定と対象パスを確認し、
 `sync-from-mac.cmd /preview`で内容を確認してください。MSI検査はWindows上で実行します。
+
+## set-dmg-volume-icon.sh
+
+macOSの`packageDmg`タスクから自動実行し、マウントしたディスクのJava標準アイコンを
+StudioのICNSへ変更します。アプリ本体のアイコンとは別の設定です。
+Composeがjpackageの作業用resource directoryを再生成するため、内部パスへファイルを
+差し込まず、生成DMGの一時的な書込み用コピーへ`.VolumeIcon.icns`とカスタムアイコン属性を設定します。
+再圧縮・検証が成功してから元の生成DMGを置換します。ユーザーがマウント中のディスクは操作しません。
+
+macOS、`hdiutil`、Xcode Command Line Toolsの`SetFile`が必要です。
+
+```sh
+sh scripts/set-dmg-volume-icon.sh path/to/generated.dmg desktopApp/icons/pokecom-go.icns
+```
+
+タスクはスクリプトとアイコンを入力として追跡し、CIでも同じ処理を行います。

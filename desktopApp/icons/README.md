@@ -9,6 +9,8 @@ project owner. It depicts a nearly square light silver pocket computer with mute
 LCD, and two rows of matching blank keys, with a transparent exterior.
 
 - Desktop packaging uses the PNG (Linux), multi-size ICO (Windows), and ICNS (macOS).
+- The mounted macOS DMG volume also uses the Studio ICNS, applied by
+  `scripts/set-dmg-volume-icon.sh` after jpackage creates the image.
 - Desktop windows use the 256×256 copy in `src/main/resources/pokecom-go.png`.
 - Android uses density-specific legacy icons and an adaptive icon with an inset
   illustration to keep the device inside launcher masks.

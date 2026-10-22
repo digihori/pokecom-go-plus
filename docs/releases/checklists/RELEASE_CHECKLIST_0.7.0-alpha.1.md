@@ -89,3 +89,14 @@ An artifact being generated does not verify its GUI or physical-device behavior.
 - New local DMG SHA-256: `8ebb703440bd8459ced5ff3fae6dcc509995eebd75b562d325adad3fe8e25785`.
 - Earlier CI artifacts for `049877b` predate this correction. Re-run candidate CI and
   packaging for the final accepted commit; preparation gates above are reopened.
+
+## Mounted DMG volume icon (2026-10-23 JST)
+
+- The packageDmg task post-processes a writable temporary copy to set the Studio
+  `.VolumeIcon.icns` and Finder custom-icon flag, then verifies/recompresses the DMG.
+- Mounted the finished image read-only in a private mountpoint: icon bytes match
+  `desktopApp/icons/pokecom-go.icns` and `GetFileInfo -aC` reports `1`.
+- User-mounted volumes are not modified. Previously mounted images must be ejected
+  and the regenerated DMG mounted to see the new icon.
+- New local DMG SHA-256: `50d961a0104620d3fc74b94bcc2baa89e771c8089907ee2902aad971bada9521`.
+- Earlier CI artifacts predate this packaging correction and remain superseded.

@@ -1,5 +1,8 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
+import org.gradle.process.ExecOperations
+import javax.inject.Inject
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -80,6 +83,21 @@ compose.desktop {
                 menu = true
                 menuGroup = "Pokecom GO Studio"
             }
+        }
+    }
+}
+
+abstract class DmgIconOperations @Inject constructor(val execOperations: ExecOperations)
+val dmgIconOperations = objects.newInstance<DmgIconOperations>()
+tasks.withType<AbstractJPackageTask>().matching { it.targetFormat == TargetFormat.Dmg }.configureEach {
+    val execOperations = dmgIconOperations.execOperations
+    val volumeIcon = project.layout.projectDirectory.file("icons/pokecom-go.icns")
+    val iconScript = rootProject.layout.projectDirectory.file("scripts/set-dmg-volume-icon.sh")
+    inputs.files(volumeIcon, iconScript).withPropertyName("studioDmgVolumeIcon")
+    doLast {
+        val image = destinationDir.file("${packageName.get()}-${packageVersion.get()}.dmg").get().asFile
+        execOperations.exec {
+            commandLine("/bin/sh", iconScript.asFile, image, volumeIcon.asFile)
         }
     }
 }
