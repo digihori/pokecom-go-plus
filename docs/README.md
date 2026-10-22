@@ -10,6 +10,9 @@
 
 ## はじめに
 
+Playerの初回設定は[日本語ガイド](https://digihori.github.io/pokecom-go-plus/player/ja.html)／[English setup guide](https://digihori.github.io/pokecom-go-plus/player/en.html)を参照してください。
+公開ページのソースと更新方法は[公開ページの説明](player/README.md)にあります。
+
 1. [公開済みの配布物](https://github.com/digihori/pokecom-go-plus/releases)から対象OSの版を選びます。
 2. Studioでは[はじめに](guides/GETTING_STARTED.md)の順に、起動・機種選択・ROM登録を進めます。
 3. Playerでは[Android](guides/PLAYER_HELP.md)または[iPhone](guides/PLAYER_HELP_IOS.md)のヘルプを確認します。
@@ -41,7 +44,7 @@ ROMは同梱していません。自分で適法に入手したROMが必要で�
 | --- | --- |
 | Android | [同梱ヘルプ](guides/PLAYER_HELP.md)、[BASIC／DMP入出力の詳細](guides/PLAYER_PROGRAM_IO.md) |
 | iPhone | [同梱ヘルプ](guides/PLAYER_HELP_IOS.md)（機種、ROM、Files、音声、外部入力） |
-| プライバシー | [Android原文案](guides/PLAYER_PRIVACY_POLICY.md)、[iPhone原文案](guides/PLAYER_PRIVACY_POLICY_IOS.md) |
+| プライバシー | [Androidポリシー](guides/PLAYER_PRIVACY_POLICY.md)、[iPhone原文案](guides/PLAYER_PRIVACY_POLICY_IOS.md) |
 
 iPhone版の開発・ビルド状況は[開発用README](../iosApp/README.md)を参照してください。
 開発中の機種対応と、署名付き配布の完了は別に確認します。

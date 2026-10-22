@@ -19,6 +19,8 @@ PGP consists of two products and a shared emulator core:
 The development version of Studio exposes machine and development context through localhost MCP,
 with Studio approval for source patches, Build, Load, and execution changes. See the [AI connection guide (Japanese)](docs/guides/AI_CONNECTION_GUIDE.md) for setup and limits.
 
+Android Player setup pages are available in [English](https://digihori.github.io/pokecom-go-plus/player/en.html) and [Japanese](https://digihori.github.io/pokecom-go-plus/player/ja.html) ([viewing and hosting](docs/player/README.md)).
+
 For usage, see the [documentation index](docs/README.en.md) or start with [Getting started](docs/guides/GETTING_STARTED.md). Detailed guides are mostly in Japanese.
 
 ## Current status

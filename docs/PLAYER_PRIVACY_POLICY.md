@@ -1,4 +1,4 @@
-# Pokecom GO Player プライバシーポリシー（公開前の原文案）
+# Pokecom GO Player プライバシーポリシー
 
 > 旧URL向けの案内です。本文は新しい場所へ移動しました。
 > This page preserves an older URL. Follow the link below for the document.

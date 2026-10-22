@@ -10,6 +10,9 @@ use the documents linked from this index for updates and new references.
 
 ## Start here
 
+Player has matching [English](https://digihori.github.io/pokecom-go-plus/player/en.html) and [Japanese](https://digihori.github.io/pokecom-go-plus/player/ja.html) setup pages.
+See [hosting and maintenance notes](player/README.md) for the source files.
+
 1. Choose a build from [GitHub Releases](https://github.com/digihori/pokecom-go-plus/releases).
 2. For Studio, follow [Getting started](guides/GETTING_STARTED.md) to launch the app, select a machine, and register ROMs.
 3. For Player, use the [Android](guides/PLAYER_HELP.md) or [iPhone](guides/PLAYER_HELP_IOS.md) help.

@@ -21,6 +21,8 @@ PGPは次の2製品と共有Emulator Coreで構成します。
 
 「Pokecom GO Plus」と「PGP」は、このプロジェクト全体を表す開発コードネームとして使用します。
 
+Android Playerの初回設定は[日本語](https://digihori.github.io/pokecom-go-plus/player/ja.html)／[English](https://digihori.github.io/pokecom-go-plus/player/en.html)の公開用ガイドを用意しています（[閲覧・公開方法](docs/player/README.md)）。
+
 使い方は[ドキュメント総合目次](docs/README.md)、初回起動は[はじめに](docs/guides/GETTING_STARTED.md)を参照してください。
 
 ## 現在の状態
