@@ -19,9 +19,9 @@ Previous release: `v0.6.0-alpha.2`. Do not rewrite previous tags or assets.
 - [x] Advance native package version and MSI inspection expectation together.
 - [x] JDK 21 full `./gradlew build` succeeds, including runtime-version regression.
 - [x] Local macOS application and DMG generated; bundled version, icon and legal resources inspected.
-- [x] Candidate commit CI passes for macOS, Windows, Linux, Android and iOS unit tests.
-- [x] Manual packaging workflow produces macOS/Windows/Linux distributions and Android debug APK.
-- [x] Verify package versions, expected filenames and SHA-256 checksums for candidate artifacts.
+- [ ] Candidate commit CI passes for macOS, Windows, Linux, Android and iOS unit tests.
+- [ ] Manual packaging workflow produces macOS/Windows/Linux distributions and Android debug APK.
+- [ ] Verify package versions, expected filenames and SHA-256 checksums for candidate artifacts.
 
 ## User-facing acceptance
 
@@ -76,3 +76,16 @@ An artifact being generated does not verify its GUI or physical-device behavior.
 - No release tag was created and no GitHub prerelease was published.
 - Documentation-only follow-up records Player's public Play listing and these verification results;
   the code/assets tested above are unchanged.
+
+## macOS menu correction after candidate acceptance (2026-10-23 JST)
+
+- Owner's DMG install revealed two application menus: the OS menu and a cross-platform Studio menu.
+- Connect About, Preferences and Quit to native AWT Desktop handlers on macOS.
+  Preserve the custom application menu on Windows/Linux and unsupported environments.
+- Native Quit delegates to Compose shutdown so emulator/audio/MCP cleanup is retained.
+- An isolated application using the packaged runtime verified all three native callbacks,
+  native-menu selection and absence of the duplicate menu, without reading user ROMs/preferences.
+- Desktop tests and application/DMG regeneration succeeded. JDK 21 full `./gradlew build` also succeeded.
+- New local DMG SHA-256: `8ebb703440bd8459ced5ff3fae6dcc509995eebd75b562d325adad3fe8e25785`.
+- Earlier CI artifacts for `049877b` predate this correction. Re-run candidate CI and
+  packaging for the final accepted commit; preparation gates above are reopened.

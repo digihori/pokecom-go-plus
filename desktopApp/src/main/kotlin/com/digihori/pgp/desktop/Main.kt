@@ -1,6 +1,7 @@
 package com.digihori.pgp.desktop
 
 import com.digihori.pgp.desktop.debug.DebuggerRegistrationPanel
+import com.digihori.pgp.desktop.window.useMacApplicationMenu
 import com.digihori.pgp.desktop.debug.DebuggerRegistrationError
 import com.digihori.pgp.desktop.debug.DebuggerRegistrationResult
 import com.digihori.pgp.desktop.debug.display
@@ -498,6 +499,11 @@ private fun FrameWindowScope.App(
     var machineMenuExpanded by remember { mutableStateOf(false) }
     var showAboutWindow by remember { mutableStateOf(false) }
     var showSettingsWindow by remember { mutableStateOf(false) }
+    val nativeApplicationMenu = useMacApplicationMenu(
+        onAbout = { showAboutWindow = true },
+        onSettings = { showSettingsWindow = true },
+        onQuit = onQuit,
+    )
     val gamepad = remember { DesktopGamepadController() }
     var mainWindowFocused by remember { mutableStateOf(ownerWindow.isFocused) }
     DisposableEffect(ownerWindow, gamepad) {
@@ -1494,7 +1500,7 @@ private fun FrameWindowScope.App(
     }
 
     MenuBar {
-        Menu(ProjectInfo.STUDIO_DISPLAY_NAME) {
+        if (!nativeApplicationMenu) Menu(ProjectInfo.STUDIO_DISPLAY_NAME) {
             Item(
                 uiText("about.menu", ProjectInfo.STUDIO_DISPLAY_NAME),
                 enabled = !showAboutWindow,

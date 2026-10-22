@@ -38,6 +38,8 @@ Android Playerは[Google Play](https://play.google.com/store/apps/details?id=com
   タブ付き設定を整備しました。外部ツール本体や必要な実行環境は利用者が用意します。
 - **補助ツール**：単独のメモリ操作ツールとpcwavツールをリポジトリの`tools/`へ収録し、MIT通知を追加しました。
   これらは別途実行するツールで、Studioの配布アプリへ組み込んだ機能ではありません。
+- macOS標準のアプリメニューへ「このアプリについて・設定・終了」を接続し、
+  重複して表示されていたStudioメニューを解消しました。
 - StudioとPlayerのアプリアイコンを追加しました。Studioは柔らかいシルバー、
   Playerは黄・赤キーを使ったコントラストの強いデザインです。
 - Android／iPhone Playerで全14モデルの統合とホーム画面・入力・音声対応を進めました。
@@ -88,6 +90,8 @@ Prepare ROM packages for Player and create, run and inspect programs on your des
 - Localhost MCP integration for machine/development context and Studio-approved source
   changes, builds, debugging, loading and continuing execution. Start the server explicitly;
   an AI client/service is not bundled. Load stays paused; Continue resumes at the current PC.
+- On macOS, About, Preferences and Quit use the native application menu, eliminating
+  the duplicate Studio menu.
 - Separate external-assembler profiles and tabbed settings for SC61, YASM61860 and
   generic DMP tools. Supply external tools and their runtimes separately.
 - Standalone memory utilities and pcwav tools in the repository’s `tools/` directory
