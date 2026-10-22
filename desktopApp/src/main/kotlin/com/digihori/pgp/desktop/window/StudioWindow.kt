@@ -3,6 +3,7 @@ package com.digihori.pgp.desktop.window
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPlacement
@@ -36,6 +37,7 @@ internal fun StudioWindow(
         onCloseRequest = onCloseRequest,
         onPreviewKeyEvent = onPreviewKeyEvent,
         title = title,
+        icon = painterResource("pokecom-go.png"),
         state = state,
     ) {
         DisposableEffect(window, id) {

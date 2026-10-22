@@ -67,7 +67,14 @@ compose.desktop {
             vendor = "Y Horiuchi"
             copyright = "Copyright (c) 2026 Y Horiuchi"
             appResourcesRootDir.set(layout.buildDirectory.dir("generated/distribution-resources"))
+            macOS {
+                iconFile.set(project.file("icons/pokecom-go.icns"))
+            }
+            linux {
+                iconFile.set(project.file("icons/pokecom-go.png"))
+            }
             windows {
+                iconFile.set(project.file("icons/pokecom-go.ico"))
                 // Preserve the UpgradeCode from the published 0.4 MSI (ProductVersion 1.3.0).
                 upgradeUuid = "D173EFD1-57EF-3753-A618-92481F262D95"
                 menu = true

@@ -32,6 +32,7 @@ internal fun RomManagementScreen(manager: AndroidRomManager, current: MachineId?
         Text("ROM管理", style = MaterialTheme.typography.headlineSmall)
         when (state) {
             is RomManagerState.ListRoms -> {
+                PlayerSetupGuide()
                 Text("シリーズごとにROMを1セット保存します。切替・置換時にRAMは引き継ぎません。")
                 state.entries.forEach { entry ->
                     val model = PlayerMachineCatalog.selectedModel(entry.machineId, homeModels)
@@ -103,6 +104,9 @@ internal fun PlayerInformationScreen(section: String, version: String, onClose: 
     ManagementSurface {
         TextButton(onClick = { back() }) { Text("戻る") }
         Text(document?.substringAfterLast('/') ?: section, style = MaterialTheme.typography.headlineSmall)
+        if (document == null && section in listOf("Studioについて", "Playerとは")) {
+            PlayerSetupGuide()
+        }
         if (asset != null) {
             if (body == null) Text("読み込んでいます…")
             else if (document == null) InformationDocument(body.orEmpty())

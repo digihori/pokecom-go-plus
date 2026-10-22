@@ -64,6 +64,7 @@ internal fun PlayerHomeScreen(
         if (!fullyVisible) gridState.scrollToItem(index)
     }
     Column(Modifier.fillMaxSize().padding(top = PlayerTitleBarHeight, start = 24.dp, end = 24.dp)) {
+        PlayerSetupGuide()
         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("機種を選択", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)

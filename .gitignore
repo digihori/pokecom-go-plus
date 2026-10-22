@@ -26,6 +26,7 @@ local.properties
 *bank.bin
 
 # Signing credentials
+/androidApp/release/
 *.jks
 *.keystore
 *.p12
