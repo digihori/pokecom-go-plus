@@ -31,6 +31,22 @@ class RoundTripTests(unittest.TestCase):
                         text = output.read_text(encoding='utf-8')
                         self.assertEqual(text, '10:PRINT "TEST OK"\n20:END\n')
 
+    def test_s1_binary_final_chunk_boundaries(self):
+        with tempfile.TemporaryDirectory(prefix='pcwav-boundary-') as directory:
+            root = Path(directory)
+            for length in (1, 119, 120, 121, 240, 4112):
+                with self.subTest(length=length):
+                    source, wav, output = root / 'input.bin', root / 'test.wav', root / 'output.bin'
+                    source.write_bytes(bytes((i * 37 + 11) & 0xFF for i in range(length)))
+                    for script, args in (
+                        ('pcwav-encode.pl', ['s1bin', str(source), str(wav), 'BOUND', '0x9000']),
+                        ('pcwav-decode.pl', ['s1bin', str(wav), str(output)]),
+                    ):
+                        result = subprocess.run(['perl', str(TOOLS / script), *args],
+                                                cwd=root, capture_output=True, text=True)
+                        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertEqual(output.read_bytes(), source.read_bytes())
+
 
 if __name__ == '__main__':
     unittest.main()

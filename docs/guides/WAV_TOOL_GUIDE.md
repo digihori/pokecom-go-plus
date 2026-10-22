@@ -89,3 +89,10 @@ PGPの新S1／S2 codecは合成テスト済み。実機往復は未確認であ�
 ROMや個人データを検証fixtureとして追加しない。
 
 [進捗・検証記録](../development/WAV_S1_S2_PROGRESS.md)／[詳細方針](../development/WAV_OPERATIONS.md)／[S1・S2仕様](../reference/WAV_S1_S2_FORMAT.md)
+
+### 2026-10-22：S1／S2 Binaryの120-byte境界修正
+
+内蔵WAV変換はpcwav 0.5.2の実機確認済み規則へ追従しました。
+最後の1〜120 bytesには個別SUMを付けず、末尾SUMに含めます。
+旧版で作った120の倍数のBinary WAVが終端不正になる場合は、原本のDMP／HEX等から
+WAVを再生成してください。誤SUMを無視する互換処理はありません。

@@ -1,5 +1,18 @@
 # S1／S2 WAV参照動作仕様
 
+
+## 2026-10-22追記：pcwav 0.5.2の実機による訂正
+
+pcwav `156bb6a2ed09df3ac03c6e7ccc42e96c87cc406d` の追加実機検証により、
+S1 Binaryも最後の1〜120 raw bytesには独立chunk checksumを付けず、
+最後のchunk全体と最初の`FF`をtail checksumへ含める規則と確認された。
+従来の§5.1の「120の倍数なら最後にもchunk checksumを付け、tailはFFのみ」は旧想定である。
+4112 bytesのpartial-tail確認自体は引き続き有効。今回更新した単独pcwavは訂正済み。
+Studio/Core内蔵Codecも同規則へ追従。固定raw／PCM期待値、境界・破損テストと
+StudioのWAV変換経路で検証する。今回新たに実機録音を取得したわけではない。
+上流記録：`docs/BUGFIX_0.5.2.md`、`docs/HARDWARE_TEST_0.5.1.md`。
+旧版との差は履歴として記録し、§5.1は現在の規則へ更新した。
+
 ## 1. 文書の位置付け
 
 この文書は、PGPのS1／S2 WAV Codecの参照仕様と、同一作者の`pcwav`を読み取り専用で調査した結果を
@@ -109,31 +122,31 @@ metadataは次の8 bytesである。
 記録する構造はない。PGPの`.dmp`／Intel HEX入力に複数領域またはgapがある場合は拒否し、暗黙に結合または
 zero-fillしない。
 
-bodyはlogical byteをnibble swapして格納する。120 data bytesごとに、swap後のdataを対象にした
-chunk checksumを挿入する。最後がちょうど120 bytesの場合もそのchunk checksumを付ける。
-最後のpartial chunk（1〜119 bytes）にはchunk checksumを付けない。
+bodyはlogical byteをnibble swapして格納する。最後以外の120 data bytesごとに、
+swap後のdataを対象にしたchunk checksumを挿入する。
+最後のchunkは1〜120 bytesで、ちょうど120 bytesでも個別chunk checksumを付けない。
 
-末尾は`FF FF tailChecksum`。採用するtail checksumは、**最後のpartial raw bytes＋最初の`FF`**を
+末尾は`FF FF tailChecksum`。tail checksumは **最後のchunkのraw bytes＋最初の`FF`** を
 対象に共通S1 checksumを計算し、nibble swapして格納する。2個目の`FF`は加算しない。
-body長が120の倍数ならpartialは空で、`FF`だけを対象とする。
+body長が120の倍数でも、最後の120 bytesをtail計算へ含める。
 
-2026-10-18のPC-1360K実機録音32レコード（各4112 bytes）と、その後の配布デコーダーで確認した方式を採用する。
-参照pcwav Encoderは長さによらず`FF`だけからtailを計算するため、partialがある入力では差が出る。
-PGPはこの旧方式へ合わせず、checksum不一致として診断する。旧方式を黙って受け入れる互換fallbackは追加しない。
-Binaryの他の長さ境界へこの構造を適用することと、それぞれを実機で確認したことは区別する。
+2026-10-18のPC-1360K実機録音32レコード（各4112 bytes）でpartial-tailを確認。
+2026-10-22のpcwav側追加実機検証で120／240 bytesの最終full chunk規則を訂正した。
+pcwav 0.5.2は訂正済み。旧pcwavのFF-only tailや最終full chunkへの余計なchecksumは
+黙って受け入れず、不一致／終端不正として診断する。
 
 | body長 | 区切りchecksum付きchunk数 | tail checksumの対象（swap後） |
 | --- | ---: | --- |
 | 1 | 0 | 最後の1 byte＋`FF` |
 | 119 | 0 | 最後の119 bytes＋`FF` |
-| 120 | 1 | `FF`のみ |
+| 120 | 0 | 最後の120 bytes＋`FF` |
 | 121 | 1 | 最後の1 byte＋`FF` |
-| 240 | 2 | `FF`のみ |
+| 240 | 1 | 最後の120 bytes＋`FF` |
 
-参照S1 Binary Decoderは`remaining > 120`でchunkを処理するため、Encoderが出す最後のfull chunkの
-checksumと整合しない。また、宣言長の`+1`後に`& 0xFFFF`を行い65536が0になる。
+旧参照Decoderの`remaining > 120`条件自体は実機のchunk境界と一致するが、
+末尾SUM検証の欠落と65536 bytesの長さが0になる問題があった。pcwav 0.5.2はこれらも修正済み。
 PGPはmetadataを`1..65536`として扱い、`start + length <= 65536`を別途検証する。
-これらの境界動作も参照Decoderの成功だけでは判定しない。
+最大長の境界テストは合成検証で、実機確認と区別する。
 
 ### 5.2 Decode結果
 
@@ -174,7 +187,7 @@ checksumを挿入し、最後のchunkには長さが120 bytesでもchunk checksu
 `FF FF tailChecksum`である。
 tail checksumは最後のchunkのswap前logical bytesと最初の`FF`を対象に、
 high nibble加算→carry補正→low nibble加算→mod 256の順で計算し、nibble swapして格納する。
-最後のchunkは長さが120 bytesでもtail計算へ含める。Binaryの「120の倍数ならpartialは空」と混同しない。
+最後のchunkは長さが120 bytesでもtail計算へ含める。Binaryも最後の1〜120 bytesをtail計算へ含める規則である。
 
 ## 7. S2 BASIC
 

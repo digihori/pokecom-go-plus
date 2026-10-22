@@ -75,16 +75,12 @@ Pokecom GO is not a runtime or build dependency of this repository.
 
 ## pcwav
 
-pcwav is a reference implementation by the same copyright holder as Pokecom GO Plus.
-It has been consulted when designing future WAV and transfer support. No pcwav source code is
-currently included in Pokecom GO Plus, and it is not a runtime or build dependency.
-
-## Standalone pcwav tools
-
 - Source: [digihori/pcwav](https://github.com/digihori/pcwav), revision
-  `14e1ef53596f0d8791b6d14965061f63846d11a7`, version 0.5.
-- Bundled under `tools/pcwav/` as optional command-line tools, with a documented
-  numeric-parser fix; not linked into Studio or the emulator core.
-- This revision contains no explicit license notice or LICENSE file. These
-  bundled files are not automatically covered by PGP's MIT license.
+  `156bb6a2ed09df3ac03c6e7ccc42e96c87cc406d`, version 0.5.2.
+- Copyright (c) 2026 digihori. MIT license; see
+  [LICENSE](tools/pcwav/LICENSE) and [NOTICE](tools/pcwav/NOTICE).
+- Bundled under `tools/pcwav/` as optional standalone command-line tools generated
+  without functional local patches (comment trailing spaces normalized); not linked into Studio or the emulator core.
+- Referenced materials acknowledged by upstream retain their own terms and are
+  not included in these standalone tools.
 - See [the bundled tool README](tools/pcwav/README.md) for provenance and checksums.

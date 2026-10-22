@@ -88,7 +88,7 @@ def cases():
     return result
 
 
-def payload(case):
+def payload(case, legacy=False):
     body = bytes.fromhex(case['logicalHex'])
     raw_body = bytes(map(swap, body))
     if case['kind'] == 's1bin':
@@ -96,7 +96,7 @@ def payload(case):
         name = (b'\0' + chars).ljust(7, b'\0') + b'\xf5'
         meta = b'\0' * 4 + case['address'].to_bytes(2, 'big') + (len(body) - 1).to_bytes(2, 'big')
         out = bytearray(b'\x67' + name + bytes([checksum(name)]) + meta + bytes([checksum(meta)]))
-        full = len(body) // 120
+        full = len(body) // 120 if legacy else (len(body) - 1) // 120
     else:
         name = case['name'].encode().ljust(7, b'\0')[::-1] + b'\xf5'
         out = bytearray(bytes([case['type']]) + name + bytes([checksum(name)]))
@@ -107,7 +107,7 @@ def payload(case):
         out.append(checksum(chunk))
     tail = raw_body[full * 120:]
     out.extend(tail)
-    out.extend([255, 255, checksum(tail + b'\xff')])
+    out.extend([255, 255, checksum(b'\xff' if legacy else tail + b'\xff')])
     return bytes(out)
 
 
@@ -146,8 +146,7 @@ def verify(vectors):
         assert saved['expectedRawHex'] == canonical.hex(), saved['id']
         recorded = bytes.fromhex(saved['referenceRawHex'])
         if original['kind'] == 's1bin':
-            assert canonical[:-1] == recorded[:-1], saved['id']
-            assert recorded[-1] == checksum(b'\xff'), saved['id']
+            assert recorded == payload(original, legacy=True), saved['id']
         else:
             assert recorded == canonical, saved['id']
         if recorded != canonical:

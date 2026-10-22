@@ -8,7 +8,7 @@ public object S1BinaryCodec {
                 "S1 binary requires a nonempty body within the 16-bit address space")
         }
         val name = filename.uppercase().filter { it in 'A'..'Z' || it in '0'..'9' || it == ' ' }.take(6)
-        val raw = ByteArray(19 + body.size + body.size / 120 + 3)
+        val raw = ByteArray(19 + body.size + (body.size - 1) / 120 + 3)
         raw[0] = 0x67
         name.reversed().forEachIndexed { i, c -> raw[i + 2] = c.code.toByte() }
         raw[8] = 0xf5.toByte()
@@ -23,22 +23,22 @@ public object S1BinaryCodec {
         val mappings = mutableListOf<CodecDataMapping>()
         var cursor = 19
         var offset = 0
-        var partialStart = cursor
+        // The final 1..120 bytes belong to the tail, including a full chunk.
+        var lastChunkStart = cursor
         while (offset < logical.size) {
             val length = minOf(120, logical.size - offset)
-            partialStart = cursor
+            lastChunkStart = cursor
             repeat(length) { raw[cursor + it] = swap(logical[offset + it].toInt() and 255).toByte() }
             mappings += CodecDataMapping(CodecDataRange(CodecDataKind.LOGICAL_BYTES, offset, length),
                 CodecDataRange(CodecDataKind.RAW_BYTES, cursor, length), "body-data")
             cursor += length
-            if (length == 120) {
-                raw[cursor++] = checksum(raw, partialStart, length).toByte()
-                partialStart = cursor
+            if (offset + length < logical.size) {
+                raw[cursor++] = checksum(raw, lastChunkStart, length).toByte()
             }
             offset += length
         }
         raw[cursor++] = 0xff.toByte()
-        val tail = checksum(raw, partialStart, cursor - partialStart)
+        val tail = checksum(raw, lastChunkStart, cursor - lastChunkStart)
         raw[cursor++] = 0xff.toByte()
         raw[cursor] = tail.toByte()
         return CodecResult.Success(S1BinaryEncoding(RawTransferByteSequence(raw), name, startAddress, mappings))
@@ -69,31 +69,31 @@ public object S1BinaryCodec {
         val length = (raw[16].toInt() and 255) * 256 + (raw[17].toInt() and 255) + 1
         if (address.toLong() + length > 65536) return fail(CodecDiagnosticCode.INVALID_HEADER,
             "S1 binary metadata exceeds the 16-bit address space", 14, 4)
-        val expectedSize = 19 + length + length / 120 + 3
+        val expectedSize = 19 + length + (length - 1) / 120 + 3
         if (raw.size < expectedSize) return fail(CodecDiagnosticCode.TRUNCATED_INPUT,
             "S1 binary body or footer is truncated", raw.size, 0)
         val body = ByteArray(length)
         val mappings = mutableListOf<CodecDataMapping>()
         var cursor = 19
         var offset = 0
-        var partialStart = cursor
+        // The final 1..120 bytes belong to the tail, including a full chunk.
+        var lastChunkStart = cursor
         while (offset < length) {
             val count = minOf(120, length - offset)
-            partialStart = cursor
+            lastChunkStart = cursor
             repeat(count) { body[offset + it] = swap(raw[cursor + it].toInt() and 255).toByte() }
             mappings += CodecDataMapping(CodecDataRange(CodecDataKind.RAW_BYTES, cursor, count),
                 CodecDataRange(CodecDataKind.LOGICAL_BYTES, offset, count), "body-data")
             cursor += count
-            if (count == 120) {
-                checkSum(raw, partialStart, count, cursor)?.let { return it }
+            if (offset + count < length) {
+                checkSum(raw, lastChunkStart, count, cursor)?.let { return it }
                 cursor++
-                partialStart = cursor
             }
             offset += count
         }
         if (raw[cursor] != 0xff.toByte() || raw[cursor + 1] != 0xff.toByte())
             return fail(CodecDiagnosticCode.MISSING_TERMINATOR, "S1 binary FF FF footer is missing", cursor, 2)
-        checkSum(raw, partialStart, cursor - partialStart + 1, cursor + 2)?.let { return it }
+        checkSum(raw, lastChunkStart, cursor - lastChunkStart + 1, cursor + 2)?.let { return it }
         cursor += 3
         if (raw.size > cursor) return fail(CodecDiagnosticCode.TRAILING_DATA,
             "S1 binary has trailing raw data", cursor, raw.size - cursor)

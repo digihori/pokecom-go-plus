@@ -21,7 +21,7 @@ BASICではpayload末尾の後に物理trailer `FF`を1 byte追加してPCMを�
 - `referenceRawHex`／`referencePcm*`：指定commitのpcwavの出力そのもの。
 - S1 Binaryのpartial tailは、実機確認済みの「partial raw＋最初のFF」と、pcwavの旧方式「FFのみ」で異なる。
   参照値は差を検出する対照として保存し、PGP Decoderの無条件成功例として使用しない。
-- Binaryの120の倍数では最後にもchunk checksumを付け、tailの対象はFFのみ。
+- 2026-10-22訂正：Binaryの120の倍数も最後の120 bytesにはchunk checksumを付けず、tailへ含める。
 - BASICは最後のchunkが120 bytesでもchunk checksumを付けず、その120 bytesをtail計算へ含める。
 - `s2basic-type37`は同じsource/bodyのtypeを変更する例で、password文字列を設定する例ではない。
 
@@ -36,7 +36,7 @@ Python 3の標準ライブラリだけで検証できる。pcwavとPerlは不要
 python3 test-data/wav/s1-s2/generate.py --verify
 ```
 
-これはfixtureの整合性検査であり、未実装のKotlin codecの動作試験ではない。
+これはfixtureの整合性検査であり、Kotlin codecの動作試験とは別。
 段階2の`S1SignalVectorTest`（desktopTest）では固定JSONのrawとPCM期待値を使い、独立した期待値と製品出力を比較する。
 commonTestでは同期・破損・切詰め・位置情報等を検証する。
 checksum反転、欠落、不正長等の失敗系は、仕様書の表に沿って製品codec追加時に検証する。
@@ -51,12 +51,16 @@ python3 test-data/wav/s1-s2/generate.py --pcwav ../pcwav
 ```
 
 参照実装と独立生成したraw・PCMを比較してから`vectors.json`を書き出す。
-Binaryでは既知のtail以外に差があれば停止する。変更時はfixtureの差分を確認して採用する。
+Binaryでは旧partial tailと旧最終full chunk構造以外に差があれば停止する。変更時はfixtureの差分を確認して採用する。
 
-段階3では同じ固定JSONのBinary 8件を`S1BinaryCodec`と照合し、旧partial tailの6件が
-`CHECKSUM_MISMATCH`になることも`S1SignalVectorTest`で確認する。
+段階3では同じ固定JSONのBinary 8件を`S1BinaryCodec`と照合し、旧形式の8件を拒否する（partial tailは`CHECKSUM_MISMATCH`、旧最終full chunkは終端不正となる）ことも`S1SignalVectorTest`で確認する。
 
 段階4の`S1SignalVectorTest`でS1 BASIC 8件の製品payload出力・Decodeも固定rawと照合する。
 
 段階5ではS2 BASIC 11件の機種別ソース変換とpayloadを固定期待値に照合し、type 27／37、
 漢字・カナ、ON行参照リスト、THEN、REM／quoteを検証する。
+
+2026-10-22追記：120／240 bytesの採用raw、PCM長とSHA-256を実機規則へ訂正した。
+旧pcwav 0.5の参照値は比較・拒否テスト用として保持する。
+pcwav 0.5.2（`156bb6a2ed09df3ac03c6e7ccc42e96c87cc406d`）との読み取り専用比較で、
+全28件の独立生成raw／PCMが一致した。ROM／実機録音はfixtureへ含めていない。

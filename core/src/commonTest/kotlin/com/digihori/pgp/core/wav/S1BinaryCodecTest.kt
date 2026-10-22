@@ -9,18 +9,42 @@ class S1BinaryCodecTest {
     private fun decode(raw: ByteArray) = S1BinaryCodec.decode(RawTransferByteSequence(raw))
 
     @Test fun coversChunkBoundariesAndFullAddressSpace() {
-        for (length in listOf(1, 119, 120, 121, 239, 240, 241, 65536)) {
+        for (length in listOf(1, 119, 120, 121, 239, 240, 241, 4112, 65536)) {
             val encoded = encode(length, if (length == 65536) 0 else 0x4000)
             val decoded = assertIs<CodecResult.Success<S1BinaryDecoding>>(decode(encoded.rawBytes.copyBytes())).value
             assertEquals(length, decoded.body.size)
             assertContentEquals(ByteArray(length) { (it * 37 + 18).toByte() }, decoded.body.copyBytes())
             assertEquals("AB12 C", decoded.filename)
-            assertEquals(19 + length + length / 120 + 3, decoded.consumedRawBytes)
+            assertEquals(19 + length + (length - 1) / 120 + 3, decoded.consumedRawBytes)
             assertEquals((length + 119) / 120, decoded.bodyMappings.size)
             if (length == 65536) assertEquals(65535, decoded.endAddress)
         }
         assertEquals(65535, assertIs<CodecResult.Success<S1BinaryDecoding>>(
             decode(encode(1, 65535).rawBytes.copyBytes())).value.startAddress)
+    }
+
+    @Test fun finalFullChunkUsesTailChecksumAndRejectsLegacyExtraChecksum() {
+        // All-zero data: checksum(data) = 0x00; checksum(data + first FF) = 0xE1.
+        // These fixed values do not come from the production encoder.
+        for (length in listOf(120, 240)) {
+            val header = if (length == 120) "6700000000000000F541000000009000007771"
+                else "6700000000000000F54100000000900000EF62"
+            val expected = header.chunked(2).map { it.toInt(16).toByte() }.toByteArray() +
+                ByteArray(length + (length - 1) / 120) + byteArrayOf(-1, -1, 0xE1.toByte())
+            val encoded = assertIs<CodecResult.Success<S1BinaryEncoding>>(S1BinaryCodec.encode(
+                "", 0x9000, LogicalByteSequence(ByteArray(length)))).value
+            assertContentEquals(expected, encoded.rawBytes.copyBytes())
+            assertContentEquals(ByteArray(length),
+                assertIs<CodecResult.Success<S1BinaryDecoding>>(decode(expected)).value.body.copyBytes())
+            val footer = expected.size - 3
+            val legacy = expected.copyOfRange(0, footer) + byteArrayOf(0) + expected.copyOfRange(footer, expected.size)
+            assertIs<CodecResult.Failure>(decode(legacy))
+            val damaged = expected.copyOf().also { it[it.lastIndex] = 0 }
+            assertEquals(CodecDataRange(CodecDataKind.RAW_BYTES, damaged.lastIndex, 1),
+                assertIs<CodecResult.Failure>(decode(damaged)).diagnostics.single().range)
+            assertEquals(CodecDiagnosticCode.TRUNCATED_INPUT,
+                assertIs<CodecResult.Failure>(decode(expected.dropLast(1).toByteArray())).diagnostics.single().code)
+        }
     }
 
     @Test fun rejectsEmptyOverflowAndInvalidStart() {

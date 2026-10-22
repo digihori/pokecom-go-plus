@@ -84,23 +84,25 @@ class DesktopWavOperationTest {
     }
 
     @Test fun s1AndS2BinaryRoundTripsAndHexExport() {
-        val body = ByteArray(241) { (it * 37 + 18).toByte() }
-        val input = DesktopWavBinaryFiles.writeHex(0xc000, body)
-        for (target in listOf("pc-1350", "pc-1360")) {
-            val machine = MachineId(target)
-            val encoded = DesktopWavOperation.encode(input, true, machine, "CODE", false)
-            assertNotNull(encoded.wav)
-            assertNull(encoded.program)
-            val decoded = DesktopWavOperation.decode(encoded.wav, machine)
-            assertEquals(0xc000, decoded.s1Payload?.startAddress)
-            assertEquals(0xc0f0, decoded.s1Payload?.endAddress)
-            assertContentEquals(body, decoded.s1Payload?.body?.copyBytes())
-            assertEquals("CODE.dmp", decoded.programName)
-            assertNotNull(decoded.program)
-            assertContentEquals(input, decoded.hexProgram)
-            assertNotNull(decoded.pcm)
-            assertEquals(decoded.raw?.size, decoded.mappings.size)
-            assertTrue(decoded.diagnostics.isEmpty())
+        for (length in listOf(120, 240, 241)) {
+            val body = ByteArray(length) { (it * 37 + 18).toByte() }
+            val input = DesktopWavBinaryFiles.writeHex(0xc000, body)
+            for (target in listOf("pc-1350", "pc-1360", "pc-1360k")) {
+                val machine = MachineId(target)
+                val encoded = DesktopWavOperation.encode(input, true, machine, "CODE", false)
+                assertNotNull(encoded.wav)
+                assertNull(encoded.program)
+                val decoded = DesktopWavOperation.decode(encoded.wav, machine)
+                assertEquals(0xc000, decoded.s1Payload?.startAddress)
+                assertEquals(0xc000 + length - 1, decoded.s1Payload?.endAddress)
+                assertContentEquals(body, decoded.s1Payload?.body?.copyBytes())
+                assertEquals("CODE.dmp", decoded.programName)
+                assertNotNull(decoded.program)
+                assertContentEquals(input, decoded.hexProgram)
+                assertNotNull(decoded.pcm)
+                assertEquals(decoded.raw?.size, decoded.mappings.size)
+                assertTrue(decoded.diagnostics.isEmpty())
+            }
         }
     }
 

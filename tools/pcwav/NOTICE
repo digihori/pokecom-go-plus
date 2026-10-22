@@ -1,0 +1,12 @@
+PCWAV
+Copyright (c) 2026 digihori
+SPDX-License-Identifier: MIT
+
+Reference acknowledgments
+
+During development, cload.pl (Yagshi) and yasm.pl were used as references for
+cassette-format specifications and behavior.
+
+Third-party reference materials, including local files under ref/, retain their
+own terms and are not included in the pcwav standalone distribution. The MIT
+license for PCWAV does not grant rights to these reference materials.

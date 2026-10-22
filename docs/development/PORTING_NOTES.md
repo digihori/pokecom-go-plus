@@ -3129,3 +3129,43 @@ Core・共有Player・Androidの既存機種定義に対するApple接続14モ�
   was invented for these files. Provenance and checksums are recorded in the tool README.
 - Validation uses synthetic BASIC/binary WAV round trips and Perl syntax checks;
   this does not establish new real-device compatibility.
+
+## Standalone pcwav 0.5.2 update (2026-10-22)
+
+- Source: digihori/pcwav `156bb6a2ed09df3ac03c6e7ccc42e96c87cc406d` (MIT,
+  Copyright (c) 2026 digihori). Included upstream LICENSE and NOTICE alongside tools.
+- Generated both standalone scripts from an archived temporary copy with upstream
+  build.pl; reference checkouts were not modified. Only trailing spaces in generated comment
+  lines were removed; no functional local script patch remains.
+- Upstream now supplies parse_num and strict S1 Binary checksums/range checks.
+  Hardware follow-up corrected the final full-chunk rule: the final 1..120 bytes
+  use the tail checksum, without a separate chunk checksum, including multiples of 120.
+- Upstream synthetic S1 Binary suite: 176 assertions passed. Bundled Perl syntax
+  checks and all five mode round trips passed. Upstream hardware results are
+  recorded by the author; no new hardware capture was performed in this update.
+- This updates optional standalone tools only. Studio/Core codec boundary behavior
+  requires separate follow-up; corrected reference documentation flags the old assumption.
+
+## Studio/Core S1 Binary final full-chunk correction (2026-10-22)
+
+- Reference: pcwav 0.5.2, `156bb6a2ed09df3ac03c6e7ccc42e96c87cc406d`,
+  MIT; source modules Binary/S1Encode.pm and S1Decode.pm, hardware follow-up in
+  docs/BUGFIX_0.5.2.md. Ported the framing rule into the existing platform-free
+  Kotlin codec; no Perl runtime/build dependency or firmware was added.
+- Encode/decode now use `(length - 1) / 120` non-final checksums. The final 1..120
+  bytes are covered by the tail checksum with the first FF. This also applies
+  to S2 Binary through its existing shared S1 codec; BASIC logic is unchanged.
+- Corrected independent fixture generation for 120/240 bytes, including PCM
+  sample counts/hashes. Kept the original pcwav 0.5 reference output as negative
+  fixtures: all eight old Binary vectors are rejected. All 28 independently
+  generated raw/PCM vectors match pcwav 0.5.2 in an explicit read-only comparison.
+- Added fixed zero-data 120/240-byte expectations, old-structure rejection and
+  tail corruption/truncation coverage. Existing boundaries include 4112/65536;
+  Studio conversion tests cover 120/240/241 bytes on PC-1350/1360/1360K.
+- These are automated checks. The upstream author's hardware receipt is the
+  evidence for framing; no new hardware transfer was performed in this task.
+
+- Validation: JDK 21 `./gradlew build :core:desktopTest` succeeded, including
+  Native/Android checks. Final Core desktop tests (491) and Studio tests (406,
+  one existing skip) passed with no failures. Fixture verification and
+  `git diff --check` also passed.

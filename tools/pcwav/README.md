@@ -59,30 +59,34 @@ perl tools/pcwav/pcwav-decode.pl
 ## 取得元と更新
 
 - 取得元：[digihori/pcwav](https://github.com/digihori/pcwav)
-- 元コミット：`14e1ef53596f0d8791b6d14965061f63846d11a7`
-- スクリプト内のバージョン：`0.5`
+- 元コミット：`156bb6a2ed09df3ac03c6e7ccc42e96c87cc406d`
+- スクリプト内のバージョン：`0.5.2`
 - 同梱日：2026-10-22
-- 元の`build.pl`で生成した2本に、下記の同梱版修正を加えています。
+- 元の`build.pl`で生成した2本のコメント行の末尾空白だけを除去して同梱しています。機能の独自修正はありません。
 
 修正はpcwav側で行い、確認済みのコミットから生成し直して取り込んでください。
 このリポジトリの通常ビルドではpcwavの取得・生成を行いません。
 更新時は元コミットと下記SHA-256も更新します。
 
 ```text
-999792ead387dade704dc9f95e9115b2bec687cdcb7427a1721d862ccaa4fd5d  pcwav-encode.pl
-2e00085d214e1cede00820fe05ecebb5588dd01a76b500da9d591b7648d3aa41  pcwav-decode.pl
+d80327e7c8f2f41733b61476e88d3dac9cccdfbd8197654438d7eec1a55b76f8  pcwav-encode.pl
+5968ced7608cdcfb58252bb3d24aece62bfaf33425e4f47006153803f4c3db15  pcwav-decode.pl
 ```
 
-### 同梱版の修正
+### 上流修正とライセンス
 
-元コミットでは開始アドレスやdecodeのスキップ数値オプションから呼ぶ
-`PCWAV::Common::parse_num`が未定義でした。両スクリプトのCommonモジュールに、
-10進数／`0x`付き16進数を読む関数だけを追加しています。数値以外と負数は拒否します。
-再生成時はこの修正も再適用するか、上流で修正済みか確認してください。
+0.5.2では `Common::parse_num` が上流で定義されているため、旧同梱版の暫定修正は不要です。
+S1 Binaryのchunk／末尾SUM検証、長さ・アドレス範囲検証も修正されています。
+最後の1〜120 raw bytesには個別chunk SUMを付けず、その全体と最初の`FF`を末尾SUMへ含めます。
+120の倍数でも最後の120 bytesを末尾として扱います。旧版が生成した誤SUM／異なる終端構造を
+新Decoderが拒否する場合は、元データからWAVを再生成してください。
 BASICのdecode出力は`10:PRINT ...`のように行番号の後にコロンを付けます。
 
-元コミットにはLICENSEファイルや明示的なライセンス表記がありません。
-ここでは独自にライセンスを付与せず、PGPのMITライセンスが自動適用されるとは扱いません。
+pcwavはMITライセンス（Copyright (c) 2026 digihori）です。
+上流の[LICENSE](LICENSE)と[NOTICE](NOTICE)を同梱し、生成スクリプトにも案内・本文を保持しています。
+NOTICEに記載された参考資料は同梱せず、それらへpcwavのMITが適用されるとは扱いません。
+同梱ツールはStudioから呼び出されません。内蔵WAV Codecは共通Coreの独立実装で、
+同じ実機規則へ追従しています。
 
 ## 検証
 

@@ -56,7 +56,7 @@ class S1SignalVectorTest {
     }
 
     @Test
-    fun binaryPayloadMatchesFixedVectorsAndRejectsLegacyPartialTails() {
+    fun binaryPayloadMatchesFixedVectorsAndRejectsLegacyTails() {
         val file = sequenceOf(File("test-data/wav/s1-s2/vectors.json"), File("../test-data/wav/s1-s2/vectors.json")).first { it.isFile }
         val cases = Json.parseToJsonElement(file.readText()).jsonObject.getValue("cases").jsonArray
         var count = 0
@@ -74,7 +74,8 @@ class S1SignalVectorTest {
             assertContentEquals(logical, assertIs<CodecResult.Success<S1BinaryDecoding>>(
                 S1BinaryCodec.decode(RawTransferByteSequence(expected))).value.body.copyBytes())
             val legacy = bytes("referenceRawHex")
-            if (!legacy.contentEquals(expected)) assertEquals(CodecDiagnosticCode.CHECKSUM_MISMATCH,
+            if (!legacy.contentEquals(expected)) assertEquals(
+                if (logical.size % 120 == 0) CodecDiagnosticCode.MISSING_TERMINATOR else CodecDiagnosticCode.CHECKSUM_MISMATCH,
                 assertIs<CodecResult.Failure>(S1BinaryCodec.decode(RawTransferByteSequence(legacy))).diagnostics.single().code)
         }
         assertEquals(8, count)
