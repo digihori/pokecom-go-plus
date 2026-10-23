@@ -1,4 +1,4 @@
-name: Build Technical Preview
+name: Build Release Packages
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
       - "v*"
 
 env:
-  RELEASE_VERSION: 0.7.0-alpha.1
+  RELEASE_VERSION: 1.0.0
 
 jobs:
   package:
@@ -50,9 +50,57 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install --yes fakeroot
 
-      - name: Test and package macOS
+      - name: Test notarization acceptance gates
         if: runner.os == 'macOS'
-        run: ./gradlew :core:desktopTest :hostInput:desktopTest :desktopApp:test :desktopApp:createDistributable :desktopApp:packageDmg --no-daemon
+        run: python3 -m unittest discover -s scripts/tests -p test_notarize_macos.py
+
+      - name: Configure macOS signing keychain
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          PGP_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          PGP_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          PGP_MAC_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          PGP_NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          PGP_NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
+          PGP_NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
+        run: |
+          set -eu
+          for name in PGP_CERTIFICATE_BASE64 PGP_CERTIFICATE_PASSWORD PGP_MAC_SIGNING_IDENTITY PGP_NOTARY_APPLE_ID PGP_NOTARY_TEAM_ID PGP_NOTARY_PASSWORD; do
+            test -n "${!name}" || { echo "Missing macOS signing secret: $name"; exit 1; }
+          done
+          keychain="$RUNNER_TEMP/pgp-signing.keychain-db"
+          keychain_password=$(openssl rand -hex 32)
+          echo "::add-mask::$keychain_password"
+          export PGP_CERTIFICATE_FILE="$RUNNER_TEMP/pgp-signing.p12"
+          python3 -c 'import base64, os; from pathlib import Path; p=Path(os.environ["PGP_CERTIFICATE_FILE"]); p.write_bytes(base64.b64decode(os.environ["PGP_CERTIFICATE_BASE64"], validate=True)); p.chmod(0o600)'
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$PGP_CERTIFICATE_FILE" -P "$PGP_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain"
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          xcrun notarytool store-credentials pgp-notary --apple-id "$PGP_NOTARY_APPLE_ID" --team-id "$PGP_NOTARY_TEAM_ID" --password "$PGP_NOTARY_PASSWORD" --keychain "$keychain"
+          echo "PGP_MAC_SIGNING_IDENTITY=$PGP_MAC_SIGNING_IDENTITY" >> "$GITHUB_ENV"
+          echo "PGP_MAC_SIGNING_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+          rm -f "$PGP_CERTIFICATE_FILE"
+
+      - name: Test and sign macOS app
+        if: runner.os == 'macOS'
+        run: ./gradlew :core:desktopTest :hostInput:desktopTest :desktopApp:test :desktopApp:createDistributable --no-daemon
+
+      - name: Notarize macOS app
+        if: runner.os == 'macOS'
+        run: python3 scripts/notarize-macos.py desktopApp/build/compose/binaries/main/app/PokecomGOStudio.app --keychain "$PGP_MAC_SIGNING_KEYCHAIN"
+
+      - name: Package signed macOS DMG
+        if: runner.os == 'macOS'
+        # The app was already signed, tested and stapled. Do not regenerate it.
+        run: ./gradlew :desktopApp:packageDmg -x :desktopApp:createDistributable --no-daemon
+
+      - name: Notarize macOS DMG
+        if: runner.os == 'macOS'
+        run: python3 scripts/notarize-macos.py desktopApp/build/compose/binaries/main/dmg/PokecomGOStudio-1.6.0.dmg --keychain "$PGP_MAC_SIGNING_KEYCHAIN"
 
       - name: Collect macOS packages
         if: runner.os == 'macOS'
@@ -119,6 +167,13 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Clean up macOS signing material
+        if: always() && runner.os == 'macOS'
+        shell: bash
+        run: |
+          security delete-keychain "$RUNNER_TEMP/pgp-signing.keychain-db" || true
+          rm -f "$RUNNER_TEMP/pgp-signing.p12"
+
   android-player:
     name: Package (Android Player)
     runs-on: ubuntu-latest
@@ -182,19 +237,19 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v5
 
-      - name: Download packages
+      - name: Download Studio release packages
         uses: actions/download-artifact@v4
         with:
-          pattern: pokecom-go-*
+          # Android debug APK remains a workflow artifact, not a release asset.
+          pattern: pokecom-go-studio-*
           path: release-assets
           merge-multiple: true
 
-      - name: Publish prerelease
+      - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           gh release create "${GITHUB_REF_NAME}" release-assets/* \
-            --prerelease \
-            --title "Pokecom GO Technical Preview 0.7 (alpha 1)" \
-            --notes-file docs/releases/notes/RELEASE_NOTES_0.7.0-alpha.1.md
+            --title "Pokecom GO Studio 1.0.0" \
+            --notes-file docs/releases/notes/RELEASE_NOTES_1.0.0.md

@@ -2,7 +2,8 @@
 
 文書区分：現在の方針とフェーズ別の計画・履歴。2026-10-22整理。
 冒頭の到達点と追加構想を現在の入口とし、各フェーズの項目は実装・未確認・将来候補を区別します。
-次のプレリリースに向け、現在は[文書整理](../DOCUMENTATION_ORGANIZATION.md)を実施中です。
+0.7 alpha 1の公開後、[正式リリースのMUST／WANT一覧](FORMAL_RELEASE_TASKS.md)に沿って準備を進めます。
+iOS版のリリースは別スレッドで確認します。[文書整理](../DOCUMENTATION_ORGANIZATION.md)は過去の整理記録です。
 
 このロードマップは方向性を示すものであり、リリース日を保証するものではない。
 各段階は小さな動作確認とテストを完了してから次へ進む。
@@ -95,7 +96,7 @@ SC61860 Assembler強化、Studio統合WAV Toolと波形解析を含む。
 
 ## ChromeOS対応（将来対応・2026-10-20記録）
 
-ユーザーから、Chromebook上でLinux版Studioが動作したとの報告を受領。
+Chromebook上でLinux版Studioが動作したとの利用者からの報告があります。
 ChromeOSではAndroid版Playerも動作するため、同一端末でStudioによる開発とPlayerによる実行を行う利用を想定する。
 動作報告は正式なChromeOS対応・網羅的な検証完了を意味しない。今回実装には着手せず、後日対応する。
 
@@ -233,14 +234,14 @@ ChromeOSではAndroid版Playerも動作するため、同一端末でStudioに�
   - [ ] Playerでも同じROMライブラリモデルを実装する
   - [ ] ROMデータをプロジェクト、ログ、バックアップ、同期対象へ意図せず含めない保存方針を定義する
 - [ ] Studio設定と最近使ったプログラムファイル
-- [x] Studio UIをシステム言語設定に応じてローカライズする（2026-10-14ユーザー受入れ済み）
-  - 2026-10-14: Studio対象画面の日英文言移行・再起動反映の言語設定・自動検証を完了。ユーザーによる一通りの確認を受領。OS／個別操作の内訳は未指定で、OS設定変更試験・Windows／Linux個別結果・独立画像の描画欠けは後続確認として記録。[最終検証](../STUDIO_LOCALIZATION_VERIFICATION.md)。[進捗](../STUDIO_LOCALIZATION_PLAN.md)、[棚卸し・用語表](../STUDIO_LOCALIZATION_INVENTORY.md)。
+- [x] Studio UIをシステム言語設定に応じてローカライズする（2026-10-14受入れ済み）
+  - 2026-10-14: Studio対象画面の日英文言移行・再起動反映の言語設定・自動検証を完了。一通りの動作確認を完了。OS／個別操作の内訳は未指定で、OS設定変更試験・Windows／Linux個別結果・独立画像の描画欠けは後続確認として記録。[最終検証](../STUDIO_LOCALIZATION_VERIFICATION.md)。[進捗](../STUDIO_LOCALIZATION_PLAN.md)、[棚卸し・用語表](../STUDIO_LOCALIZATION_INVENTORY.md)。
   - [x] StudioのUI文言をリソースへ分離し、起動時に日本語／英語を選択する（実行中切替UIは今回対象外）
   - [x] 初期言語はDesktopでOS由来の表示Localeから選び、未対応言語では英語へフォールバックする（実OS設定変更試験は未実施）
   - [x] AI / MCP Server、Debugger、Project、ROM管理を含む説明、操作、状態、エラー文言を日英へ移行する
   - [x] MCP tool名、JSON field、schema ID、設定key、URL、file path等の外部仕様上の識別子を維持する
   - [ ] 本番Mac／Windows／Linuxの実表示・操作とOS言語設定変更試験を確認する
-  - [x] ユーザー追加指示により、設定でOSの設定に従う／日本語／Englishを保存し、アプリ再起動後に反映する（実行中切替は対象外）
+  - [x] 追加対応として、設定でOSの設定に従う／日本語／Englishを保存し、アプリ再起動後に反映する（実行中切替は対象外）
 - [x] StudioへFile／Project／Program／Emulator／Debugメニューバーを追加する
 - [x] メイン画面をLCD、機種別キーボード、Run／Pause／Reset／Step、動作モード中心に整理する
 - [x] 機種選択ボタン群をコンボボックスへ置き換える
@@ -262,13 +263,13 @@ ChromeOSではAndroid版Playerも動作するため、同一端末でStudioに�
   - PC側キーボードからENTERで確定した入力を記録し、通常セッションでもAlt+↑／Alt+↓で再入力できることを回帰テストする
 - [ ] ゲームパッド入力に対応する（ゲームパッドの各操作にポケコンキーを割り当て、ゲームごとに設定できるようにする）
 - [ ] パッケージ生成とリリース自動化（3環境の成果物生成は確認済み、tag release検証待ち）
-  - [ ] 次の修正タイミングでWindows MSIの更新インストール対応を整える（2026-10-13ユーザー指定）
+  - [ ] 次の修正タイミングでWindows MSIの更新インストール対応を整える（2026-10-13対応方針）
     - [x] 公開0.4のUpgradeCodeを固定し、修正版のpackageVersionを1.3.1へ更新。配布更新ごとに増加する運用を定義。
-    - [ ] 旧版からの更新、スタートメニュー登録、設定・ROM Library保持のWindows受入れ（2026-10-13ユーザー方針: 次回テクニカルプレビュー時に実施）。
+    - [ ] 旧版からの更新、スタートメニュー登録、設定・ROM Library保持のWindows受入れ（2026-10-13開発方針: 次回テクニカルプレビュー時に実施）。
     - [今回の修正・検証記録](../PLATFORM_FIXES_2026-10.md)にMSI／音声／BRK／iOS CIを記録。
 
-2026-10-13ユーザー確認: 機種追加前のMSI／Windows音声／BRK／iOS CIの今回分は一旦完了。
-2026-10-14にWindows／Linux動作とWindows更新インストールをユーザー確認。
+2026-10-13動作確認: 機種追加前のMSI／Windows音声／BRK／iOS CIの今回分は一旦完了。
+2026-10-14にWindows／Linux動作とWindows更新インストールを確認。
 AI読み取り登録APIまでの5環境CI・配布物生成は成功。0.5公開記録は[チェックリスト](../../releases/checklists/RELEASE_CHECKLIST_0.5.0-alpha.1.md)を参照。
 詳細検証の未完了チェックは後続確認として保持する。
 
@@ -342,13 +343,13 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](../../guides/DEBUGGE
   - [x] SC61のLST原文表示・保存、Symbol Map、行番号付き診断を取り込む。INCLUDEのファイル名はLSTに出ないため、行番号と内容で一意に特定できる場合のみ行移動する。未提供時もBuild／Loadは利用可能。
   - [x] macOSで設定、Workspace／Build & Load、Quick Assemble、エラー保持・診断行移動、内蔵切替を実画面確認し、[利用手順](../../guides/EXTERNAL_ASSEMBLER.md)を整備する
   - [x] Windows版SC61 Rev 0.04aをWine 11.0の一時環境で確認する（Windows上のStudio確認とは別）
-  - [x] Windowsでの外部Assembler対応をユーザー確認により今回分完了とする（2026-10-13。[詳細項目](../../guides/EXTERNAL_ASSEMBLER.md)の個別記録とは区別）
-  - [x] Windowsユーザー確認でSC61接続テストとBuild成功を確認する（2026-10-13）。「プログラム登録」成功も報告された。スタートメニューの登録先詳細は確認待ち。その後、ユーザー確認により外部AssemblerとWindows Projectツリーは今回分完了。
+  - [x] Windowsでの外部Assembler対応を動作確認を終え、今回分完了とする（2026-10-13。[詳細項目](../../guides/EXTERNAL_ASSEMBLER.md)の個別記録とは区別）
+  - [x] Windowsでの手動確認でSC61接続テストとBuild成功を確認する（2026-10-13）。「プログラム登録」成功も報告された。スタートメニューの登録先詳細は確認待ち。その後、動作確認を終え、外部AssemblerとWindows Projectツリーは今回分完了。
   - 内蔵Assemblerは維持する。初期対応はSC61のDMP出力。Windowsの詳細検証と他ツールのadapterは後続。
 - [x] 外部Assembler基盤の次段階として「内蔵／SC61／yasm.pl／その他（汎用DMP）」の選択構成を実装する
   - プロセス起動・ログ・タイムアウト・キャンセルを共有し、成功判定と成果物取り込みを種類ごとに分ける。選択はStudio全体の設定を維持する。
   - 2026-10-20: SC61旧設定互換、YASMの非整列DMP、汎用DMPと設定可能な成功終了コードを接続。[設定・検証範囲](../../guides/EXTERNAL_ASSEMBLER.md)。
-  - 同日、使用対象選択とツール別設定タブ・個別保存、メイン画面表示、長いログの固定枠を追加。ユーザーから問題なしとの動作確認報告を受領し、今回分を一区切りとした。
+  - 同日、使用対象選択とツール別設定タブ・個別保存、メイン画面表示、長いログの固定枠を追加。動作に問題がないことを確認し、今回分を一区切りとした。
   - yasm.pl 1.02をローカル実行で検証。汎用出力はアドレス付きDMPに限定し、Intel HEX／raw binary・他形式のListing／Symbol Map・OS別実機確認は後続。
   - 優先見直し対象は、外部Assembler基盤、Studio日本語／英語対応、Projectの機種互換範囲・メモリ方針。空き領域RAMモードは引き続き後続検討。
 - [ ] SC61860 Assemblerの言語仕様を拡張する（最終構文と互換方針は別途策定）
@@ -372,11 +373,11 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](../../guides/DEBUGGE
   - [x] Source変更、Assembly済み、Build済み、EmulatorへLoad済みの状態を個別に表示する
   - [x] 診断から設定済みの外部エディタで該当ファイル・行を開けるようにする
   - [x] 現在の単発変換は補助機能`Quick Assemble`として残す
-- [ ] Quick Assembleでアセンブル結果を確認できるようにする（2026-10-11ユーザー指摘）
+- [ ] Quick Assembleでアセンブル結果を確認できるようにする（2026-10-11改善候補）
   - 現状はDMP保存が中心で、生成された機械語・Listing・Symbol Mapを画面で確認できない。
   - Assembly Workspaceと同様のスクロール付き結果表示を検討し、成功／失敗と保存先も明確にする。
   - 単発変換の操作性を維持しつつ、結果表示とファイル保存の流れを設計する。仕様・実装は未着手。
-- [x] Assembly Workspaceの外部エディタ操作とSources表示を改善する（2026-10-13ユーザー指定で現在の対応を一旦完了。未実装の検出等は後続候補）
+- [x] Assembly Workspaceの外部エディタ操作とSources表示を改善する（2026-10-13現在の対応を一旦完了。未実装の検出等は後続候補）
   - [ ] Studio内にExternal Editor設定を追加し、実行ファイル、引数テンプレート、行指定を保存する
   - [ ] macOS／Windows／Linuxで代表的なエディタを自動検出し、手動選択とTest起動も提供する
   - [ ] `PGP_EDITOR`はアプリ設定を上書きする上級者向け手段として維持する
@@ -513,44 +514,44 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](../../guides/DEBUGGE
 - [ ] PC-1245／1250の`0xb000..0xbfff`周辺が実機でどのようにミラーされるか資料または実機テストで再確認する
 - [x] PC-1260/1261を共通ファミリーと容量差で定義しCore/Studioへ接続する
   - PC-1262は価格改定版なので独立ラインナップから除外し、1261として扱う。
-  - 外部ROM版は機種差にしない。RAMミラーは実機仕様未確定のためユーザー指示で保留。
+  - 外部ROM版は機種差にしない。RAMミラーは実機仕様未確定のため対応を保留。
   - Expanded RAMや1350/1460等のメモリーカード拡張は、今回のシリーズ対応後に別途整理する。
 - [ ] RAM容量切り替えとは別に、機種ごとの空き領域をRAMとして利用するモードを検討する（次回以降）
   - ROM・LCD・制御領域を拡張対象にせず、ロード検査とCPUのメモリ処理で同じ設定を使用する。既存BASICとの衝突検査は維持する。
 - [x] PC-1401/1402のユーザーメモリ容量差をデータ定義で表現しCore/Studioへ接続する
   - [ ] 1402用ユーザーROMで容量認識・NEW／BASIC実行を確認する
-  - RAMミラーはユーザー指示で保留。ROM版を既知hashに限定しない。
+  - RAMミラーは対応を保留。ROM版を既知hashに限定しない。
 - [x] PC-1360、PC-1460、PC-1470Uのバンク切替を機種別に実装する（1460/1470Uは2026-10-13）
 - [x] PC-1450のCore/Studio、16桁LCD、キー走査、専用S1 BASICとROM入出力を実装する
 - [x] PC-1460のCore/Studio、4バンク、24桁LCDと物理3:4 dot pitch、S1 BASICを実装する
 - [x] PC-1470UのCore/Studio、8バンク、24桁×2行LCD、専用キー／S2 BASICを実装する
   - [x] ↕︎キーの走査位置をローカルROMで確認し入力を接続する
-  - [ ] SHIFT TITLE機能固有の操作条件・結果を確認する（ユーザー指示で保留。取説の記載も未発見）
-- [x] Studio LCD dot比率を1460のみ3:4、他機種1:1に統一する（ユーザー確認済み）
-- [ ] 関数キーのUnicode「↕︎」が絵文字表示になる問題を解決する（現状はユーザー了承で保留）
-  - 合成／ローカルROM確認と実機・Windowsユーザー操作を区別。Player機種追加・RAM容量選択は別。
+  - [ ] SHIFT TITLE機能固有の操作条件・結果を確認する（対応を保留。取説の記載も未発見）
+- [x] Studio LCD dot比率を1460のみ3:4、他機種1:1に統一する（動作確認済み）
+- [ ] 関数キーのUnicode「↕︎」が絵文字表示になる問題を解決する（現状は対応を保留）
+  - 合成／ローカルROM確認と実機・Windowsでの手動操作を区別。Player機種追加・RAM容量選択は別。
   - 詳細と未確定事項はdocs/reference/machines/PC-1450.md、PC-1460.md、PC-1470U.md。
 - [ ] PC-1360KをMachine Catalogへ登録する（詳細不明のため実装は保留）
 
 ## Phase 7: Pokecom GO Player
 
-2026-10-19: PC-1251／PC-1261はユーザーから実機テスト完了報告を受領し、今回の対応を一区切りとした。
-2026-10-20: PC-1360／PC-1360KをAndroidホーム・ROM管理へ接続。1350／1360／1360KのLCD再配置・Kの反転Sを含む今回の範囲について、ユーザーから実機確認「概ねOK」の報告を受領。個別機器・機能の網羅結果は未採取。
+2026-10-19: PC-1251／PC-1261は実機テストを完了し、今回の対応を一区切りとした。
+2026-10-20: PC-1360／PC-1360KをAndroidホーム・ROM管理へ接続。1350／1360／1360KのLCD再配置・Kの反転Sを含む今回の範囲について、実機で「概ねOK」と確認。個別機器・機能の網羅結果は未採取。
 ホームは名前順のタイル／リスト切替とし、選択中の機種は名前の先頭に`*`を表示する。
-PC-1450 → PC-1460 → PC-1470Uの順にCore／Studio差分を確認し、ユーザー提供の機種別LCD画像に従ってAndroidへ接続。自動検証・エミュレータ確認を実施済み。2026-10-20にユーザーから一通りの実機動作で問題なしとの報告を受領し、今回のAndroid機種追加を完了とした。ホームの表示・スクロール・回転とRedmi Pad 2（Android 16）の機種画面固定・遷移表示の改善も受入れ済み。個別機能・周辺機器の網羅試験とは区別する。
+PC-1450 → PC-1460 → PC-1470Uの順にCore／Studio差分を確認し、ユーザー提供の機種別LCD画像に従ってAndroidへ接続。自動検証・エミュレータ確認を実施済み。2026-10-20に一通りの実機動作で問題がないことを確認し、今回のAndroid機種追加を完了とした。ホームの表示・スクロール・回転とRedmi Pad 2（Android 16）の機種画面固定・遷移表示の改善も受入れ済み。個別機能・周辺機器の網羅試験とは区別する。
 記録：[PC-1450](../ANDROID_PC1450_PROGRESS.md)／[PC-1460](../ANDROID_PC1460_PROGRESS.md)／[PC-1470U](../ANDROID_PC1470U_PROGRESS.md)。
-2026-10-20: 1250／1251／1255、1260／1261、1401／1402のシリーズ内機種切替をホームのプルダウン・共通ROM管理・標準RAMで接続。自動検証・隔離エミュレータ確認済み、今回の実機受入れは未実施。[対応記録](../ANDROID_SERIES_PROGRESS.md)。その後、ユーザーよりPC-1250のMEM表示（期待1486に対し3486）を一旦許容し、Android Player全体を一区切りとする意向を受領。容量認識の原因切り分けは保留し、7モデル全機能の実機確認完了とは区別する。RAM拡張・セーブステート・iOS機能拡張・iOS CI高速化も今回の対象外。
+2026-10-20: 1250／1251／1255、1260／1261、1401／1402のシリーズ内機種切替をホームのプルダウン・共通ROM管理・標準RAMで接続。自動検証・隔離エミュレータ確認済み、今回の実機受入れは未実施。[対応記録](../ANDROID_SERIES_PROGRESS.md)。その後、PC-1250のMEM表示（期待1486に対し3486）を一旦許容し、Android Player全体を一区切りとした。容量認識の原因切り分けは保留し、7モデル全機能の実機確認完了とは区別する。RAM拡張・セーブステート・iOS機能拡張・iOS CI高速化も今回の対象外。
 最新の検証範囲は[PC-1360対応記録](../ANDROID_PC1360_PROGRESS.md)／[PC-1360K対応記録](../ANDROID_PC1360K_PROGRESS.md)を参照。
 以下の機種範囲や未実装項目には、それ以前の段階の記録を含む。
 
-2026-10-12にPC-1245 Androidの今回の範囲を完了し、ユーザーが動作確認済み。
-2026-10-15にホーム・メニュー・情報画面の整理、Physical外部キーボード、PC-1401 Androidの予定範囲を完了し、ユーザーが今回の区切りを承認した。
-[検証区分と未確認事項](../ANDROID_PC1401_PROGRESS.md)を保持する。PC-1350も2026-10-16にユーザーが一通りの動作とLCD改善を確認し、今回の対応を一区切りとした。[段階別検証と機器別の未確認事項](../ANDROID_PC1350_PROGRESS.md)を保持する。PC-1245 iOSの残作業は後続。1401／1350のiOSは今回に含めない。
+2026-10-12にPC-1245 Androidの今回の範囲を完了し、動作確認済み。
+2026-10-15にホーム・メニュー・情報画面の整理、Physical外部キーボード、PC-1401 Androidの予定範囲を完了し、今回の対応を一区切りとした。
+[検証区分と未確認事項](../ANDROID_PC1401_PROGRESS.md)を保持する。PC-1350も2026-10-16に一通りの動作とLCD改善を確認し、今回の対応を一区切りとした。[段階別検証と機器別の未確認事項](../ANDROID_PC1350_PROGRESS.md)を保持する。PC-1245 iOSの残作業は後続。1401／1350のiOSは今回に含めない。
 iOS PC-1245の音声・速度設定は[手順3](../IOS_PLAYER_STEP3.md)で合成/Simulator接続を検証し、実機・実ROM音声の受入れを残す。
 WAV、Project、Debugger、セーブステート、ゲームパッド接続時の表示自動切替は後続。
 公開の判断・version更新・配布物検証は開発完了とは別に行う。操作は[Playerガイド](../../guides/PLAYER_PROGRAM_IO.md)を参照。
 
-- [x] Android PlayerアプリのPC-1245対応（2026-10-12、ユーザー動作確認済み）
+- [x] Android PlayerアプリのPC-1245対応（2026-10-12、動作確認済み）
   - [x] Android applicationモジュール、CoreのAndroid target、最小Compose起動画面とdebug APK生成を追加する
   - [x] Android／iOSで共有するPlayer画面状態、最小Runner、スキン座標モデルと配置計算をKMPモジュールへ分離する
   - [x] ROM未登録画面から始まるPlayer画面状態を実装する
@@ -568,7 +569,7 @@ WAV、Project、Debugger、セーブステート、ゲームパッド接続時�
   - [x] 機種選択、ROM登録・復元・置換・削除、Session切替
   - [x] スキン・LCDシンボル・76キー、CAL／BASICによるモード切替、実行・停止・Reset
   - [x] S1 BASIC／DMPのロード・セーブ、CPU再開とキャンセル・明示PAUSE時の復帰
-  - [x] 共有ゲームパッド割当・入力所有権・背景／切断時の解放（実機基本動作ユーザー確認済み）
+  - [x] 共有ゲームパッド割当・入力所有権・背景／切断時の解放（実機基本動作動作確認済み）
   - [x] Android 9・3ボタン実機のステータスバー余白を修正し、メニュー・背景復帰を確認
   - 機器・接続方式の網羅検証と残る実機確認は[対応記録](../ANDROID_PC1401_PROGRESS.md)に分けて記録
 - [ ] iOS Playerアプリ
@@ -585,7 +586,7 @@ WAV、Project、Debugger、セーブステート、ゲームパッド接続時�
   - [x] 共有変換・停止中Session検証／適用・保存データ生成とAndroidのファイル選択／保存を接続（他アプリへの共有機能は削除）
 - [x] `.pgrom`選択と前回ROMの自動復元
 - [x] 初回取込み後のROMをPlayerのアプリ専用領域へ保存し、機種切替後も機種別ROMライブラリから再利用する
-- [x] Playerから保存済みROMの置換と明示削除を行えるようにする（Android、synthetic storage test／ユーザー動作確認済み）
+- [x] Playerから保存済みROMの置換と明示削除を行えるようにする（Android、synthetic storage test／動作確認済み）
 - [x] LCDと機種別ソフトウェアキーボード
   - [x] CoreのDisplay SnapshotをPlayer共有LCDフレームへ変換し、Android Composeで可変サイズ描画する
   - [x] Machine Definitionに基づくPC-1245ソフトウェアキーボードを表示し、押下／解放を単一セッションへ接続する
@@ -597,7 +598,7 @@ WAV、Project、Debugger、セーブステート、ゲームパッド接続時�
 - [x] RUN／PRO／RSV、Reset、Pause
   - [x] Androidの画面フレームで共有Runnerを駆動し、Run／Pause／ResetとLCD更新を接続する
   - [x] 機種定義の対応範囲に従ってRUN／PRO／RSV動作モードを切り替える
-- [x] Android AudioTrackへのPCM接続とサウンドON／OFF（実装・自動テスト、ユーザー再生成功報告あり。環境・機種は未特定、機種別の実機確認は後続）
+- [x] Android AudioTrackへのPCM接続とサウンドON／OFF（実装・自動テスト、再生成功を確認。環境・機種は未特定、機種別の実機確認は後続）
 - [x] Android CPU速度の固定5段階と音声再生レートの連動（無制限は未実装）
   - [音声・速度対応記録](../PLAYER_AUDIO_SPEED_PROGRESS.md)に実装・自動検証・エミュレータ・実機を分離
 - [x] iOS音声APIへのPCM接続・速度設定UI（[手順3](../IOS_PLAYER_STEP3.md)。実機と実ROM BEEPの受入れは別）
@@ -608,10 +609,10 @@ WAV、Project、Debugger、セーブステート、ゲームパッド接続時�
   - [x] 実行画面を横向き専用にし、縦持ちには追従せず、左右180度反転した横向きには追従する（Androidは`sensorLandscape`相当）
   - [x] 3点メニューを薄いグレーの円形背景と十分なアイコン／タッチサイズで表示し、スキン上でも視認・操作しやすくする
   - [x] 16桁ドット表示に加えてSHIFT、DEF等の機種別LCDステータスをスキン内へ合成する
-  - [x] PC-1245のRUN／PROをスキン内に明示する（Android、ユーザー動作確認済み）
+  - [x] PC-1245のRUN／PROをスキン内に明示する（Android、動作確認済み）
   - [x] PC-1251／1261系のRUN／PRO／RSVは実機のハードスイッチ状態であっても、PlayerではLCDステータスとして明示する
   - [x] ホームの設定／ヘルプ・情報へ導線を整理し、Playerとは／Studioについて／バージョン・ライセンス／プライバシー原文案を静的同梱する（原文案の公開方針確定は別）
-  - [x] 3点メニューからbas/dmpプログラムをロード／セーブできるようにする（Android、ユーザー動作確認済み。Playerの実行用入出力とし、Project機能とは分離する）
+  - [x] 3点メニューからbas/dmpプログラムをロード／セーブできるようにする（Android、動作確認済み。Playerの実行用入出力とし、Project機能とは分離する）
     - [x] bas/dmp拡張子の自動判定、確認なしのRAMロードとAndroidのファイル保存を実装する（docs/guides/PLAYER_PROGRAM_IO.md、PC-1245 iOSはIOS_PLAYER_STEP2.mdで接続・合成検証済み）
   - [x] ホームの画面ボタンで機種選択、設定配下のROM管理、機種別Library、Session再生成を実装する（選択対象はPC-1245／PC-1401）
 
@@ -621,17 +622,17 @@ Pokecom GOを基準とする。
 
 2026-10-14: Technical Preview 0.5を公開。[公開記録](../../releases/checklists/RELEASE_CHECKLIST_0.5.0-alpha.1.md)。
 
-2026-10-15: ユーザー方針によりデバッグ強化は0.5で一旦終了。未実装候補と依存条件は[残作業記録](DEBUGGER_FOLLOW_UP.md)へ整理。実装着手は別の指示後。
+2026-10-15: 開発方針としてデバッグ強化は0.5で一旦終了。未実装候補と依存条件は[残作業記録](DEBUGGER_FOLLOW_UP.md)へ整理。実装着手は別の指示後。
 
 ## 2026-10-21: iOS複数機種対応の統合
 
 iOS PlayerへAndroidと同じ14モデル・10 ROMシリーズを接続。ホームのモデル選択、共用ROM、モデル別RAM、スキン・LCD・キー、BASIC／DMP、バンクROMとPC-1360K漢字ROMを実装した。RUN／PROトグル・動作モードメニューは1245／1251系／1261系のみに限定する。[全体受入れ記録](../IOS_MACHINE_SUPPORT_STEP8.md)を現在の機種対応状況とし、過去のPC-1245固定・機種追加予定の記述は段階別履歴とする。実ROM・実iPhone・最低OS・実周辺機器・署名付き配布の未確認事項を継続する。
 
-2026-10-21追記: iOSの全対応機種・音声再生と、ホームの名前順／タイル・リスト／機種画面のみ横固定／ROM管理後の3点メニュー修正をユーザーが確認し、今回の対応を完了とした。音声の途切れ感の調整、環境別の詳細受入れと署名付き配布は後続。[確認記録](../IOS_HOME_PRESENTATION_FIX.md)。
+2026-10-21追記: iOSの全対応機種・音声再生と、ホームの名前順／タイル・リスト／機種画面のみ横固定／ROM管理後の3点メニュー修正を確認し、今回の対応を完了とした。音声の途切れ感の調整、環境別の詳細受入れと署名付き配布は後続。[確認記録](../IOS_HOME_PRESENTATION_FIX.md)。
 
 ## 2026-10-21: デバッグ強化の再開
 
-iOSの今回の区切り後、ユーザー方針によりデバッグ強化を再開する。
+iOSの今回の区切り後、開発方針としてデバッグ強化を再開する。
 作業順はソース・Symbol・Listing連携、条件付きBreakpoint／ヒット回数、Step Over／Out、設定保存。
 その後AI連携を強化する。ソース連携の実装範囲は[Debugger仕様](../../guides/DEBUGGER.md#16-ロード済みassemblyとソースの対応2026-10-21)を参照。
 
@@ -657,7 +658,7 @@ HELLO WORLD確認は下記の作業順9へ進めた。Source変更・Build・Loa
 手順・制約は `test-data/assembly/pc1245-hello/README.md` を参照。
 
 2026-10-21: 作業順9のMCP実接続確認も完了。機種仕様取得後の再生成版について、
-ユーザーのBuild/Load後にproject・診断・symbols/listingを取得し、RAM 147 bytesがビルド出力と全一致。
+手動のBuild/Load後にproject・診断・symbols/listingを取得し、RAM 147 bytesがビルド出力と全一致。
 詳細は `docs/reference/AI_INTEGRATION.md` の作業順9追試を参照。
 
 2026-10-21: AI連携作業順10を実装。登録済みUTF-8 source取得、revision付き差分提案、Studio上の

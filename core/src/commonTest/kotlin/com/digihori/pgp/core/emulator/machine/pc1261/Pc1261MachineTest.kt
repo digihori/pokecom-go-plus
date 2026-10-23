@@ -12,6 +12,26 @@ import kotlin.test.assertTrue
 
 class Pc1261MachineTest {
     @Test
+    fun bothModelsHaveOnlyTheirPhysicalRamWithoutRamMirrors() {
+        for (model in Pc1261FamilyModel.entries) {
+            val imported = assertIs<RomImportResult.Success>(
+                Pc1261ComponentRomImporter.importImages(ByteArray(0x2000), ByteArray(0x8000)),
+            )
+            val rom = com.digihori.pgp.core.rom.RomSet(model.machineId, imported.romSet.components)
+            val bus = Pc1261MemoryBus(rom, model = model)
+            val layout = com.digihori.pgp.core.api.MachineMemoryLayout(model.machineId)
+            for (address in 0x4000..0x7fff) {
+                val expected = address in model.physicalRamStart..0x67ff
+                assertEquals(expected, bus.isWritableAddress(address))
+                assertEquals(expected, layout.locate(address).writable)
+                if (expected) assertEquals(address, layout.locate(address).physicalAddress)
+                bus.write(address, 0x55)
+                assertEquals(if (expected) 0x55 else 0, bus.read(address))
+            }
+        }
+    }
+
+    @Test
     fun flatImporterDiscardsLegacyRamArea() {
         val image = ByteArray(0x10000) { (it ushr 12).toByte() }
         val imported = assertIs<RomImportResult.Success>(Pc1261FlatRomImporter.importImage(image))

@@ -78,7 +78,7 @@ internal class Pc1245Machine(
 
     internal fun loadMemoryImage(image: AddressedMemoryImage): Pc1245MemoryImageLoadResult {
         val readOnly = image.segments.firstNotNullOfOrNull { segment ->
-            (segment.startAddress..segment.endAddress).firstOrNull { it < Pc1245MemoryBus.RAM_START }
+            (segment.startAddress..segment.endAddress).firstOrNull { !bus.isWritableAddress(it) }
                 ?.let { Pc1245MemoryImageLoadResult.ReadOnlyAddress(it, segment.sourceLine) }
         }
         if (readOnly != null) return readOnly

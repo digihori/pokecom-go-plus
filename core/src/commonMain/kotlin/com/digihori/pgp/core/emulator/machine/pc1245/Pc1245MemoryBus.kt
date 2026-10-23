@@ -34,36 +34,17 @@ internal class Pc1245MemoryBus(
 
     override fun read(address: Int): Int {
         requireAddress(address)
-        val mappedAddress = if (address in READ_ALIAS_RANGE) {
-            address + READ_ALIAS_OFFSET
-        } else {
-            address
-        }
+        val mappedAddress = mapAddress(address, includeRomAlias = true)
         return memory[mappedAddress].toInt() and BYTE_MASK
     }
 
     override fun write(address: Int, value: Int) {
         requireAddress(address)
-        var mappedAddress = address
-
-        // Keep the order of the Pokecom GO mapping: some ranges are transformed more than once.
-        if (mappedAddress in 0xb000..0xb7ff) mappedAddress += 0x0800
-        if (mappedAddress in 0x8000..0x9fff) mappedAddress += 0x2000
-        if (mappedAddress in 0xd000..0xd7ff) mappedAddress -= 0x1000
-        if (mappedAddress in 0xe800..0xefff) mappedAddress += 0x1000
-        if (mappedAddress >= 0xf900) mappedAddress = mappedAddress and 0xf8ff
-        if (mappedAddress in 0xb800..0xbfff) mappedAddress += 0x0800
-
-        if (mappedAddress < RAM_START) return
+        val mappedAddress = mapAddress(address, includeRomAlias = false)
+        if (!isWritableAddress(address)) return
 
         val byteValue = value and BYTE_MASK
         memory[mappedAddress] = byteValue.toByte()
-
-        when (mappedAddress) {
-            in 0xc000..0xc7ff -> memory[mappedAddress + 0x1000] = byteValue.toByte()
-            in 0xb800..0xbfff -> memory[mappedAddress - 0x0800] = byteValue.toByte()
-            in 0xf800..0xf8ff -> mirrorLcdByte(mappedAddress, byteValue)
-        }
 
         display.writeMemory(mappedAddress, byteValue)
     }
@@ -94,11 +75,18 @@ internal class Pc1245MemoryBus(
         }
     }
 
-    private fun mirrorLcdByte(canonicalAddress: Int, value: Int) {
-        val offset = canonicalAddress and 0x00ff
-        for (pageBase in LCD_MIRROR_PAGE_BASES) {
-            memory[pageBase + offset] = value.toByte()
-        }
+    fun isWritableAddress(address: Int): Boolean {
+        if (address !in 0..0xffff) return false
+        val mapped = mapAddress(address, includeRomAlias = false)
+        return mapped in 0xc000..0xc7ff || mapped in 0xf800..0xf8ff
+    }
+
+    private fun mapAddress(address: Int, includeRomAlias: Boolean): Int = when (address) {
+        in 0x2000..0x3fff -> if (includeRomAlias) address + 0x2000 else address
+        in 0xd000..0xd7ff -> address - 0x1000
+        in 0xe800..0xefff -> 0xf800 or (address and 0xff)
+        in 0xf900..0xffff -> address and 0xf8ff
+        else -> address
     }
 
     internal companion object {
@@ -106,11 +94,5 @@ internal class Pc1245MemoryBus(
         const val RAM_START: Int = 0x8000
 
         private const val BYTE_MASK: Int = 0xff
-        private const val READ_ALIAS_OFFSET: Int = 0x2000
-        private val READ_ALIAS_RANGE: IntRange = 0x2000..0x3fff
-        private val LCD_MIRROR_PAGE_BASES: IntArray = intArrayOf(
-            0xe800, 0xe900, 0xea00, 0xeb00, 0xec00, 0xed00, 0xee00, 0xef00,
-            0xf900, 0xfa00, 0xfb00, 0xfc00, 0xfd00, 0xfe00, 0xff00,
-        )
     }
 }

@@ -21,7 +21,7 @@ try {
         Write-Output "$name=$($properties[$name])"
     }
     if ($VerifyCurrent) {
-        if ($properties['ProductVersion'] -ne '1.5.0' -or
+        if ($properties['ProductVersion'] -ne '1.6.0' -or
             $properties['UpgradeCode'] -ne '{D173EFD1-57EF-3753-A618-92481F262D95}' -or
             $properties['ProductName'] -ne 'PokecomGOStudio') {
             throw 'MSI identity/version differs from the current distribution configuration.'

@@ -3169,3 +3169,11 @@ Core・共有Player・Androidの既存機種定義に対するApple接続14モ�
   Native/Android checks. Final Core desktop tests (491) and Studio tests (406,
   one existing skip) passed with no failures. Fixture verification and
   `git diff --check` also passed.
+
+## 2026-10-23：1245／125x／126xのRAM仕様見直し
+
+開発者が整理した[RAM仕様](../reference/machines/RAM_1245_1261.md)を基準に、
+従来のPokecom GO由来の互換書込み処理を見直しました。1245／1250のB000／B800 aliasを削除し、
+1251の9000／9800 aliasを追加。1245のRAM外書込みを禁止し、配置検査とCPUのアクセスを揃えます。
+125xの拡張設定は1255相当のRAM範囲・aliasを使用します。1260／1261はRAMミラーなしの既存処理を維持します。
+実ROM・実機の受入れと合成回帰テストは区別し、ROMや実機データは追加しません。

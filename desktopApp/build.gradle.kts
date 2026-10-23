@@ -64,14 +64,26 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "PokecomGOStudio"
             // jpackage requires 1-3 numeric components and macOS rejects a zero major version.
-            // The project/Git version remains 0.7.0-alpha.1.
-            packageVersion = "1.5.0"
+            // The public project/Git version is 1.0.0; native versions increase independently.
+            packageVersion = "1.6.0"
             description = "A multiplatform pocket-computer development environment"
             vendor = "Y Horiuchi"
             copyright = "Copyright (c) 2026 Y Horiuchi"
             appResourcesRootDir.set(layout.buildDirectory.dir("generated/distribution-resources"))
             macOS {
                 iconFile.set(project.file("icons/pokecom-go.icns"))
+                // Keep the existing bundle identity. Signing is opt-in on the build host;
+                // certificates and account details do not belong in the repository.
+                bundleID = "com.digihori.pgp.desktop"
+                signing {
+                    providers.environmentVariable("PGP_MAC_SIGNING_IDENTITY").orNull?.let {
+                        sign.set(true)
+                        identity.set(it)
+                    }
+                    providers.environmentVariable("PGP_MAC_SIGNING_KEYCHAIN").orNull?.let {
+                        keychain.set(it)
+                    }
+                }
             }
             linux {
                 iconFile.set(project.file("icons/pokecom-go.png"))
@@ -93,11 +105,25 @@ tasks.withType<AbstractJPackageTask>().matching { it.targetFormat == TargetForma
     val execOperations = dmgIconOperations.execOperations
     val volumeIcon = project.layout.projectDirectory.file("icons/pokecom-go.icns")
     val iconScript = rootProject.layout.projectDirectory.file("scripts/set-dmg-volume-icon.sh")
+    val macSigning = compose.desktop.application.nativeDistributions.macOS.signing
+    val signFinalDmg = macSigning.sign.getOrElse(false)
+    val finalDmgIdentity = macSigning.identity.orNull
     inputs.files(volumeIcon, iconScript).withPropertyName("studioDmgVolumeIcon")
+    inputs.property("studioDmgSigned", signFinalDmg)
+    inputs.property("studioDmgSigningIdentity", finalDmgIdentity.orEmpty())
     doLast {
         val image = destinationDir.file("${packageName.get()}-${packageVersion.get()}.dmg").get().asFile
         execOperations.exec {
             commandLine("/bin/sh", iconScript.asFile, image, volumeIcon.asFile)
+        }
+        // The icon operation rebuilds the image, so sign the final DMG afterwards.
+        if (signFinalDmg) {
+            execOperations.exec {
+                commandLine("/usr/bin/codesign", "--force", "--timestamp", "--sign", requireNotNull(finalDmgIdentity), image)
+            }
+            execOperations.exec {
+                commandLine("/usr/bin/codesign", "--verify", "--strict", "--verbose=2", image)
+            }
         }
     }
 }

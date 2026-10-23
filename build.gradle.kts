@@ -10,4 +10,4 @@ plugins {
 }
 
 group = "com.digihori.pgp"
-version = "0.7.0-alpha.1"
+version = "1.0.0"

@@ -7,7 +7,7 @@
 
 機種仕様・Source・開発／Debug Context取得から、Source差分提案、Build、Load、Continue、
 PauseまでをStudio承認付きで接続した。Source差分／BuildとLoad／Continue／Pauseは実接続で
-成功を確認し、PC-1245のHELLO WORLD表示もユーザーが確認した。
+成功を確認し、PC-1245のHELLO WORLD表示も確認した。
 登録編集・Trace・1命令Stepの詳細は合成／HTTPテストで検証済みで、実ROMでの全操作受入れとは区別する。
 
 | 項目 | 現在の範囲 |

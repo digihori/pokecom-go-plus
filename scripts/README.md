@@ -54,3 +54,9 @@ sh scripts/set-dmg-volume-icon.sh path/to/generated.dmg desktopApp/icons/pokecom
 ```
 
 タスクはスクリプトとアイコンを入力として追跡し、CIでも同じ処理を行います。
+
+## macOSの公証
+
+`notarize-macos.py`は署名済みapp／DMGを公証し、Accepted後にstaple・検証を行います。
+`python3 -m unittest discover -s scripts/tests -p test_notarize_macos.py`で、拒否・処理中・タイムアウト時に
+stapleへ進まないことを確認できます。認証・CI設定は[署名手順](../docs/reference/MACOS_SIGNING.md)を参照してください。

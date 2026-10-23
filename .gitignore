@@ -31,6 +31,11 @@ local.properties
 *.keystore
 *.p12
 *.pem
+*.p8
+*.key
+*.pfx
+*.mobileprovision
+*.provisionprofile
 
 # Native / Xcode build products
 DerivedData/

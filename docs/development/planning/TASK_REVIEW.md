@@ -1,5 +1,11 @@
 # 残作業と優先順位の検討用一覧
 
+## 正式リリース準備（2026-10-23）
+
+現在の残タスクは[正式リリースのMUST／WANT一覧](FORMAL_RELEASE_TASKS.md)を入口にします。
+StudioとAndroidを対象に整理し、iOS版のリリースは別スレッドで進めます。
+以下は日付別の検討・進捗記録です。
+
 ## 現在の作業方針（2026-10-22）
 
 プレリリース準備に先立ち、ドキュメントの棚卸し・分類、現行情報と履歴の分離を順番に進めています。
@@ -17,7 +23,7 @@
 ## 当面の開発優先順位（2026-10-21）
 
 iOSの実装を先に進め、AIによるマシン語生成は進め方の記録に留める。
-Studioは、ユーザーの認識としてデバッグ機能の充実を除き概ね一区切りとする。
+Studioは、開発状況としてデバッグ機能の充実を除き概ね一区切りとする。
 この方針は既存の未完了項目を一括で完了扱いにするものではない。
 AI生成の再開時は1機種・1アセンブラの`HELLO WORLD`から始め、Studioが持つ機種仕様の取得と
 手動Build・Load・実行を確認し、必要なAPIを段階追加する。
@@ -28,7 +34,7 @@ AI生成の再開時は1機種・1アセンブラの`HELLO WORLD`から始め、
 s1bin／s1basic／s2basicを順番に対応する。段階1の仕様修正と28件の合成vector整理を完了した。
 段階2の共通信号、段階3のs1binに続き、2026-10-21に段階4のs1basic・段階5のs2basic／Studio接続・合成検証を完了。段階6のUI・診断・操作ガイド・OLD回帰も実施。実機往復は[未確認表](../../guides/WAV_TOOL_GUIDE.md#実機往復の確認記録)で継続。
 S1/S2 binaryとIntel HEX入出力、形式単位の文字変換、Decode自動判別、確認用BASICを提供した。
-2026-10-21にユーザーから一通り確認できたとの報告を受領し、今回分を一区切りとした。
+2026-10-21に一通りの動作確認を終え、今回分を一区切りとした。
 新codecの実機往復は個別記録待ち。[進捗](../WAV_S1_S2_PROGRESS.md)を参照。
 
 ## 外部Assemblerの後続対応（2026-10-20）
@@ -36,7 +42,7 @@ S1/S2 binaryとIntel HEX入出力、形式単位の文字変換、Decode自動�
 内蔵／SC61／yasm.pl／その他（汎用DMP）の選択と共通実行経路を追加した。
 ローカルYASM61860 1.02で出力・失敗を検証し、旧SC61設定は維持する。
 [設定と検証範囲](../../guides/EXTERNAL_ASSEMBLER.md)を参照。汎用の別形式やOS別実機確認は後続とする。
-設定タブと個別保存・使用対象表示・ログ枠の追加後、2026-10-20にユーザーから問題なしとの動作確認報告を受領し、今回分を一区切りとした。
+設定タブと個別保存・使用対象表示・ログ枠の追加後、2026-10-20に動作に問題がないことを確認し、今回分を一区切りとした。
 以下の古い優先順位表は当時の記録として保持する。
 
 ## 追加構想の管理（2026-10-20）
@@ -47,7 +53,9 @@ AI連携（Codex／Claude Codeによる解析・制作支援）、階層的な�
 [ロードマップの一覧](ROADMAP.md#追加構想の整理2026-10-20)を参照する。
 既存の個別開発タスクと区別し、優先順位・実施範囲は今後決める。過去の一覧全体を最新状態へ再監査した記録ではない。
 
-## ユーザーによる優先順位見直し
+<a id="ユーザーによる優先順位見直し"></a>
+
+## 優先順位の見直し
 
 2026-10-13、アーキテクチャへの影響を重視し、外部Assembler基盤、Studio日本語／英語対応、
 Projectの機種互換範囲・メモリ方針を優先候補とする。外部エディタではなく外部Assembler。
@@ -55,24 +63,26 @@ SC61初版は一区切りとし、次段階は内蔵／SC61／yasm.pl／その�
 空き領域RAMモードの実装は後続検討のまま。MSI更新インストールは次の修正タイミングで対応する。
 以下のA〜Dは分類のために保持し、この見直し前の提案を確定した開発順とは扱わない。
 
-## 機種追加前に片付ける今回の４項目（2026-10-13ユーザー指定）
+<a id="機種追加前に片付ける今回の４項目2026-10-13ユーザー指定"></a>
+
+## 機種追加前に片付ける今回の４項目（2026-10-13の対応方針）
 
 1. Windows MSI更新インストール対応。
 2. Windows音声ノイズ対策。
 3. BRK入力の確認・必要な修正。
 4. iOS CI対応。
 
-2026-10-13ユーザー確認により、上記４項目の今回分は一旦完了とする。
-Windows音声の改善、PC-1245／1360ゲームでのBRK認識はユーザー確認済み。
+2026-10-13に動作確認を終え、上記４項目の今回分は一旦完了とする。
+Windows音声の改善、PC-1245／1360ゲームでのBRK認識は動作確認済み。
 MSIの実測受入れは次回テクニカルプレビュー時、iOS hosted CIはpush後に確認する。
 未記録の詳細検証は後続として保持し、今回の区切りを妨げない。commit／pushは別指示。
 
-外部Assembler、Windows Projectツリー、外部エディタはユーザー確認により今回分を完了とする。
+外部Assembler、Windows Projectツリー、外部エディタは動作確認を終え、今回分を完了とする。
 他ツールadapter・エディタ検出等の拡張は別の後続候補であり、今回の受入れを妨げない。
-Playerの仮文言整理は2026-10-13ユーザーの追加指示で先延ばし。Quick Assemble等は今回の４項目には含めない。
+Playerの仮文言整理は2026-10-13に後続対応へ延期。Quick Assemble等は今回の４項目には含めない。
 
 実装・自動検証・Windows受入れの詳細は [今回の確認記録](../PLATFORM_FIXES_2026-10.md) を参照。
-MSIは公開0.4のUpgradeCodeを固定しpackageVersionを1.3.1へ更新。Windows／Linux動作とWindows更新インストールを2026-10-14にユーザー確認済み。
+MSIは公開0.4のUpgradeCodeを固定しpackageVersionを1.3.1へ更新。Windows／Linux動作とWindows更新インストールを2026-10-14に動作確認済み。
 2026-10-16のWindows fixtureタイムアウトとiOS初回RunのUIテスト対策は、[CI安定化記録](../PLATFORM_FIXES_2026-10.md#2026-10-16-player音声速度追加後のci安定化)を参照。
 Technical Preview 0.5の公開作業は[チェックリスト](../../releases/checklists/RELEASE_CHECKLIST_0.5.0-alpha.1.md)へ記録する。
 
@@ -80,24 +90,24 @@ Technical Preview 0.5の公開作業は[チェックリスト](../../releases/ch
 
 | ID | 項目 | 残作業・現在の状態 |
 |---|---|---|
-| A1 | Windows音声のクリックノイズ | 空／無音PCMでラインを終了する修正済み。2026-10-13ユーザーからWindowsで改善報告あり。通常再生・自然終了・BREAK/Pause/Reset/アプリ終了の個別結果は未記録 |
-| A2 | マシン語実行中のBRK入力 | 保持中にKEY ONが消える問題を修正。全機種合成TEST 8とRunner所有者テストを追加。ユーザーがPC-1245／1360のゲームでBRK認識を確認。入力別・速度別・実機照合の個別結果は未記録 |
-| A3 | SC61のWindows実機連携 | ユーザー確認により今回分を完了。SC61初版は一区切り。将来のadapter拡張は別項目 |
-| A4 | iOS CI | 今回分は一旦完了。共有Native・framework・署名なしiPhone Simulatorのローカル検証成功。ユーザー方針によりhosted CIはpush後に確認 |
+| A1 | Windows音声のクリックノイズ | 空／無音PCMでラインを終了する修正済み。2026-10-13Windowsで改善を確認。通常再生・自然終了・BREAK/Pause/Reset/アプリ終了の個別結果は未記録 |
+| A2 | マシン語実行中のBRK入力 | 保持中にKEY ONが消える問題を修正。全機種合成TEST 8とRunner所有者テストを追加。PC-1245／1360のゲームでBRK認識を確認。入力別・速度別・実機照合の個別結果は未記録 |
+| A3 | SC61のWindows実機連携 | 動作確認を終え、今回分を完了。SC61初版は一区切り。将来のadapter拡張は別項目 |
+| A4 | iOS CI | 今回分は一旦完了。共有Native・framework・署名なしiPhone Simulatorのローカル検証成功。開発方針としてhosted CIはpush後に確認 |
 | A5 | 現行Windows/Linux手動スモーク | 過去の配布・起動確認と、最新変更の操作確認を分ける。音声、ファイル入出力、ゲームパッド等を確認 |
 
 ## B: 次の機能開発の候補
 
 | ID | 項目 | 残作業・現在の状態 |
 |---|---|---|
-| B1 | PC-1245 iOS品質向上 | [後続案](../IOS_PLAYER_PLAN.md)を2026-10-16に記録。標準Files経由のiCloud／Google Drive、bas/dmpロード・セーブ、サウンド・CPU速度、ホーム整理・Physical入力。[手順1](../IOS_PICKER_STEP1.md)のSimulator範囲を完了し、[手順2](../IOS_PLAYER_STEP2.md)でホーム・階層メニュー・静的案内・共有BASIC/DMPを接続。[手順3](../IOS_PLAYER_STEP3.md)でPCM出力・速度5段階・設定保存を接続。消音に従い他アプリ音声と共存する方針をユーザーが選択。実機/実provider・実ROM音声・聴感は未確認。[手順4](../IOS_PLAYER_STEP4.md)でGameController・Physical入力・全体コントローラ設定を接続。実周辺機器を含む受入れは第5段階 |
+| B1 | PC-1245 iOS品質向上 | [後続案](../IOS_PLAYER_PLAN.md)を2026-10-16に記録。標準Files経由のiCloud／Google Drive、bas/dmpロード・セーブ、サウンド・CPU速度、ホーム整理・Physical入力。[手順1](../IOS_PICKER_STEP1.md)のSimulator範囲を完了し、[手順2](../IOS_PLAYER_STEP2.md)でホーム・階層メニュー・静的案内・共有BASIC/DMPを接続。[手順3](../IOS_PLAYER_STEP3.md)でPCM出力・速度5段階・設定保存を接続。消音に従い他アプリ音声と共存する方針を採用。実機/実provider・実ROM音声・聴感は未確認。[手順4](../IOS_PLAYER_STEP4.md)でGameController・Physical入力・全体コントローラ設定を接続。実周辺機器を含む受入れは第5段階 |
 | B2 | iOSゲームパッド | [手順4](../IOS_PLAYER_STEP4.md)で共有入力・GameController・選択/割当/保存/解放を接続し合成検証。実パッド・接続方式ごとの受入れは未確認 |
-| B3 | Android Playerの機器別追加検証 | PC-1401は2026-10-15に予定した6段階を完了し、ユーザーが今回の区切りを承認。[検証区分](../ANDROID_PC1401_PROGRESS.md)を保持。PC-1350も2026-10-16にユーザーが一通りの動作とLCD改善を確認し、今回の対応を一区切りとした。[段階別検証と機器別の未確認事項](../ANDROID_PC1350_PROGRESS.md)を保持。両機種のiOSは別検討 |
+| B3 | Android Playerの機器別追加検証 | PC-1401は2026-10-15に予定した6段階を完了し、今回の対応を一区切りとした。[検証区分](../ANDROID_PC1401_PROGRESS.md)を保持。PC-1350も2026-10-16に一通りの動作とLCD改善を確認し、今回の対応を一区切りとした。[段階別検証と機器別の未確認事項](../ANDROID_PC1350_PROGRESS.md)を保持。両機種のiOSは別検討 |
 | B4 | Desktop物理キー入力モード | 現在の文字/論理入力と、押下/解放を直接送る入力を切替。SHIFT、同時押し、repeat、focus喪失を扱う。A2との関連を確認 |
 | B5 | Quick Assemble結果表示 | DMP保存に加え、機械語・Listing・Symbol Map・診断を確認する画面 |
 | B6 | プロジェクト機種互換範囲 | BASIC単独の機種非限定化、現在機種への変換、混在プロジェクトの互換グループ、旧Manifest互換 |
-| B7 | 外部エディタ設定の仕上げ | ユーザー指定により現在の対応を一旦完了とする。代表的エディタの検出・Test起動等は将来の拡張候補 |
-| B8 | Studio日本語/英語UI | 2026-10-14ユーザーによる一通りの確認を受領し今回分を完了。対象画面・共有UI・エラー表示、OS追従と設定の言語上書き（再起動反映）を実装。36 tests、日英870 key、保存互換性、全体build／Core tests成功。確認OS・個別操作の内訳は未指定。Windows／Linux個別結果・OS設定変更試験・独立描画の欠けは後続確認（[最終検証](../STUDIO_LOCALIZATION_VERIFICATION.md)、[棚卸し](../STUDIO_LOCALIZATION_INVENTORY.md)、[進捗](../STUDIO_LOCALIZATION_PLAN.md)） |
+| B7 | 外部エディタ設定の仕上げ | 開発方針として現在の対応を一旦完了とする。代表的エディタの検出・Test起動等は将来の拡張候補 |
+| B8 | Studio日本語/英語UI | 2026-10-14一通りの動作確認を終え今回分を完了。対象画面・共有UI・エラー表示、OS追従と設定の言語上書き（再起動反映）を実装。36 tests、日英870 key、保存互換性、全体build／Core tests成功。確認OS・個別操作の内訳は未指定。Windows／Linux個別結果・OS設定変更試験・独立描画の欠けは後続確認（[最終検証](../STUDIO_LOCALIZATION_VERIFICATION.md)、[棚卸し](../STUDIO_LOCALIZATION_INVENTORY.md)、[進捗](../STUDIO_LOCALIZATION_PLAN.md)） |
 
 ## M: Studio/Coreの機種対応（優先順位を独立して検討）
 
@@ -109,7 +119,7 @@ Android/iOS Playerへの機種追加（B3）とは別の作業として扱う。
 |---|---|---|
 | M1 | PC-1260/1262 | PC-1261実装を基準に容量・ROM/BASIC差分を確認し、共通ファミリー、Studio選択、ROM Library、ロード検査を対応。その時点でExpanded RAM切替を検討（D1と同じ作業） |
 | M2 | PC-1402 | PC-1401を基準にRAM容量差とROM互換性を確認し、機種定義・Studio選択・ロード検査へ接続 |
-| M3 | PC-1450 | Core/Studio実装・合成／ローカルROM検証済み。実機／Windowsユーザー操作は別。詳細はmachines/PC-1450.md |
+| M3 | PC-1450 | Core/Studio実装・合成／ローカルROM検証済み。実機／Windowsでの手動操作は別。詳細はmachines/PC-1450.md |
 | M4 | PC-1460 | Core/Studioの4バンク・24桁LCD・S1実装済み。合成／ローカルROMと実機確認を区別。詳細はmachines/PC-1460.md |
 | M5 | PC-1470U | Core/Studioの8バンク・24桁×2行・専用S2/キー実装済み。↕︎キーの入力は対応済み、SHIFT TITLE機能固有の条件は未確認。実機照合は別。詳細はmachines/PC-1470U.md |
 | M6 | PC-1360K | 漢字ROMの配置・選択、文字コード、表示仕様を実機調査。仕様未確定のため機種実装は保留。C3の解析支援と関連 |
@@ -120,7 +130,7 @@ Android/iOS Playerへの機種追加（B3）とは別の作業として扱う。
 
 ## C: 開発支援・解析の拡張
 
-2026-10-15ユーザー方針: デバッグ強化は0.5で一旦終了。残りは[記録](DEBUGGER_FOLLOW_UP.md)として保持し、対象指定後に再開する。
+2026-10-15開発方針: デバッグ強化は0.5で一旦終了。残りは[記録](DEBUGGER_FOLLOW_UP.md)として保持し、対象指定後に再開する。
 
 | ID | 項目 | 残作業・現在の状態 |
 |---|---|---|
@@ -144,7 +154,7 @@ Android/iOS Playerへの機種追加（B3）とは別の作業として扱う。
 | D3 | その他機種・仕様差 | PC-1402用ROMのBASIC実行照合、PC-1460/1470Uの実機／最大容量照合、機種固有BASIC、PC-1245/1250ミラー実機照合。PC-1360バンクは実装済み |
 | D4 | S1/S2 WAV | 信号・BASIC/Binary codec、checksum、実機往復。Playerを優先して後回し、当面pcwavを案内 |
 | D5 | WAV Analyzer追加 | 全信号形式、候補比較、ON/OFF/W0/W1/leader/byte境界overlay、原channel、段階間選択、個別export、実録音fixture。OLD波形/zoom/pan/cursor等は実装済み |
-| D6 | Player音声・速度・Save State | Android音声出力／速度5段階を実装。ユーザーから再生成功報告あり（環境・機種未特定）。[検証区分と実機の残作業](../PLAYER_AUDIO_SPEED_PROGRESS.md)。iOS接続は[手順3](../IOS_PLAYER_STEP3.md)で実装・合成検証。iOS実機音声、無制限、完全状態の保存復元は後続。現在のCheckpoint出力とは別 |
+| D6 | Player音声・速度・Save State | Android音声出力／速度5段階を実装。再生成功を確認（環境・機種未特定）。[検証区分と実機の残作業](../PLAYER_AUDIO_SPEED_PROGRESS.md)。iOS接続は[手順3](../IOS_PLAYER_STEP3.md)で実装・合成検証。iOS実機音声、無制限、完全状態の保存復元は後続。現在のCheckpoint出力とは別 |
 | D7 | Player後続UI・入力 | パッド接続時の表示自動切替、追加機種のRUN/PRO/RSV表示。AndroidのPhysical外付けキーボードは今回実装済み |
 | D8 | iOS実機・最低OS・配布 | Developer登録/署名、端末操作、Files共有受取り、実パッド、iOS 16確認。Simulator完了と別。iPadは現在対象外 |
 | D9 | ROM管理の拡張 | Import Wizard、bank slot一括割当、機種拡大時のPlayer Library、ROMをバックアップ/同期へ含めない方針 |
@@ -172,7 +182,7 @@ Android/iOS Playerへの機種追加（B3）とは別の作業として扱う。
 
 ### 2026-10-14 の確認と残課題
 
-- Studio LCD比率は1460だけ3:4、他機種は1:1。ユーザー確認済み。
+- Studio LCD比率は1460だけ3:4、他機種は1:1。動作確認済み。
 - 関数panelは6列×3行。1401/1450/1460の通常「↕︎」／SHIFT STAT、1470Uの通常「↕︎」／SHIFT TITLE刻印は一旦OK。
 - 保留: Unicode矢印の絵文字表示（フォント選択・fallback）、1470UのSHIFT TITLE機能固有の操作条件・結果。両者は別課題。
 - 全体buildとCore tests成功。ROM、作成中skin、Player新機種選択、仮文言整理は今回のcommit対象外。
@@ -187,8 +197,8 @@ Android/iOS Playerへの機種追加（B3）とは別の作業として扱う。
 - ローカル1261 ROMで1260/1261を確認。1402の実ROM検証はROM未提供で未実施。Player新機種／Project互換方針変更／メモリーカード拡張は別。
 
 - ROM登録画面はPC-1261 family／PC-1401 familyへ集約。実行機種選択は個別。
-- ユーザー確認: 1260/1261のMEM値は異なる。1402 ROMでは1401選択時に1401容量となる。全ROM版互換や1402のBASIC実行の確認とは区別する。
+- 動作確認: 1260/1261のMEM値は異なる。1402 ROMでは1401選択時に1401容量となる。全ROM版互換や1402のBASIC実行の確認とは区別する。
 
 - 1470U再確認: ↕物理キーのbit2接続・SHIFT消費と、SHIFT＋「=」のSTAT ON/OFFをローカルROMで確認。TITLE機能固有の結果は未確認で残す。
 
-- ユーザー指示: TITLE機能は使用経験がなく取説の記載も見つからないため、詳細確認はペンディング。追加調査は行わず、確認済みの↕入力・STAT切替を維持する。
+- 開発方針: TITLE機能は使用経験がなく取説の記載も見つからないため、詳細確認はペンディング。追加調査は行わず、確認済みの↕入力・STAT切替を維持する。

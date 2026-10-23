@@ -82,6 +82,7 @@ iPhone版の開発・ビルド状況は[開発用README](../iosApp/README.md)を
 [PC-1350](reference/machines/PC-1350.md)／[PC-1360](reference/machines/PC-1360.md)／[PC-1360K](reference/machines/PC-1360K.md)／
 [PC-1401系](reference/machines/PC-1401.md)／[PC-1450](reference/machines/PC-1450.md)／
 [PC-1460](reference/machines/PC-1460.md)／[PC-1470U](reference/machines/PC-1470U.md)。
+[PC-1245／125x／126xのRAM容量・ミラー仕様](reference/machines/RAM_1245_1261.md)。
 機種仕様・実装履歴の区別と、資料内の確認範囲を読んでください。
 
 ## リリース情報
@@ -91,7 +92,8 @@ iPhone版の開発・ビルド状況は[開発用README](../iosApp/README.md)を
 
 | 対象タグ | リリースノート |
 | --- | --- |
-| 0.7.0-alpha.1（準備中） | [リリースノート](releases/notes/RELEASE_NOTES_0.7.0-alpha.1.md) · [公開チェックリスト](releases/checklists/RELEASE_CHECKLIST_0.7.0-alpha.1.md) |
+| 1.0.0（準備中） | [Release notes](releases/notes/RELEASE_NOTES_1.0.0.md) · [Checklist](releases/checklists/RELEASE_CHECKLIST_1.0.0.md) |
+| v0.7.0-alpha.1 | [リリースノート](releases/notes/RELEASE_NOTES_0.7.0-alpha.1.md) · [公開チェックリスト](releases/checklists/RELEASE_CHECKLIST_0.7.0-alpha.1.md) |
 | v0.6.0-alpha.2 | [Technical Preview 0.6 alpha 2](releases/notes/RELEASE_NOTES_0.6.0-alpha.2.md) |
 | v0.6.0-alpha.1 | [Technical Preview 0.6](releases/notes/RELEASE_NOTES_0.6.0-alpha.1.md) |
 | v0.5.0-alpha.1 | [Technical Preview 0.5](releases/notes/RELEASE_NOTES_0.5.0-alpha.1.md) |
@@ -107,7 +109,7 @@ iPhone版の開発・ビルド状況は[開発用README](../iosApp/README.md)を
 以下は開発者・調査担当向けです。過去の「未実装」「確認待ち」やテスト件数は記録時点の内容で、
 現在の配布版の制限や動作保証を示すものではありません。
 
-- 現在の方針・残作業：[Roadmap](development/planning/ROADMAP.md)、[検討用一覧](development/planning/TASK_REVIEW.md)、[Debuggerの後続](development/planning/DEBUGGER_FOLLOW_UP.md)
+- 現在の方針・残作業：[正式リリースのMUST／WANT](development/planning/FORMAL_RELEASE_TASKS.md)、[Roadmap](development/planning/ROADMAP.md)、[検討用一覧](development/planning/TASK_REVIEW.md)、[Debuggerの後続](development/planning/DEBUGGER_FOLLOW_UP.md)
 - 初期構想・設計案：[プロジェクト構想](development/PGP_CONCEPT.md)、[Architecture](reference/ARCHITECTURE.md)、[Core API初期契約案](reference/CORE_API.md)
 - 由来と判断：[移植記録](development/PORTING_NOTES.md)
 - 分離した履歴：[Player入出力](development/PLAYER_PROGRAM_IO_HISTORY.md)、[Debugger](development/DEBUGGER_DESIGN_HISTORY.md)、[AI連携](development/AI_INTEGRATION_HISTORY.md)、[外部Assembler](development/EXTERNAL_ASSEMBLER_VERIFICATION.md)、[Character Editor](development/CHARACTER_EDITOR_DESIGN.md)

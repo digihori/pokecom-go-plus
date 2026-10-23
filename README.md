@@ -48,7 +48,7 @@ Registering a kanji ROM enables kana input and kanji conversion on PC-1360K.
 | PC-1460 | Supported | Supported |
 | PC-1470U | Supported | Supported |
 
-The Android scope reached its agreed milestone on October 20, 2026. On October 21, the user confirmed
+The Android scope reached its agreed milestone on October 20, 2026. On October 21, we confirmed
 operation across the integrated iPhone models, sound playback, and the updated home screen.
 Machine integration and environment-specific coverage remain distinct; see the
 [Android acceptance record](docs/development/ANDROID_SERIES_PROGRESS.md) and
@@ -89,7 +89,7 @@ Studio packages include their runtime; JDK 21 is required when building from sou
 4. Studio copies validated ROMs into its private ROM Library and restores the last-used machine on later launches.
 5. Use the on-screen keyboard or your physical keyboard to operate the emulated machine.
 
-Studio previews are not signed with a distribution certificate or notarized for macOS.
+Published 0.7 Studio previews are not signed with a distribution certificate or notarized for macOS.
 The Android preview APK uses a debug signature, not a production store signature.
 Your operating system may display a security warning. Packages include the MIT license and third-party
 notices; releases provide SHA-256 checksums.
@@ -211,7 +211,7 @@ handling, manual Controller Display, hierarchical menus, ROM replacement/deletio
 and physical keyboard input. PC-1245 has 52 skin keys and a 16-character LCD; other machines have their own layouts.
 
 Program loading detects `.bas`/`.dmp` by extension. Android exports whole BASIC programs; DMP is load-only. Successful loading resumes the CPU; failure or cancellation leaves it paused.
-The app includes settings, help, product information, version/license notices, and a draft privacy policy.
+The app includes settings, help, product information, version/license notices, and the applicable Android privacy policy.
 Android also provides sound on/off and five CPU speed settings.
 See the [Player guide](docs/guides/PLAYER_PROGRAM_IO.md) and [audio/speed verification record](docs/development/PLAYER_AUDIO_SPEED_PROGRESS.md),
 both currently in Japanese, for machine-specific behavior and limits.
@@ -312,6 +312,13 @@ PGP_GOLDEN_PRODUCER_REVISION=<git-revision> \
 The output includes the ROM SHA-256 and is replay-validated immediately. ROMs and generated JSON remain
 under `local-data/`, outside Git.
 
+### Preparing version 1.0.0
+
+Studio and Android Player 1.0.0 are in preparation. The latest published version remains 0.7 alpha 1 above.
+Developer ID signing and notarization are being introduced for macOS. Free OSS signing is under review for Windows;
+Windows packages may remain unsigned initially. Android updates will use Google Play, with debug APKs kept as CI artifacts only.
+iOS release preparation is separate. See the [release preparation tasks](docs/development/planning/FORMAL_RELEASE_TASKS.md).
+
 ### CI and preview packages
 
 Pushes and pull requests run Core desktop tests and Studio builds/tests on macOS, Windows, and Linux.
@@ -321,8 +328,8 @@ iOS app builds and Swift unit tests run in regular CI; Native-only tests use a m
 and UI interactions are verified locally.
 
 Running `.github/workflows/release.yml` manually creates Studio and Android Player packages,
-retained as workflow artifacts for 14 days. Release tags such as `v0.7.0-alpha.1` use those packages
-to publish a GitHub prerelease. Verify release candidates before creating tags.
+retained as workflow artifacts for 14 days. The current workflow publishes Studio packages to a GitHub
+prerelease on matching version tags. Android debug APKs remain CI artifacts and are excluded from future release attachments. Verify release candidates before creating tags.
 See [Building from source (Japanese)](docs/reference/BUILDING.md) for local DMG/MSI/DEB packaging.
 
 ## Known limitations
@@ -336,11 +343,9 @@ See [Building from source (Japanese)](docs/reference/BUILDING.md) for local DMG/
   ARM64 Linux packages are unavailable; the DEB menu entry currently appears under “Other.”
 - ROM import guidance and bulk selection of banked ROM components remain provisional.
 - ROM-driven BASIC input retains the original per-line input limit; use the tokenizer for longer lines.
-- Sound may differ from the hardware or break up with some programs. The Japanese README records Windows
-  clicking after sound playback; a later [follow-up record (Japanese)](docs/development/planning/TASK_REVIEW.md) reports improvement
-  confirmed on October 13, with detailed checks still outstanding.
-- The PC-1245/1250 mirror behavior near `0xb000..0xbfff` needs further verification.
-- Android and iPhone Player support the 14 models above. Verification details remain machine- and device-specific; see the Android/iOS acceptance records. Save states are not implemented. The bundled privacy policy is a draft.
+- Sound waveforms may differ from hardware. Current Studio/Android audio is the baseline for the formal release; iOS audio improvements are separate.
+- The development source implements the revised [1245/125x/126x RAM mapping](docs/reference/machines/RAM_1245_1261.md). Unexpected MEM values remain pending. This change is separate from the published 0.7 build.
+- Android and iPhone Player support the 14 models above. Verification details remain machine- and device-specific; see the Android/iOS acceptance records. Save states are not implemented. The Android privacy policy is applicable; the iPhone policy is still in preparation.
 
 See the [documentation index](docs/README.en.md#releases) for versioned release notes and historical checklists.
 
