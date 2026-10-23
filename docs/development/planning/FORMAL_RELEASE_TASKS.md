@@ -12,7 +12,7 @@ Android AABの署名・ストア公開とPlay Consoleの最終提出確認は開
 ## 現在の進行状況
 
 - M1：Studio／Androidの公開版数1.0.0を確定。[正式版の範囲・版数](FORMAL_RELEASE_SCOPE.md)に対象環境・14モデル・配布案を整理。OS別の詳細受入れ環境はM3で具体化します。
-- M5：macOSは署名・公証を導入。Windowsは[OSS無料署名を検討](WINDOWS_OSS_SIGNING.md)し、難しければ当面未署名で配布。Android debug APKはCI成果物のみに変更。[署名・配布方針](FORMAL_RELEASE_DISTRIBUTION.md)に記録。ローカルの署名付きアプリ・DMGの検証は完了。公証はApple側の処理待ちとし、CIへの組込み・最終配布検証は後続です。
+- M5：macOSは署名・公証を導入。Windowsは[OSS無料署名を検討](WINDOWS_OSS_SIGNING.md)し、難しければ当面未署名で配布。Android debug APKはCI成果物のみに変更。[署名・配布方針](FORMAL_RELEASE_DISTRIBUTION.md)に記録。ローカルの署名付きアプリ・DMGの検証は完了。公証・staple・Gatekeeper検証も完了。承認付きEnvironmentと専用CIジョブを設定し、Secrets登録・hosted検証・最終配布検証は後続です。
 - M2：RAM配置・ミラー処理の実装修正と自動検証は完了。MEM表示は保留。BASIC等の手動受入れはM3で確認します。
 - M6：公開向けREADME・操作ガイド・技術資料・現在の計画文書の語り口を修正しました。日付・確認範囲・既知制限と旧見出しの参照先を保持。[修正範囲と検証](../DOCUMENTATION_RELEASE_VOICE.md)を参照。過去の公開チェックリスト・段階別作業記録は履歴として保持します。
 - M7：現行文書・同梱案内の整合を確認済み。[修正と検証・M9への引継ぎ](../DOCUMENTATION_RELEASE_ALIGNMENT.md)を参照。正式版の版数・公開リンク・Release設定の最終切替はM9で行います。

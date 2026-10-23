@@ -73,69 +73,75 @@ DMG内アプリも同じ署名済みコードであり、DMGの公証・staple�
 署名・公証・staple後にチェックサムを生成します。その後DMGのアイコン等を加工しません。
 最終配布物を展開・マウントし、Gatekeeper判定と隔離環境の起動を確認します。
 
-## 現在の範囲
+## GitHub Actionsによる署名・公証
 
-この手順はローカル署名用です。GitHub Actionsへの証明書導入・公証認証・署名強制は別途実装します。
-CIで生成した従来の未署名成果物を、ローカル署名済みの結果と混同しないようにします。
+正式配布では`Build Release Packages`の専用ジョブ`macos-signing`を使用します。
+GitHub Environment `macos-signing`の承認後にだけ署名用Secretsへアクセスします。
+Windows／LinuxとAndroid検証用APKの生成は署名承認を待たず実行できます。
+タグ実行では全ジョブの成功後、macOSを含むStudio成果物をドラフトReleaseへまとめます。
+公開は資産と手動受入れを確認してから開発者が行います。
+Androidの署名・ストア公開は開発者が別途担当します。
+
+### Environmentの保護
+
+- Required reviewers：リポジトリ所有者。単独運用のため、自分が開始した実行も承認できます。
+- 管理者による保護ルールのスキップは禁止します。
+- 実行元：`main`、準備用`codex/release-1.0.0`ブランチ、`v1.0.0`タグのみ。
+- 次版のタグを使う際は許可ルールを更新します。準備完了後は準備用ブランチの許可を削除します。
+- 署名ジョブのGITHUB_TOKENは`contents: read`のみ。Release作成ジョブだけ`contents: write`です。
+
+承認前に実行元コミットとworkflowの変更を確認します。
+Environmentの管理権限を持つ人は設定自体を変更できるため、承認設定は管理権限の代わりにはなりません。
+SecretsはRepository Secretsではなく、このEnvironmentに登録します。
+
+### Secretsの登録（初回・更新時）
+
+GitHubのSettings → Environments → macos-signing → Environment secretsで次を登録します。
+秘密鍵やパスワードはGit・チャット・通常のログへ貼り付けません。
+
+| Secret | 内容 |
+| --- | --- |
+| MACOS_CERTIFICATE_P12_BASE64 | Developer ID Application証明書と対応する秘密鍵だけを含む、パスワード付きp12のBase64 |
+| MACOS_CERTIFICATE_PASSWORD | p12を書き出す際に設定したパスワード |
+| MACOS_SIGNING_IDENTITY | 証明書名の`Developer ID Application: `より後の部分（`YOUR NAME (TEAM_ID)`） |
+| MACOS_NOTARY_APPLE_ID | 公証用Apple Accountのメールアドレス |
+| MACOS_NOTARY_TEAM_ID | 証明書のDeveloper Team ID |
+| MACOS_NOTARY_PASSWORD | 公証用のアプリ用パスワード。通常のApple Accountパスワードは使いません |
+
+キーチェーンアクセスの「自分の証明書」で対象Developer ID証明書を選択し、
+対応する秘密鍵を含むp12を書き出します。保存先はリポジトリ外にし、強いパスワードを設定します。
+Base64は暗号化ではありません。以下は登録用データをクリップボードへコピーする例です。
+
+```sh
+base64 -i /path/outside/repository/developer-id.p12 | pbcopy
+```
+
+Secrets登録後はクリップボードを消去します。p12の保管・削除は自身の鍵管理方針に従います。
+ローカルの`pgp-notary`プロファイルからパスワードを取り出す必要はありません。
+必要ならApple AccountでCI専用のアプリ用パスワードを新規作成します。
+CIは一時キーチェーンを作成し、ジョブ終了時に削除します。
+Secrets不足・署名エラー・公証失敗時はジョブを失敗させ、未署名へ切り替えません。
+
+### 各リリースの手順
+
+1. 最終候補を確定し、手動のBuild Release Packagesで配布処理を確認します。
+2. Actionsの実行画面でReview deploymentsを開き、`macos-signing`を承認します。
+3. 自動の署名・公証・staple・Gatekeeper検証とchecksum生成の成功を確認します。
+4. 最終タグの実行でも署名を承認し、生成されたドラフトReleaseの全資産を確認します。
+5. 手動受入れと公開文面の確認後、ドラフトを公開します。
+
+アプリを署名・公証・stapleした後、再生成せずDMGを作成・署名・公証します。
+最終ZIPはstaple済みアプリから生成します。checksum生成後には資産を加工しません。
+helperはAccepted以外・タイムアウト・ad-hoc署名では先へ進みません。
+ローカルで申請を再開する場合は`--submission-id ID`を使用できます。
+CIのタイムアウト時は提出IDを確認し、同じ成果物を繰り返し提出しないでください。
+
+## ローカル候補の確認結果（2026-10-23）
+
+1.0.0候補のアプリ・DMGともAccepted、staple／validate・署名検証・Gatekeeperの
+`source=Notarized Developer ID`判定に成功しました。
+最終コミットでの再生成・手動受入れ・公開前の資産照合は別途必要です。
 
 参照：
 [JetBrainsの署名設定](https://github.com/JetBrains/compose-multiplatform/blob/master/tutorials/Signing_and_notarization_on_macOS/README.md)、
 [Appleの公証手順](https://developer.apple.com/documentation/security/customizing-the-notarization-workflow)。
-
-## ローカル確認結果（2026-10-23）
-
-Developer ID署名付きのアプリ・DMG生成に成功しました。
-`codesign --verify --deep --strict`でアプリを、`codesign --verify --strict`で最終DMGを検証し、
-Developer ID→Developer ID Certification Authority→Apple Root CAのチェーンと安全なタイムスタンプを確認しました。
-アプリにはHardened Runtimeが有効です。JDK 21の`./gradlew build`も成功しました。
-公証・staple・Gatekeeperの受入れはまだ完了していません。
-現在の署名試験用成果物は0.7／内部版1.5.0であり、正式版1.0.0の最終候補ではありません。
-
-## 公証申請（2026-10-23）
-
-ローカルの`pgp-notary`プロファイルへ認証を登録し、試験用の署名済みアプリZIPとDMGを提出しました。
-両方のアップロードは成功しました。最終審査・staple・Gatekeeper検証は確認中です。
-
-- アプリ提出ID：`47dd555f-e8e3-4c17-b6c2-4c53f0a36d8e`
-- DMG提出ID：`f385b3e9-acca-4645-996e-b574c842ba14`
-
-提出・状態のJSONは`desktopApp/build/notarization/`へ保存します。
-認証情報や個人のアカウント識別子はこの記録へ含めません。
-
-## 1.0.0のCI署名・公証
-
-release workflowに署名・公証処理を追加しました。以下のGitHub Actions Secretsが必要です。
-まだSecretsの登録・hosted runnerでの試験は行っていません。
-
-| Secret | 内容 |
-| --- | --- |
-| MACOS_CERTIFICATE_P12_BASE64 | Developer ID Application証明書と秘密鍵を含む、パスワード付きp12のBase64 |
-| MACOS_CERTIFICATE_PASSWORD | p12の書出し時パスワード |
-| MACOS_SIGNING_IDENTITY | 証明書名のDeveloper ID Application: より後の部分 |
-| MACOS_NOTARY_APPLE_ID | 公証に使うApple Account |
-| MACOS_NOTARY_TEAM_ID | 証明書と同じDeveloper Team ID |
-| MACOS_NOTARY_PASSWORD | 公証用のアプリ用パスワード |
-
-証明書を書き出す場合はキーチェーンアクセスの「自分の証明書」で、対象Developer ID証明書と
-対応する秘密鍵の組をp12形式で書き出します。ほかの証明書や秘密鍵は含めません。
-書き出すp12はリポジトリ外に置き、パスワードとともにチャットへ送らないでください。
-Base64は暗号化ではありません。Secretsへの登録後も通常の文書やログへ貼り付けません。
-
-CIでは使い捨てのキーチェーンへ取り込み、公証認証も同じキーチェーンへ保存し、終了時に削除します。
-Secretsが不足する場合は失敗し、未署名配布へ自動で切り替えません。
-アプリを署名・公証・stapleした後、createDistributableを再実行せずDMGを生成して署名・公証します。
-最終ZIPはstaple済みアプリから生成します。全検証の成功後にchecksumを生成します。
-
-`python3 scripts/notarize-macos.py TARGET --profile pgp-notary`はローカルでも使えます。
-Accepted以外の状態・タイムアウト・ad-hoc署名ではstapleへ進みません。
-初回のApple審査がタイムアウトを超えた場合は提出IDを確認し、同じ内容の再提出を繰り返さないでください。
-
-0.7の試験提出はアプリ／DMGともAccepted、staple／validateとGatekeeperの
-`source=Notarized Developer ID`判定を確認しました。1.0候補は別途検証します。
-
-1.0.0候補の提出ID：アプリ`a453c608-1e67-41ec-9dbd-fe3e44e44210`、
-DMG`178f2fca-9677-4cfc-afc7-287b67c7264e`。待機時間内に完了しない場合も再提出せず、
-`--submission-id ID`で同じ申請の待機・検証を再開できます。
-
-1.0候補もアプリ・DMGともAcceptedとなり、staple／validateとGatekeeperの
-`source=Notarized Developer ID`判定に成功しました。上記提出IDで確認済みです。

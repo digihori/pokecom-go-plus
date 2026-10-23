@@ -78,4 +78,6 @@ Windowsの有償契約、鍵のエクスポート、CIへの秘密情報登録�
 証明書名・Team ID・秘密情報は共有ビルド設定へ固定しません。
 公証の認証情報登録と、試験用アプリ・DMGのAppleへのアップロードは完了しました。
 0.7署名試験とローカル1.0候補のAccepted確認・staple・Gatekeeper検証が成功しました。
-CIへの組込みはコードを準備済みで、Secrets設定とhosted runnerの検証・最終配布受入れは残っています。
+macOSは承認付きEnvironment Secretsを使い、GitHub Actionsで署名・公証します。
+署名Environmentは所有者の承認必須・管理者のスキップ禁止・実行元の制限を設定しました。
+Secrets登録とhosted runnerでの検証は未完了です。全OSの成果物はドラフトReleaseへまとめ、確認後に公開します。

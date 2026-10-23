@@ -17,7 +17,7 @@ Android AABへの署名・Play Consoleの最終提出内容・ストア公開は
 - [x] 1.0候補でJDK 21全体build・Core／Studio／Androidテストが成功。
 - [x] ローカル1.0候補のmacOS署名・公証・staple・Gatekeeper検証が成功。
 - [ ] 最終候補コミットを確定し、全CI成功を確認。
-- [ ] GitHub ActionsのmacOS署名・公証Secretsを設定し、手動配布workflowが成功。
+- [ ] Windows／Linuxの配布workflowが成功し、ドラフトReleaseを作成。
 - [ ] Windows／Linux最終配布物の版数・MSI identity・ライセンス・チェックサムを確認。
 
 ## M3・M4：最終候補での受入れ
@@ -62,7 +62,7 @@ CI成果物の生成成功は、M3・M4の手動受入れを代替しません�
 - 1.0アプリ公証ID：`a453c608-1e67-41ec-9dbd-fe3e44e44210`。
 - 1.0 DMG公証ID：`178f2fca-9677-4cfc-afc7-287b67c7264e`。
 - 公証待機の45秒以内には処理が完了せず、提出IDを保存。承認確認・staple・最終checksumは継続。
-- macOS用Secretsの設定状況は未確認。手元にgh CLIがなく、hosted CI／手動workflowは実行していません。
+- macOSは承認付きEnvironment SecretsでCI署名・公証する方針です。Secrets登録とCI検証は未完了です。
 - commit／push／tag作成／GitHub Release公開／Play提出は実施していません。
 
 ## 1.0 macOS候補の公証完了
@@ -71,3 +71,13 @@ CI成果物の生成成功は、M3・M4の手動受入れを代替しません�
 `source=Notarized Developer ID`判定に成功しました。再提出は行っていません。
 検証用DMG／staple済みアプリのZIP／SHA256SUMSを`desktopApp/build/release-candidate-1.0.0/`へ保存しました。
 この候補は作業ツリーから生成したもので、最終コミット・CI成果物として確定したものではありません。
+
+## 承認付きCI署名での公開手順
+
+- [x] macos-signing Environmentの承認必須・管理者スキップ禁止・実行元制限を設定。
+- [ ] Environment Secretsへ証明書・秘密鍵・公証認証を登録。
+- [ ] 手動workflowを承認し、hosted runnerで署名・公証・staple・Gatekeeper検証が成功。
+- [ ] 最終タグのworkflowを承認し、全OSの資産とchecksumをドラフトReleaseで照合。
+- [ ] 手動受入れと公開文面の確認後、ドラフトを公開。
+
+手順：[macOS署名・公証](../../reference/MACOS_SIGNING.md)。
