@@ -75,6 +75,7 @@ compose.desktop {
                 // Keep the existing bundle identity. Signing is opt-in on the build host;
                 // certificates and account details do not belong in the repository.
                 bundleID = "com.digihori.pgp.desktop"
+                appCategory = "public.app-category.developer-tools"
                 signing {
                     providers.environmentVariable("PGP_MAC_SIGNING_IDENTITY").orNull?.let {
                         sign.set(true)
@@ -103,7 +104,7 @@ abstract class DmgIconOperations @Inject constructor(val execOperations: ExecOpe
 val dmgIconOperations = objects.newInstance<DmgIconOperations>()
 tasks.withType<AbstractJPackageTask>().matching { it.targetFormat == TargetFormat.Dmg }.configureEach {
     val execOperations = dmgIconOperations.execOperations
-    val volumeIcon = project.layout.projectDirectory.file("icons/pokecom-go.icns")
+    val volumeIcon = project.layout.projectDirectory.file("icons/pokecom-go-dmg.icns")
     val iconScript = rootProject.layout.projectDirectory.file("scripts/set-dmg-volume-icon.sh")
     val macSigning = compose.desktop.application.nativeDistributions.macOS.signing
     val signFinalDmg = macSigning.sign.getOrElse(false)

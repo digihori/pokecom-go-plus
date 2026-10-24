@@ -50,7 +50,7 @@ Composeがjpackageの作業用resource directoryを再生成するため、内�
 macOS、`hdiutil`、Xcode Command Line Toolsの`SetFile`が必要です。
 
 ```sh
-sh scripts/set-dmg-volume-icon.sh path/to/generated.dmg desktopApp/icons/pokecom-go.icns
+sh scripts/set-dmg-volume-icon.sh path/to/generated.dmg desktopApp/icons/pokecom-go-dmg.icns
 ```
 
 タスクはスクリプトとアイコンを入力として追跡し、CIでも同じ処理を行います。

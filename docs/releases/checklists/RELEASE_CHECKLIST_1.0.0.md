@@ -75,9 +75,27 @@ CI成果物の生成成功は、M3・M4の手動受入れを代替しません�
 ## 承認付きCI署名での公開手順
 
 - [x] macos-signing Environmentの承認必須・管理者スキップ禁止・実行元制限を設定。
-- [ ] Environment Secretsへ証明書・秘密鍵・公証認証を登録。
-- [ ] 手動workflowを承認し、hosted runnerで署名・公証・staple・Gatekeeper検証が成功。
+- [x] Environment Secretsへ証明書・秘密鍵・公証認証を登録。
+- [x] 手動workflowを承認し、hosted runnerで署名・公証・staple・Gatekeeper検証が成功。
 - [ ] 最終タグのworkflowを承認し、全OSの資産とchecksumをドラフトReleaseで照合。
 - [ ] 手動受入れと公開文面の確認後、ドラフトを公開。
 
 手順：[macOS署名・公証](../../reference/MACOS_SIGNING.md)。
+
+## CI候補の受入れ（2026-10-24）
+
+[手動run 40042209096](https://github.com/digihori/pokecom-go-plus/actions/runs/40042209096)は全ジョブ成功。
+macOSアプリ／DMGの公証・staple・Gatekeeper検証と全OSの成果物生成を確認しました。
+開発者によるmacOSインストールは成功しました。
+アプリ一覧への未表示と検索結果の重複が報告され、表示元の確認は継続中です。
+DMGのボリュームは専用ディスクアイコンへ変更しますが、DMG内アプリはインストール先と同じアイコンです。
+ディスクアイコンの変更だけで検索結果の重複が解消するとは扱いません。
+
+Spotlight照会でインストール先と開発用ビルド先の2つのStudioを確認しました。
+DMG取り出し後の検索重複は開発用コピーが有力で、配布物の重複インストールとは区別します。
+DMG専用ディスクアイコンの生成・組込みとbuild／core:desktopTest／packageDmgは成功。
+このアイコン変更を含むCI署名候補の再生成は未実施です。
+
+追加画像で名前順のP付近にもStudioが表示されないことを確認しました。
+カテゴリがUnknownだったため、macOS配布設定に`public.app-category.developer-tools`を明示しました。
+生成Info.plistへの反映とbuild／core:desktopTestは成功。表示改善の効果は再インストール後に検証します。
