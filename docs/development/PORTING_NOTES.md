@@ -3169,3 +3169,9 @@ Core・共有Player・Androidの既存機種定義に対するApple接続14モ�
   Native/Android checks. Final Core desktop tests (491) and Studio tests (406,
   one existing skip) passed with no failures. Fixture verification and
   `git diff --check` also passed.
+
+## 2026-10-25: iOSプライバシーポリシーの公開用原稿
+
+既存iOS原稿を、現行Swift実装の保存情報・File Provider・ファイル共有・音声／入力・ROM Libraryのバックアップ除外・削除動作に照合して確定文へ更新。GitHub Issuesでの公開問い合わせと投稿情報の利用・削除の説明をAndroidポリシーと整合させ、日本語／英語のMarkdownと独立したiOS用HTMLを作成した。HTMLは既存の静的Pages構成・CSSを再利用し、外部スクリプト・解析・通信処理を追加しない。Androidのポリシー本文は変更しない。公開用ファイルのローカル作成であり、公開デプロイ・App Store Connectへの設定は実施していない。
+
+iOSポリシーの検証: 日英HTMLの構造・lang属性・見出し／段落とMarkdown原稿の完全一致、日英切替・入口ページの相対リンク、git diff --checkを確認した。静的テキスト／HTMLのみの変更で、アプリの動作コードは変更していない。

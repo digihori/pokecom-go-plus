@@ -340,7 +340,7 @@ See [Building from source (Japanese)](docs/reference/BUILDING.md) for local DMG/
   clicking after sound playback; a later [follow-up record (Japanese)](docs/development/planning/TASK_REVIEW.md) reports improvement
   confirmed on October 13, with detailed checks still outstanding.
 - The PC-1245/1250 mirror behavior near `0xb000..0xbfff` needs further verification.
-- Android and iPhone Player support the 14 models above. Verification details remain machine- and device-specific; see the Android/iOS acceptance records. Save states are not implemented. The bundled privacy policy is a draft.
+- Android and iPhone Player support the 14 models above. Verification details remain machine- and device-specific; see the Android/iOS acceptance records. Save states are not implemented. The iPhone privacy policy is available in [Japanese](docs/guides/PLAYER_PRIVACY_POLICY_IOS.md) and [English](docs/guides/PLAYER_PRIVACY_POLICY_IOS.en.md), with public HTML pages linked from [Player setup](docs/player/index.html).
 
 See the [documentation index](docs/README.en.md#releases) for versioned release notes and historical checklists.
 

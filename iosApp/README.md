@@ -294,3 +294,14 @@ ROMは配布成果物へ同梱しない。現在Archive/配布は未検証で、
 - 両横向き、portrait制限、Run/Pause/Reset、背景復帰PAUSED、通常/Controller Displayを確認。
 - 最大Dynamic Typeでも表示を確認後、Simulator文字サイズを元のlargeへ戻した。
 - 実機・iOS 16 runtime・署名付きArchive・TestFlight/App Store配布は未検証。
+
+## iOS公開用プライバシーポリシー（2026-10-25）
+
+[日本語原稿](../docs/guides/PLAYER_PRIVACY_POLICY_IOS.md)と[英語原稿](../docs/guides/PLAYER_PRIVACY_POLICY_IOS.en.md)、
+公開用HTML `docs/player/privacy-ios-ja.html`／`privacy-ios-en.html`を用意した。
+Android版とは別のポリシーとし、アプリ内の日本語同梱本文も公開用の原稿へ更新する。
+アプリ内の本文は静的同梱のため、アップロード前に新しくArchiveを作成する。
+
+GitHub Pagesの公開先は[公開ページのREADME](../docs/player/README.md#ios-privacy-policy)を参照。
+ローカルでの作成と公開は別であり、mainへの反映・Pagesの公開成功・日英URLの実際の閲覧を
+確認してからApp Store Connectへ入力する。

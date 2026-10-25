@@ -351,7 +351,7 @@ Desktopアプリを起動する場合：
   Windowsでは、サウンドを使用したプログラムの終了後もクリックノイズが鳴り続けることがある。
   オーディオラインの終了判定と無音バッファ処理は今後の改善項目である。
 - PC-1245／1250の`0xb000..0xbfff`周辺のミラー仕様は再確認が必要である。
-- PlayerはAndroid／iPhoneとも上記14モデルに対応する。機種・端末・ROM版別の確認範囲は[Android受入れ](docs/development/ANDROID_SERIES_PROGRESS.md)・[iOS受入れ](docs/development/IOS_MACHINE_SUPPORT_STEP8.md)を参照。セーブステートは未実装。情報画面は静的同梱で、プライバシーポリシーは公開前の原文案である。
+- PlayerはAndroid／iPhoneとも上記14モデルに対応する。機種・端末・ROM版別の確認範囲は[Android受入れ](docs/development/ANDROID_SERIES_PROGRESS.md)・[iOS受入れ](docs/development/IOS_MACHINE_SUPPORT_STEP8.md)を参照。セーブステートは未実装。情報画面は静的同梱。 iPhone用プライバシーポリシーは[日本語](docs/guides/PLAYER_PRIVACY_POLICY_IOS.md)・[英語](docs/guides/PLAYER_PRIVACY_POLICY_IOS.en.md)を用意し、[Player公開ページ](docs/player/index.html)から公開用HTMLへ案内する。
 
 公開済み各版の説明と過去の確認記録は[ドキュメント目次](docs/README.md#リリース情報)を参照する。
 
