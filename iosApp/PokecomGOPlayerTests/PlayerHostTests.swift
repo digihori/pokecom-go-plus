@@ -123,6 +123,128 @@ final class PlayerHostTests: XCTestCase {
         XCTAssertFalse(host.status.breakHeld)
     }
 
+    func testPc1360kConvertKeyAtRightAndBottomEdges() throws {
+        try assertCornerKey(machineId: "pc-1360k", keyName: "KANJI_CONVERT", neighbors: ["MINUS", "KANJI_FIX"])
+    }
+
+    func testPc1470uEqualsKeyAtRightAndBottomEdges() throws {
+        try assertCornerKey(machineId: "pc-1470u", keyName: "EQUALS", neighbors: ["PLUS", "INSERT"])
+    }
+
+    private func assertCornerKey(machineId: String, keyName: String, neighbors: [String]) throws {
+        let player = try IosRomCodec.prepare(inputFromArchive(PlayerHost.bankedProbeArchive(machineId)), machineId: machineId).player
+        let skin = player.skin
+        let convert = try XCTUnwrap(skin.keyRegions.first { $0.key.name == keyName })
+        for size in [CGSize(width: 667, height: 270), CGSize(width: 844, height: 290), CGSize(width: 844, height: 390)] {
+            let view = PlayerSkinView(skin: skin, machine: player.machine)
+            view.frame = CGRect(origin: .zero, size: size)
+            var presses: [String] = []
+            var releases = 0
+            view.router.onPress = { key, _ in presses.append(key); return true }
+            view.router.onRelease = { _ in releases += 1 }
+            view.layoutIfNeeded()
+            let placement = try XCTUnwrap(view.router.placement)
+            XCTAssertGreaterThanOrEqual(placement.viewport.cgRect.minX, 11.9)
+            XCTAssertGreaterThanOrEqual(view.bounds.maxX - placement.viewport.cgRect.maxX, 11.9)
+            let rect = view.screenRect(convert.bounds)
+            let points = [CGPoint(x: rect.midX, y: rect.midY),
+                          CGPoint(x: rect.maxX + 5, y: rect.midY),
+                          CGPoint(x: rect.midX, y: rect.maxY + 5),
+                          CGPoint(x: rect.maxX + 3, y: rect.maxY + 3)]
+            for point in points {
+                XCTAssertTrue(view.bounds.contains(point))
+                let before = presses.count
+                view.router.begin(owner: "convert", point: point)
+                XCTAssertEqual(presses.count, before + 1)
+                XCTAssertEqual(presses.last, keyName)
+                view.router.move(owner: "convert", point: CGPoint(x: rect.maxX + 7, y: rect.midY))
+                XCTAssertEqual(view.router.owners["convert"], convert.id)
+                view.router.end(owner: "convert")
+                XCTAssertTrue(view.router.owners.isEmpty)
+            }
+            XCTAssertEqual(releases, points.count)
+            for name in neighbors {
+                let key = try XCTUnwrap(skin.keyRegions.first { $0.key.name == name })
+                let r = view.screenRect(key.bounds)
+                view.router.begin(owner: name, point: CGPoint(x: r.midX, y: r.midY))
+                XCTAssertEqual(presses.last, name)
+                view.router.end(owner: name)
+            }
+        }
+    }
+
+    func testBottomRowTouchToleranceExtendsPastImageButNotView() throws {
+        let host = PlayerHost.structuralProbe(frames: ManualFrames())
+        let skin = try XCTUnwrap(host.skin)
+        let bottomNames: Set<String> = ["Z", "X", "C", "V", "B", "N", "M", "NUM_0", "DOT", "PLUS", "MINUS", "ENTER"]
+        let bottomKeys = skin.keyRegions.filter { bottomNames.contains($0.key.name) }
+        XCTAssertEqual(bottomKeys.count, bottomNames.count)
+        for width: CGFloat in [667, 844] {
+            let view = PlayerSkinView(skin: skin)
+            view.frame = CGRect(x: 0, y: 0, width: width, height: 270)
+            var pressed: String?
+            var releases = 0
+            view.router.onPress = { key, _ in pressed = key; return true }
+            view.router.onRelease = { _ in releases += 1 }
+            view.layoutIfNeeded()
+            let placement = try XCTUnwrap(view.router.placement)
+            XCTAssertGreaterThanOrEqual(view.bounds.maxY - placement.viewport.cgRect.maxY, 11.9)
+            for key in bottomKeys {
+                let rect = view.screenRect(key.bounds)
+                let point = CGPoint(x: rect.midX, y: rect.maxY + 5)
+                XCTAssertTrue(view.bounds.contains(point))
+                pressed = nil
+                view.router.begin(owner: key.id, point: point)
+                XCTAssertEqual(pressed, key.key.name)
+                let before = releases
+                view.router.move(owner: key.id, point: CGPoint(x: rect.midX, y: rect.maxY + 7))
+                XCTAssertEqual(releases, before)
+                view.router.end(owner: key.id)
+                XCTAssertEqual(releases, before + 1)
+            }
+            // The last row's numeric key tolerance crosses the drawn image boundary.
+            let zero = try XCTUnwrap(bottomKeys.first { $0.key.name == "NUM_0" })
+            XCTAssertGreaterThan(view.screenRect(zero.bounds).maxY + 5, placement.viewport.cgRect.maxY)
+            pressed = nil
+            view.router.begin(owner: "outside", point: CGPoint(x: view.bounds.midX, y: view.bounds.maxY + 1))
+            XCTAssertNil(pressed)
+        }
+    }
+
+    func testSmallKeyTouchToleranceAndMovementAtDifferentScales() throws {
+        let host = PlayerHost.structuralProbe(frames: ManualFrames())
+        let skin = try XCTUnwrap(host.skin)
+        for width: CGFloat in [667, 1000] {
+            let view = PlayerSkinView(skin: skin)
+            view.frame = CGRect(x: 0, y: 0, width: width, height: 300)
+            var presses: [String] = []
+            var releases: [String] = []
+            view.router.onPress = { key, _ in presses.append(key); return true }
+            view.router.onRelease = { releases.append($0) }
+            view.layoutIfNeeded()
+            // Above the top row there is no neighboring key; stay inside the skin viewport.
+            let key = try XCTUnwrap(skin.keyRegions.min { $0.bounds.cgRect.minY < $1.bounds.cgRect.minY })
+            let rect = view.screenRect(key.bounds)
+            let edge = CGPoint(x: rect.midX, y: rect.minY - 4)
+            view.router.begin(owner: "edge", point: edge)
+            XCTAssertEqual(presses, [key.key.name])
+            view.router.move(owner: "edge", point: CGPoint(x: rect.midX, y: rect.minY - 7))
+            XCTAssertTrue(releases.isEmpty)
+            view.router.move(owner: "edge", point: CGPoint(x: rect.midX, y: rect.minY - 9))
+            XCTAssertEqual(releases, ["edge"])
+            view.router.move(owner: "edge", point: CGPoint(x: rect.midX, y: rect.midY))
+            XCTAssertEqual(presses.count, 1) // Returning never synthesizes another press.
+            view.router.begin(owner: "far", point: CGPoint(x: rect.midX, y: rect.minY - 9))
+            XCTAssertEqual(presses.count, 1)
+            for region in skin.keyRegions {
+                let r = view.screenRect(region.bounds)
+                view.router.begin(owner: region.id, point: CGPoint(x: r.midX, y: r.midY))
+                XCTAssertEqual(presses.last, region.key.name) // Neighbor tolerance cannot steal a direct hit.
+                view.router.end(owner: region.id)
+            }
+        }
+    }
+
     func testSkinTouchOwnershipDragCancelAndDisplaySwitch() throws {
         let host = PlayerHost.structuralProbe(frames: ManualFrames())
         host.setActive(true)

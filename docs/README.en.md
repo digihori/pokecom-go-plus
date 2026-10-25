@@ -37,7 +37,7 @@ For a source build, see [Building](reference/BUILDING.md). [About Studio](guides
 
 - [Android help](guides/PLAYER_HELP.md) and [BASIC/DMP file operations](guides/PLAYER_PROGRAM_IO.md).
 - [iPhone help](guides/PLAYER_HELP_IOS.md): machines, ROMs, Files, audio and external input.
-- Privacy: [Android policy](guides/PLAYER_PRIVACY_POLICY.md) and [iPhone draft](guides/PLAYER_PRIVACY_POLICY_IOS.md).
+- Privacy: [Android policy](guides/PLAYER_PRIVACY_POLICY.md) and [iPhone policy (Japanese)](guides/PLAYER_PRIVACY_POLICY_IOS.md) and [English](guides/PLAYER_PRIVACY_POLICY_IOS.en.md).
   Check the policy text and the release description for applicability.
 
 The [iOS development README](../iosApp/README.md) covers building and verification.

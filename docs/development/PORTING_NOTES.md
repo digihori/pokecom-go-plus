@@ -3177,3 +3177,49 @@ Core・共有Player・Androidの既存機種定義に対するApple接続14モ�
 1251の9000／9800 aliasを追加。1245のRAM外書込みを禁止し、配置検査とCPUのアクセスを揃えます。
 125xの拡張設定は1255相当のRAM範囲・aliasを使用します。1260／1261はRAMミラーなしの既存処理を維持します。
 実ROM・実機の受入れと合成回帰テストは区別し、ROMや実機データは追加しません。
+
+## 2026-10-25: iOS初回正式配布のバージョン
+
+ユーザー指定により、公開済みAndroid Player `0.7.0-alpha.1`へ数字部分を合わせ、iOSのDebug／ReleaseのMARKETING_VERSIONを`0.7.0`、CURRENT_PROJECT_VERSIONは`1`のままとする。App Store用CFBundleShortVersionStringには英字サフィックスを含めない。既存のTeam・署名設定・Bundle IDとAndroidの次版作業は変更しない。App Store Connect側のバージョンも`0.7.0`へ合わせ、同じバージョンの再アップロード時はBuildを増やす。今回は設定変更のみで、アップロード・審査提出は行っていない。
+
+## 2026-10-25: iOSプライバシーポリシーの公開用原稿
+
+既存iOS原稿を、現行Swift実装の保存情報・File Provider・ファイル共有・音声／入力・ROM Libraryのバックアップ除外・削除動作に照合して確定文へ更新。GitHub Issuesでの公開問い合わせと投稿情報の利用・削除の説明をAndroidポリシーと整合させ、日本語／英語のMarkdownと独立したiOS用HTMLを作成した。HTMLは既存の静的Pages構成・CSSを再利用し、外部スクリプト・解析・通信処理を追加しない。Androidのポリシー本文は変更しない。公開用ファイルのローカル作成であり、公開デプロイ・App Store Connectへの設定は実施していない。
+
+iOSポリシーの検証: 日英HTMLの構造・lang属性・見出し／段落とMarkdown原稿の完全一致、日英切替・入口ページの相対リンク、git diff --checkを確認した。静的テキスト／HTMLのみの変更で、アプリの動作コードは変更していない。
+
+## 2026-10-25: iOSファイル選択の前回位置
+
+ユーザーのGoogle Drive実機確認を受け、共通PlayerDocumentPickerが毎回directoryURLをDocumentsへ固定していた指定を除去した。ROM登録・プログラムロード・セーブともiOS標準Filesの位置復元に任せる。importのasCopy URLは一時コピーのため、その親を前回フォルダとして保存しない。独自のパス履歴・security-scoped bookmarkは保存せず、コピー読込みと既存のアクセス権管理を維持する。位置復元はiOSとFile Providerの状態に依存し、Driveでの再オープンとアプリ再起動後の実機確認は別途必要。Apple UIDocumentPickerViewController.directoryURLの仕様を参照した。
+
+検証: Swift構文確認、iOS Simulator向けxcodebuild、JDK 21の`./gradlew build :core:desktopTest`、`git diff --check`が成功。Google Driveでの前回位置復元は実機で確認する。
+
+## 2026-10-25: iOSキーのタッチ許容範囲
+
+実機での押し損ね報告を受け、iOS専用SkinTouchRouterの判定を調整。キー矩形への直接ヒットを優先し、隙間では画面座標で6pt以内の最も近い矩形へ割り当てる。押下後は8ptの移動許容を設け、指の小さな揺れで解放しない。範囲外への移動・終了・取消では既存tokenを解放し、隣接キーへのスライドや戻りで新しい押下を発生させない。共有機種座標・描画・CPUのキー走査時間は変更しない。異なる表示倍率の境界、移動、隣接キーの直接ヒットをiOS単体テストに追加した。
+
+キー判定の検証: 使い捨てSimulatorのiOS単体50件（追加した表示倍率別の境界テストを含む）、JDK 21の`./gradlew build :core:desktopTest`、`git diff --check`が成功。押しやすさと短いタップの取りこぼしは実ROM・実機で継続確認する。
+
+## 2026-10-25: iOS最下段キーの下端入力
+
+実機でZXCVBNM・数字記号の最下段が反応しづらいとの追加報告。前回の許容範囲が描画viewportで切られ、画像下端のキーでは十分に使えなかった。SkinTouchRouterの開始／移動をUIKitビュー内で判定し、キーから6ptの近傍・8ptの保持範囲を画像外の余白にも適用する。描画座標との一致を維持し、ビュー外では押下しない。機種画面は下端12ptを入力余白にして、下端のシステムジェスチャーをSwiftUIのdefersSystemGestures(on: .bottom)で後回しにする。ホームや各設定画面には適用しない。CPUキー走査やROMは変更しない。参照: https://developer.apple.com/documentation/swiftui/view/deferssystemgestures(on:) 。実機の下端ジェスチャー遅延の解消はSimulatorだけでは断定できず、再確認が必要。
+
+最下段入力の検証: 667pt／844pt幅でZXCVBNM・0・小数点・加減算・ENTERの下側5pt、保持7pt、ビュー外拒否を検証。既存の倍率別・多指解放・PC-1350左右SHIFTを合わせたiOS単体4件、JDK 21の`./gradlew build :core:desktopTest`、`git diff --check`が成功。実機での入力感は別途確認する。
+
+## 2026-10-25: PC-1360K変換キーの右下端入力
+
+最下段改善後にPC-1360Kの「変換」のみ押しにくいとの実機報告。画像と共通座標で変換は筐体の右下端に配置されていることを確認。iOSの機種画面のシステムジェスチャー延期対象を下端に加えて左右端にも広げ、通常表示では左右にも12ptの入力余白を確保する。キー座標やCPUキー走査・共有描画には変更を加えない。Controller Displayの余白は増やさない。3つのビューサイズで変換キーの中心、右側、下側、右下角、移動保持・解放と隣のMINUS／上のKANJI_FIXの押し分けをテストに追加。AppleのpreferredScreenEdgesDeferringSystemGestures／SwiftUI defersSystemGestures仕様を参照。システムジェスチャーとの競合改善は実機で再確認する。
+
+同じ右下端のPC-1470U「＝」にも押しにくいとの報告を受け、共通の余白・ジェスチャー対策の対象として確認。PC-1360K変換と同じ3サイズ・4点のタッチ試験に加え、1470Uでは隣のPLUSと上のINSERTも確認する。
+
+右下端修正の検証: 既存の下端・移動・多指・PC-1350左右SHIFTと1360K変換のiOS単体5件が成功。追加後の1360K変換／1470UイコールのiOS単体2件も成功。JDK 21の`./gradlew build :core:desktopTest`、`git diff --check`が成功。システムジェスチャーの影響と実入力の改善は実機で確認する。
+
+## 2026-10-25: iOSホームのスクロール位置復元
+
+機種画面からホームへ戻ると先頭になる実機報告。条件分岐でScrollViewを破棄していたため、PlayerProbeViewの一時状態としてリスト／タイル別に上端の可視機種IDを保持する。ScrollViewReaderと機種カードのGeometry preferenceで復元し、縦横回転による列数変更後も同じ機種を表示する。ユーザーのスクロール開始で復元固定を解除する。先頭であれば初期ヘッダを維持する。機種内の同じ行付近に戻す仕様でピクセル単位の部分スクロール量は保存せず、アプリ再起動をまたぐ永続化も追加しない。機種のROM・CPU状態とプライバシーポリシーに記載した保存設定には変更しない。リスト・タイルそれぞれで下方の機種への入退場を2回繰り返すUI回帰を追加。
+
+ホーム位置復元の検証: iPhone Simulatorでリスト／タイル各2回のプレイ→縦画面ホーム復帰をUIテストし成功（先頭機種へ戻らず、下方の対象機種が操作可能）。ナビゲーションバーと下端safe areaを可視範囲から除外し、復元後は手動スクロールまでアンカーを固定、ホーム非表示・破棄中の位置更新を抑制して連続復帰にも対応した。JDK 21の`./gradlew build :core:desktopTest`、`git diff --check`が成功。実機での受入れは別途必要。
+
+## 2026-10-25: iOS 0.7.0更新のコミット準備
+
+ユーザーがGoogle Driveの前回位置、下端・右下端を含むキータッチ、ホーム位置復元を実機で確認し了承。今回のコード・回帰テストと受入れ記録を現在の作業ブランチへ記録する。iOSのVersion 0.7.0／アップロード済みBuild 2とReleaseのdSYM生成設定を含め、個人のTeam設定とXcodeによる全体整形はコミットしない。差し替えArchiveは次の未使用Build番号を使う。iOSプライバシーポリシーはmainの9c39022でPages公開・日英本文一致を確認済みで、作業ブランチにも同じ原稿・公開用HTMLを揃える。

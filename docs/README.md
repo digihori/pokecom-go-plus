@@ -44,7 +44,7 @@ ROMは同梱していません。自分で適法に入手したROMが必要で�
 | --- | --- |
 | Android | [同梱ヘルプ](guides/PLAYER_HELP.md)、[BASIC／DMP入出力の詳細](guides/PLAYER_PROGRAM_IO.md) |
 | iPhone | [同梱ヘルプ](guides/PLAYER_HELP_IOS.md)（機種、ROM、Files、音声、外部入力） |
-| プライバシー | [Androidポリシー](guides/PLAYER_PRIVACY_POLICY.md)、[iPhone原文案](guides/PLAYER_PRIVACY_POLICY_IOS.md) |
+| プライバシー | [Androidポリシー](guides/PLAYER_PRIVACY_POLICY.md)、[iPhoneポリシー（日本語）](guides/PLAYER_PRIVACY_POLICY_IOS.md)・[英語](guides/PLAYER_PRIVACY_POLICY_IOS.en.md) |
 
 iPhone版の開発・ビルド状況は[開発用README](../iosApp/README.md)を参照してください。
 開発中の機種対応と、署名付き配布の完了は別に確認します。

@@ -53,6 +53,38 @@ final class PlayerSmokeTests: XCTestCase {
         attachScreen("Home landscape tiles")
     }
 
+    func testHomeScrollPositionSurvivesPlayerRoundTripInBothLayouts() {
+        for layout in ["list", "tiles"] {
+            let app = XCUIApplication()
+            app.launchArguments = ["--series-probe"]
+            app.launchEnvironment["PGP_SERIES_PROBE_ID"] = UUID().uuidString
+            XCUIDevice.shared.orientation = .portrait
+            app.launch()
+            XCTAssertTrue(app.buttons["homeLayout-" + layout].waitForExistence(timeout: 15))
+            app.buttons["homeLayout-" + layout].tap()
+            let target = app.buttons["play-pc-1470u"]
+            revealInMachineList(target, app: app)
+            XCTAssertFalse(app.buttons["playPC1245"].isHittable)
+            for attempt in 0..<2 {
+                target.tap()
+                if attempt == 0 {
+                    XCTAssertTrue(app.alerts.buttons["切替"].waitForExistence(timeout: 5))
+                    app.alerts.buttons["切替"].tap()
+                }
+                waitFor("RUNNING", in: app)
+                expectOrientation(app, portrait: false)
+                home(app)
+                expectOrientation(app, portrait: true)
+                let restored = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                    target.isHittable && !app.buttons["playPC1245"].isHittable
+                }, object: nil)
+                XCTAssertEqual(XCTWaiter.wait(for: [restored], timeout: 10), .completed, layout)
+                attachScreen("Restored home " + layout + " " + String(attempt))
+            }
+            app.terminate()
+        }
+    }
+
     func testHomeMenuSurvivesRomManagementInDarkAppearance() {
         let app = XCUIApplication()
         app.launchArguments = ["--series-probe"]
@@ -578,6 +610,12 @@ final class PlayerSmokeTests: XCTestCase {
         XCTAssertTrue(element.waitForExistence(timeout: 10))
         let scroll = app.scrollViews.firstMatch
         for _ in 0..<24 {
+            // Lazy grids can remove an offscreen accessibility node after the first drag.
+            if !element.exists {
+                let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
+                start.press(forDuration: 0.05, thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)), withVelocity: .slow, thenHoldForDuration: 0.2)
+                continue
+            }
             let frame = element.frame
             if element.isHittable && frame.minY >= app.frame.minY + 90 && frame.maxY <= app.frame.maxY - 60 { return }
             // A fixed flick can jump across the visible range repeatedly on a tall iPhone.
@@ -609,7 +647,7 @@ final class PlayerSmokeTests: XCTestCase {
     private func home(_ app: XCUIApplication) {
         app.buttons["playerMenu"].tap()
         app.buttons["ホームへ戻る"].tap()
-        XCTAssertTrue(app.buttons["playPC1245"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.scrollViews["homeMachineScroll"].waitForExistence(timeout: 5))
     }
     private func openRomManagement(_ app: XCUIApplication) {
         app.buttons["homeMenu"].tap(); app.buttons["設定"].tap(); app.buttons["ROM管理"].tap()

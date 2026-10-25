@@ -9,6 +9,7 @@ struct PlayerProbeView: View {
     @State private var information: String?
     @State private var playbackPanel: String?
     @State private var controllerPanel = false
+    @State private var homeScrollPositions: [PlayerHomeLayout: String] = [:]
     var body: some View {
         Group {
             if host.showHome { home }
@@ -52,7 +53,9 @@ struct PlayerProbeView: View {
 
     private var home: some View {
         NavigationStack {
-            ScrollView {
+            RememberingHomeScrollView(layout: host.homeLayout, position: Binding(
+                get: { homeScrollPositions[host.homeLayout] },
+                set: { if host.showHome { homeScrollPositions[host.homeLayout] = $0 } })) {
                 VStack(alignment: .leading, spacing: 20) {
                     HStack {
                         Text("機種を選択").font(.headline)
@@ -75,6 +78,10 @@ struct PlayerProbeView: View {
                         ForEach(AppleMachineCatalog.shared.homeMachines, id: \.id) { series in
                             machineCard(series)
                                 .id(series.id)
+                                .background(GeometryReader { geometry in
+                                    Color.clear.preference(key: HomeMachineFrames.self,
+                                        value: [series.id: geometry.frame(in: .named("homeMachines"))])
+                                })
                         }
                     }.disabled(host.isBusy)
                     if host.isBusy { ProgressView() }
@@ -174,6 +181,7 @@ struct PlayerProbeView: View {
             .onChange(of: geometry.size) { _ in host.releaseAllKeys() }
             .onChange(of: geometry.safeAreaInsets) { _ in host.releaseAllKeys() }
         }
+        .defersSystemGestures(on: [.bottom, .horizontal])
         .background(PhysicalKeyboardShield(host: host).frame(width: 1, height: 1))
         .background(Color.black.ignoresSafeArea()).foregroundStyle(.white).statusBarHidden()
         .onAppear { UIDevice.current.beginGeneratingDeviceOrientationNotifications() }
@@ -244,7 +252,8 @@ struct PlayerDocumentPicker: UIViewControllerRepresentable {
         else {
             picker = UIDocumentPickerViewController(forOpeningContentTypes: [.data], asCopy: true)
         }
-        picker.directoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        // Let Files restore its last location, including third-party providers.
+        // Import-copy URLs refer to a temporary copy, not the original folder.
         picker.allowsMultipleSelection = false
         picker.delegate = context.coordinator
         return picker
@@ -391,6 +400,68 @@ private struct InformationDocument: View {
     }
 }
 
+private struct HomeMachineFrames: PreferenceKey {
+    static var defaultValue: [String: CGRect] = [:]
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, next in next })
+    }
+}
+
+/// Retain a machine anchor outside the home subtree, which is removed during play.
+/// Anchoring by machine also survives the portrait/landscape column-count change.
+private struct RememberingHomeScrollView<Content: View>: View {
+    let layout: PlayerHomeLayout
+    @Binding var position: String?
+    @ViewBuilder let content: () -> Content
+    @State private var restoring = true
+    @State private var restoreAnchor: String?
+
+    var body: some View {
+        GeometryReader { geometry in
+            ScrollViewReader { proxy in
+                ScrollView { content() }
+                    .coordinateSpace(name: "homeMachines")
+                    .accessibilityIdentifier("homeMachineScroll")
+                    .onPreferenceChange(HomeMachineFrames.self) { frames in
+                        guard !restoring, restoreAnchor == nil else { return }
+                        let visibleTop = geometry.safeAreaInsets.top
+                        let visibleBottom = geometry.size.height - geometry.safeAreaInsets.bottom
+                        let visible = frames.filter { $0.value.maxY > visibleTop && $0.value.minY < visibleBottom }
+                            .sorted { a, b in
+                                abs(a.value.minY - b.value.minY) > 1 ? a.value.minY < b.value.minY : a.value.minX < b.value.minX
+                            }
+                        guard let first = visible.first else { return }
+                        let start = AppleMachineCatalog.shared.homeMachines.first?.id
+                        position = first.key == start && first.value.minY >= visibleTop ? nil : first.key
+                    }
+                    .onAppear {
+                        restoreAnchor = position
+                        restore(using: proxy)
+                    }
+                    .onDisappear { restoring = true }
+                    .onChange(of: geometry.size) { _ in restore(using: proxy) }
+                    .onChange(of: layout) { _ in
+                        restoreAnchor = position
+                        restore(using: proxy)
+                    }
+                    .simultaneousGesture(DragGesture(minimumDistance: 1).onChanged { _ in
+                        restoreAnchor = nil
+                        restoring = false
+                    })
+            }
+        }
+    }
+
+    private func restore(using proxy: ScrollViewProxy) {
+        restoring = true
+        let anchor = restoreAnchor
+        DispatchQueue.main.async {
+            if let anchor { proxy.scrollTo(anchor, anchor: .top) }
+            DispatchQueue.main.async { restoring = false }
+        }
+    }
+}
+
 private struct PlayerSkinSurface: UIViewRepresentable {
     @ObservedObject var host: PlayerHost
     let skin: SkinDefinition
@@ -412,31 +483,45 @@ extension SkinRect {
     var cgRect: CGRect { CGRect(x: CGFloat(x), y: CGFloat(y), width: CGFloat(width), height: CGFloat(height)) }
 }
 
-/// One token per finger; leaving the original key releases it and requires a new touch-down.
-/// Geometry is shared with drawing. A second finger holding the same key owns an independent token.
+/// One token per finger, with screen-point tolerance for small keys and finger movement.
+/// Leaving the original key releases it; sliding never presses a different key.
 @MainActor
 final class SkinTouchRouter {
     let skin: SkinDefinition
     var placement: SkinPlacement?
+    var inputBounds: CGRect?
     var enabled = true
     var onPress: (String, String) -> Bool = { _, _ in false }
     var onRelease: (String) -> Void = { _ in }
     private(set) var owners: [String: String] = [:]
     init(skin: SkinDefinition) { self.skin = skin }
+    private func screenRect(_ bounds: SkinRect, placement p: SkinPlacement) -> CGRect {
+        CGRect(x: CGFloat(p.screenX(skinX: bounds.x)), y: CGFloat(p.screenY(skinY: bounds.y)),
+               width: CGFloat(bounds.width * p.scale), height: CGFloat(bounds.height * p.scale))
+    }
     func begin(owner: String, point: CGPoint) {
         guard enabled, let p = placement, p.mode != .controllerDisplay,
-              p.viewport.cgRect.contains(point) else { return }
+              (inputBounds ?? p.viewport.cgRect).contains(point) else { return }
         let local = CGPoint(x: CGFloat(p.skinX(screenX: Float(point.x))),
                             y: CGFloat(p.skinY(screenY: Float(point.y))))
-        guard let key = skin.keyRegions.first(where: { $0.bounds.cgRect.contains(local) }) else { return }
+        // Exact hits win. In gaps, choose the closest key edge within six screen points.
+        // Screen points keep the tolerance consistent across devices and skin scales.
+        let exact = skin.keyRegions.first(where: { $0.bounds.cgRect.contains(local) })
+        let nearby = skin.keyRegions.compactMap { key -> (SkinKeyRegion, CGFloat)? in
+            let rect = screenRect(key.bounds, placement: p)
+            let dx = max(rect.minX - point.x, 0, point.x - rect.maxX)
+            let dy = max(rect.minY - point.y, 0, point.y - rect.maxY)
+            let distance = dx * dx + dy * dy
+            return distance <= 36 ? (key, distance) : nil
+        }.min { $0.1 < $1.1 }?.0
+        guard let key = exact ?? nearby else { return }
         if onPress(key.key.name, owner) { owners[owner] = key.id }
     }
     func move(owner: String, point: CGPoint) {
         guard let name = owners[owner], let p = placement,
               let key = skin.keyRegions.first(where: { $0.id == name }) else { return }
-        let local = CGPoint(x: CGFloat(p.skinX(screenX: Float(point.x))),
-                            y: CGFloat(p.skinY(screenY: Float(point.y))))
-        if !p.viewport.cgRect.contains(point) || !key.bounds.cgRect.contains(local) { end(owner: owner) }
+        let retained = screenRect(key.bounds, placement: p).insetBy(dx: -8, dy: -8)
+        if !(inputBounds ?? p.viewport.cgRect).contains(point) || !retained.contains(point) { end(owner: owner) }
     }
     func end(owner: String) {
         if owners.removeValue(forKey: owner) != nil { onRelease(owner) }
@@ -527,9 +612,13 @@ final class PlayerSkinView: UIView {
             DispatchQueue.main.async { [weak self] in oldTokens.forEach { self?.router.onRelease($0) } }
         }
         layoutSize = bounds.size
+        router.inputBounds = bounds
+        let sideInset: Float = mode == .controllerDisplay ? 0 : Float(min(12, bounds.width / 4))
         router.placement = SkinLayoutEngine.shared.calculate(definition: skin, request: SkinLayoutRequest(
             availableSize: SkinSize(width: Float(bounds.width), height: Float(bounds.height)),
-            safeInsets: SkinInsets(left: 0, top: 0, right: 0, bottom: 0), mode: mode))
+            // Keep outer keys clear of screen-edge gestures and leave room for touch tolerance.
+            safeInsets: SkinInsets(left: sideInset, top: 0, right: sideInset,
+                                  bottom: mode == .controllerDisplay ? 0 : Float(min(12, bounds.height / 4))), mode: mode))
         rebuildAccessibility()
         updateHighlights()
         setNeedsDisplay()
