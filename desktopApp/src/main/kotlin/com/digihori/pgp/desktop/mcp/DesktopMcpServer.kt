@@ -101,7 +101,7 @@ internal class DesktopMcpServer(
 
     private fun handleRoot(exchange: HttpExchange) {
         exchange.use {
-            if (!exchange.remoteAddress.address.isLoopbackAddress) {
+            if (!isLocalNativeRequest(exchange)) {
                 sendText(exchange, 403, "Forbidden")
             } else if (exchange.requestMethod == "GET" && exchange.requestURI.path == "/") {
                 sendText(exchange, 200, "Pokecom GO Studio MCP server")
@@ -113,13 +113,8 @@ internal class DesktopMcpServer(
 
     private fun handleMcp(exchange: HttpExchange) {
         exchange.use {
-            addCorsHeaders(exchange)
-            if (exchange.requestMethod == "OPTIONS") {
-                exchange.sendResponseHeaders(204, -1)
-                return
-            }
-            if (!exchange.remoteAddress.address.isLoopbackAddress) {
-                sendJson(exchange, 403, rpcError(JsonNull, -32001, "Loopback clients only"))
+            if (!isLocalNativeRequest(exchange)) {
+                sendJson(exchange, 403, rpcError(JsonNull, -32001, "Local native clients only"))
                 return
             }
             if (!isAuthorized(exchange)) {
@@ -128,7 +123,7 @@ internal class DesktopMcpServer(
                 return
             }
             if (exchange.requestMethod != "POST") {
-                exchange.responseHeaders.set("Allow", "POST, OPTIONS")
+                exchange.responseHeaders.set("Allow", "POST")
                 sendJson(exchange, 405, rpcError(JsonNull, -32600, "Only POST is supported in stateless mode"))
                 return
             }
@@ -218,14 +213,15 @@ internal class DesktopMcpServer(
         return MessageDigest.isEqual(expected, actual)
     }
 
-    private fun addCorsHeaders(exchange: HttpExchange) {
-        exchange.responseHeaders.set("Access-Control-Allow-Origin", "*")
-        exchange.responseHeaders.set("Access-Control-Allow-Methods", "POST, OPTIONS")
-        exchange.responseHeaders.set(
-            "Access-Control-Allow-Headers",
-            "authorization, content-type, mcp-protocol-version",
-        )
-        exchange.responseHeaders.set("Access-Control-Expose-Headers", "MCP-Protocol-Version")
+    private fun isLocalNativeRequest(exchange: HttpExchange): Boolean {
+        if (!exchange.remoteAddress.address.isLoopbackAddress) return false
+        // No browser origins are supported, including opaque ("null") origins.
+        if (exchange.requestHeaders.containsKey("Origin")) return false
+        // Compare literal authorities; never resolve a client-supplied hostname.
+        val hosts = exchange.requestHeaders["Host"] ?: return false
+        if (hosts.size != 1) return false
+        val port = exchange.localAddress.port
+        return hosts.single() in setOf("127.0.0.1:$port", "localhost:$port")
     }
 
     private fun sendJson(exchange: HttpExchange, status: Int, body: JsonObject) {

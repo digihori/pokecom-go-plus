@@ -25,6 +25,12 @@ Android版Pokecom GO Playerは実行に特化したアプリです。ROM・ゲ�
 - 正式版のAndroid情報画面から固定のTechnical Preview表記を外しました。
 - macOSのDeveloper ID署名・公証を配布工程へ追加しました。最終配布物での確認は公開チェックリストに記録します。
 
+- マシン語保存などのダイアログ表示中に、キー入力がエミュレーターへ伝わる問題を修正しました。
+- 旧Pokecom GOのバイナリーからDMP／Intel HEXへ変換するPythonツールと移行ガイドを追加しました。
+  ツールは`tools/memory/pgp_memory.py`とREADMEで提供します。
+- ProgramメニューからROM経由のBASIC自動入力を外しました。通常のBASICロード／保存は継続します。
+- AI連携のHTTP入口でOrigin／Hostを検証し、CORS全サイト許可を廃止しました。ネイティブクライアントのBearer認証と操作の承認は維持します。
+
 ### 配布・更新・制限
 
 - Windowsの無料OSS署名を検討しています。採用までは未署名で配布し、OSの警告が表示される場合があります。
@@ -54,6 +60,11 @@ Android Player focuses on execution. ROMs and games are not included.
   and updated setup guides, model tables and bundled information.
 - Stable Android versions no longer display the Technical Preview label.
 - Added Developer ID signing and notarization to the macOS distribution process.
+
+- Fixed emulator key leakage while modal dialogs, including machine-code save address entry, are open.
+- Added a standalone Python converter from legacy Pokecom GO binaries to DMP/Intel HEX and a migration guide.
+- Removed ROM-based BASIC auto-entry from the Program menu; normal BASIC load/save remains available.
+- Restricted local MCP HTTP requests by Origin and Host, removed permissive CORS, and retained Bearer authentication and local approval.
 
 ### Distribution and limitations
 

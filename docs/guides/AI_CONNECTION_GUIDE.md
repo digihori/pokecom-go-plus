@@ -10,6 +10,19 @@ Studioの`Debug` → `AI / MCP Server`から、`127.0.0.1`だけにbindするStr
 Studio起動ごとに256-bitの短期Bearer tokenを生成し、認証されていない要求を拒否する。token、tool引数、
 Debug Context本体は通常ログへ出力せず、管理画面には直近要求のmethod、tool名、成否だけを表示する。
 
+
+### HTTP接続の制限（1.0.0）
+
+接続対象はローカルのネイティブAIクライアントです。`Origin`ヘッダーがある要求は、
+`null`やlocalhost由来も含めてHTTP 403で拒否します。ブラウザーからの直接接続とCORSはサポートしません。
+`Host`は実際の待受ポートを含む`127.0.0.1:<port>`または`localhost:<port>`との完全一致が必要です。
+任意のホスト名をDNS解決して許可することはありません。これらの検査はMCPとルートURLの両方に適用します。
+MCPでは引き続きBearer認証が必要で、Originのない認証済みPOSTだけを受け付けます。
+プリフライトを許可する応答は返しません。通常のクライアントは表示されたendpointと認証ヘルパーを使用してください。
+
+この方針は[MCPのHTTP transportのセキュリティ要件](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/basic/transports.mdx)に沿って、
+接続元の検証、ループバック限定の待受け、認証を組み合わせます。ソース差分・Build・Load・実行のローカル承認は引き続き必要です。
+
 基本の読み取り専用toolは次の五つである。Source / Build、デバッグ操作、Load / Continueの引数・承認条件は[AI連携仕様](../reference/AI_INTEGRATION.md)を参照。
 
 - `pgp_get_capabilities`

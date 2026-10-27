@@ -31,7 +31,7 @@ Android AABへの署名・Play Consoleの最終提出内容・ストア公開は
 
 ## 公開前
 
-- [ ] M10（2026-10-25追加・公開必須条件）：AI連携のCORS全サイト許可を見直し、Origin／Host検証を実装。Bearer認証を維持し、不正Origin／Host・プリフライト・認証なし／不正トークンでtoolが実行されない自動テストと、正規AIクライアントの接続・承認付き操作の回帰確認を完了する。[必須タスクの詳細](../../development/planning/FORMAL_RELEASE_TASKS.md)。記録のみで、実装・検証は未完了。
+- [ ] M10（2026-10-25追加・公開必須条件）：AI連携のCORS全サイト許可を見直し、Origin／Host検証を実装。Bearer認証を維持し、不正Origin／Host・プリフライト・認証なし／不正トークンでtoolが実行されない自動テストと、正規AIクライアントの接続・承認付き操作の回帰確認を完了する。[必須タスクの詳細](../../development/planning/FORMAL_RELEASE_TASKS.md)。入口の実装・HTTP自動テストは対応済み。正規AIクライアントでの実接続と承認付き操作の確認は未完了。
 - [ ] Windows未署名配布の案内・既知制限を確認。
 - [ ] 開発者担当：Play Consoleのデータセーフティ・問い合わせ先・最終署名済みAABを照合。
 - [ ] 日英ポリシーの改訂を公開反映し、同梱原文・Play掲載URLとの一致を確認。
@@ -158,3 +158,18 @@ ProgramメニューからROM経由のBASIC自動入力を外し、現行README�
 通常のBASICロード／保存は継続します。内部実装と過去の開発・検証記録は保持します。
 JDK 21のbuild／core:desktopTestとgit diff --checkは成功しました。
 この変更と保存ダイアログのキー入力漏れ修正を含む、配布候補の再生成・実操作での受入れは未実施です。
+
+## localhost HTTP入口の対策（2026-10-27）
+
+- [x] CORS全サイト許可を廃止し、Origin付き要求（空・`null`・localhostを含む）を403で拒否。
+- [x] Hostは実ポート付き`127.0.0.1`／`localhost`の完全一致だけを許可。複数・欠落・別ホスト・別ポートを拒否。
+- [x] ルートURLにも同じ入口検査を適用。MCPでは既存Bearer認証を維持。
+- [x] 不正Origin／Host、プリフライト、認証なし／不正トークンでtoolが呼ばれないことを実HTTPで検証。
+- [x] Originのない認証済み要求は両方の許可Hostで正常にtoolを呼べることを検証。
+- [ ] 最終候補を正規AIクライアントから接続し、読み取りとStudio上の承認・却下を確認。
+
+Appleへの別スレッドの問い合わせは今回のStudio／Android公開条件に含めません。
+Googleの判定理由は未解明で、正式配布資産のChromeダウンロード確認を継続します。
+
+JDK 21の`build :core:desktopTest`は成功。既存の操作承認・却下を含むStudioの回帰テストも成功しました。
+実クライアントと画面での最終確認は上記の未完了項目として残します。
