@@ -3,6 +3,9 @@
 /.gradle-local/
 **/build/
 
+# VS Code Java / Eclipse output
+/desktopApp/bin/
+
 # Kotlin
 .kotlin/
 
