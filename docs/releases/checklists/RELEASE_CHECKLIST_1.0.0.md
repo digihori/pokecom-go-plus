@@ -1,6 +1,6 @@
 # 1.0.0正式リリースチェックリスト
 
-2026-10-28更新。状態：各環境の受入れ確認済み、公開資料・最終配布物の照合中。未公開、未タグ付け。
+2026-10-28更新。状態：`v1.0.0`タグとドラフトReleaseを作成済み。正式公開前の最終確認中。
 公開版数はStudio／Androidとも1.0.0、Studio内部版数1.6.0、Android versionCode 10。
 Playへの過去の最大versionCodeは9であることを確認済みです。
 iOSのリリースは別スレッドで進め、今回の公開条件に含めません。
@@ -16,8 +16,8 @@ Android AABへの署名・Play Consoleの最終提出内容・ストア公開は
 - [x] macOS試験用0.7アプリ／DMGの公証が両方Acceptedになったことを確認。
 - [x] 1.0候補でJDK 21全体build・Core／Studio／Androidテストが成功。
 - [x] ローカル1.0候補のmacOS署名・公証・staple・Gatekeeper検証が成功。
-- [ ] 最終候補コミットを確定し、全CI成功を確認。
-- [ ] Windows／Linuxの配布workflowが成功し、ドラフトReleaseを作成。
+- [x] 最終候補コミットを確定し、PRと正式タグの全CI成功を確認。
+- [x] Windows／Linuxを含む全OSの配布workflowが成功し、ドラフトReleaseを作成。
 - [ ] Windows／Linux最終配布物の版数・MSI identity・ライセンス・チェックサムを確認。
 
 ## M3・M4：最終候補での受入れ
@@ -34,14 +34,15 @@ Android AABへの署名・Play Consoleの最終提出内容・ストア公開は
 - [x] M10（2026-10-25追加・公開必須条件）：AI連携のCORS全サイト許可を見直し、Origin／Host検証を実装。Bearer認証を維持し、不正Origin／Host・プリフライト・認証なし／不正トークンでtoolが実行されない自動テストと、正規AIクライアントの接続・承認付き操作の回帰確認を完了する。[必須タスクの詳細](../../development/planning/FORMAL_RELEASE_TASKS.md)。入口の実装・HTTP自動テストと、修正版配布アプリへの実接続・承認付き操作の受入れを完了（2026-10-28）。
 - [x] Windows未署名配布の案内・既知制限を日英リリースノートで確認。
 - [ ] 開発者担当：Play Consoleのデータセーフティ・問い合わせ先・最終署名済みAABを照合。
-- [ ] 日英ポリシーの改訂を公開反映し、同梱原文・Play掲載URLとの一致を確認。
+- [x] 日英ポリシーをPagesへ公開反映し、原稿との本文一致を確認。Play Consoleの最終設定は開発者が確認する。
 - [ ] 対象コミット・依存通知・ROM／秘密情報の非混入・最終checksumを確認。
 - [x] リリースノートの準備中表示を取り除き、公開用の文面を整理。公開の最終判断は別途行う。
 - [ ] 公開の最終判断を行う。
 
 ## 公開
 
-- [ ] 検証したコミットへv1.0.0タグを作成し、正式Releaseを公開。
+- [x] 検証したコミットへv1.0.0タグを作成し、ドラフトReleaseを生成。
+- [ ] 最終確認後に正式Releaseを公開。
 - [ ] 公開した全資産のダウンロード・署名／checksumを確認。
 - [ ] 開発者担当：Android正式版をGoogle Playへ更新し、公開結果を確認。
 - [ ] 日英README・目次の最新案内を1.0へ切替。
@@ -78,7 +79,7 @@ CI成果物の生成成功は、M3・M4の手動受入れを代替しません�
 - [x] macos-signing Environmentの承認必須・管理者スキップ禁止・実行元制限を設定。
 - [x] Environment Secretsへ証明書・秘密鍵・公証認証を登録。
 - [x] 手動workflowを承認し、hosted runnerで署名・公証・staple・Gatekeeper検証が成功。
-- [ ] 最終タグのworkflowを承認し、全OSの資産とchecksumをドラフトReleaseで照合。
+- [x] 最終タグのworkflowを承認し、全OSの資産とchecksumをドラフトReleaseで照合。
 - [ ] 手動受入れと公開文面の確認後、ドラフトを公開。
 
 手順：[macOS署名・公証](../../reference/MACOS_SIGNING.md)。
@@ -261,3 +262,30 @@ Windows／Linux／Androidについて、1.0候補の手動確認を完了しま�
 4. 最終資産のchecksum・Chromeダウンロード・公開文面を確認して、正式公開を判断する。
 
 Android AABの署名とPlayへの提出・公開は、引き続き開発者が担当します。
+
+## 正式タグとドラフトReleaseの作成（2026-10-28）
+
+PR #1をmainへ取り込みました。マージコミット`438c676d031c774fcfbbddc83838e90fd282bad9`の
+ツリーはPRで全5環境のCIが成功した`77223de`と一致します。このmainコミットへ`v1.0.0`を付けました。
+
+[正式タグの配布CI 40593196598](https://github.com/digihori/pokecom-go-plus/actions/runs/40593196598)は、
+Windows／Linux／Android、承認付きmacOS署名・公証、ドラフト作成の全ジョブが成功しました。
+ドラフトは`draft=true`／`prerelease=false`、Release ID `426049844`です。正式公開は行っていません。
+
+- Studio配布6ファイル、変換ツール2ファイル、checksum一覧4ファイルの計12資産を確認。Android APK／AABは含めない。
+- 全payloadのGitHub算出SHA-256が、それぞれのSHA256SUMSと一致。ダウンロードした一覧ファイル自身のhashも一致。
+- ダウンロードした変換ツール本体・説明書がソースと一致し、隔離実行でDMP変換に成功。
+- Pagesはmainの上記マージコミットで公開成功。Android日英ポリシーの公開本文と原稿が一致。
+- [ ] 最終ドラフトのmacOS DMGをChromeからダウンロードし、インストール・起動を確認。
+- [ ] 最終公開の判断を行う。公開後のダウンロード・README／セットアップページの導線も確認する。
+
+| 最終ドラフト資産 | GitHub算出SHA-256 |
+| --- | --- |
+| `pgp_memory.py` | `86225411b56818417932d5fa41aee5f168b77271e9865cc15c75628d44c5a2a5` |
+| `pgp_memory_README.md` | `cc891b4290b794a56b99a81fc6828c0bba57a067447844771c5cad86dabd5492` |
+| `PokecomGOStudio-1.0.0-linux-amd64.deb` | `11ac57988cffb38c05391fa4035ffd0f456abc78c0a2a2c1d33dd373316bfa1a` |
+| `PokecomGOStudio-1.0.0-linux-amd64.tar.gz` | `f9705af2ddec41d63be68c20408de0680b47ba42a448f3e8dd238e1aa1fea7cd` |
+| `PokecomGOStudio-1.0.0-macos-arm64.dmg` | `0bf1675f0f55970ff92c4b1e8063da43115d71727bf5b49c68c790c46f16da29` |
+| `PokecomGOStudio-1.0.0-macos-arm64.zip` | `2cf2751f56d6cd8b228c1d2b18c0ef50f163047d1014984c09d3460e33a60150` |
+| `PokecomGOStudio-1.0.0-windows-x64.msi` | `fe69fe36c38754c65ecfbcee4dd4ee03f7bad8d8ddff494637edf1aabbdd5bf1` |
+| `PokecomGOStudio-1.0.0-windows-x64.zip` | `e7b68b0fe3efd2b1fe25e486f232bd24814fa5d640edcef59b199da683fbe8cf` |
