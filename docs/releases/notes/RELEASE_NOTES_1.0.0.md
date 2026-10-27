@@ -30,6 +30,7 @@ Android版Pokecom GO Playerは実行に特化したアプリです。ROM・ゲ�
   ツールは`tools/memory/pgp_memory.py`とREADMEで提供します。
 - ProgramメニューからROM経由のBASIC自動入力を外しました。通常のBASICロード／保存は継続します。
 - AI連携のHTTP入口でOrigin／Hostを検証し、CORS全サイト許可を廃止しました。ネイティブクライアントのBearer認証と操作の承認は維持します。
+- 配布版のJavaランタイムにMCPサーバー用モジュールを追加し、起動時のクラス不足を修正しました。
 
 ### 配布・更新・制限
 
@@ -65,6 +66,7 @@ Android Player focuses on execution. ROMs and games are not included.
 - Added a standalone Python converter from legacy Pokecom GO binaries to DMP/Intel HEX and a migration guide.
 - Removed ROM-based BASIC auto-entry from the Program menu; normal BASIC load/save remains available.
 - Restricted local MCP HTTP requests by Origin and Host, removed permissive CORS, and retained Bearer authentication and local approval.
+- Included the HTTP server module in the bundled Java runtime to fix MCP startup in packaged apps.
 
 ### Distribution and limitations
 

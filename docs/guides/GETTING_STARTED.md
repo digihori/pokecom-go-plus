@@ -229,7 +229,7 @@ StudioとPlayerの設定はそれぞれのアプリ内に保存される。
 
 ## 6. BASICソースを読み込む
 
-長い行や特殊文字を含む通常の開発用途では、Tokenizer方式の`Load BASIC`を使用する。
+BASICソース（UTF-8の`.bas`ファイル）は、`Load BASIC`で読み込む。
 
 1. ROMを起動する。
 2. `Program` → `Load BASIC…`を選ぶ。
@@ -239,7 +239,6 @@ StudioとPlayerの設定はそれぞれのアプリ内に保存される。
 6. 実機と同様に`RUN`コマンドを入力する。
 
 `Load BASIC`はテキストを機種用の中間コードへ変換し、プログラム領域へ直接配置する。
-長い1行を実機ROMの編集バッファへ入力する制限を受けない。
 
 特殊文字のエスケープ表記やテキスト仕様は[BASICテキスト形式](../reference/BASIC_TEXT_FORMAT.md)を参照する。
 

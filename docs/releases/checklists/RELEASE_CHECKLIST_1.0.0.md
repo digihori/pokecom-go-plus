@@ -173,3 +173,29 @@ Googleの判定理由は未解明で、正式配布資産のChromeダウンロ�
 
 JDK 21の`build :core:desktopTest`は成功。既存の操作承認・却下を含むStudioの回帰テストも成功しました。
 実クライアントと画面での最終確認は上記の未完了項目として残します。
+
+## 最新CI候補の確認（2026-10-27）
+
+コミット`49fe6aac069c25f9c4a67e09c504907b32f3cee8`の
+[配布run 40495074014](https://github.com/digihori/pokecom-go-plus/actions/runs/40495074014)は、
+Windows・Linux・Android・macOS署名公証の全ジョブが成功しました。
+手動実行のため、正式タグとドラフトReleaseは作成していません。
+
+- [x] 今回の候補をChromeでブロックされずにダウンロードできることを確認。
+
+この成功だけでは以前の危険判定の原因やGoogle側の修正有無は特定できません。
+取得した個別資産名・配信経路・checksumの照合と、正式Releaseの最終資産での確認は別途記録します。
+M10の実クライアント接続・画面上の承認付き操作の確認は継続中です。
+
+## 配布版MCP起動失敗の修正（2026-10-27）
+
+候補`49fe6aa`のMCP起動時に`com/sun/net/httpserver/HttpServer`エラーを確認しました。
+配布版の縮小Javaランタイムには`jdk.httpserver`が含まれず、開発JDK上のテストだけでは検出できませんでした。
+
+- [x] 配布ランタイムへ`jdk.httpserver`を明示的に追加。
+- [x] 全OSのRelease CIで、配布ランタイムの必須モジュールを公証・収集前に検査。
+- [x] ローカル配布アプリのモジュール一覧と`HttpServer.class`の実在を確認。
+- [x] JDK 21の`build :core:desktopTest :desktopApp:verifyDistributionRuntime`が成功。
+- [ ] 修正版の署名・公証済み候補でMCP起動、実クライアント接続、承認・却下を確認。
+
+同時に、BASIC読込みガイドからROM経由入力との長い行・編集バッファの比較記述を削除しました。

@@ -50,7 +50,7 @@ jobs:
 
       - name: Test and package Windows
         if: runner.os == 'Windows'
-        run: .\gradlew.bat :core:desktopTest :hostInput:desktopTest :desktopApp:test :desktopApp:createDistributable :desktopApp:packageMsi --no-daemon
+        run: .\gradlew.bat :core:desktopTest :hostInput:desktopTest :desktopApp:test :desktopApp:verifyDistributionRuntime :desktopApp:packageMsi --no-daemon
 
       - name: Verify Windows MSI identity and version
         if: runner.os == 'Windows'
@@ -76,7 +76,7 @@ jobs:
 
       - name: Test and package Linux
         if: runner.os == 'Linux'
-        run: ./gradlew :core:desktopTest :hostInput:desktopTest :desktopApp:test :desktopApp:createDistributable :desktopApp:packageDeb --no-daemon
+        run: ./gradlew :core:desktopTest :hostInput:desktopTest :desktopApp:test :desktopApp:verifyDistributionRuntime :desktopApp:packageDeb --no-daemon
 
       - name: Collect Linux packages
         if: runner.os == 'Linux'
@@ -158,13 +158,13 @@ jobs:
           rm -f "$PGP_CERTIFICATE_FILE"
 
       - name: Test and sign macOS app
-        run: ./gradlew :core:desktopTest :hostInput:desktopTest :desktopApp:test :desktopApp:createDistributable --no-daemon
+        run: ./gradlew :core:desktopTest :hostInput:desktopTest :desktopApp:test :desktopApp:verifyDistributionRuntime --no-daemon
 
       - name: Notarize macOS app
         run: python3 scripts/notarize-macos.py desktopApp/build/compose/binaries/main/app/PokecomGOStudio.app --keychain "$PGP_MAC_SIGNING_KEYCHAIN"
 
       - name: Package signed macOS DMG
-        # The app was already signed, tested and stapled. Do not regenerate it.
+        # The app was already signed, runtime-verified and stapled. Do not regenerate it.
         run: ./gradlew :desktopApp:packageDmg -x :desktopApp:createDistributable --no-daemon
 
       - name: Notarize macOS DMG

@@ -60,7 +60,8 @@ compose.desktop {
 
         nativeDistributions {
             // LWJGL uses sun.misc.Unsafe; jdeps cannot see this reflective dependency.
-            modules("jdk.unsupported")
+            // The local MCP server needs HttpServer in the packaged runtime too.
+            modules("jdk.unsupported", "jdk.httpserver")
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "PokecomGOStudio"
             // jpackage requires 1-3 numeric components and macOS rejects a zero major version.
@@ -130,6 +131,25 @@ tasks.withType<AbstractJPackageTask>().matching { it.targetFormat == TargetForma
 }
 
 // Isolated visual verification; never starts Studio preferences, ROM library, or SDL.
+val verifyDistributionRuntime by tasks.registering {
+    group = "verification"
+    description = "Verify required Java modules in the actual distributable runtime"
+    dependsOn("createDistributable")
+    val runtimeReleases = fileTree(layout.buildDirectory.dir("compose/binaries/main/app")) {
+        include("**/runtime/**/release")
+    }
+    inputs.files(runtimeReleases)
+    doLast {
+        val releases = runtimeReleases.files
+        check(releases.size == 1) { "Expected one packaged Java runtime, found ${releases.size}" }
+        val modulesLine = releases.single().readLines().single { it.startsWith("MODULES=") }
+        val modules = modulesLine.substringAfter('=').trim('"').split(' ').toSet()
+        val required = setOf("jdk.unsupported", "jdk.httpserver")
+        check(modules.containsAll(required)) { "Packaged runtime is missing Java modules: ${required - modules}" }
+        logger.lifecycle("Packaged Java runtime includes required modules: $required")
+    }
+}
+
 tasks.register<JavaExec>("localizationPreview") {
     dependsOn(tasks.named("testClasses"))
     classpath = sourceSets.test.get().runtimeClasspath
