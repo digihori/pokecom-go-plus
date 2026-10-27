@@ -265,7 +265,7 @@ PC-1261／1350／1401が32 KiB、PC-1360／1360Kが128 KiB（bank 0〜7の順に
 ### 正式版1.0.0の準備
 
 Studio／Androidの正式版1.0.0を準備しています。現在公開中の最新版は冒頭の0.7 alpha 1です。
-macOSはDeveloper ID署名・公証を導入中、WindowsはOSS無料署名を検討し、難しければ当面未署名で配布します。
+macOS候補はDeveloper ID署名・公証済みで、インストールとMCPの受入れを完了しています。WindowsはOSS無料署名を検討し、難しければ当面未署名で配布します。
 AndroidはGoogle Playで更新し、debug署名APKはCI成果物のみにします。iOSのリリース準備は別途進めます。
 [準備状況](docs/development/planning/FORMAL_RELEASE_TASKS.md)を参照してください。
 
@@ -280,8 +280,9 @@ OSのセキュリティ警告が表示される可能性がある。ROMイメー
 Releaseには各ファイルのSHA-256チェックサムを掲載する。
 
 `.github/workflows/release.yml`をGitHub Actionsから手動実行すると、Studioを3環境、PlayerをAndroid環境で
-テストして配布物を生成し、14日間保持されるworkflow artifactとして取得できる。`v0.7.0-alpha.1` tagをpushした場合は、
-Studio成果物を使ってprereleaseのGitHub Releaseを自動作成する。Android debug APKは今後のReleaseには添付せず、CI成果物としてのみ保持する。公開候補の検証が完了するまではtagを作成しない。
+テストして配布物を生成し、14日間保持されるworkflow artifactとして取得できる。`v1.0.0` tagをpushすると、
+承認後にmacOSの署名・公証を行い、Studio配布物と単独変換ツールを添付したドラフトReleaseを作成する。
+Android debug APKはCI成果物としてのみ保持する。資産と受入れ結果を確認してからドラフトを公開する。
 
 GitHubへpushした場合とPull Requestを更新した場合は、GitHub ActionsがmacOS、Windows、
 Linux上でCoreのDesktopテストとDesktopアプリのビルド・テストを実行し、別のAndroid環境で

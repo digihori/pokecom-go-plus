@@ -16,7 +16,7 @@ Studio／Androidの公開版数は1.0.0に確定しました。
 Studioの3環境・配布形式は現在の配布workflowを継続します。
 AndroidのAPI設定は現行コードから確認した値であり、ストア提出要件の最新確認はM9で行います。
 GitHubのdebug署名APKは正式Releaseに添付せず、CI成果物のみ残します（M5で確定）。
-macOSはDeveloper ID署名・公証を導入します。WindowsはOSS無料署名を検討し、利用が難しければ当面未署名で配布します。署名方式・認証設定は確認中です。
+macOSは承認付きCIによるDeveloper ID署名・公証と配布版の受入れを完了しました（2026-10-28）。Windowsは当面未署名で配布し、OSS無料署名を後続で検討します。
 iOSの配布・音声改善は別スレッドで進め、Studio／Androidの公開を待たせる条件にはしません。
 
 Desktopの最低OSバージョン・Linuxの確認ディストリビューションは、
@@ -35,7 +35,7 @@ Desktopの最低OSバージョン・Linuxの確認ディストリビューショ
 2026-10-23にStudio／Androidとも1.0.0で進める方針を確定しました。
 内部packageVersionは更新互換性を保つため1.6.0に更新しました。公開日は未定です。
 release workflowは1.0のタイトル・ノート参照へ更新し、`--prerelease`を外しました。
-macOSのCI署名にはSecretsの設定とhosted runnerでの検証が必要です。
+macOSのEnvironment Secrets設定とhosted runnerでの署名・公証を確認済みです（2026-10-28）。
 
 ## 対応機種・機能
 

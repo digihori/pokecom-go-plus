@@ -1,6 +1,5 @@
 # Pokecom GO Studio / Player 1.0.0
 
-公開準備中 / Release preparation. 正式公開前に配布物と受入れ結果を確認します。
 Git tag: `v1.0.0`。比較対象 / Changes since: `v0.7.0-alpha.1`。
 
 ## 日本語
@@ -27,7 +26,7 @@ Android版Pokecom GO Playerは実行に特化したアプリです。ROM・ゲ�
 
 - マシン語保存などのダイアログ表示中に、キー入力がエミュレーターへ伝わる問題を修正しました。
 - 旧Pokecom GOのバイナリーからDMP／Intel HEXへ変換するPythonツールと移行ガイドを追加しました。
-  ツールは`tools/memory/pgp_memory.py`とREADMEで提供します。
+  Release添付の`pgp_memory.py`と`pgp_memory_README.md`を利用できます（Python 3.10以降、ZIP不要）。
 - ProgramメニューからROM経由のBASIC自動入力を外しました。通常のBASICロード／保存は継続します。
 - AI連携のHTTP入口でOrigin／Hostを検証し、CORS全サイト許可を廃止しました。ネイティブクライアントのBearer認証と操作の承認は維持します。
 - 配布版のJavaランタイムにMCPサーバー用モジュールを追加し、起動時のクラス不足を修正しました。
@@ -61,9 +60,9 @@ Android Player focuses on execution. ROMs and games are not included.
   and updated setup guides, model tables and bundled information.
 - Stable Android versions no longer display the Technical Preview label.
 - Added Developer ID signing and notarization to the macOS distribution process.
-
 - Fixed emulator key leakage while modal dialogs, including machine-code save address entry, are open.
 - Added a standalone Python converter from legacy Pokecom GO binaries to DMP/Intel HEX and a migration guide.
+  Download `pgp_memory.py` and `pgp_memory_README.md` from the release assets (Python 3.10+, no ZIP required).
 - Removed ROM-based BASIC auto-entry from the Program menu; normal BASIC load/save remains available.
 - Restricted local MCP HTTP requests by Origin and Host, removed permissive CORS, and retained Bearer authentication and local approval.
 - Included the HTTP server module in the bundled Java runtime to fix MCP startup in packaged apps.

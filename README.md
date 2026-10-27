@@ -315,7 +315,7 @@ under `local-data/`, outside Git.
 ### Preparing version 1.0.0
 
 Studio and Android Player 1.0.0 are in preparation. The latest published version remains 0.7 alpha 1 above.
-Developer ID signing and notarization are being introduced for macOS. Free OSS signing is under review for Windows;
+macOS candidate packages are Developer ID signed and notarized, with installation and MCP checks completed. Free OSS signing is under review for Windows;
 Windows packages may remain unsigned initially. Android updates will use Google Play, with debug APKs kept as CI artifacts only.
 iOS release preparation is separate. See the [release preparation tasks](docs/development/planning/FORMAL_RELEASE_TASKS.md).
 
@@ -328,8 +328,9 @@ iOS app builds and Swift unit tests run in regular CI; Native-only tests use a m
 and UI interactions are verified locally.
 
 Running `.github/workflows/release.yml` manually creates Studio and Android Player packages,
-retained as workflow artifacts for 14 days. The current workflow publishes Studio packages to a GitHub
-prerelease on matching version tags. Android debug APKs remain CI artifacts and are excluded from future release attachments. Verify release candidates before creating tags.
+retained as workflow artifacts for 14 days. A matching `v1.0.0` tag builds signed/notarized macOS packages after approval
+and prepares a draft GitHub Release with Studio packages and the standalone memory converter.
+Android debug APKs remain CI artifacts. Verify the assets and acceptance results before publishing the draft.
 See [Building from source (Japanese)](docs/reference/BUILDING.md) for local DMG/MSI/DEB packaging.
 
 ## Known limitations

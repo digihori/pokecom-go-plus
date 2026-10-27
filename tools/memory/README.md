@@ -10,7 +10,8 @@ Python 3.10以降の標準ライブラリーだけで動きます。Studioの起
 
 配布するファイルは`pgp_memory.py`と、この`README.md`です。ZIPへのまとめやインストーラーは不要です。
 実行時に必要なのは`pgp_memory.py`だけで、テスト用ファイルは利用者へ渡す必要がありません。
-ライセンスはプロジェクトの[MIT License](../../LICENSE)です。
+GitHub Releaseでは説明書を`pgp_memory_README.md`として添付します。ZIPへまとめる必要はありません。
+ライセンスはプロジェクトの[MIT License](https://github.com/digihori/pokecom-go-plus/blob/main/LICENSE)です。
 
 任意のフォルダーへ2ファイルを保存し、ターミナルでそのフォルダーへ移動して実行します。
 元のバイナリーファイルが同じフォルダーにある場合の例です。
@@ -153,3 +154,31 @@ python3 -m unittest discover -s tools/memory -p 'test_*.py'
 ```
 
 ROMを含まない合成データで、往復変換、DMPの受理形式・拒否条件、CLIの保存動作を確認します。
+
+## ライセンス全文
+
+単独で配布・再配布する際も、以下の著作権表示と許諾文を保持してください。
+
+```text
+MIT License
+
+Copyright (c) 2026 Y Horiuchi
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

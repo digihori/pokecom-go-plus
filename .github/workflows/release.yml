@@ -269,6 +269,15 @@ jobs:
           path: release-assets
           merge-multiple: true
 
+      - name: Verify and collect standalone memory converter
+        shell: bash
+        run: |
+          python3 -m unittest discover -s tools/memory -p test_pgp_memory.py
+          cp tools/memory/pgp_memory.py release-assets/pgp_memory.py
+          cp tools/memory/README.md release-assets/pgp_memory_README.md
+          cd release-assets
+          sha256sum pgp_memory.py pgp_memory_README.md > SHA256SUMS-tools.txt
+
       # Signed macOS assets are included only after approval and notarization succeed.
       - name: Create draft release
         env:
