@@ -231,3 +231,33 @@ Windows／Linux／Androidについて、1.0候補の手動確認を完了しま�
   `main`への取り込み後、Pagesの反映を再確認する。
 
 この準備段階では、正式タグの作成、Releaseの正式公開、Androidの署名・Play提出は行いません。
+
+### 受入れ済みCI資産の再照合
+
+対象は上記runの`e5efbc8`候補です。正式タグからの最終資産とは区別します。
+
+- 全OSのインストーラーと展開型配布物の計6ファイルが、CIのSHA256SUMSと一致。
+- Windows ZIP／Linux tar.gz／macOS ZIPに、ソースと一致するLICENSE・第三者通知を同梱。
+  Windowsの改行差はCRLF／LFを正規化して照合した。
+- 3環境の同梱Javaランタイムに`jdk.httpserver`を確認。
+- macOS app／DMGの署名・公証証票の検証が成功。appはGatekeeperで`Notarized Developer ID`として受理。
+- macOS内部版は1.6.0（短縮表示1.6）、Linux DEBは1.6.0／amd64。Windows MSI identity・版数のCI検査は成功。
+
+| CI資産 | SHA-256 |
+| --- | --- |
+| `PokecomGOStudio-1.0.0-linux-amd64.deb` | `e67bcf6fd0d4086b4bd21c14f4f4a41d8dd4efb91c4ec67a61a2bf54bbf6c93c` |
+| `PokecomGOStudio-1.0.0-linux-amd64.tar.gz` | `6dde4c13a3663adfa7123325d32a9347ecddc38c70c69cc81dd5be10efd86067` |
+| `PokecomGOStudio-1.0.0-macos-arm64.dmg` | `cb172c7fe8ac9cc7d7ffc23b04a6bc5b26a6dd59e9d18471a70302009a0aeb42` |
+| `PokecomGOStudio-1.0.0-macos-arm64.zip` | `8ef839a63736531fdf12efab613e84fb375ab2c38c035c7e68edea9c2e12bbf2` |
+| `PokecomGOStudio-1.0.0-windows-x64.msi` | `dfa64fbfcb9263dbbae1f6a3035f594609dcf9ded64026b5fb6e2e732cf92742` |
+| `PokecomGOStudio-1.0.0-windows-x64.zip` | `6f47b09d0865e7b05f6683971bfa7e2b1770926ba9aeff64bbda944212d79b20` |
+
+公開準備の下書きPR：[Studio／Android 1.0.0](https://github.com/digihori/pokecom-go-plus/pull/1)。
+次の順に進めます。
+
+1. PRのCI結果を確認し、mainへの取り込みを判断する。
+2. main取り込み後、Pagesのポリシー反映を確認する。
+3. 検証対象コミットへv1.0.0タグを作成し、承認付き署名・公証からドラフトReleaseを生成する。
+4. 最終資産のchecksum・Chromeダウンロード・公開文面を確認して、正式公開を判断する。
+
+Android AABの署名とPlayへの提出・公開は、引き続き開発者が担当します。
