@@ -64,7 +64,7 @@ WindowsではROM起動・キー・BASIC・音声、Linux x86_64ではROM起動�
 
 - 実ROMおよび`.pgrom`パッケージからのエミュレーター起動
 - RUN／PRO／RSVモード、物理キーボード、機種別画面キーボード
-- BASICテキストのROM経由入力とTokenizerによる直接読み書き
+- BASICテキストのTokenizerによる直接読み書き
 - `.dmp`形式によるマシン語データの読み書き
 - 外部エディタ向け複数ソースプロジェクトの作成、変更検知、Build & Load
 - LCD表示、CPU状態表示、サウンド出力
@@ -353,7 +353,6 @@ Desktopアプリを起動する場合：
 - Linux x86_64では展開型tar.gzの起動、音声再生と、DEBのインストール・起動・アンインストールを確認済みである。
   ARM64 Linuxの配布物はまだ用意していない。DEBのメニュー項目は現在「その他」に分類される。
 - ROM Importerの操作ガイドと、バンクROMを持つ機種の一括選択UIは暫定実装である。
-- ROM経由のBASIC入力には実機同様の1行入力長制限がある。長い行にはTokenizer方式を使用する。
 - サウンドには実機との波形差が残る可能性がある。Studio／Androidは現状を正式版の基準とし、iOSの音声改善は別途進める。
 - 開発版では[1245／125x／126xのRAM仕様](docs/reference/machines/RAM_1245_1261.md)に沿ってメモリ容量・ミラー処理を整理した。MEM表示の期待値との不一致は保留中。公開済み0.7の動作と区別する。
 - PlayerはAndroid／iPhoneとも上記14モデルに対応する。機種・端末・ROM版別の確認範囲は[Android受入れ](docs/development/ANDROID_SERIES_PROGRESS.md)・[iOS受入れ](docs/development/IOS_MACHINE_SUPPORT_STEP8.md)を参照。セーブステートは未実装。情報画面は静的同梱。Androidのプライバシーポリシーは適用済み。iPhone用は[日本語原稿](docs/guides/PLAYER_PRIVACY_POLICY_IOS.md)・[英語原稿](docs/guides/PLAYER_PRIVACY_POLICY_IOS.en.md)を用意し、[公開用HTML](docs/player/README.md#ios-privacy-policy)は2026-10-25にPages公開・本文一致を確認済み。

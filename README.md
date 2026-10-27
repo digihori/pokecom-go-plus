@@ -66,7 +66,7 @@ Main features include:
 
 - Booting from user-supplied ROM images and `.pgrom` packages.
 - RUN/PRO/RSV controls where supported, physical keyboards, and machine-specific on-screen keyboards.
-- BASIC text entry through the ROM, or direct tokenization and extraction.
+- Direct BASIC text loading and saving through tokenization and extraction.
 - Machine-code import and export in `.dmp` format.
 - Multiple-source projects, external editor change detection, and Build & Load.
 - LCD output, CPU state display, and sound.
@@ -342,7 +342,6 @@ See [Building from source (Japanese)](docs/reference/BUILDING.md) for local DMG/
 - Linux x86_64 tar.gz launch, audio, and DEB installation/launch/removal have been checked.
   ARM64 Linux packages are unavailable; the DEB menu entry currently appears under “Other.”
 - ROM import guidance and bulk selection of banked ROM components remain provisional.
-- ROM-driven BASIC input retains the original per-line input limit; use the tokenizer for longer lines.
 - Sound waveforms may differ from hardware. Current Studio/Android audio is the baseline for the formal release; iOS audio improvements are separate.
 - The development source implements the revised [1245/125x/126x RAM mapping](docs/reference/machines/RAM_1245_1261.md). Unexpected MEM values remain pending. This change is separate from the published 0.7 build.
 - Android and iPhone Player support the 14 models above. Verification details remain machine- and device-specific; see the Android/iOS acceptance records. Save states are not implemented. The Android privacy policy is applicable. The iPhone policy is available in [Japanese](docs/guides/PLAYER_PRIVACY_POLICY_IOS.md) and [English](docs/guides/PLAYER_PRIVACY_POLICY_IOS.en.md); the [public iOS policy pages](docs/player/README.md#ios-privacy-policy) were verified on October 25, 2026.

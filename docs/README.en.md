@@ -48,7 +48,7 @@ Source-tree machine support does not establish availability of a signed iOS rele
 These optional tools require an interpreter supplied by the user. Studio does not launch them.
 
 - [Tool index and requirements](../tools/README.md).
-- [Raw binary/DMP conversion and inspection](../tools/memory/README.md).
+- [Raw binary/DMP conversion, Intel HEX export, and inspection](../tools/memory/README.md).
 - [pcwav: BASIC/binary and WAV conversion](../tools/pcwav/README.md).
 - [PC-1360K kanji ROM extraction](../tools/pc1360k-rom-dump/README.md).
 

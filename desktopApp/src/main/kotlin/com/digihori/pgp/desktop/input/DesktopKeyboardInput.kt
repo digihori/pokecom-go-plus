@@ -34,7 +34,8 @@ internal interface DesktopKeyInputSink {
 internal class DesktopKeyboardInput {
     private var sink: DesktopKeyInputSink? = null
     private var enabled: Boolean = true
-    val isEnabled: Boolean get() = enabled
+    private var modalInputBlocked: Boolean = false
+    val isEnabled: Boolean get() = enabled && !modalInputBlocked
     private val activeInputs: MutableMap<Long, ActiveInput> = mutableMapOf()
     var inputMode: HostKeyInputMode = HostKeyInputMode.LOGICAL
         private set
@@ -54,6 +55,13 @@ internal class DesktopKeyboardInput {
     fun setEnabled(value: Boolean) {
         if (enabled && !value) clearActiveInputs()
         enabled = value
+    }
+
+    // Modal ownership is independent of text-field focus callbacks. A field losing
+    // focus must not re-enable emulator input while a dialog is still open.
+    fun setModalInputBlocked(value: Boolean) {
+        if (!modalInputBlocked && value) clearActiveInputs()
+        modalInputBlocked = value
     }
 
     fun setInputMode(value: HostKeyInputMode) {
@@ -79,7 +87,7 @@ internal class DesktopKeyboardInput {
         isMetaPressed: Boolean = false,
         isAltPressed: Boolean = false,
     ): Boolean {
-        if (!enabled) return false
+        if (!isEnabled) return false
         val activeSink = sink ?: return false
         if (isAltPressed && (key == androidx.compose.ui.input.key.Key.DirectionUp ||
                 key == androidx.compose.ui.input.key.Key.DirectionDown)) {

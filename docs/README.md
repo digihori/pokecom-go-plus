@@ -55,7 +55,7 @@ iPhone版の開発・ビルド状況は[開発用README](../iosApp/README.md)を
 任意の単独ツールです。実行環境は利用者が用意します。StudioのUIからは呼び出しません。
 
 - [ツール一覧と必要な環境](../tools/README.md)
-- [生バイナリーとDMPの相互変換・情報表示](../tools/memory/README.md)
+- [生バイナリー／DMP変換・Intel HEX出力・情報表示](../tools/memory/README.md)
 - [pcwav：BASIC／バイナリーとWAVの変換](../tools/pcwav/README.md)
 - [PC-1360Kの漢字ROM吸い出し](../tools/pc1360k-rom-dump/README.md)
 

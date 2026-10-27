@@ -31,6 +31,7 @@ Android AABへの署名・Play Consoleの最終提出内容・ストア公開は
 
 ## 公開前
 
+- [ ] M10（2026-10-25追加・公開必須条件）：AI連携のCORS全サイト許可を見直し、Origin／Host検証を実装。Bearer認証を維持し、不正Origin／Host・プリフライト・認証なし／不正トークンでtoolが実行されない自動テストと、正規AIクライアントの接続・承認付き操作の回帰確認を完了する。[必須タスクの詳細](../../development/planning/FORMAL_RELEASE_TASKS.md)。記録のみで、実装・検証は未完了。
 - [ ] Windows未署名配布の案内・既知制限を確認。
 - [ ] 開発者担当：Play Consoleのデータセーフティ・問い合わせ先・最終署名済みAABを照合。
 - [ ] 日英ポリシーの改訂を公開反映し、同梱原文・Play掲載URLとの一致を確認。
@@ -99,3 +100,61 @@ DMG専用ディスクアイコンの生成・組込みとbuild／core:desktopTes
 追加画像で名前順のP付近にもStudioが表示されないことを確認しました。
 カテゴリがUnknownだったため、macOS配布設定に`public.app-category.developer-tools`を明示しました。
 生成Info.plistへの反映とbuild／core:desktopTestは成功。表示改善の効果は再インストール後に検証します。
+
+## 利用ガイドの追加確認（2026-10-25）
+
+- [x] ガイド前半に、旧Pokecom GOのバイナリー形式からDMP／Intel HEXへの変更を説明する。
+  アドレス情報・旧ファイルの移行方法・StudioとPlayerの対応差を整理し、詳細な書式と操作へ誘導する。
+  詳細：[M7の文書残タスク](../../development/planning/FORMAL_RELEASE_TASKS.md#追加の気づき文書の残タスク2026-10-25)。
+
+- [x] 旧バイナリーからDMP／Intel HEXへの変換ツールを提供し、移行ガイドと対応を確認。
+  2026-10-27：PythonファイルとREADMEで提供。ZIPは不要。12テスト・単独実行・文書例・全体build／core:desktopTestが成功。
+
+## Chromeの配信経路比較（2026-10-27）
+
+- [x] ActionsでブロックされたZIPと同一のZIPをテスト用Releasesへ添付し、GitHub側のSHA-256一致を確認。
+- [x] テスト用ReleasesからはChromeでブロックされずダウンロードできることを確認。
+- [ ] 正式Releaseの最終資産を、Chromeの保護設定を変えずにダウンロードできることを確認。
+
+[比較結果](../../development/MACOS_ARTIFACT_COMPARISON_2026-10-24.md#github-releases配信との比較準備2026-10-27)。
+今回のReleases経由の成功をもって、Actions側の危険判定理由の解明や、すべての配布資産の検証完了とはしません。
+
+## macOSの署名済みDMG受入れ（2026-10-27）
+
+対象はコミット`d4babd6170cb9bf8f4adf39177fff6ddd57d1103`、
+[テスト用プレリリース](https://github.com/digihori/pokecom-go-plus/releases/tag/download-test-1.0.0-20261027)の候補です。
+macOS 26.6.2／Apple Siliconで次を確認しました。
+
+- [x] ReleasesのZIPをChromeでブロックされずダウンロードできる。
+- [x] 署名・公証済みDMGからApplicationsへインストールできる。
+- [x] インストール済みアプリの署名、公証証票、Gatekeeper検証が成功する。
+- [x] 初回起動で通常のダウンロード確認が表示され、Appleのチェックで悪質なソフトウェアが検出されなかった旨を確認できる。
+- [x] 初回確認の「開く」を選択した後、Dockのアプリ一覧にStudioが表示される。
+
+初回確認前には一覧への未表示とLaunch Servicesのlaunch-disabledフラグを観測しました。
+初回確認後の一覧表示を確認したため、この候補の一覧未表示は解消済みとします。
+カテゴリ設定だけでは解消せず、初回起動確認後に表示されたという観測を記録します。
+Spotlightの複数ヒットは開発用コピー等によるもので、一覧未表示とは別件です。
+この確認をもって、ROM・Project・全設定の更新互換性や全OSの受入れまで完了したとはしません。
+
+### macOS更新時の保存情報（2026-10-27）
+
+同じ署名・公証済みDMG候補への更新後、既存のROM登録とエディタ設定が引き継がれていることを確認しました。
+
+- [x] 既存のROM登録を維持。
+- [x] 既存のエディタ設定を維持。
+- [x] 既存Projectを開き、編集・Build・Loadが正常に行えることを確認。
+
+その他の設定項目すべての確認や、Windows／Androidの更新互換性まで完了したとはしません。
+
+2026-10-27、既存プロジェクトの編集・Build・Loadも正常に行えました。
+今回のmacOS候補について、インストール、初回起動とアプリ一覧表示、ROM登録・エディタ設定の引き継ぎ、
+既存プロジェクトの主要操作を確認済みです。全設定・全機種・全OSの総当たり確認を意味するものではありません。
+
+## 追加修正の確認（2026-10-27）
+
+ProgramメニューからROM経由のBASIC自動入力を外し、現行README・操作ガイド・Projectガイド・
+機種別の利用説明・公開チェックリストから機能の案内を削除しました。
+通常のBASICロード／保存は継続します。内部実装と過去の開発・検証記録は保持します。
+JDK 21のbuild／core:desktopTestとgit diff --checkは成功しました。
+この変更と保存ダイアログのキー入力漏れ修正を含む、配布候補の再生成・実操作での受入れは未実施です。

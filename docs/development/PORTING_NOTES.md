@@ -3223,3 +3223,15 @@ iOSポリシーの検証: 日英HTMLの構造・lang属性・見出し／段落�
 ## 2026-10-25: iOS 0.7.0更新のコミット準備
 
 ユーザーがGoogle Driveの前回位置、下端・右下端を含むキータッチ、ホーム位置復元を実機で確認し了承。今回のコード・回帰テストと受入れ記録を現在の作業ブランチへ記録する。iOSのVersion 0.7.0／アップロード済みBuild 2とReleaseのdSYM生成設定を含め、個人のTeam設定とXcodeによる全体整形はコミットしない。差し替えArchiveは次の未使用Build番号を使う。iOSプライバシーポリシーはmainの9c39022でPages公開・日英本文一致を確認済みで、作業ブランチにも同じ原稿・公開用HTMLを揃える。
+
+## 2026-10-27: 旧マシン語ファイルの移行ツールと導入説明
+
+旧Pokecom GOの`SubActivityBase.java`のマシン語`save(uri, start, end)`と
+共通`save(uri, data)`、マシン語`load(uri, start)`を読み取り専用で確認しました。
+指定メモリ範囲をヘッダーなしのバイト列で保存し、ロード時に別途開始アドレスを与える仕様です。
+参照プロジェクトのコードをコピーせず、既存の独立Python変換ツールへIntel HEX出力を追加しました。
+出力レコードはPGPの`DesktopWavBinaryFiles.writeHex`／`asDump`の16-bit範囲・00／01レコード仕様に合わせています。
+追加のランタイム依存、ROMや実プログラムの同梱、Studio本体やPlayerの対応形式の拡張はありません。
+ガイド前半へ旧形式との違いと、DMPを通常ロードに使いHEXを交換用に使う範囲を記載しました。
+
+変換ツールの検証: 合成データによるPythonの12テスト、1ファイルだけをコピーした隔離環境でのDMP／HEX変換と文書例の一致、JDK 21のbuild／core:desktopTest、git diff --checkが成功。配布はPython本体とREADMEで行い、ZIP化はしません。

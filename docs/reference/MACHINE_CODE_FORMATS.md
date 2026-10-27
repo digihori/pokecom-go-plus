@@ -13,6 +13,15 @@ Raw Binary (`.bin`)はアドレス情報を持たないため、通常のStudio 
 既存Project manifestの`raw-binary` sourceは移行期間の後方互換入力として読み込める状態を維持するが、
 新規Project作成や通常の追加操作では生成しない。読込み後は`.dmp`への変換を案内する。
 
+## 拡張子とファイル内容
+
+`.hex`という拡張子だけではIntel HEX形式とは判定できません。
+`6100 34 ; PUSH`のようなアドレス付きダンプはDMPパーサーで読める内容であり、
+Studioのマシン語ロードは拡張子が`.hex`でもその内容を受理します。
+一方、`:049000000001020366`のようなレコードで構成するIntel HEXは別形式です。
+本書のIntel HEX対応範囲はファイル内容についての説明です。
+Android Playerの拡張子の受理条件は[Player入出力](../guides/PLAYER_PROGRAM_IO.md)を参照してください。
+
 ## 共通の扱い
 
 - Studio内部では、入力形式にかかわらずアドレス付きデータ領域の集合へ変換して扱う。
@@ -84,3 +93,11 @@ Projectの通常sourceやPlayerロードまで対応しているという意味�
 Raw Binary importは、入力byte列とユーザーが一度指定した開始addressから単一の連続領域を生成する変換操作である。
 空ファイル、16-bit address空間を越える入力は拒否する。変換結果をProjectへ追加するときは`.dmp`として保存し、
 元の`.bin`と開始addressをProject sourceの組として保持しない。
+
+## 旧Pokecom GOからの移行と単独変換ツール
+
+旧Pokecom GOのマシン語保存ファイルは開始アドレスを含まない生バイナリーです。
+PGPでの違いと移行の入口は[はじめに](../guides/GETTING_STARTED.md#最初に旧pokecom-goから移行するマシン語ファイル)、
+実際の変換は[変換ツール](../../tools/memory/README.md)を参照してください。
+単独ツールは生バイナリーからDMP／Intel HEX、DMPから生バイナリー／Intel HEXへの変換を提供します。
+形式変換後の機種別ロード範囲の検証と、プログラムの実行開始は利用側で行います。

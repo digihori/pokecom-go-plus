@@ -521,6 +521,11 @@ private fun FrameWindowScope.App(
         }
     }
     SideEffect {
+        keyboardInput.setModalInputBlocked(
+            showCreateProjectDialog || showRenameProjectDialog || showSaveMemoryDumpDialog ||
+                showSaveDisassemblyDialog || showSaveCheckpointDialog || showDebugContextDialog ||
+                showRomManager || pendingRomRemoval != null || errorDialogMessage != null,
+        )
         gamepad.setContext(runner, mainWindowFocused && keyboardInput.isEnabled && !showSettingsWindow && !showCreateRomSetWindow && !showCreateProjectDialog && !showRenameProjectDialog)
     }
     LaunchedEffect(gamepad) {
@@ -1454,10 +1459,6 @@ private fun FrameWindowScope.App(
         }
     }
 
-    LaunchedEffect(showCreateProjectDialog, showRenameProjectDialog) {
-        keyboardInput.setEnabled(!showCreateProjectDialog && !showRenameProjectDialog)
-    }
-
     LaunchedEffect(focusRestoreRequest) {
         if (focusRestoreRequest > 0L) {
             delay(50)
@@ -1550,11 +1551,6 @@ private fun FrameWindowScope.App(
                 uiText("basic.save"),
                 enabled = runner != null && runnerState != RunnerState.FAULTED,
                 onClick = ::saveBasicToDisk,
-            )
-            Item(
-                uiText("basic.type"),
-                enabled = runner != null && runnerState != RunnerState.FAULTED,
-                onClick = ::typeBasicThroughRom,
             )
             Separator()
             Item(

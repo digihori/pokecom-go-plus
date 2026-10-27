@@ -9,7 +9,7 @@ StudioのUIからは呼び出しません。各フォルダーの手順を確認
 | 場所 | 用途 | 必要な環境 |
 | --- | --- | --- |
 | [pcwav](pcwav/README.md) | BASIC／バイナリーのWAV変換、WAV復元 | Perl 5、追加CPANモジュール不要 |
-| [memory](memory/README.md) | 旧Pokecom GO等の生バイナリーとDMPの相互変換、DMP情報表示・検証 | Python 3.10以降、追加パッケージ不要 |
+| [memory](memory/README.md) | 旧Pokecom GO等の生バイナリーとDMPの相互変換、Intel HEX出力、DMP情報表示・検証 | Python 3.10以降、追加パッケージ不要 |
 | [pc1360k-rom-dump](pc1360k-rom-dump/README.md) | PC-1360K専用の漢字ROM吸い出し用BASICと録音復元 | 実機、転送・保存環境。録音復元はPython 3.10以降 |
 
 ## ROM吸い出しツールの位置づけ

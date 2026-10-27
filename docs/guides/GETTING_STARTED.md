@@ -3,6 +3,47 @@
 このガイドでは、Pokecom GO StudioのROM LibraryへROMを登録し、対応機種を起動して
 BASICプログラムを実行するまでを説明する。
 
+## 最初に：旧Pokecom GOから移行するマシン語ファイル
+
+**旧Pokecom GOのマシン語保存ファイルと、PGPの標準形式は異なります。**
+旧版は指定したメモリ範囲を生のバイト列として保存しており、ファイル内に開始アドレスを持ちません。
+PGPでは、開始アドレスとデータを一緒に保存するDMPを標準とし、用途に応じてIntel HEXも使います。
+拡張子を変更するだけでは変換できません。BASICソース（`.bas`）やROMの登録とは別の話です。
+
+| 形式 | アドレス情報 | 主な用途 |
+| --- | --- | --- |
+| 旧版の生バイナリー（例：`.bin`） | なし。元のロード開始アドレスを別途控える | 旧ファイルの移行入力 |
+| PGP Memory Dump（`.dmp`） | あり。UTF-8のアドレス付き16進テキスト | Studioのマシン語ロード／保存・Project・Assembler、およびAndroid Playerへのマシン語ロード |
+| Intel HEX（`.hex`／`.ihx`） | あり。レコードごとにチェックサムを持つテキスト | Studio WAV Toolや外部ツールとの交換 |
+
+拡張子`.hex`が必ずIntel HEX形式を意味するわけではありません。
+例えば`6100 34 ; PUSH`のような「アドレス＋バイト列」のファイルはDMP互換で、
+Studioでは拡張子が`.hex`でもマシン語ロードで読み込めます。この場合、中身の形式変換は不要です。
+Intel HEXは`:049000000001020366`のようなコロンで始まるレコードを持つ別の形式です。
+以下でいうIntel HEXの対応範囲は、このレコード形式についての説明です。
+Android Playerのファイル選択は`.bas`／`.dmp`が対象なので、DMP互換の`.hex`はコピーを`.dmp`名にして利用します。
+
+**旧版の生バイナリーをStudio／Android Playerへ読み込む場合は、まずDMPに変換してください。**
+Intel HEXは現在、通常のProject sourceやPlayerへの直接ロードには使えません。
+Android Playerの保存はBASICのみで、DMP保存には対応していません。
+
+旧ファイルの移行には、単独で使える[バイナリー／DMP／Intel HEX変換ツール](../../tools/memory/README.md)を用意しています。
+Python 3.10以降が必要で、追加パッケージやStudioの起動は不要です。
+例えば元の開始アドレスが`0x9000`だったファイルは、リポジトリ直下で次のように変換します。
+
+```sh
+python3 tools/memory/pgp_memory.py bin-to-dmp old.bin --start 0x9000 -o program.dmp
+python3 tools/memory/pgp_memory.py bin-to-hex old.bin --start 0x9000 -o program.hex
+```
+
+`0x9000`は例です。元のプログラムで指定していた開始アドレスに置き換えてください。
+分からない場合は推測せず、元の配布資料や保存時の記録で確認します。
+CLIの`--start 9000`は10進数なので、16進数では必ず`0x`を付けます。
+変換後は[形式の仕様](../reference/MACHINE_CODE_FORMATS.md)と
+[Playerの入出力](PLAYER_PROGRAM_IO.md)に沿って利用してください。
+アドレス情報があることと、対象機種のRAMへ安全にロードできることは別です。
+BASIC領域等を上書きしないよう、対象機種とロード先を確認します。
+
 ## 1. 用意するもの
 
 - Pokecom GO Studioの配布物、またはJDK 21を用意したソースツリー
@@ -200,9 +241,6 @@ StudioとPlayerの設定はそれぞれのアプリ内に保存される。
 `Load BASIC`はテキストを機種用の中間コードへ変換し、プログラム領域へ直接配置する。
 長い1行を実機ROMの編集バッファへ入力する制限を受けない。
 
-`Program` → `Type BASIC through ROM…`は、テキストをキー操作へ変換して実機ROMの編集処理に入力する互換方式である。
-実機に近く手軽だが、1行入力長の上限があるため、長い行には使用しない。
-
 特殊文字のエスケープ表記やテキスト仕様は[BASICテキスト形式](../reference/BASIC_TEXT_FORMAT.md)を参照する。
 
 ### Studioの外部編集とロード元表示
@@ -220,7 +258,7 @@ macOSでは`code`がアプリのPATHにない場合も、`/Applications`また�
 
 ソフトキー下の左寄せの表示は、最後に正常にロードしたプログラムの出所を示す。
 `Build & Load`では`Project: NAME`、単体のロードでは`Standalone: FILE（プロジェクト外）`となる。
-機械語ロードとROM経由のBASIC入力は追加ロードとして表示する。
+機械語ロードは追加ロードとして表示する。
 単体ロードではプロジェクトBASICの変更追跡を解除し、`Build & Load`で復帰する。
 キャンセルや失敗では表示を切り替えない。初回ロード前は非表示で、ROMロードやResetで表示を解除する。
 
