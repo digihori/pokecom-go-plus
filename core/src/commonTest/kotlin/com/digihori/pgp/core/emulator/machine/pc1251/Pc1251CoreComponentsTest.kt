@@ -4,12 +4,34 @@ import com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult
 import com.digihori.pgp.core.rom.RomComponent
 import com.digihori.pgp.core.rom.RomRole
 import com.digihori.pgp.core.rom.RomSet
+import com.digihori.pgp.core.api.MachineMemoryLayout
+import com.digihori.pgp.core.api.MachineMemoryKind
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 class Pc1251CoreComponentsTest {
+    @Test
+    fun loaderLayoutAgreesWithBusMapping() {
+        for (model in Pc1251FamilyModel.entries) {
+            for (mode in Pc1251FamilyMemoryMode.entries) {
+                val bus = Pc1251MemoryBus(romSet(machineId = model.machineId), model = model, memoryMode = mode)
+                val layout = MachineMemoryLayout(model.machineId, mode)
+                for (address in 0x8000..0xffff) {
+                    val location = layout.locate(address)
+                    assertEquals(location.writable, bus.isWritableAddress(address), "${model.name}/$mode/${address.toString(16)}")
+                    if (location.kind == MachineMemoryKind.RAM) {
+                        bus.write(address, 0x55)
+                        assertEquals(0x55, bus.read(location.physicalAddress))
+                        bus.write(location.physicalAddress, 0xaa)
+                        assertEquals(0xaa, bus.read(address))
+                    }
+                }
+            }
+        }
+    }
+
     @Test
     fun importsSeparatePhysicalRomDumps() {
         val internal = ByteArray(0x2000) { 0x11 }
@@ -100,7 +122,7 @@ class Pc1251CoreComponentsTest {
 
     @Test
     fun keepsTheB000PartialMirrorOnPc1251ButNotPc1255() {
-        val pc1251 = Pc1251MemoryBus(romSet())
+        val pc1251 = Pc1251MemoryBus(romSet(), memoryMode = Pc1251FamilyMemoryMode.HARDWARE)
         pc1251.write(0xb000, 0x12)
         assertEquals(0x12, pc1251.read(0xb800))
 
@@ -122,13 +144,33 @@ class Pc1251CoreComponentsTest {
             memoryMode = Pc1251FamilyMemoryMode.HARDWARE,
         )
 
-        pc1250.write(0xb000, 0x12)
-        assertEquals(0x12, pc1250.read(0xc000))
+        pc1250.write(0xc000, 0x12)
         assertEquals(0x12, pc1250.read(0xd000))
+        pc1250.write(0xb000, 0x34)
+        pc1250.write(0xb800, 0x56)
+        assertEquals(0, pc1250.read(0xb000))
+        assertEquals(0, pc1250.read(0xb800))
+        assertEquals(0x12, pc1250.read(0xc000))
+    }
 
-        pc1250.write(0xb800, 0x34)
-        assertEquals(0x34, pc1250.read(0xc000))
-        assertEquals(0x34, pc1250.read(0xd000))
+    @Test
+    fun hardwarePc1251HasThreeAliasesOfTheLowerTwoKiB() {
+        val bus = Pc1251MemoryBus(romSet(), memoryMode = Pc1251FamilyMemoryMode.HARDWARE)
+        for (offset in 0..0x7ff) {
+            bus.write(0xb800 + offset, offset and 0xff)
+            for (base in listOf(0x9000, 0x9800, 0xb000)) {
+                assertEquals(offset and 0xff, bus.read(base + offset))
+                bus.write(base + offset, (offset xor base.ushr(8)) and 0xff)
+                assertEquals((offset xor base.ushr(8)) and 0xff, bus.read(0xb800 + offset))
+                bus.write(0xb800 + offset, offset and 0xff)
+            }
+        }
+        bus.write(0x8000, 0x77)
+        bus.write(0x8fff, 0x77)
+        assertEquals(0, bus.read(0x8000))
+        assertEquals(0, bus.read(0x8fff))
+        bus.write(0xc000, 0x42)
+        assertEquals(0x42, bus.read(0xd000))
     }
 
     @Test

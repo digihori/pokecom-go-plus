@@ -278,6 +278,55 @@ class DesktopKeyboardInputTest {
         assertTrue(sink.events.isEmpty())
     }
 
+    @Test
+    fun modalAddressEntryDoesNotReachEmulatorEvenWhenFocusCallbacksEnableInput() {
+        for (mode in HostKeyInputMode.entries) {
+            val sink = FakeSink()
+            val input = DesktopKeyboardInput().also { it.attach(sink); it.setInputMode(mode) }
+            input.setModalInputBlocked(true)
+            // Tab to a button or another address field can report focus loss.
+            input.setEnabled(true)
+            assertFalse(input.isEnabled)
+            for ((key, character) in listOf(Key.C to 'C', Key.One to '1', Key.Zero to '0',
+                    Key.F to 'F', Key.DirectionLeft to '\u0000', Key.Backspace to '\u0000',
+                    Key.Enter to '\u0000')) {
+                assertFalse(input.handle(key, character.code, KeyEventType.KeyDown))
+                assertFalse(input.handle(key, character.code, KeyEventType.KeyUp))
+            }
+            assertFalse(input.handle(Key.DirectionUp, 0, KeyEventType.KeyDown, isAltPressed = true))
+            assertTrue(sink.events.isEmpty())
+            assertTrue(sink.sequences.isEmpty())
+            assertEquals(0, sink.previousRecallCount)
+            input.setModalInputBlocked(false)
+            assertTrue(input.isEnabled)
+            assertTrue(input.handle(Key.One, '1'.code, KeyEventType.KeyDown))
+            assertTrue(input.handle(Key.One, '1'.code, KeyEventType.KeyUp))
+            if (mode == HostKeyInputMode.PHYSICAL) {
+                assertEquals(listOf("press:NUM_1", "release:NUM_1"), sink.events)
+            } else {
+                assertEquals(listOf(listOf(PocketKey.NUM_1)), sink.sequences)
+            }
+        }
+    }
+
+    @Test
+    fun openingModalReleasesHeldKeysAndClosingDoesNotOverrideEditorFocus() {
+        val sink = FakeSink()
+        val input = DesktopKeyboardInput().also { it.attach(sink); it.setInputMode(HostKeyInputMode.PHYSICAL) }
+        assertTrue(input.handle(Key.One, '1'.code, KeyEventType.KeyDown))
+        input.setModalInputBlocked(true)
+        assertEquals(listOf("press:NUM_1", "release:NUM_1"), sink.events)
+        assertFalse(input.handle(Key.One, '1'.code, KeyEventType.KeyUp))
+        input.setEnabled(false)
+        input.setModalInputBlocked(false)
+        assertFalse(input.isEnabled)
+        assertFalse(input.handle(Key.One, '1'.code, KeyEventType.KeyDown))
+        input.setEnabled(true)
+        assertTrue(input.handle(Key.One, '1'.code, KeyEventType.KeyDown))
+        assertTrue(input.handle(Key.One, '1'.code, KeyEventType.KeyUp))
+        assertEquals(listOf("press:NUM_1", "release:NUM_1", "press:NUM_1", "release:NUM_1"), sink.events)
+    }
+
     private class FakeSink(
         override val machineId: MachineId = Pc1245RomDefinition.MACHINE_ID,
     ) : DesktopKeyInputSink {

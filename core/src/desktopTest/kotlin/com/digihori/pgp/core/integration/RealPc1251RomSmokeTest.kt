@@ -101,8 +101,8 @@ class RealPc1251RomSmokeTest {
     fun pc1251RomBootsWithEveryFamilyHardwareRamRange() {
         if (findLocalRom() == null) return
         val expectedProgramStarts = mapOf(
-            // PC-1250 uses the B800 mirror; B830 resolves to physical C030 RAM.
-            Pc1251FamilyModel.PC_1250 to 0xb830,
+            // With no B800 alias the ROM detects the installed 2 KiB RAM.
+            Pc1251FamilyModel.PC_1250 to 0xc030,
             Pc1251FamilyModel.PC_1251 to 0xb830,
             Pc1251FamilyModel.PC_1255 to 0xa030,
         )

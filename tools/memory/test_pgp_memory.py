@@ -37,6 +37,62 @@ class MemoryTests(unittest.TestCase):
         self.assertEqual(tool.dmp_to_binary(memory, 0), b'\xaa\x00\xbb')
         self.assertEqual(tool.dmp_to_binary(memory, 255), b'\xaa\xff\xbb')
 
+    def assert_hex_matches(self, text, expected):
+        memory = {}
+        records = text.splitlines()
+        self.assertEqual(records[-1], ':00000001FF')
+        for line in records[:-1]:
+            record = bytes.fromhex(line[1:])
+            self.assertEqual(sum(record) % 256, 0)
+            count = record[0]
+            self.assertEqual(len(record), count + 5)
+            self.assertEqual(record[3], 0)
+            self.assertLessEqual(count, 16)
+            address = int.from_bytes(record[1:3], 'big')
+            for offset, byte in enumerate(record[4:-1]):
+                self.assertNotIn(address + offset, memory)
+                memory[address + offset] = byte
+        self.assertEqual(memory, expected)
+
+    def test_intel_hex_known_record_and_checksums(self):
+        self.assertEqual(tool.binary_to_hex(bytes([0, 1, 2, 3]), 0x9000),
+                         ':049000000001020366\n:00000001FF\n')
+        data = bytes(range(256))
+        self.assert_hex_matches(tool.binary_to_hex(data, 0xFF00),
+                                dict(enumerate(data, 0xFF00)))
+
+    def test_intel_hex_full_space_and_sparse_dump(self):
+        data = bytes(range(256)) * 256
+        self.assert_hex_matches(tool.binary_to_hex(data, 0), dict(enumerate(data)))
+        memory = tool.parse_dmp('FFFF FF\n9000 00 01\n9004 04')
+        self.assert_hex_matches(tool.memory_to_hex(memory), memory)
+
+    def test_invalid_hex_input(self):
+        for data, start in ((b'', 0), (b'ab', 0xFFFF), (b'x', -1), (b'x', 65536)):
+            with self.subTest(start=start), self.assertRaises(ValueError):
+                tool.binary_to_hex(data, start)
+
+    def test_hex_cli_and_overwrite_protection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, dump, target = root / 'old.bin', root / 'data.dmp', root / 'data.hex'
+            source.write_bytes(bytes([0, 1, 2, 3]))
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                args = ['bin-to-hex', str(source), '--start', '0x9000', '-o', str(target)]
+                self.assertEqual(tool.main(args), 0)
+                expected = target.read_bytes()
+                self.assertEqual(tool.main(args), 1)
+                self.assertEqual(target.read_bytes(), expected)
+                self.assertEqual(tool.main(['bin-to-dmp', str(source), '--start', '0x9000', '-o', str(dump)]), 0)
+                self.assertEqual(tool.main(['dmp-to-hex', str(dump), '-o', str(target), '--force']), 0)
+                self.assertEqual(target.read_bytes(), expected)
+                source_before = source.read_bytes()
+                self.assertEqual(tool.main(['bin-to-hex', str(source), '--start', '0', '-o', str(source), '--force']), 1)
+                self.assertEqual(source.read_bytes(), source_before)
+                dump.write_text('FFFF 00 01')
+                self.assertEqual(tool.main(['dmp-to-hex', str(dump), '-o', str(target), '--force']), 1)
+                self.assertEqual(target.read_bytes(), expected)
+
     def test_invalid_binary(self):
         for data, start in ((b'', 0), (b'ab', 0xFFFF), (bytes(65537), 0)):
             with self.assertRaises(ValueError):

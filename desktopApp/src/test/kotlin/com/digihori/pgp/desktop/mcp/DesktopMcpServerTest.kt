@@ -5,6 +5,7 @@ import com.digihori.pgp.desktop.application.debug.DebugContextError
 import com.digihori.pgp.desktop.application.debug.DebugContextRequest
 import com.digihori.pgp.desktop.application.debug.DebugContextResult
 import com.digihori.pgp.desktop.application.debug.DebugContextService
+import java.net.Socket
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -117,6 +118,85 @@ class DesktopMcpServerTest {
             server.stop()
         }
         assertFalse(server.isRunning)
+    }
+
+    @Test
+    fun httpBoundaryRejectsBrowserOriginsAndUntrustedHostsBeforeToolDispatch() {
+        var providerCalls = 0
+        val summaries = mutableListOf<DesktopMcpRequestSummary>()
+        val server = DesktopMcpServer(
+            adapter = PgpMcpToolAdapter({ providerCalls++; FakeDebugContextService() }),
+            token = "test-token",
+            credentialStore = TemporaryCredentialStore(),
+            onRequest = summaries::add,
+        )
+        val info = assertIs<DesktopMcpStartResult.Success>(server.start(0)).info
+        try {
+            val body = """{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pgp_get_capabilities","arguments":{}}}"""
+            fun request(
+                hostHeaders: List<String> = listOf("127.0.0.1:${info.port}"),
+                origins: List<String> = emptyList(),
+                method: String = "POST",
+                path: String = "/mcp",
+                authorization: String? = "Bearer ${info.token}",
+            ): Pair<Int, String> {
+                val response = Socket("127.0.0.1", info.port).use { socket ->
+                    socket.soTimeout = 5_000
+                    val headers = buildString {
+                        append("$method $path HTTP/1.1\r\n")
+                        hostHeaders.forEach { append("Host: $it\r\n") }
+                        origins.forEach { append("Origin: $it\r\n") }
+                        authorization?.let { append("Authorization: $it\r\n") }
+                        append("Content-Type: application/json\r\n")
+                        append("Content-Length: ${body.toByteArray().size}\r\n")
+                        append("Connection: close\r\n\r\n")
+                        append(body)
+                    }
+                    socket.getOutputStream().write(headers.toByteArray())
+                    socket.getOutputStream().flush()
+                    socket.getInputStream().readBytes().decodeToString()
+                }
+                assertFalse(response.lowercase().contains("access-control-allow-"))
+                return response.substringBefore("\r\n").split(" ")[1].toInt() to response
+            }
+            fun assertRejected(status: Int, response: Pair<Int, String>) {
+                assertEquals(status, response.first, response.second)
+                assertEquals(0, providerCalls)
+                assertTrue(summaries.isEmpty())
+            }
+
+            for (origin in listOf("https://example.invalid", "null", "", "http://127.0.0.1:${info.port}", "http://localhost:${info.port}")) {
+                assertRejected(403, request(origins = listOf(origin)))
+                assertRejected(403, request(origins = listOf(origin), method = "OPTIONS"))
+                assertRejected(403, request(origins = listOf(origin), method = "GET", path = "/"))
+            }
+            assertRejected(403, request(origins = listOf("null", "https://example.invalid")))
+            for (host in listOf("example.invalid:${info.port}", "localhost.example.invalid:${info.port}",
+                "127.0.0.1.example.invalid:${info.port}", "127.0.0.1", "localhost", "127.0.0.1:0",
+                "127.1:${info.port}", "[::1]:${info.port}", "127.0.0.1:${info.port},example.invalid")) {
+                assertRejected(403, request(hostHeaders = listOf(host)))
+                assertRejected(403, request(hostHeaders = listOf(host), method = "GET", path = "/"))
+            }
+            // The HTTP parser may reject malformed Host headers before our handler.
+            for (hosts in listOf(emptyList(), listOf("127.0.0.1:${info.port}", "example.invalid"))) {
+                val response = request(hostHeaders = hosts)
+                assertTrue(response.first in setOf(400, 403), response.second)
+                assertEquals(0, providerCalls)
+                assertTrue(summaries.isEmpty())
+            }
+            assertRejected(401, request(authorization = null))
+            assertRejected(401, request(authorization = "Bearer wrong-token"))
+            assertRejected(405, request(method = "OPTIONS"))
+            for (host in listOf("127.0.0.1:${info.port}", "localhost:${info.port}")) {
+                val before = providerCalls
+                assertEquals(200, request(hostHeaders = listOf(host)).first)
+                assertTrue(providerCalls > before)
+                assertTrue(summaries.last().succeeded)
+                assertEquals(PgpMcpToolAdapter.GET_CAPABILITIES, summaries.last().toolName)
+            }
+        } finally {
+            server.stop()
+        }
     }
 
     private fun result(response: HttpResponse<String>) = Json.parseToJsonElement(response.body()).jsonObject.getValue("result").jsonObject

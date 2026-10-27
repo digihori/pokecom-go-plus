@@ -1,0 +1,18 @@
+{
+  "format": "pgp-project",
+  "formatVersion": 1,
+  "name": "PC-1350 Coffee Break",
+  "machineId": "pc-1350",
+  "sources": [
+    {
+      "id": "main",
+      "type": "basic",
+      "path": "src/main.bas"
+    },
+    {
+      "id": "demo",
+      "type": "assembly",
+      "path": "src/demo.asm"
+    }
+  ]
+}

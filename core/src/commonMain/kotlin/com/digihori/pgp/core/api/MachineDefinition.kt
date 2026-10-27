@@ -147,7 +147,6 @@ public object MachineCatalog {
         supportsConfigurableRam = false,
         memoryRegions = oldMachineRegions(
             ramStart = 0xc000,
-            // The B000-BFFF behavior is intentionally not described as a mirror until it is verified.
             ramAliases = listOf(0xd000..0xd7ff),
         ),
     )
@@ -176,8 +175,8 @@ public object MachineCatalog {
             memoryRegions = oldMachineRegions(
                 ramStart = model.physicalRamStart,
                 ramAliases = when (model) {
-                    Pc1251FamilyModel.PC_1250 -> listOf(0xb000..0xbfff, 0xd000..0xd7ff)
-                    Pc1251FamilyModel.PC_1251 -> listOf(0xb000..0xb7ff, 0xd000..0xd7ff)
+                    Pc1251FamilyModel.PC_1250 -> listOf(0xd000..0xd7ff)
+                    Pc1251FamilyModel.PC_1251 -> listOf(0xb000..0xb7ff, 0x9000..0x97ff, 0x9800..0x9fff, 0xd000..0xd7ff)
                     Pc1251FamilyModel.PC_1255 -> listOf(0x8000..0x9fff, 0xd000..0xd7ff)
                 },
             ),

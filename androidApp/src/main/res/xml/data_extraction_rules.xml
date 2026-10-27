@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
+    <!-- AndroidRomLibrary stores ROMs under Context.filesDir/rom-library. -->
     <cloud-backup disableIfNoEncryptionCapabilities="true">
-        <exclude domain="root" path="rom-library/" />
+        <exclude domain="file" path="rom-library/" />
     </cloud-backup>
     <device-transfer>
-        <exclude domain="root" path="rom-library/" />
+        <exclude domain="file" path="rom-library/" />
     </device-transfer>
 </data-extraction-rules>

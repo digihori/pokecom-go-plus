@@ -4,11 +4,22 @@ import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.rom.RomComponent
 import com.digihori.pgp.core.rom.RomRole
 import com.digihori.pgp.core.rom.RomSet
+import com.digihori.pgp.core.api.MachineMemoryLayout
+import com.digihori.pgp.core.api.MachineMemoryKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class Pc1245MemoryBusTest {
+    @Test
+    fun loaderLayoutAgreesWithBusMapping() {
+        val bus = emptyBus()
+        val layout = MachineMemoryLayout(MachineId("pc-1245"))
+        for (address in 0..0xffff) {
+            assertEquals(layout.locate(address).writable, bus.isWritableAddress(address), address.toString(16))
+        }
+    }
+
     @Test
     fun requiresThePc1245MachineIdAndBothExpectedComponents() {
         assertFailsWith<IllegalArgumentException> {
@@ -56,21 +67,19 @@ class Pc1245MemoryBusTest {
     }
 
     @Test
-    fun appliesTheReferenceWriteMappingsInOrder() {
+    fun onlyD000MirrorsPhysicalRam() {
         val bus = emptyBus()
-
-        bus.write(0x8000, 0x11)
-        bus.write(0xb000, 0x22)
-        bus.write(0xd000, 0x33)
-
-        assertEquals(0x11, bus.read(0xa000))
-        assertEquals(0x33, bus.read(0xc000))
-        assertEquals(0x33, bus.read(0xd000))
-
-        // 0xb000 is transformed to 0xb800 and then to 0xc000 before being mirrored to 0xd000.
-        bus.write(0xb000, 0x44)
-        assertEquals(0x44, bus.read(0xc000))
-        assertEquals(0x44, bus.read(0xd000))
+        for (offset in 0..0x7ff) {
+            bus.write(0xc000 + offset, offset and 0xff)
+            assertEquals(offset and 0xff, bus.read(0xd000 + offset))
+            bus.write(0xd000 + offset, (offset xor 0x55) and 0xff)
+            assertEquals((offset xor 0x55) and 0xff, bus.read(0xc000 + offset))
+        }
+        for (address in listOf(0x8000, 0x9fff, 0xa000, 0xb000, 0xb800, 0xbfff, 0xc800, 0xd800, 0xe000, 0xf000, 0xf7ff)) {
+            bus.write(address, 0x77)
+            assertEquals(0, bus.read(address), address.toString(16))
+        }
+        assertEquals(0x55, bus.read(0xc000))
     }
 
     @Test
@@ -106,14 +115,14 @@ class Pc1245MemoryBusTest {
     }
 
     @Test
-    fun doesNotAliasTheF000ToF7ffWorkingRam() {
+    fun doesNotProvideRamAtF000ToF7ff() {
         val bus = emptyBus()
 
         bus.write(0xf014, 0x33)
         bus.write(0xf714, 0x44)
 
-        assertEquals(0x33, bus.read(0xf014))
-        assertEquals(0x44, bus.read(0xf714))
+        assertEquals(0, bus.read(0xf014))
+        assertEquals(0, bus.read(0xf714))
         assertEquals(0, bus.read(0xf814))
     }
 
@@ -121,9 +130,9 @@ class Pc1245MemoryBusTest {
     fun storesOnlyTheLowEightBits() {
         val bus = emptyBus()
 
-        bus.write(0xe000, 0x1ab)
+        bus.write(0xc000, 0x1ab)
 
-        assertEquals(0xab, bus.read(0xe000))
+        assertEquals(0xab, bus.read(0xc000))
     }
 
     @Test

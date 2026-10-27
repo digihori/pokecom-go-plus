@@ -12,6 +12,7 @@ internal class Pc1251MemoryBus(
 ) : Sc61860Bus {
     private val memory = ByteArray(0x10000)
     private val model = model
+    private val memoryMode = memoryMode
     private val ramRange = (if (memoryMode == Pc1251FamilyMemoryMode.EXPANDED) 0xa000 else model.physicalRamStart)..0xc7ff
 
     init {
@@ -48,17 +49,9 @@ internal class Pc1251MemoryBus(
 
     private fun mapAddress(address: Int, includeRomAlias: Boolean): Int = when (address) {
         in 0x2000..0x3fff -> if (includeRomAlias) address + 0x2000 else address
-        in 0x8000..0x9fff -> address + 0x2000
-        in 0xb000..0xb7ff -> when (model) {
-            Pc1251FamilyModel.PC_1250 -> address + 0x1000
-            Pc1251FamilyModel.PC_1251 -> address + 0x0800
-            Pc1251FamilyModel.PC_1255 -> address
-        }
-        in 0xb800..0xbfff -> if (model == Pc1251FamilyModel.PC_1250) address + 0x0800 else address
-        in 0xd000..0xd7ff -> address - 0x1000
         in 0xe800..0xefff -> 0xf800 or (address and 0x00ff)
         in 0xf900..0xffff -> address and 0xf8ff
-        else -> address
+        else -> pc1251RamAddress(address, model, memoryMode)
     }
 
     private fun install(romSet: RomSet, id: RomComponentId, size: Int, address: Int) {
@@ -72,7 +65,6 @@ internal class Pc1251MemoryBus(
     }
 
     private companion object {
-        // 8000-9FFF mirrors A000-BFFF and D000-D7FF mirrors C000-C7FF.
         val LCD_RANGE: IntRange = 0xf800..0xf8ff
     }
 }

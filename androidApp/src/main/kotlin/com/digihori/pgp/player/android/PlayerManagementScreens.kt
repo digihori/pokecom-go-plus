@@ -113,7 +113,7 @@ internal fun PlayerInformationScreen(section: String, version: String, onClose: 
             else Text(body.orEmpty())
         } else when (section) {
             "バージョン・ライセンス", "バージョン" -> {
-                Text("Pokecom GO Player\n$version\nTechnical Preview（早期評価版）")
+                Text("Pokecom GO Player\n$version" + if ('-' in version) "\nTechnical Preview（早期評価版）" else "")
                 Text("アプリ本体はMIT Licenseです。ROMは含まれていません。第三者ソフトウェアの通知とライセンスは同梱文書を参照してください。")
                 OutlinedButton(onClick = { document = "LICENSE" }) { Text("MIT License") }
                 OutlinedButton(onClick = { document = "THIRD_PARTY_NOTICES.md" }) { Text("第三者ソフトウェアの通知") }

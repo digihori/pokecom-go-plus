@@ -5,6 +5,7 @@ import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401FamilyModel
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350Display
 import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360Display
+import com.digihori.pgp.core.emulator.machine.pc1251.pc1251RamAddress
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.source.machine.AddressedMemoryImage
@@ -61,33 +62,23 @@ public class MachineMemoryLayout(
         return when (machineId.value) {
             "pc-1245" -> {
                 var mapped = address
-                if (mapped in 0xb000..0xb7ff) mapped += 0x0800
-                if (mapped in 0x8000..0x9fff) mapped += 0x2000
                 if (mapped in 0xd000..0xd7ff) mapped -= 0x1000
                 if (mapped in 0xe800..0xefff) mapped += 0x1000
                 if (mapped >= 0xf900) mapped = mapped and 0xf8ff
-                if (mapped in 0xb800..0xbfff) mapped += 0x0800
                 when {
                     address in 0x2000..0x7fff -> location(MachineMemoryKind.ROM, false, address)
                     mapped in 0xf800..0xf8ff -> location(MachineMemoryKind.LCD, true, mapped)
-                    else -> location(MachineMemoryKind.RAM, true, mapped)
+                    mapped in 0xc000..0xc7ff -> location(MachineMemoryKind.RAM, true, mapped)
+                    else -> location(MachineMemoryKind.UNMAPPED, false, mapped)
                 }
             }
             "pc-1250", "pc-1251", "pc-1255" -> {
                 val model = checkNotNull(Pc1251FamilyModel.fromMachineId(machineId))
                 val start = if (pc1251MemoryMode == Pc1251FamilyMemoryMode.EXPANDED) 0xa000 else model.physicalRamStart
                 val mapped = when (address) {
-                    in 0x8000..0x9fff -> address + 0x2000
-                    in 0xb000..0xb7ff -> when (model) {
-                        Pc1251FamilyModel.PC_1250 -> address + 0x1000
-                        Pc1251FamilyModel.PC_1251 -> address + 0x0800
-                        Pc1251FamilyModel.PC_1255 -> address
-                    }
-                    in 0xb800..0xbfff -> if (model == Pc1251FamilyModel.PC_1250) address + 0x0800 else address
-                    in 0xd000..0xd7ff -> address - 0x1000
                     in 0xe800..0xefff -> 0xf800 or (address and 0xff)
                     in 0xf900..0xffff -> address and 0xf8ff
-                    else -> address
+                    else -> pc1251RamAddress(address, model, pc1251MemoryMode)
                 }
                 when {
                     address in 0x2000..0x7fff -> location(MachineMemoryKind.ROM, false, address)

@@ -50,7 +50,20 @@ Composeがjpackageの作業用resource directoryを再生成するため、内�
 macOS、`hdiutil`、Xcode Command Line Toolsの`SetFile`が必要です。
 
 ```sh
-sh scripts/set-dmg-volume-icon.sh path/to/generated.dmg desktopApp/icons/pokecom-go.icns
+sh scripts/set-dmg-volume-icon.sh path/to/generated.dmg desktopApp/icons/pokecom-go-dmg.icns
 ```
 
 タスクはスクリプトとアイコンを入力として追跡し、CIでも同じ処理を行います。
+
+## macOSの公証
+
+`notarize-macos.py`は署名済みapp／DMGを公証し、Accepted後にstaple・検証を行います。
+`python3 -m unittest discover -s scripts/tests -p test_notarize_macos.py`で、拒否・処理中・タイムアウト時に
+stapleへ進まないことを確認できます。認証・CI設定は[署名手順](../docs/reference/MACOS_SIGNING.md)を参照してください。
+
+## 配布版Javaランタイムの検証
+
+`./gradlew :desktopApp:verifyDistributionRuntime`は配布アプリを生成し、実際の同梱ランタイムの
+`release`ファイルを調べます。MCPサーバー用の`jdk.httpserver`と、LWJGL用の`jdk.unsupported`が
+不足していれば失敗します。全OSのRelease CIで、公証や資産収集より前に実行します。
+開発JDK上の単体テストだけでは検出できない、縮小ランタイムのモジュール欠落を検出するための検査です。

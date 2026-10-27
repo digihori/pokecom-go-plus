@@ -174,9 +174,10 @@ PC-1245の `.pgrom`（ZIP store/deflate）または32/64 KiBのlegacy ROMを選�
 
 基本対象は「このiPhone内」とiCloud Drive。Google Driveは利用者がDriveアプリを設定し、Filesで有効にした場合の追加対象。
 独自ログイン・クラウド同期・Google SDKは追加しない。Player自身の通信とproviderの取得/同期通信を区別する。
-ロード・セーブのFiles pickerはDocumentsから開く。選択画面はimport／export URLを持つ
+ロード・セーブとROM登録のFiles pickerは開始フォルダを強制せず、iOSの前回の場所の復元に任せる。選択画面はimport／export URLを持つ
 単一のpresentationとして管理し、キャンセルしても元のプログラム画面を維持する。
-保存picker完了はクラウド同期完了を意味しない。実providerの検証は未実施。
+保存picker完了はクラウド同期完了を意味しない。Google Driveでのファイル選択と前回位置の復元は実機でユーザーが確認済み。
+その他のproviderや環境別の動作は別途確認する。
 
 ## 残る受入れ
 
@@ -253,7 +254,7 @@ xcrun simctl list devices available
 open "$(xcrun simctl get_app_container <device-uuid> com.digihori.pgp.player.ios data)/Documents"
 ```
 
-`<device-uuid>` は一覧に出たUUIDへ置き換える。ROM選択画面はこのDocumentsから始まる。
+`<device-uuid>` は一覧に出たUUIDへ置き換える。ROM選択画面で「ブラウズ」→「このiPhone内」→Playerのフォルダを選ぶ。
 コピーだけでは登録にならないので、アプリの「ROMを選択」から選ぶ。
 通常はFilesアプリの「このiPhone内 → Pokecom GO Player」からも見える。
 Simulatorへのドラッグ&ドロップはファイル種類/OSによって扱いが異なるため、
@@ -262,7 +263,10 @@ Simulatorへのドラッグ&ドロップはファイル種類/OSによって扱�
 
 ## 将来の配布
 
-プロジェクトの設定値はVersion 0.4.0 / Build 1、Bundle ID `com.digihori.pgp.player.ios`、Team空欄。
+2026-10-25のiOS初回正式配布準備では、公開済みAndroid版`0.7.0-alpha.1`の数字部分に合わせ、
+Version `0.7.0`とする。アップロード済みBuildは`2`で、今回の操作改善を再提出するときは
+未使用のBuild番号（前回が`2`なら`3`）へ増やして新しいArchiveを作成する。App StoreのVersionは数字とピリオドのみのため、`-alpha.1`は含めない。
+Bundle IDは`com.digihori.pgp.player.ios`。Teamは利用者の署名環境で指定する。
 これはDeveloper登録や証明書の現状を示すものではない。実機・配布の準備時に環境を再確認し、
 Team/配布用Bundle ID/Version/Build番号を別途確定する。
 実行対象をAny iOS Device (arm64)にして **Product → Archive**、Organizerの
@@ -303,5 +307,17 @@ Android版とは別のポリシーとし、アプリ内の日本語同梱本文�
 アプリ内の本文は静的同梱のため、アップロード前に新しくArchiveを作成する。
 
 GitHub Pagesの公開先は[公開ページのREADME](../docs/player/README.md#ios-privacy-policy)を参照。
-ローカルでの作成と公開は別であり、mainへの反映・Pagesの公開成功・日英URLの実際の閲覧を
-確認してからApp Store Connectへ入力する。
+2026-10-25にmainへ反映し、Pagesの公開成功と日英HTMLの一致を確認済み。
+
+## iOS操作改善（2026-10-25）
+
+ファイル選択の前回位置、キー周囲のタッチ判定・下端と左右端の入力余白、
+PC-1360Kの変換／PC-1470Uの＝、ホーム位置の復元をユーザーが実機で確認済み。
+キー判定の単体テストと、リスト／タイルで各2回の機種画面往復のUIテストも成功した。
+Releaseビルドでは`DWARF with dSYM File`を指定し、配布Archiveのシンボルを生成する。
+
+### ホームのスクロール位置
+
+機種画面から戻る際は、リスト／タイル別に前回上端に見えていた機種を再表示する。
+横固定の機種画面から縦画面へ戻る回転後も、同じ機種の位置を復元する。
+位置は起動中の一時状態で、アプリ再起動後の復元やピクセル単位のオフセット保存は行わない。

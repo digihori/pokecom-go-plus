@@ -29,7 +29,7 @@ class DesktopSc61AssemblerTest {
             dump.writeText("1000:12")
             assertIs<DesktopExternalAssemblyResult.Success>(DesktopSc61Assembler.importDump(success, dump, layout, validatePlacement = false))
             assertTrue(assertIs<DesktopExternalAssemblyResult.Failure>(DesktopSc61Assembler.importDump(success, dump, layout)).message.contains("cannot be loaded"))
-            dump.writeText("8000:12\nA000:34")
+            dump.writeText("C000:12\nD000:34")
             assertTrue(assertIs<DesktopExternalAssemblyResult.Failure>(DesktopSc61Assembler.importDump(
                 success, dump, MachineMemoryLayout(MachineId("pc-1245")))).message.contains("same physical"))
         } finally { directory.deleteRecursively() }

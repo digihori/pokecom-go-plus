@@ -50,7 +50,7 @@ PC-1360Kは漢字ROMを登録すると、かな入力・漢字変換も利用で
 | PC-1460 | 対応 | 対応 |
 | PC-1470U | 対応 | 対応 |
 
-Android Playerは2026-10-20に全体を一区切りとし、iPhone版も2026-10-21に全対応機種の動作・音声再生とホーム画面の修正をユーザーが確認しました。
+Android Playerは2026-10-20に全体を一区切りとし、iPhone版も2026-10-21に全対応機種の動作・音声再生とホーム画面の修正を確認しました。
 機種対応と環境別の詳細検証は区別し、[Androidの受入れ記録](docs/development/ANDROID_SERIES_PROGRESS.md)と
 [iPhoneの全体受入れ記録](docs/development/IOS_MACHINE_SUPPORT_STEP8.md)に未確認事項を残しています。
 iPhone版はiPhone専用・最低iOS 16で、署名付き配布は別工程です。音声の途切れ感は今後の調整項目です。
@@ -64,7 +64,7 @@ WindowsではROM起動・キー・BASIC・音声、Linux x86_64ではROM起動�
 
 - 実ROMおよび`.pgrom`パッケージからのエミュレーター起動
 - RUN／PRO／RSVモード、物理キーボード、機種別画面キーボード
-- BASICテキストのROM経由入力とTokenizerによる直接読み書き
+- BASICテキストのTokenizerによる直接読み書き
 - `.dmp`形式によるマシン語データの読み書き
 - 外部エディタ向け複数ソースプロジェクトの作成、変更検知、Build & Load
 - LCD表示、CPU状態表示、サウンド出力
@@ -205,7 +205,7 @@ Android SDK 36とJDK 21を設定した環境でdebug APKを生成する。
 - 画面内の階層メニュー、ROM取込み・置換・削除、ゲームパッド割当
 - `.bas`／`.dmp`の拡張子自動判定ロード、BASIC全体のセーブ（AndroidのDMPはロード専用）
 - BASIC／dmpロード成功後はCPUを自動再開。失敗・キャンセル後はPAUSED
-- ホームの設定／ヘルプ・情報、Playerとは／Studioについて／バージョン・ライセンス、プライバシー原文案の同梱表示
+- ホームの設定／ヘルプ・情報、Playerとは／Studioについて／バージョン・ライセンス、Androidプライバシーポリシーの同梱表示
 - 外部キーボードのPhysical入力、左上状態表示のRun/Pause切替
 
 Project、Assembler、Debugger、WAV、セーブステートは搭載しない。AndroidにはサウンドON／OFFとCPU速度5段階を追加。実機の音質などの未確認事項は[音声・速度対応記録](docs/development/PLAYER_AUDIO_SPEED_PROGRESS.md)を参照。
@@ -262,10 +262,17 @@ PC-1261／1350／1401が32 KiB、PC-1360／1360Kが128 KiB（bank 0〜7の順に
 初回ビルドではGradle、Kotlin/Native、Compose等をダウンロードするため、回線環境によっては
 数分かかり、数百MB以上のディスク領域を使用する。2回目以降はローカルキャッシュを再利用する。
 
+### 正式版1.0.0の準備
+
+Studio／Androidの正式版1.0.0を準備しています。現在公開中の最新版は冒頭の0.7 alpha 1です。
+macOS候補はDeveloper ID署名・公証済みで、インストールとMCPの受入れを完了しています。WindowsはOSS無料署名を検討し、難しければ当面未署名で配布します。
+AndroidはGoogle Playで更新し、debug署名APKはCI成果物のみにします。iOSのリリース準備は別途進めます。
+[準備状況](docs/development/planning/FORMAL_RELEASE_TASKS.md)を参照してください。
+
 ### Technical Preview配布物
 
-Technical Previewではソースコード、macOS／Windows／Linux向けStudio配布物、およびAndroid向けPlayer
-プレビューAPKをGitHub Releasesへ掲載する。StudioはDeveloper ID等による正式署名やmacOS公証を
+公開済みのTechnical Preview 0.7ではソースコード、macOS／Windows／Linux向けStudio配布物、およびAndroid向けPlayer
+プレビューAPKをGitHub Releasesへ掲載した。この版のStudioはDeveloper ID等による正式署名やmacOS公証を
 行わない。Player APKはAndroidのデバッグ署名を使用し、ストア配布用の正式署名版ではない。
 OSのセキュリティ警告が表示される可能性がある。ROMイメージは配布物にも含めない。
 
@@ -273,8 +280,9 @@ OSのセキュリティ警告が表示される可能性がある。ROMイメー
 Releaseには各ファイルのSHA-256チェックサムを掲載する。
 
 `.github/workflows/release.yml`をGitHub Actionsから手動実行すると、Studioを3環境、PlayerをAndroid環境で
-テストして配布物を生成し、14日間保持されるworkflow artifactとして取得できる。`v0.7.0-alpha.1` tagをpushした場合は、
-同じ成果物を使ってprereleaseのGitHub Releaseを自動作成する。公開候補の検証が完了するまではtagを作成しない。
+テストして配布物を生成し、14日間保持されるworkflow artifactとして取得できる。`v1.0.0` tagをpushすると、
+承認後にmacOSの署名・公証を行い、Studio配布物と単独変換ツールを添付したドラフトReleaseを作成する。
+Android debug APKはCI成果物としてのみ保持する。資産と受入れ結果を確認してからドラフトを公開する。
 
 GitHubへpushした場合とPull Requestを更新した場合は、GitHub ActionsがmacOS、Windows、
 Linux上でCoreのDesktopテストとDesktopアプリのビルド・テストを実行し、別のAndroid環境で
@@ -346,18 +354,15 @@ Desktopアプリを起動する場合：
 - Linux x86_64では展開型tar.gzの起動、音声再生と、DEBのインストール・起動・アンインストールを確認済みである。
   ARM64 Linuxの配布物はまだ用意していない。DEBのメニュー項目は現在「その他」に分類される。
 - ROM Importerの操作ガイドと、バンクROMを持つ機種の一括選択UIは暫定実装である。
-- ROM経由のBASIC入力には実機同様の1行入力長制限がある。長い行にはTokenizer方式を使用する。
-- サウンド出力は初期実装で、プログラムによっては音の途切れや波形差が発生する可能性がある。
-  Windowsでは、サウンドを使用したプログラムの終了後もクリックノイズが鳴り続けることがある。
-  オーディオラインの終了判定と無音バッファ処理は今後の改善項目である。
-- PC-1245／1250の`0xb000..0xbfff`周辺のミラー仕様は再確認が必要である。
-- PlayerはAndroid／iPhoneとも上記14モデルに対応する。機種・端末・ROM版別の確認範囲は[Android受入れ](docs/development/ANDROID_SERIES_PROGRESS.md)・[iOS受入れ](docs/development/IOS_MACHINE_SUPPORT_STEP8.md)を参照。セーブステートは未実装。情報画面は静的同梱。 iPhone用プライバシーポリシーは[日本語](docs/guides/PLAYER_PRIVACY_POLICY_IOS.md)・[英語](docs/guides/PLAYER_PRIVACY_POLICY_IOS.en.md)を用意し、[Player公開ページ](docs/player/index.html)から公開用HTMLへ案内する。
+- サウンドには実機との波形差が残る可能性がある。Studio／Androidは現状を正式版の基準とし、iOSの音声改善は別途進める。
+- 開発版では[1245／125x／126xのRAM仕様](docs/reference/machines/RAM_1245_1261.md)に沿ってメモリ容量・ミラー処理を整理した。MEM表示の期待値との不一致は保留中。公開済み0.7の動作と区別する。
+- PlayerはAndroid／iPhoneとも上記14モデルに対応する。機種・端末・ROM版別の確認範囲は[Android受入れ](docs/development/ANDROID_SERIES_PROGRESS.md)・[iOS受入れ](docs/development/IOS_MACHINE_SUPPORT_STEP8.md)を参照。セーブステートは未実装。情報画面は静的同梱。Androidのプライバシーポリシーは適用済み。iPhone用は[日本語原稿](docs/guides/PLAYER_PRIVACY_POLICY_IOS.md)・[英語原稿](docs/guides/PLAYER_PRIVACY_POLICY_IOS.en.md)を用意し、[公開用HTML](docs/player/README.md#ios-privacy-policy)は2026-10-25にPages公開・本文一致を確認済み。
 
 公開済み各版の説明と過去の確認記録は[ドキュメント目次](docs/README.md#リリース情報)を参照する。
 
 ## フィードバック
 
-Technical Previewの不具合報告と機能要望はGitHub Issuesで受け付ける。
+不具合報告と機能要望はGitHub Issuesで受け付ける。
 IssueにはROMイメージ、秘密情報、再配布できないデータを添付しないこと。
 
 ## ドキュメント

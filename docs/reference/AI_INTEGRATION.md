@@ -7,7 +7,7 @@
 
 機種仕様・Source・開発／Debug Context取得から、Source差分提案、Build、Load、Continue、
 PauseまでをStudio承認付きで接続した。Source差分／BuildとLoad／Continue／Pauseは実接続で
-成功を確認し、PC-1245のHELLO WORLD表示もユーザーが確認した。
+成功を確認し、PC-1245のHELLO WORLD表示も確認した。
 登録編集・Trace・1命令Stepの詳細は合成／HTTPテストで検証済みで、実ROMでの全操作受入れとは区別する。
 
 | 項目 | 現在の範囲 |
@@ -121,6 +121,19 @@ Studioの`Debug` → `AI / MCP Server`から、`127.0.0.1`だけにbindするStr
 起動できる。既定endpointは`http://127.0.0.1:8765/mcp`で、portは起動前に変更できる。
 Studio起動ごとに256-bitの短期Bearer tokenを生成し、認証されていない要求を拒否する。token、tool引数、
 Debug Context本体は通常ログへ出力せず、管理画面には直近要求のmethod、tool名、成否だけを表示する。
+
+
+### HTTP接続の制限（1.0.0）
+
+接続対象はローカルのネイティブAIクライアントです。`Origin`ヘッダーがある要求は、
+`null`やlocalhost由来も含めてHTTP 403で拒否します。ブラウザーからの直接接続とCORSはサポートしません。
+`Host`は実際の待受ポートを含む`127.0.0.1:<port>`または`localhost:<port>`との完全一致が必要です。
+任意のホスト名をDNS解決して許可することはありません。これらの検査はMCPとルートURLの両方に適用します。
+MCPでは引き続きBearer認証が必要で、Originのない認証済みPOSTだけを受け付けます。
+プリフライトを許可する応答は返しません。通常のクライアントは表示されたendpointと認証ヘルパーを使用してください。
+
+この方針は[MCPのHTTP transportのセキュリティ要件](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/basic/transports.mdx)に沿って、
+接続元の検証、ループバック限定の待受け、認証を組み合わせます。ソース差分・Build・Load・実行のローカル承認は引き続き必要です。
 
 基本の読み取り専用toolは次の五つである。Source / Buildは第14節、デバッグ操作は第15節、Load / Continueは第16節を参照。
 

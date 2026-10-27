@@ -181,7 +181,8 @@ PC-1245では次の2ファイルを入力する。
 | 外部ROM | 16KiB | `external` |
 
 PC-1250／1251／1255も同じ8 KiB＋16 KiB構成を使用する。
-PC-1261／1350／1401は8 KiBの内部ROMと32 KiBの外部ROMを使用する。
+PC-1260／1261／1350／1401／1402／1450は8 KiBの内部ROMと32 KiBの外部ROMを使用する。
+PC-1460は16 KiB×4バンク、PC-1360／1360K／1470Uは16 KiB×8バンクの外部ROMを使用する。
 
 CoreのバンクROM importerは16 KiBの各bankを番号順に受け取り、正規`RomSet`の
 1つの`external` componentへ連結する。現在のStudio作成UIでは、PC-1360の外部ROM欄に
