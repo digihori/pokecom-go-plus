@@ -6,10 +6,12 @@ iOS版のリリース準備・受入れ・ストア提出は別スレッドで�
 0.7 alpha 1の公開記録と現在の開発資料を基にした優先度案です。
 MUSTは正式公開までに判断・確認・解消する項目、WANTは改善候補です。
 未確認事項をすべて実装不備とは扱わず、対応範囲から外す場合は制限と理由を明記します。
-正式版の公開版数はStudio／Androidとも1.0.0に確定しました。公開日は未定です。
+正式版の公開版数はStudio／Androidとも1.0.0に確定しました。2026-10-28にStudioとAndroid Playerの1.0.0を正式公開しました。
 Android AABの署名・ストア公開とPlay Consoleの最終提出確認は開発者が担当します。
 
 ## 現在の進行状況
+
+- 2026-10-28：最終受入れ後にStudio v1.0.0を正式公開。Android Playerも開発者から公開完了報告を受領。以下のM項目の経過は準備時点の記録です。最終結果は[公開チェックリスト](../../releases/checklists/RELEASE_CHECKLIST_1.0.0.md)を参照。
 
 - 2026-10-27受入れ追記：テスト用ReleasesからのChromeダウンロード、macOS署名・公証済みDMGのインストール、初回確認後のDockアプリ一覧表示を確認。詳細は[公開チェックリスト](../../releases/checklists/RELEASE_CHECKLIST_1.0.0.md#macosの署名済みdmg受入れ2026-10-27)を参照。Actions ZIPのChrome判定理由と、正式Releaseの最終資産のダウンロード確認は別途残す。
 - M1：Studio／Androidの公開版数1.0.0を確定。[正式版の範囲・版数](FORMAL_RELEASE_SCOPE.md)に対象環境・14モデル・配布案を整理。OS別の詳細受入れ環境はM3で具体化します。

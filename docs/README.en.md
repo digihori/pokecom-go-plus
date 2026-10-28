@@ -82,7 +82,7 @@ Each note describes its tag rather than the current development tree.
 
 | Tag | Notes |
 | --- | --- |
-| 1.0.0 (in preparation) | [Release notes](releases/notes/RELEASE_NOTES_1.0.0.md) · [Checklist](releases/checklists/RELEASE_CHECKLIST_1.0.0.md) |
+| v1.0.0 | [Release notes](releases/notes/RELEASE_NOTES_1.0.0.md) · [Checklist](releases/checklists/RELEASE_CHECKLIST_1.0.0.md) |
 | v0.7.0-alpha.1 | [Release notes](releases/notes/RELEASE_NOTES_0.7.0-alpha.1.md) · [Checklist](releases/checklists/RELEASE_CHECKLIST_0.7.0-alpha.1.md) |
 | v0.6.0-alpha.2 | [Technical Preview 0.6 alpha 2](releases/notes/RELEASE_NOTES_0.6.0-alpha.2.md) |
 | v0.6.0-alpha.1 | [Technical Preview 0.6](releases/notes/RELEASE_NOTES_0.6.0-alpha.1.md) |

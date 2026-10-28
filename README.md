@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
 
-> **[Technical Preview 0.7 (alpha 1)](https://github.com/digihori/pokecom-go-plus/releases/tag/v0.7.0-alpha.1)** — Prepare ROM packages for Android Player, with improved debugging, WAV tools and Studio-approved AI integration.
+> **[1.0.0](https://github.com/digihori/pokecom-go-plus/releases/tag/v1.0.0)** — The first stable release of Studio, with signed and notarized macOS packages. Android Player 1.0.0 is available on Google Play.
 
 Pokecom GO Plus (PGP) is a multiplatform development environment for vintage pocket computers.
 It aims to help you write, run, and analyze programs on a modern PC, then transfer them to the original hardware.
@@ -16,7 +16,7 @@ PGP consists of two products and a shared emulator core:
 - **PGP Emulator Core** — The Kotlin Multiplatform core shared by Studio and Player.
 
 “Pokecom GO Plus” and “PGP” are development code names for the project as a whole.
-The development version of Studio exposes machine and development context through localhost MCP,
+Studio exposes machine and development context through localhost MCP,
 with Studio approval for source patches, Build, Load, and execution changes. See the [AI connection guide (Japanese)](docs/guides/AI_CONNECTION_GUIDE.md) for setup and limits.
 
 Android Player setup pages are available in [English](https://digihori.github.io/pokecom-go-plus/player/en.html) and [Japanese](https://digihori.github.io/pokecom-go-plus/player/ja.html) ([viewing and hosting](docs/player/README.md)).
@@ -27,9 +27,9 @@ Android Player is now available on [Google Play](https://play.google.com/store/a
 
 ## Current release
 
-Studio **0.7.0-alpha.1** is available alongside Android Player. See the
-[release notes](docs/releases/notes/RELEASE_NOTES_0.7.0-alpha.1.md) and
-[release checklist](docs/releases/checklists/RELEASE_CHECKLIST_0.7.0-alpha.1.md).
+Studio **1.0.0** is available alongside Android Player. See the
+[release notes](docs/releases/notes/RELEASE_NOTES_1.0.0.md) and
+[release checklist](docs/releases/checklists/RELEASE_CHECKLIST_1.0.0.md).
 
 ## Current status
 

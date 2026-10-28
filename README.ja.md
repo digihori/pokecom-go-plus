@@ -4,13 +4,13 @@
 
 [![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
 
-> **[Technical Preview 0.7 (alpha 1)](https://github.com/digihori/pokecom-go-plus/releases/tag/v0.7.0-alpha.1)** — Android Player向けのROM作成、デバッグ・WAVツール・Studio承認付きAI連携を整備した早期評価版です。
+> **[1.0.0](https://github.com/digihori/pokecom-go-plus/releases/tag/v1.0.0)** — Studioの正式版です。macOS版は署名・公証済み。Android Player 1.0.0もGoogle Playで公開しています。
 
 Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向けプログラムを
 現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す
 マルチプラットフォーム開発環境です。
 
-開発中のStudioでは、localhost MCP経由で外部AIから機種仕様・開発状態を取得し、
+Studioでは、localhost MCP経由で外部AIから機種仕様・開発状態を取得し、
 ソース差分・Build・Load・実行操作をStudio承認付きで行えます。接続方法と制限は[AI接続ガイド](docs/guides/AI_CONNECTION_GUIDE.md)を参照してください。
 
 PGPは次の2製品と共有Emulator Coreで構成します。
@@ -29,9 +29,9 @@ Android Playerは[Google Play](https://play.google.com/store/apps/details?id=com
 
 ## 現在のリリース
 
-Android Playerに合わせてStudio **0.7.0-alpha.1**を公開しました。
-[リリースノート](docs/releases/notes/RELEASE_NOTES_0.7.0-alpha.1.md)と
-[チェックリスト](docs/releases/checklists/RELEASE_CHECKLIST_0.7.0-alpha.1.md)を参照してください。
+Android Playerに合わせてStudio **1.0.0**を公開しました。
+[リリースノート](docs/releases/notes/RELEASE_NOTES_1.0.0.md)と
+[チェックリスト](docs/releases/checklists/RELEASE_CHECKLIST_1.0.0.md)を参照してください。
 
 ## 現在の状態
 
