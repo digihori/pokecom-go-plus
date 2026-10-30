@@ -1,0 +1,7 @@
+{
+  "format": "pgp-project",
+  "formatVersion": 1,
+  "name": "PC-1245 Debugger Acceptance",
+  "machineId": "pc-1245",
+  "sources": [{"id": "debugger", "type": "assembly", "path": "src/debugger.asm"}]
+}

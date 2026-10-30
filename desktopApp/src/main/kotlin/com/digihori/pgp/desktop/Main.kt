@@ -1906,6 +1906,9 @@ private fun FrameWindowScope.App(
                         var navigationRevision by remember(runner) { mutableStateOf(0) }
                         var disassemblyNavigation by remember(runner) { mutableStateOf<Pair<Int, Int?>?>(null) }
                         var navigateMemory by remember(runner) { mutableStateOf(false) }
+                        val debuggerSessionRevision = com.digihori.pgp.desktop.debug.rememberDebuggerSessionRevision(
+                            runner, cpu, runnerState,
+                        )
                         fun navigateInstruction(address: Int?) {
                             navigateMemory = false
                             navigationRevision++
@@ -2007,7 +2010,7 @@ private fun FrameWindowScope.App(
                                 }
                                 DebuggerSection {
                                     com.digihori.pgp.desktop.debug.DebuggerMemoryEditPanel(
-                                        runner, keyboardInput, memoryViewStartAddress, runner?.sessionRevision ?: 0L,
+                                        runner, keyboardInput, memoryViewStartAddress, debuggerSessionRevision,
                                         onEdited = {
                                             val active = runner ?: return@DebuggerMemoryEditPanel
                                             debuggerComparison = comparisonTracker.stopped(active)
@@ -2029,7 +2032,7 @@ private fun FrameWindowScope.App(
                                 }
                                 DebuggerSection {
                                     com.digihori.pgp.desktop.debug.DebuggerMemorySearchPanel(
-                                        runner, keyboardInput, runner?.sessionRevision ?: 0L, ::navigateToMemory,
+                                        runner, keyboardInput, debuggerSessionRevision, ::navigateToMemory,
                                     )
                                 }
                                 DebuggerSection {
@@ -2071,7 +2074,7 @@ private fun FrameWindowScope.App(
                                 DebuggerSection { DebuggerRegistrationPanel(runner, keyboardInput, executionRevision = cpu) }
                                 DebuggerSection {
                                     com.digihori.pgp.desktop.debug.DebuggerLogpointPanel(
-                                        runner, keyboardInput, runner?.sessionRevision ?: 0L,
+                                        runner, keyboardInput, debuggerSessionRevision,
                                         onSelect = { navigateInstruction(it) },
                                     )
                                 }
