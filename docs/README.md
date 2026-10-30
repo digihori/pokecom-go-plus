@@ -33,7 +33,8 @@ ROMは同梱していません。自分で適法に入手したROMが必要で�
 | Project作成・外部エディタ・Build & Load・入力履歴 | [Projectガイド](guides/PROJECTS.md) |
 | Assembly Workspace・Quick Assemble・命令とデータ定義 | [SC61860 Assembler](guides/SC61860_ASSEMBLY.md) |
 | SC61・YASM61860等を接続する | [外部アセンブラ](guides/EXTERNAL_ASSEMBLER.md) |
-| 実行停止・Breakpoint・Watch・Trace・ソース連携 | [Debugger](guides/DEBUGGER.md) |
+| 実行停止・Breakpoint・Watch・Trace・ソース連携 | [Debugger](guides/DEBUGGER.md)／[English](guides/DEBUGGER.en.md) |
+| Debugger強化の実施結果・保留・手動テスト | [受入れ記録](development/DEBUGGER_RELEASE_ACCEPTANCE.md)／[テストケース](development/DEBUGGER_MANUAL_TEST_CASES.md) |
 | 外部AIクライアントを接続する | [AI接続ガイド](guides/AI_CONNECTION_GUIDE.md) |
 | 実機転送用WAVの作成・録音WAVの解析と復元 | [WAV Tool](guides/WAV_TOOL_GUIDE.md) |
 | ドットパターンを作成する | [Character Editor](guides/CHARACTER_EDITOR.md) |

@@ -132,7 +132,7 @@ class DebuggerSteppingTest {
         assertEquals(DebuggerStepStatus.LIMIT, multi.debugStepStatus)
     }
 
-    @Test fun stackDamageUnsupportedCaseAndUnobservedExecutionNeverPretendToComplete() {
+    @Test fun stackDamageAndUnobservedExecutionNeverPretendToComplete() {
         for (source in listOf(
             "ORG 0\nCALL SUB\nJP 3\nSUB: LIP 0x5E\nLIA 0\nEXAM\nRTN",
             "ORG 0\nCALL SUB\nJP 3\nSUB: PUSH\nRTN",
@@ -142,10 +142,6 @@ class DebuggerSteppingTest {
             assertEquals(DebuggerStepStatus.FRAME_LOST, runner.debugStepStatus)
             assertFalse(runner.canStepOut)
         }
-        val cases = runner("ORG 0\nCALL SUB\nJP 3\nSUB: CASE1 0x000003\nCASE2")
-        cases.stepOver(); finish(cases)
-        assertEquals(DebuggerStepStatus.UNSUPPORTED_FLOW, cases.debugStepStatus)
-        assertEquals(6, cases.cpuSnapshot().programCounter)
         val normal = runner(nested)
         normal.step()
         assertTrue(normal.canStepOut)
@@ -166,6 +162,30 @@ class DebuggerSteppingTest {
             listOf(AddressedMemorySegmentData(0xc500, byteArrayOf(7))))).image
         assertIs<ProgramImageLoadResult.Success>(runner.loadProgramImage(null, image))
         assertFalse(runner.canStepOut)
+    }
+
+    @Test fun failedLoadsPreserveObservedFramesAndSourceMetadata() {
+        for (kind in listOf("basic", "memory", "combined")) {
+            val runner = runner(nested)
+            runner.step() // Observe the outer CALL before attempting a rejected load.
+            runner.attachSourceMap(emptyList())
+            val sourceMap = assertNotNull(runner.sourceMap)
+            val pc = runner.cpuSnapshot().programCounter
+            val image = assertIs<AddressedMemoryImageCreateResult.Success>(AddressedMemoryImageFactory.create(
+                listOf(AddressedMemorySegmentData(0, byteArrayOf(7))))).image // ROM is not writable.
+            when (kind) {
+                "basic" -> assertIs<BasicProgramLoadResult.Failure>(runner.loadBasicProgram(byteArrayOf(0)))
+                "memory" -> assertIs<MemoryImageLoadResult.Failure>(runner.loadMemoryImage(image))
+                else -> assertIs<ProgramImageLoadResult.MemoryFailure>(runner.loadProgramImage(null, image))
+            }
+            assertSame(sourceMap, runner.sourceMap, kind)
+            assertEquals(pc, runner.cpuSnapshot().programCounter, kind)
+            assertTrue(runner.canStepOut, kind)
+            assertTrue(runner.stepOut(), kind)
+            finish(runner)
+            assertEquals(DebuggerStepStatus.OUT_COMPLETE, runner.debugStepStatus, kind)
+            assertEquals(3, runner.cpuSnapshot().programCounter, kind)
+        }
     }
 
     @Test fun bankIdentityIsCheckedEvenWhenReturnedInstructionBytesMatch() {

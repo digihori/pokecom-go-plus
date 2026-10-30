@@ -15,6 +15,79 @@ import kotlin.test.*
 
 @OptIn(ExperimentalComposeUiApi::class)
 class DebuggerRegistrationPanelTest {
+    @Test fun logpointChangesPreserveBreakpointAndWatchDraftsInBothLanguages() = ui {
+        for (language in StudioLanguage.entries) for (watch in listOf(false, true)) {
+            val strings = StudioStrings(language)
+            val runner = bankBreakpointRunner()
+            if (watch) runner.saveWatch(null, 0xc000, 0xc001, DebuggerWatchKind.CHANGE, true)
+            else runner.saveBreakpoint(null, 0x4000, bank = 0)
+            val originalId = if (watch) runner.watchRegistrations().single().id else runner.breakpointRegistrations().single().id
+            var revision by mutableLongStateOf(runner.sessionRevision)
+            val scene = ImageComposeScene(1100, 1500) {
+                PgpStudioTheme {
+                    DebuggerRegistrationPanel(runner, DesktopKeyboardInput(), executionRevision = revision,
+                        strings = strings, initialWatch = watch)
+                }
+            }
+            try {
+                scene.frames()
+                scene.click(strings.text(if (watch) "debug.registration.editWatch" else "debug.registration.editBreakpoint",
+                    if (watch) originalId.toString() else "4000 bank=0"))
+                scene.frames()
+                val draft = if (watch) listOf("C002", "C003") else listOf("4001", "A == 0x41", "% 3", "1")
+                draft.forEachIndexed { index, value -> scene.edit(index, value) }
+                fun assertDraft() {
+                    revision = runner.sessionRevision
+                    scene.frames()
+                    assertEquals(draft, scene.nodes().filter { it.config.contains(SemanticsActions.SetText) }
+                        .map { it.config[SemanticsProperties.EditableText].text })
+                }
+                val logId = assertIs<DebuggerLogpointResult.Success>(runner.saveLogpoint(null, 0, "A", "", true)).id
+                assertDraft()
+                assertIs<DebuggerLogpointResult.Success>(runner.saveLogpoint(logId, 0, "B", "", false))
+                assertDraft()
+                assertIs<DebuggerLogpointResult.Success>(runner.removeLogpoint(logId))
+                assertDraft()
+                scene.click(strings.text("common.apply")); scene.frames()
+                if (watch) {
+                    assertEquals(originalId, runner.watchRegistrations().single().id)
+                    assertEquals(0xc002..0xc003, runner.watchRegistrations().single().range)
+                } else {
+                    assertEquals(originalId, runner.breakpointRegistrations().single().id)
+                    assertEquals(0x4001, runner.breakpointRegistrations().single().address)
+                    assertEquals(1, runner.breakpointRegistrations().single().bank)
+                }
+            } finally { scene.close() }
+        }
+    }
+
+    @Test fun bankScopedRegistrationsCanBeEditedAndClearedInBothLanguages() = ui {
+        for (language in StudioLanguage.entries) {
+            val strings = StudioStrings(language)
+            val runner = bankBreakpointRunner()
+            val scene = ImageComposeScene(1100, 1500) {
+                PgpStudioTheme { DebuggerRegistrationPanel(runner, DesktopKeyboardInput(), strings = strings) }
+            }
+            try {
+                scene.frames(); scene.edit(0, "4000"); scene.edit(3, "0")
+                scene.click(strings.text("debug.registration.add")); scene.frames()
+                scene.edit(3, "1"); scene.click(strings.text("debug.registration.add")); scene.frames()
+                assertEquals(listOf(0, 1), runner.breakpointRegistrations().map { it.bank })
+                assertTrue(scene.texts().contains(strings.text("debug.breakpoint.bankSummary", "1")))
+                scene.click(strings.text("debug.registration.editBreakpoint", "4000 bank=0")); scene.frames()
+                scene.edit(3, "8"); scene.click(strings.text("common.apply")); scene.frames()
+                assertTrue(scene.texts().contains(DebuggerRegistrationError.BANK.display(strings)))
+                assertEquals(listOf(0, 1), runner.breakpointRegistrations().map { it.bank })
+                scene.edit(3, ""); scene.click(strings.text("common.apply")); scene.frames()
+                assertTrue(scene.texts().contains(DebuggerRegistrationError.DUPLICATE_ADDRESS.display(strings)))
+                scene.click(strings.text("debug.registration.deleteBreakpoint", "4000 bank=1")); scene.frames()
+                scene.click(strings.text("common.apply")); scene.frames()
+                assertNull(runner.breakpointRegistrations().single().bank)
+                assertEquals(0, runner.cpuSnapshot().programCounter)
+            } finally { scene.close() }
+        }
+    }
+
     @Test fun restoredSettingsDiscardOldEditIdsAndSynchronizeTraceControls() = ui {
         for (language in StudioLanguage.entries) {
             val strings = StudioStrings(language)

@@ -1176,6 +1176,22 @@ private fun FrameWindowScope.App(
         startAssembly { quickAssembleWork(source) }
     }
 
+    var debuggerExportNotice by remember { mutableStateOf<String?>(null) }
+    fun exportDebuggerHistory(limits: com.digihori.pgp.desktop.debug.DebuggerExportLimits, debuggerOwner: Frame) {
+        try {
+            val saved = com.digihori.pgp.desktop.debug.DebuggerHistoryExport.save({ runner }, limits, Instant.now().toString()) {
+                // selectFile restores its owner on both save and cancel. Keep this operation in Debugger.
+                selectFile(debuggerOwner, uiText("debug.export.save"), "debug-history.pgtrace.json", FileDialog.SAVE)
+            }
+            debuggerExportNotice = uiText(if (saved) "debug.export.saved" else "debug.export.cancelled")
+        } catch (error: Exception) {
+            val code = (error as? com.digihori.pgp.desktop.debug.DebuggerExportException)?.code
+                ?: com.digihori.pgp.desktop.debug.DebuggerExportError.IO
+            debuggerExportNotice = uiText("debug.export.error.${code.name}")
+            showError(debuggerExportNotice!!)
+        }
+    }
+
     fun debugSettingsFile(save: Boolean) {
         val active = runner ?: return
         val workspace = projectWorkspace
@@ -1878,6 +1894,7 @@ private fun FrameWindowScope.App(
             onCloseRequest = { showDebuggerWindow = false },
             title = uiText("debug.window", (ProjectInfo.STUDIO_DISPLAY_NAME)),
         ) {
+            val debuggerOwner = window
             DisposableEffect(runner) {
                 runner?.setDebugObservationEnabled(true)
                 onDispose { runner?.setDebugObservationEnabled(false) }
@@ -1889,6 +1906,9 @@ private fun FrameWindowScope.App(
                         var navigationRevision by remember(runner) { mutableStateOf(0) }
                         var disassemblyNavigation by remember(runner) { mutableStateOf<Pair<Int, Int?>?>(null) }
                         var navigateMemory by remember(runner) { mutableStateOf(false) }
+                        val debuggerSessionRevision = com.digihori.pgp.desktop.debug.rememberDebuggerSessionRevision(
+                            runner, cpu, runnerState,
+                        )
                         fun navigateInstruction(address: Int?) {
                             navigateMemory = false
                             navigationRevision++
@@ -1989,6 +2009,33 @@ private fun FrameWindowScope.App(
                                     }
                                 }
                                 DebuggerSection {
+                                    com.digihori.pgp.desktop.debug.DebuggerMemoryEditPanel(
+                                        runner, keyboardInput, memoryViewStartAddress, debuggerSessionRevision,
+                                        onEdited = {
+                                            val active = runner ?: return@DebuggerMemoryEditPanel
+                                            debuggerComparison = comparisonTracker.stopped(active)
+                                            cpu = active.cpuSnapshot()
+                                            changedCpuFields = emptySet()
+                                            display = active.displaySnapshot()
+                                            loadedProgramLabel = null
+                                            loadedProjectManifest = null
+                                            if (projectWorkspace != null) projectRuntimeStatus = ProjectRuntimeStatus.NOT_LOADED
+                                            projectBasicBaseline?.let { baseline ->
+                                                projectBasicModified = when (val snapshot = active.basicProgramSnapshot()) {
+                                                    is BasicProgramSnapshotResult.Success -> !snapshot.copyBytes().contentEquals(baseline)
+                                                    is BasicProgramSnapshotResult.Failure -> true
+                                                }
+                                            }
+                                            memoryNavigationRevision++
+                                        },
+                                    )
+                                }
+                                DebuggerSection {
+                                    com.digihori.pgp.desktop.debug.DebuggerMemorySearchPanel(
+                                        runner, keyboardInput, debuggerSessionRevision, ::navigateToMemory,
+                                    )
+                                }
+                                DebuggerSection {
                                     SelectionContainer {
                                         MemoryMapPanel(
                                             regions = MachineCatalog.require(runner?.machineId ?: selectedMachineId).memoryRegions,
@@ -1998,6 +2045,13 @@ private fun FrameWindowScope.App(
                                 }
                             },
                             history = {
+                                DebuggerSection {
+                                    com.digihori.pgp.desktop.debug.DebuggerHistoryExportPanel(
+                                        available = runner != null, stopped = runnerState != RunnerState.RUNNING,
+                                        keyboard = keyboardInput, notice = debuggerExportNotice,
+                                        onExport = { exportDebuggerHistory(it, debuggerOwner) },
+                                    )
+                                }
                                 var refreshRevision by rememberSaveable { mutableStateOf(0) }
                                 // CPU refresh is paced independently of fast Runner ticks.
                                 val historySnapshot = remember(runner, cpu, runnerState, refreshRevision) { captureDebuggerHistory(runner) }
@@ -2019,6 +2073,12 @@ private fun FrameWindowScope.App(
                                         onSave = { debugSettingsFile(true) }, onRestore = { debugSettingsFile(false) })
                                 }
                                 DebuggerSection { DebuggerRegistrationPanel(runner, keyboardInput, executionRevision = cpu) }
+                                DebuggerSection {
+                                    com.digihori.pgp.desktop.debug.DebuggerLogpointPanel(
+                                        runner, keyboardInput, debuggerSessionRevision,
+                                        onSelect = { navigateInstruction(it) },
+                                    )
+                                }
                             },
                         )
                     }
@@ -2028,17 +2088,21 @@ private fun FrameWindowScope.App(
     }
 
     if (showMcpServerWindow) {
+        val review = remember(developmentReviewRevision) { developmentChangeService.review() }
+        val executionReview = remember(executionReviewRevision) { executionChangeService.review() }
+        val debugReview = remember(debugReviewRevision) { debugChangeService.review() }
+        val pendingReviewIds = listOfNotNull(review?.id, executionReview?.id, debugReview?.id).takeIf { it.isNotEmpty() }
         StudioWindow(
             id = "mcp-server",
             onCloseRequest = { showMcpServerWindow = false },
             title = uiText("mcp.window", ProjectInfo.STUDIO_DISPLAY_NAME),
+            attentionRequest = pendingReviewIds,
         ) {
             PgpStudioTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    val review = remember(developmentReviewRevision) { developmentChangeService.review() }
                     val operations = remember(developmentReviewRevision) { developmentChangeService.history() }
                     StudioScrollableColumn(
-                        scrollResetKey = review?.id,
+                        scrollResetKey = pendingReviewIds,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = 16.dp,
                         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -2048,12 +2112,10 @@ private fun FrameWindowScope.App(
                                 review, emptyList(), developmentChangeService::approve, developmentChangeService::reject,
                             )
                         }
-                        val executionReview = remember(executionReviewRevision) { executionChangeService.review() }
                         val executionOperations = remember(executionReviewRevision) { executionChangeService.history() }
                         com.digihori.pgp.desktop.application.execution.ExecutionReviewPanel(
                             executionReview, executionOperations, executionChangeService::approve, executionChangeService::reject,
                         )
-                        val debugReview = remember(debugReviewRevision) { debugChangeService.review() }
                         val debugOperations = remember(debugReviewRevision) { debugChangeService.history() }
                         com.digihori.pgp.desktop.application.debug.DebugReviewPanel(
                             debugReview, debugOperations, debugChangeService::approve, debugChangeService::reject,
@@ -3139,6 +3201,7 @@ internal fun MemoryViewPanel(
     snapshotRevision: CpuSnapshot? = null,
     navigationRevision: Int = 0,
     comparison: DebuggerComparisonFrame = DebuggerComparisonFrame(),
+    memoryRevision: Long = runner?.sessionRevision ?: 0L,
 ) {
     var addressText by rememberSaveable(runner) { mutableStateOf(startAddress.hex(4)) }
     var addressError by rememberSaveable(runner) { mutableStateOf(false) }
@@ -3153,7 +3216,7 @@ internal fun MemoryViewPanel(
             handledNavigation = navigationRevision
         }
     }
-    val lines = remember(runner, startAddress, refreshRevision, snapshotRevision, navigationRevision) {
+    val lines = remember(runner, startAddress, refreshRevision, snapshotRevision, navigationRevision, memoryRevision) {
         if (runner == null) {
             emptyList()
         } else {

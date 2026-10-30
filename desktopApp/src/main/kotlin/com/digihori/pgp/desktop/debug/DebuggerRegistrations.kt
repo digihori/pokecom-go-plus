@@ -6,6 +6,7 @@ import com.digihori.pgp.core.api.MemoryAccessKind
 internal data class DebuggerBreakpoint(
     val id: Long, val address: Int, val enabled: Boolean = true,
     val condition: String = "", val hitCondition: String = "", val hitCount: Long = 0,
+    val bank: Int? = null,
 )
 internal enum class DebuggerWatchKind {
     CHANGE, READ, WRITE, READ_WRITE;
@@ -14,7 +15,7 @@ internal enum class DebuggerWatchKind {
 }
 internal data class DebuggerWatch(val id: Long, val range: IntRange, val kind: DebuggerWatchKind, val enabled: Boolean = true)
 internal enum class DebuggerRegistrationError {
-    CONDITION, HIT_CONDITION, ADDRESS, RANGE, DUPLICATE_ADDRESS, NOT_FOUND, BREAKPOINT_LIMIT, WATCH_LIMIT, WATCH_BYTES_LIMIT, OBSERVATION_FAILED,
+    CONDITION, HIT_CONDITION, ADDRESS, BANK, RANGE, DUPLICATE_ADDRESS, NOT_FOUND, BREAKPOINT_LIMIT, WATCH_LIMIT, WATCH_BYTES_LIMIT, OBSERVATION_FAILED,
 }
 internal sealed interface DebuggerRegistrationResult {
     data class Success(val id: Long) : DebuggerRegistrationResult
@@ -39,10 +40,12 @@ internal class DebuggerRegistrationStore(initialId: Long = 0L, private val readB
     fun breakpoints(): List<DebuggerBreakpoint> = breakpoints.values.sortedBy { it.address }.map { it.copy(hitCount = hitCounts[it.id] ?: 0) }
     fun watches(): List<DebuggerWatch> = watches.values.toList()
 
-    fun saveBreakpoint(id: Long?, address: Int, enabled: Boolean, condition: String? = null, hitCondition: String? = null): DebuggerRegistrationResult {
+    fun saveBreakpoint(id: Long?, address: Int, enabled: Boolean, condition: String? = null, hitCondition: String? = null,
+        bank: Int? = breakpoints[id]?.bank): DebuggerRegistrationResult {
         if (address !in 0..0xffff) return failure(DebuggerRegistrationError.ADDRESS)
+        if (bank != null && bank !in 0..255) return failure(DebuggerRegistrationError.BANK)
         if (id != null && id !in breakpoints) return failure(DebuggerRegistrationError.NOT_FOUND)
-        if (breakpoints.values.any { it.id != id && it.address == address }) return failure(DebuggerRegistrationError.DUPLICATE_ADDRESS)
+        if (breakpoints.values.any { it.id != id && it.address == address && (it.bank == null || bank == null || it.bank == bank) }) return failure(DebuggerRegistrationError.DUPLICATE_ADDRESS)
         if (id == null && breakpoints.size >= MAX_BREAKPOINTS) return failure(DebuggerRegistrationError.BREAKPOINT_LIMIT)
         val old = breakpoints[id]
         val conditionText = (condition ?: old?.condition.orEmpty()).trim()
@@ -52,10 +55,10 @@ internal class DebuggerRegistrationStore(initialId: Long = 0L, private val readB
         val parsedHit = if (hitText.isEmpty()) null else DebuggerBreakpointHitCondition.parse(hitText)
             ?: return failure(DebuggerRegistrationError.HIT_CONDITION)
         val savedId = id ?: nextId++
-        if (old == null || old.address != address || old.condition != conditionText || old.hitCondition != hitText) hitCounts.remove(savedId)
+        if (old == null || old.address != address || old.bank != bank || old.condition != conditionText || old.hitCondition != hitText) hitCounts.remove(savedId)
         if (parsed == null) conditions.remove(savedId) else conditions[savedId] = parsed
         if (parsedHit == null) hitConditions.remove(savedId) else hitConditions[savedId] = parsedHit
-        breakpoints[savedId] = DebuggerBreakpoint(savedId, address, enabled, conditionText, hitText)
+        breakpoints[savedId] = DebuggerBreakpoint(savedId, address, enabled, conditionText, hitText, bank = bank)
         activeAddresses.clear()
         activeAddresses.addAll(breakpoints.values.filter { it.enabled }.map { it.address })
         return DebuggerRegistrationResult.Success(savedId)
@@ -63,7 +66,7 @@ internal class DebuggerRegistrationStore(initialId: Long = 0L, private val readB
 
     fun removeBreakpoint(id: Long): DebuggerRegistrationResult {
         val old = breakpoints.remove(id) ?: return failure(DebuggerRegistrationError.NOT_FOUND)
-        activeAddresses.remove(old.address)
+        if (breakpoints.values.none { it.enabled && it.address == old.address }) activeAddresses.remove(old.address)
         conditions.remove(id); hitConditions.remove(id); hitCounts.remove(id)
         return DebuggerRegistrationResult.Success(id)
     }
@@ -71,8 +74,10 @@ internal class DebuggerRegistrationStore(initialId: Long = 0L, private val readB
     fun resetHitCounts() { hitCounts.clear() }
 
     /** Called once per enabled PC encounter, before execution, excluding resume's skipped encounter. */
-    fun breakpointHit(address: Int, cpu: () -> com.digihori.pgp.core.api.CpuSnapshot): Boolean {
-        val entry = breakpoints.values.firstOrNull { it.enabled && it.address == address } ?: return false
+    fun breakpointHit(address: Int, cpu: () -> com.digihori.pgp.core.api.CpuSnapshot): Boolean = breakpointHit(address, cpu, null)
+
+    fun breakpointHit(address: Int, cpu: () -> com.digihori.pgp.core.api.CpuSnapshot, bank: Int?): Boolean {
+        val entry = breakpoints.values.firstOrNull { it.enabled && it.address == address && (it.bank == null || it.bank == bank) } ?: return false
         val previous = hitCounts[entry.id] ?: 0
         val count = if (previous == Long.MAX_VALUE) previous else previous + 1
         hitCounts[entry.id] = count
@@ -111,6 +116,17 @@ internal class DebuggerRegistrationStore(initialId: Long = 0L, private val readB
         baselines.clear()
         watches.values.filter { it.enabled && it.kind == DebuggerWatchKind.CHANGE }.forEach {
             baselines[it.id] = readBytes(it.range.first, it.range.last - it.range.first + 1)
+        }
+    }
+
+    /** A host edit is not a CPU write. Preserve all other pending changes, including aliases. */
+    fun rebaseEditedByte(value: Int, matchesAddress: (Int) -> Boolean) {
+        watches.values.forEach { watch ->
+            baselines[watch.id]?.let { bytes ->
+                bytes.indices.forEach { offset ->
+                    if (matchesAddress(watch.range.first + offset)) bytes[offset] = value.toByte()
+                }
+            }
         }
     }
 

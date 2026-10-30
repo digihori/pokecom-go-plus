@@ -22,10 +22,11 @@ internal data class DebugRegistrationsSnapshot(
             put("id", session.id); put("revision", session.revision)
             put("machineId", session.machineId); put("runState", session.runState)
         })
-        put("addressScope", "logicalAllBanks")
+        put("addressScope", if (breakpoints.any { it.bank != null }) "logicalWithOptionalRomBank" else "logicalAllBanks")
         put("breakpoints", buildJsonArray {
             breakpoints.forEach { entry -> add(buildJsonObject {
                 put("id", entry.id); put("address", entry.address); put("enabled", entry.enabled)
+                entry.bank?.let { put("bank", it) }
             }) }
         })
         put("watches", buildJsonArray {

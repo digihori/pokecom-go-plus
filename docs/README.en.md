@@ -28,7 +28,7 @@ For a source build, see [Building](reference/BUILDING.md). [About Studio](guides
 | Projects, external editors, Build & Load, command history | [Projects](guides/PROJECTS.md) |
 | Assembly Workspace, Quick Assemble, instructions and data | [SC61860 assembler](guides/SC61860_ASSEMBLY.md) |
 | SC61, YASM61860 and other adapters | [External assemblers](guides/EXTERNAL_ASSEMBLER.md) |
-| Execution, breakpoints, watches, trace and source mapping | [Debugger](guides/DEBUGGER.md) |
+| Execution, breakpoints, watches, trace and source mapping | [Debugger](guides/DEBUGGER.en.md) |
 | Connect an external AI client | [AI connection guide](guides/AI_CONNECTION_GUIDE.md) |
 | Create cassette WAVs and recover recorded programs | [WAV Tool](guides/WAV_TOOL_GUIDE.md) |
 | Edit dot patterns | [Character Editor](guides/CHARACTER_EDITOR.md) |

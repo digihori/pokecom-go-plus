@@ -97,6 +97,18 @@ class DebugChangeServiceTest {
         assertEquals("STALE_SESSION", f.service.operation(loadPause.string("operationId")).string("code"))
     }
 
+    @Test fun ramEditInvalidatesPendingMcpRequestWithoutExecutingIt() {
+        val f = Fixture()
+        val proposal = f.propose("step")
+        val edit = assertIs<com.digihori.pgp.desktop.debug.DebuggerMemoryEditResult.Success>(f.runner.previewMemoryEdit(0xc000, 7)).edit
+        assertIs<com.digihori.pgp.desktop.debug.DebuggerMemoryEditResult.Success>(f.runner.applyMemoryEdit(edit))
+        val pc = f.runner.cpuSnapshot().programCounter
+        f.service.approve()
+        assertEquals("STALE_SESSION", f.service.operation(proposal.string("operationId")).string("code"))
+        assertEquals(pc, f.runner.cpuSnapshot().programCounter)
+        assertEquals(7, f.runner.memoryByte(0xc000))
+    }
+
     @Test fun pauseTargetsTheSameLiveSessionWhileRevisionMayAdvance() {
         val f = Fixture()
         f.runner.run(); val revision = f.runner.sessionRevision

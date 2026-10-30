@@ -43,6 +43,13 @@ import com.digihori.pgp.desktop.debug.DesktopInstructionTraceEntry
 import com.digihori.pgp.desktop.debug.DesktopMemoryAccessHistoryEntry
 import com.digihori.pgp.desktop.debug.DesktopBankHistoryEntry
 import com.digihori.pgp.core.debug.Sc61860InstructionDecoder
+import com.digihori.pgp.desktop.debug.DebuggerMemoryEditError
+import com.digihori.pgp.desktop.debug.DebuggerMemoryEditPreview
+import com.digihori.pgp.desktop.debug.DebuggerMemoryEditResult
+import com.digihori.pgp.desktop.debug.DebuggerLogpoints
+import com.digihori.pgp.desktop.debug.DebuggerLogpointError
+import com.digihori.pgp.desktop.debug.DebuggerLogpointResult
+import com.digihori.pgp.desktop.debug.validBreakpointBank
 
 internal fun interface MonotonicClock {
     fun nowNanoseconds(): Long
@@ -123,7 +130,7 @@ internal class DesktopEmulatorRunner(
         if (state != RunnerState.PAUSED) return false
         if (out && callTracker.top == null) { debugStepStatus = DebuggerStepStatus.NO_FRAME; return false }
         val pc = session.cpuSnapshot().programCounter
-        val single = !out && !DebuggerCallTracker.isCall(memoryByte(pc))
+        val single = !out && !DebuggerCallTracker.createsFrame(memoryByte(pc))
         val frame = if (out) callTracker.top?.id else null
         run()
         stepPlan = StepPlan(out, frame, single)
@@ -206,6 +213,7 @@ internal class DesktopEmulatorRunner(
         inputEpoch++
         session.reset()
         registrations.resetHitCounts()
+        logpoints.clearHistory()
         planner.reset()
         previousTimeNanoseconds = null
         requestedOperatingMode = OperatingMode.RUN
@@ -238,7 +246,8 @@ internal class DesktopEmulatorRunner(
             return DebuggerSettingsApplyResult.Failure(DebuggerSettingsError.TARGET)
         val candidate = DebuggerRegistrationStore(registrations.nextRegistrationId, memoryBytesProvider)
         for (entry in settings.breakpoints) {
-            val result = candidate.saveBreakpoint(null, entry.address, entry.enabled, entry.condition, entry.hitCondition)
+            if (!validBreakpointBank(machineId, entry.address, entry.bank)) return DebuggerSettingsApplyResult.Failure(DebuggerSettingsError.REGISTRATIONS)
+            val result = candidate.saveBreakpoint(null, entry.address, entry.enabled, entry.condition, entry.hitCondition, entry.bank)
             if (result is DebuggerRegistrationResult.Failure) return DebuggerSettingsApplyResult.Failure(DebuggerSettingsError.REGISTRATIONS)
         }
         for (entry in settings.watches) {
@@ -269,8 +278,11 @@ internal class DesktopEmulatorRunner(
     fun breakpointRegistrations(): List<DebuggerBreakpoint> = registrations.breakpoints()
     fun watchRegistrations(): List<DebuggerWatch> = registrations.watches()
 
-    fun saveBreakpoint(id: Long?, address: Int, enabled: Boolean = true, condition: String? = null, hitCondition: String? = null): DebuggerRegistrationResult =
-        registrationChanged(registrations.saveBreakpoint(id, address, enabled, condition, hitCondition))
+    fun saveBreakpoint(id: Long?, address: Int, enabled: Boolean = true, condition: String? = null, hitCondition: String? = null,
+        bank: Int? = breakpointRegistrations().firstOrNull { it.id == id }?.bank): DebuggerRegistrationResult {
+        if (!validBreakpointBank(machineId, address, bank)) return DebuggerRegistrationResult.Failure(DebuggerRegistrationError.BANK)
+        return registrationChanged(registrations.saveBreakpoint(id, address, enabled, condition, hitCondition, bank))
+    }
 
     fun removeBreakpoint(id: Long): DebuggerRegistrationResult = registrationChanged(registrations.removeBreakpoint(id))
 
@@ -315,13 +327,15 @@ internal class DesktopEmulatorRunner(
 
     fun toggleBreakpoint(address: Int): Boolean {
         val normalized = address and 0xffff
-        val old = breakpointRegistrations().firstOrNull { it.address == normalized }
+        val atAddress = breakpointRegistrations().filter { it.address == normalized }
+        val currentBank = resolveRomLocation(normalized)?.bank
+        val old = atAddress.firstOrNull { it.bank == null || it.bank == currentBank }
         if (old?.enabled == true) { removeBreakpoint(old.id); return false }
-        return saveBreakpoint(old?.id, normalized, true) is DebuggerRegistrationResult.Success
+        return saveBreakpoint(old?.id, normalized, true, bank = old?.bank ?: if (atAddress.isNotEmpty()) currentBank else null) is DebuggerRegistrationResult.Success
     }
 
     /** Legacy active-address view, also used by execution checks. */
-    fun breakpoints(): Set<Int> = executionBreakpoints.toSortedSet()
+    fun breakpoints(): Set<Int> = breakpointRegistrations().filter { it.enabled && (it.bank == null || resolveRomLocation(it.address)?.bank == it.bank) }.map { it.address }.toSortedSet()
 
     fun setInstructionTraceEnabled(enabled: Boolean) {
         if (instructionTraceEnabled == enabled) return
@@ -438,11 +452,14 @@ internal class DesktopEmulatorRunner(
         val resumeAfterLoad = state == RunnerState.RUNNING
         pause()
         val result = session.loadBasicProgram(program)
-        if (result is BasicProgramLoadResult.Success) registrations.resetHitCounts()
-        callTracker.clear()
-        sourceMap = null
+        if (result is BasicProgramLoadResult.Success) {
+            registrations.resetHitCounts()
+            logpoints.clearHistory()
+            callTracker.clear()
+            sourceMap = null
+            refreshMemoryWatchBaseline()
+        }
         sessionRevision++
-        refreshMemoryWatchBaseline()
         if (resumeAfterLoad && state != RunnerState.FAULTED) run()
         return result
     }
@@ -455,6 +472,7 @@ internal class DesktopEmulatorRunner(
         if (result is com.digihori.pgp.core.api.ProgramImageLoadResult.Success) {
             sourceMap = null
             registrations.resetHitCounts()
+            logpoints.clearHistory()
             callTracker.clear()
             sessionRevision++
             refreshMemoryWatchBaseline()
@@ -470,17 +488,62 @@ internal class DesktopEmulatorRunner(
         val resumeAfterLoad = state == RunnerState.RUNNING
         pause()
         val result = session.loadMemoryImage(image)
-        if (result is MemoryImageLoadResult.Success) registrations.resetHitCounts()
-        callTracker.clear()
-        sourceMap = null
+        if (result is MemoryImageLoadResult.Success) {
+            registrations.resetHitCounts()
+            logpoints.clearHistory()
+            callTracker.clear()
+            sourceMap = null
+            refreshMemoryWatchBaseline()
+        }
         sessionRevision++
-        refreshMemoryWatchBaseline()
         if (resumeAfterLoad && state != RunnerState.FAULTED) run()
         return result
     }
 
     fun memorySnapshot(startAddress: Int, length: Int): MemorySnapshot =
         session.memorySnapshot(startAddress, length)
+
+    private val memoryEditSessionId = java.util.UUID.randomUUID().toString()
+
+    fun previewMemoryEdit(address: Int, value: Int): DebuggerMemoryEditResult {
+        fun failure(error: DebuggerMemoryEditError) = DebuggerMemoryEditResult.Failure(error)
+        if (state != RunnerState.PAUSED) return failure(DebuggerMemoryEditError.PAUSED_ONLY)
+        if (address !in 0..0xffff) return failure(DebuggerMemoryEditError.ADDRESS)
+        if (value !in 0..255) return failure(DebuggerMemoryEditError.VALUE)
+        val location = memoryLayout.locate(address)
+        if (location.kind != com.digihori.pgp.core.api.MachineMemoryKind.RAM || !location.writable)
+            return failure(DebuggerMemoryEditError.RAM_ONLY)
+        val before = try { memoryByte(address) } catch (_: Exception) { return failure(DebuggerMemoryEditError.READ) }
+        if (before == value) return failure(DebuggerMemoryEditError.UNCHANGED)
+        return DebuggerMemoryEditResult.Success(DebuggerMemoryEditPreview(address, location.physicalAddress, before, value, sessionRevision, memoryEditSessionId))
+    }
+
+    /** Revalidate the preview before a one-byte host load. Rejected edits never pause or mutate the session. */
+    fun applyMemoryEdit(edit: DebuggerMemoryEditPreview): DebuggerMemoryEditResult {
+        if (state != RunnerState.PAUSED) return DebuggerMemoryEditResult.Failure(DebuggerMemoryEditError.PAUSED_ONLY)
+        if (edit.sessionId != memoryEditSessionId || edit.revision != sessionRevision) return DebuggerMemoryEditResult.Failure(DebuggerMemoryEditError.STALE)
+        val checked = previewMemoryEdit(edit.address, edit.after)
+        if (checked !is DebuggerMemoryEditResult.Success) return checked
+        if (checked.edit != edit) return DebuggerMemoryEditResult.Failure(DebuggerMemoryEditError.STALE)
+        val image = (com.digihori.pgp.core.source.machine.AddressedMemoryImageFactory.create(listOf(
+            com.digihori.pgp.core.source.machine.AddressedMemorySegmentData(edit.address, byteArrayOf(edit.after.toByte())),
+        )) as com.digihori.pgp.core.source.machine.AddressedMemoryImageCreateResult.Success).image
+        val result = session.loadMemoryImage(image)
+        if (result !is MemoryImageLoadResult.Success) return DebuggerMemoryEditResult.Failure(DebuggerMemoryEditError.WRITE)
+        registrations.rebaseEditedByte(edit.after) { address ->
+            val location = memoryLayout.locate(address)
+            location.kind == com.digihori.pgp.core.api.MachineMemoryKind.RAM && location.physicalAddress == edit.physicalAddress
+        }
+        debugTargetGeneration++
+        sessionRevision++
+        sourceMap = null
+        callTracker.clear()
+        stepPlan = null
+        debugStepStatus = DebuggerStepStatus.IDLE
+        temporaryRunToAddress = null
+        breakpointToSkipOnce = null
+        return DebuggerMemoryEditResult.Success(edit)
+    }
 
     fun memoryByte(address: Int): Int =
         session.memorySnapshot(address and 0xffff, 1).copyBytes().single().toInt() and 0xff
@@ -674,7 +737,7 @@ internal class DesktopEmulatorRunner(
         if (
             executionBreakpoints.isEmpty() && temporaryRunToAddress == null &&
             !instructionTraceEnabled && !hasMemoryWatch && !hasMemoryAccessWatch &&
-            !debugObservationEnabled && stepPlan == null
+            !debugObservationEnabled && stepPlan == null && !logpoints.hasEnabled
         ) {
             callTracker.clear()
             val result = session.runCycles(cycleBudget)
@@ -697,7 +760,7 @@ internal class DesktopEmulatorRunner(
                         stopReason = DebuggerStopReason.RunToAddress(pc),
                     )
                 }
-                if (pc in executionBreakpoints && pc != breakpointToSkipOnce && registrations.breakpointHit(pc, session::cpuSnapshot)) {
+                if (pc in executionBreakpoints && pc != breakpointToSkipOnce && registrations.breakpointHit(pc, session::cpuSnapshot, session.resolveRomLocation(pc)?.bank)) {
                     sessionRevision++
                     return BreakpointRunResult(
                         RunResult(cycles, instructions, status),
@@ -706,11 +769,6 @@ internal class DesktopEmulatorRunner(
                 }
             }
             val plan = stepPlan
-            if (plan != null && !plan.single && memoryByte(pc) in listOf(0x7a, 0x69)) {
-                stepPlan = null
-                debugStepStatus = DebuggerStepStatus.UNSUPPORTED_FLOW
-                return BreakpointRunResult(RunResult(cycles, instructions, status), DebuggerStopReason.UserPause)
-            }
             breakpointToSkipOnce = null
             val step = stepSession()
             cycles += step.cycles
@@ -744,7 +802,7 @@ internal class DesktopEmulatorRunner(
     }
 
     private fun runSessionCycles(cycleBudget: Long): RunResult {
-        if (!instructionTraceEnabled && !debugObservationEnabled) {
+        if (!instructionTraceEnabled && !debugObservationEnabled && !logpoints.hasEnabled) {
             callTracker.clear()
             val result = session.runCycles(cycleBudget)
             collectBankEvents()
@@ -763,13 +821,41 @@ internal class DesktopEmulatorRunner(
         return RunResult(cycles, instructions, status)
     }
 
+    private val logpoints = DebuggerLogpoints { address ->
+        when (memoryLayout.locate(address).kind) {
+            com.digihori.pgp.core.api.MachineMemoryKind.RAM, com.digihori.pgp.core.api.MachineMemoryKind.ROM -> true
+            else -> false
+        }
+    }
+    fun logpointRegistrations() = logpoints.registrations()
+    fun logpointEntries() = logpoints.entries()
+    fun logpointDropped() = logpoints.dropped
+    fun saveLogpoint(id: Long?, address: Int, value: String, condition: String, enabled: Boolean): DebuggerLogpointResult {
+        if (state != RunnerState.PAUSED) return DebuggerLogpointResult.Failure(DebuggerLogpointError.PAUSED_ONLY)
+        return logpointChanged(logpoints.save(id, address, value, condition, enabled))
+    }
+    fun removeLogpoint(id: Long): DebuggerLogpointResult {
+        if (state != RunnerState.PAUSED) return DebuggerLogpointResult.Failure(DebuggerLogpointError.PAUSED_ONLY)
+        return logpointChanged(logpoints.remove(id))
+    }
+    private fun logpointChanged(result: DebuggerLogpointResult): DebuggerLogpointResult {
+        // Logpoints do not replace breakpoint/watch settings or their in-progress UI drafts.
+        if (result is DebuggerLogpointResult.Success) sessionRevision++
+        return result
+    }
+    fun clearLogpointHistory() { logpoints.clearHistory() }
+
     private var lastCallEvent = DebuggerCallTracker.Event()
 
     private fun stepSession(): StepResult {
         val beforeCall = session.cpuSnapshot()
+        if (logpoints.hasEnabled) logpoints.observe(beforeCall.programCounter, { beforeCall }, ::memoryByte) {
+            session.resolveRomLocation(beforeCall.programCounter)
+        }
         val opcode = memoryByte(beforeCall.programCounter)
-        val callInstruction = if (DebuggerCallTracker.isCall(opcode)) Sc61860InstructionDecoder.decode(beforeCall.programCounter, ::memoryByte) else null
-        val returnRom = callInstruction?.let { session.resolveRomLocation(it.nextAddress) }
+        val callInstruction = if (DebuggerCallTracker.createsFrame(opcode)) Sc61860InstructionDecoder.decode(beforeCall.programCounter, ::memoryByte) else null
+        val explicitReturn = if (opcode == 0x7a) callInstruction?.operandValue?.and(0xffff) else null
+        val returnRom = callInstruction?.let { session.resolveRomLocation(explicitReturn ?: it.nextAddress) }
         val instructionAddress = if (debugObservationEnabled || hasMemoryAccessWatch) {
             programCounterProvider() and 0xffff
         } else {
@@ -785,7 +871,7 @@ internal class DesktopEmulatorRunner(
         lastCallEvent = if (result.status is ExecutionStatus.Faulted) {
             callTracker.clear()
             DebuggerCallTracker.Event(lost = true)
-        } else callTracker.observe(beforeCall, session.cpuSnapshot(), opcode, callInstruction?.targetAddress,
+        } else callTracker.observe(beforeCall, session.cpuSnapshot(), opcode, explicitReturn ?: callInstruction?.targetAddress,
             returnRom, session::resolveRomLocation)
         sessionRevision++
         lastStepMemoryAccesses = if (debugObservationEnabled || hasMemoryAccessWatch) {

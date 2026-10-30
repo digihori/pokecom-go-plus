@@ -193,12 +193,13 @@ internal class DesktopDevelopmentReadService(private val stateProvider: () -> De
                 "debug" -> {
                     val runner = checkNotNull(state.runner)
                     val points = runner.breakpointRegistrations(); val watches = runner.watchRegistrations()
-                    put("addressScope", "logicalAllBanks")
-                    put("hitCounting", "Enabled address encounters before instruction; false value conditions count; manual Step and resume skip do not count")
+                    put("addressScope", if (points.any { it.bank != null }) "logicalWithOptionalRomBank" else "logicalAllBanks")
+                    put("hitCounting", "Enabled address and optional ROM bank encounters before instruction; false value conditions count; manual Step and resume skip do not count")
                     put("breakpointCount", points.size); put("watchCount", watches.size)
                     put("breakpoints", buildJsonArray { points.drop(offset).take(limit).forEach { point -> add(buildJsonObject {
                         put("id", point.id); put("address", point.address); put("enabled", point.enabled)
                         put("condition", point.condition); put("hitCondition", point.hitCondition); put("hitCount", point.hitCount)
+                        point.bank?.let { put("bank", it) }
                     }) } })
                     put("watches", buildJsonArray { watches.drop(offset).take(limit).forEach { watch -> add(buildJsonObject {
                         put("id", watch.id); put("startAddress", watch.range.first); put("endAddressInclusive", watch.range.last)

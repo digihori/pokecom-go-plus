@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -119,8 +120,10 @@ internal fun DebuggerLayout(
     val executionScroll = rememberScrollState()
     val memoryScroll = rememberScrollState()
     val historyScroll = rememberScrollState()
+    val focusManager = LocalFocusManager.current
     LaunchedEffect(navigationRevision) {
         if (navigationRevision > 0) {
+            focusManager.clearFocus()
             historySelected = false
             registrationsSelected = false
             memorySelected = navigateMemory

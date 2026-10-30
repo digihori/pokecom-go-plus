@@ -75,7 +75,8 @@ internal class DebugChangeService(
             fun bool(key: String) = p.getValue(key).jsonPrimitive.boolean
             fun id() = p["id"]?.jsonPrimitive?.long
             val result = when (review.action.name) {
-                "save_breakpoint" -> runner.saveBreakpoint(id(), int("address"), bool("enabled"), p["condition"]?.jsonPrimitive?.content, p["hitCondition"]?.jsonPrimitive?.content)
+                "save_breakpoint" -> runner.saveBreakpoint(id(), int("address"), bool("enabled"), p["condition"]?.jsonPrimitive?.content, p["hitCondition"]?.jsonPrimitive?.content,
+                    if ("bank" in p) p["bank"]?.takeUnless { it == JsonNull }?.jsonPrimitive?.int else runner.breakpointRegistrations().firstOrNull { it.id == id() }?.bank)
                 "remove_breakpoint" -> runner.removeBreakpoint(id()!!)
                 "save_watch" -> runner.saveWatch(id(), int("startAddress"), int("endAddress"), watchKind(p), bool("enabled"))
                 "remove_watch" -> runner.removeWatch(id()!!)
@@ -112,7 +113,7 @@ internal class DebugChangeService(
 
     private fun validate(runner: DesktopEmulatorRunner, action: DebugAction) {
         val p = action.parameters
-        val optional = when (action.name) { "save_breakpoint" -> setOf("id", "condition", "hitCondition"); "save_watch" -> setOf("id"); else -> emptySet() }
+        val optional = when (action.name) { "save_breakpoint" -> setOf("id", "condition", "hitCondition", "bank"); "save_watch" -> setOf("id"); else -> emptySet() }
         val required = when (action.name) {
             "save_breakpoint" -> setOf("address", "enabled")
             "save_watch" -> setOf("startAddress", "endAddress", "kind", "enabled")
@@ -141,7 +142,11 @@ internal class DebugChangeService(
         if (id != null && ((action.name.endsWith("breakpoint") && bp == null) || (action.name.endsWith("watch") && watch == null))) fail("NOT_FOUND")
         if (action.name == "save_breakpoint") {
             val address = p.getValue("address").jsonPrimitive.int
-            if (runner.breakpointRegistrations().any { it.id != id && it.address == address }) fail("DUPLICATE_ADDRESS")
+            val bank = if ("bank" in p) {
+                if (p["bank"] == JsonNull) null else number("bank", 0, 255).toInt()
+            } else bp?.bank
+            if (!validBreakpointBank(runner.machineId, address, bank)) fail("BANK")
+            if (runner.breakpointRegistrations().any { it.id != id && it.address == address && (it.bank == null || bank == null || it.bank == bank) }) fail("DUPLICATE_ADDRESS")
             if (id == null && runner.breakpointRegistrations().size >= DebuggerRegistrationStore.MAX_BREAKPOINTS) fail("BREAKPOINT_LIMIT")
             for (key in listOf("condition", "hitCondition")) p[key]?.let {
                 val value = it as? JsonPrimitive ?: fail("INVALID_ARGUMENTS")
@@ -170,7 +175,7 @@ internal class DebugChangeService(
         val p = action.parameters
         val id = p["id"]?.jsonPrimitive?.long
         val before = when {
-            action.name.endsWith("breakpoint") -> runner.breakpointRegistrations().firstOrNull { it.id == id }?.let { "id=${it.id}, address=0x${it.address.hex()}, enabled=${it.enabled}\ncondition=${it.condition}, hitCondition=${it.hitCondition}, hitCount=${it.hitCount}" } ?: "—"
+            action.name.endsWith("breakpoint") -> runner.breakpointRegistrations().firstOrNull { it.id == id }?.let { "id=${it.id}, address=0x${it.address.hex()}, enabled=${it.enabled}, bank=${it.bank ?: "any"}\ncondition=${it.condition}, hitCondition=${it.hitCondition}, hitCount=${it.hitCount}" } ?: "—"
             action.name.endsWith("watch") -> runner.watchRegistrations().firstOrNull { it.id == id }?.let { "id=${it.id}, 0x${it.range.first.hex()}..0x${it.range.last.hex()}, ${it.kind}, enabled=${it.enabled}" } ?: "—"
             action.name == "trace" -> "enabled=${runner.isInstructionTraceEnabled()}, capacity=${runner.instructionTraceCapacity()}"
             else -> "${runner.state}, PC=0x${runner.cpuSnapshot().programCounter.hex()}"
@@ -183,7 +188,7 @@ internal class DebugChangeService(
                 val text = if (key in setOf("address", "startAddress", "endAddress")) "0x${value.jsonPrimitive.int.hex()}"
                     else if (value.jsonPrimitive.isString) value.jsonPrimitive.content else value.toString()
                 "$key = $text"
-            }
+            } + if (action.name == "save_breakpoint" && "bank" !in p) "\nbank = " + (runner.breakpointRegistrations().firstOrNull { it.id == id }?.bank?.toString() ?: "any") else ""
         }
         return before to after
     }
