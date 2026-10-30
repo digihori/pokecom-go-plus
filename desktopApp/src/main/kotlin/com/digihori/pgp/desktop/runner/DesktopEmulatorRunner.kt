@@ -438,11 +438,13 @@ internal class DesktopEmulatorRunner(
         val resumeAfterLoad = state == RunnerState.RUNNING
         pause()
         val result = session.loadBasicProgram(program)
-        if (result is BasicProgramLoadResult.Success) registrations.resetHitCounts()
-        callTracker.clear()
-        sourceMap = null
+        if (result is BasicProgramLoadResult.Success) {
+            registrations.resetHitCounts()
+            callTracker.clear()
+            sourceMap = null
+            refreshMemoryWatchBaseline()
+        }
         sessionRevision++
-        refreshMemoryWatchBaseline()
         if (resumeAfterLoad && state != RunnerState.FAULTED) run()
         return result
     }
@@ -470,11 +472,13 @@ internal class DesktopEmulatorRunner(
         val resumeAfterLoad = state == RunnerState.RUNNING
         pause()
         val result = session.loadMemoryImage(image)
-        if (result is MemoryImageLoadResult.Success) registrations.resetHitCounts()
-        callTracker.clear()
-        sourceMap = null
+        if (result is MemoryImageLoadResult.Success) {
+            registrations.resetHitCounts()
+            callTracker.clear()
+            sourceMap = null
+            refreshMemoryWatchBaseline()
+        }
         sessionRevision++
-        refreshMemoryWatchBaseline()
         if (resumeAfterLoad && state != RunnerState.FAULTED) run()
         return result
     }

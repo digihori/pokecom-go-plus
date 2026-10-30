@@ -168,6 +168,30 @@ class DebuggerSteppingTest {
         assertFalse(runner.canStepOut)
     }
 
+    @Test fun failedLoadsPreserveObservedFramesAndSourceMetadata() {
+        for (kind in listOf("basic", "memory", "combined")) {
+            val runner = runner(nested)
+            runner.step() // Observe the outer CALL before attempting a rejected load.
+            runner.attachSourceMap(emptyList())
+            val sourceMap = assertNotNull(runner.sourceMap)
+            val pc = runner.cpuSnapshot().programCounter
+            val image = assertIs<AddressedMemoryImageCreateResult.Success>(AddressedMemoryImageFactory.create(
+                listOf(AddressedMemorySegmentData(0, byteArrayOf(7))))).image // ROM is not writable.
+            when (kind) {
+                "basic" -> assertIs<BasicProgramLoadResult.Failure>(runner.loadBasicProgram(byteArrayOf(0)))
+                "memory" -> assertIs<MemoryImageLoadResult.Failure>(runner.loadMemoryImage(image))
+                else -> assertIs<ProgramImageLoadResult.MemoryFailure>(runner.loadProgramImage(null, image))
+            }
+            assertSame(sourceMap, runner.sourceMap, kind)
+            assertEquals(pc, runner.cpuSnapshot().programCounter, kind)
+            assertTrue(runner.canStepOut, kind)
+            assertTrue(runner.stepOut(), kind)
+            finish(runner)
+            assertEquals(DebuggerStepStatus.OUT_COMPLETE, runner.debugStepStatus, kind)
+            assertEquals(3, runner.cpuSnapshot().programCounter, kind)
+        }
+    }
+
     @Test fun bankIdentityIsCheckedEvenWhenReturnedInstructionBytesMatch() {
         for (restore in listOf(false, true)) {
             val internal = assemble("ORG 0\nJP 0x4000\nORG 0x100\nLIDP 0x3400\nLIA 1\nSTD\n" +
