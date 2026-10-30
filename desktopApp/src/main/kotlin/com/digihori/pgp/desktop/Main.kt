@@ -2046,6 +2046,12 @@ private fun FrameWindowScope.App(
                                         onSave = { debugSettingsFile(true) }, onRestore = { debugSettingsFile(false) })
                                 }
                                 DebuggerSection { DebuggerRegistrationPanel(runner, keyboardInput, executionRevision = cpu) }
+                                DebuggerSection {
+                                    com.digihori.pgp.desktop.debug.DebuggerLogpointPanel(
+                                        runner, keyboardInput, runner?.sessionRevision ?: 0L,
+                                        onSelect = { navigateInstruction(it) },
+                                    )
+                                }
                             },
                         )
                     }

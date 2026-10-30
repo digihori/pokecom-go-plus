@@ -7,7 +7,19 @@ internal data class DebuggerBreakpointCondition(
     val operand: String, val memoryAddress: Int?, val operator: String, val value: Int,
 ) {
     fun matches(cpu: () -> CpuSnapshot, memoryByte: (Int) -> Int): Boolean {
-        val actual = if (memoryAddress != null) memoryByte(memoryAddress) else {
+        val actual = read(cpu, memoryByte)
+        return when (operator) {
+            "==" -> actual == value
+            "!=" -> actual != value
+            "<" -> actual < value
+            "<=" -> actual <= value
+            ">" -> actual > value
+            else -> actual >= value
+        }
+    }
+
+    fun read(cpu: () -> CpuSnapshot, memoryByte: (Int) -> Int): Int =
+        if (memoryAddress != null) memoryByte(memoryAddress) else {
             val snapshot = cpu()
             when (operand) {
                 "PC" -> snapshot.programCounter
@@ -21,15 +33,6 @@ internal data class DebuggerBreakpointCondition(
                 else -> snapshot.copyInternalRam()[ramRegisters.indexOf(operand)].toInt() and 255
             }
         }
-        return when (operator) {
-            "==" -> actual == value
-            "!=" -> actual != value
-            "<" -> actual < value
-            "<=" -> actual <= value
-            ">" -> actual > value
-            else -> actual >= value
-        }
-    }
 
     companion object {
         private val ramRegisters = listOf("I", "J", "A", "B", "XL", "XH", "YL", "YH", "K", "L", "M", "N")
