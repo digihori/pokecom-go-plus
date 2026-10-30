@@ -1176,6 +1176,23 @@ private fun FrameWindowScope.App(
         startAssembly { quickAssembleWork(source) }
     }
 
+    var debuggerExportNotice by remember { mutableStateOf<String?>(null) }
+    fun exportDebuggerHistory(limits: com.digihori.pgp.desktop.debug.DebuggerExportLimits) {
+        try {
+            val saved = com.digihori.pgp.desktop.debug.DebuggerHistoryExport.save({ runner }, limits, Instant.now().toString()) {
+                selectAndRestoreFocus {
+                    selectFile(ownerWindow, uiText("debug.export.save"), "debug-history.pgtrace.json", FileDialog.SAVE)
+                }
+            }
+            debuggerExportNotice = uiText(if (saved) "debug.export.saved" else "debug.export.cancelled")
+        } catch (error: Exception) {
+            val code = (error as? com.digihori.pgp.desktop.debug.DebuggerExportException)?.code
+                ?: com.digihori.pgp.desktop.debug.DebuggerExportError.IO
+            debuggerExportNotice = uiText("debug.export.error.${code.name}")
+            showError(debuggerExportNotice!!)
+        }
+    }
+
     fun debugSettingsFile(save: Boolean) {
         val active = runner ?: return
         val workspace = projectWorkspace
@@ -2025,6 +2042,12 @@ private fun FrameWindowScope.App(
                                 }
                             },
                             history = {
+                                DebuggerSection {
+                                    com.digihori.pgp.desktop.debug.DebuggerHistoryExportPanel(
+                                        available = runner != null, stopped = runnerState != RunnerState.RUNNING,
+                                        keyboard = keyboardInput, notice = debuggerExportNotice, onExport = ::exportDebuggerHistory,
+                                    )
+                                }
                                 var refreshRevision by rememberSaveable { mutableStateOf(0) }
                                 // CPU refresh is paced independently of fast Runner ticks.
                                 val historySnapshot = remember(runner, cpu, runnerState, refreshRevision) { captureDebuggerHistory(runner) }

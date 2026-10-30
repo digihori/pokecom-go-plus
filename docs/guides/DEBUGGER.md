@@ -1,6 +1,6 @@
 # Pokecom GO Studio Debugger
 
-**ステータス:** 基本機能・ソース連携・条件付きBreakpoint・Step Over／Out・設定保存に加え、メモリ検索・RAMのbyte編集・ログポイントを実装済み
+**ステータス:** 基本機能・ソース連携・条件付きBreakpoint・Step Over／Out・設定保存に加え、メモリ検索・RAMのbyte編集・ログポイント・履歴／Trace出力を実装済み
 **更新日:** 2026-10-30
 
 ## 1. 目的
@@ -29,6 +29,7 @@ DebuggerはCPUやMemory Busの可変内部状態をUIへ直接公開しない。
 - 読み書き／bank履歴の表示・絞込み・現在の表示への移動
 - 既定256命令、UIで容量変更可能なInstruction Trace
 - CPU、選択メモリ、Traceを含むDebug Checkpoint JSON出力
+- Checkpointと独立した履歴・Trace・ログポイントのJSON出力
 - PC-1360の命令実行位置に対応する物理ROM component、bank、offsetの記録
 
 Debuggerは`Debug` → `Open Debugger`から独立ウィンドウとして開く。
@@ -219,7 +220,7 @@ FO経由のRAM bank処理、物理チップ選択とFポートの関係は未確
 - 条件付きBreakpointは単一比較とヒット回数条件に対応（複合式・bank指定は未対応）
 - Breakpoint、Watch、Trace設定は対象照合付きファイルへ明示的に保存・復元できる（自動復元はしない）
 - ソース連携はロード済み内蔵Assembler／解析済みSC61 Listingに限定する
-- Traceのファイル出力はCheckpoint経由に限られる
+- 履歴・Traceの単独出力はJSON形式。CSV出力・過去状態の復元は対象外
 - 実機Checkpointとの自動比較ツールは未実装
 - 履歴に過去のCPU／メモリ／bankを復元する機能や、bankイベントと命令の厳密な対応付けはない
 
@@ -550,7 +551,8 @@ Traceは全命令の観測、ログポイントは指定位置・条件・値の
 検証しました。実ROM・各機種での速度測定は未実施です。
 
 ログポイントは現行の設定ファイルv1の保存対象に含めません。設定復元でもログポイントは変更しません。
-ログのファイル出力、MCPからの登録・取得、bank指定、ヒット回数条件は後続です。
+ログのJSON出力は[履歴・Trace出力](#23-履歴trace出力2026-10-30)に含めます。
+MCPからの登録・取得、bank指定、ヒット回数条件は後続です。
 既存MCPのtool名・schemaは変更しません。登録変更ではSession revisionを進め、古い要求を拒否します。
 
 検証：条件、登録上限、破棄件数、Breakpointとの同位置停止、監視・Fault、Reset／Load、
@@ -558,3 +560,51 @@ Traceは全命令の観測、ログポイントは指定位置・条件・値の
 日英の隔離Compose操作で登録・編集・切替・削除・履歴消去・位置移動も確認しました。
 JDK 21で全体build、Core 500件、Studio 445件（失敗0、条件付きskip 2件）が成功しています。
 配布アプリ・実ROM・Windows／Linuxでの手動受入れは未実施です。
+
+## 23. 履歴・Trace出力（2026-10-30）
+
+「履歴」タブの出力パネルで、保持中の命令Trace・メモリアクセス・bankイベント・ログポイントを
+Checkpointと独立したJSONファイルに保存できます。停止中またはFault状態で使用します。
+各項目の件数を10進で指定し、「履歴・Traceを保存」から保存先を選びます。
+
+- Trace・アクセス・bankイベントはそれぞれ0〜4096件、ログは0〜256件です。0はその項目の記録を除外します。
+- 各項目は保持中の最新の指定件数を選び、古い順に出力します。既に破棄された記録を復元しません。
+- ファイル名は`.pgtrace.json`で終わる名前を指定します。UTF-8、format `pgp-debug-history`、formatVersion 1です。
+- 出力サイズは最大8 MiBです。上限超過はエラーとし、件数を減らして再実行します。
+
+主な出力項目は次のとおりです。アドレス・命令byte・観測値は大文字HEX文字列、
+連番・bank番号・件数はJSON数値、フラグは真偽値で保存します。ラベル・識別子は翻訳しません。
+
+| 項目 | 内容 |
+| --- | --- |
+| 全体 | 機種、取得日時（UTC）、Session revision、対象世代、状態、PC、取得可能な現在bank、観測の有効状態 |
+| stop | 固定code、該当する場合の命令位置、英語の停止理由説明。説明は既存Checkpointと共通 |
+| trace | 連番、論理位置、命令byte・逆アセンブル、DP／P／Q／R／D／Carry／Zero、取得可能な物理ROM component／bank／offset |
+| accesses | 連番、観測した命令位置、READ／WRITE、アクセス先、値 |
+| banks | 連番、変更前後のbank、selector値 |
+| logs | 連番、ログポイントID、命令位置、指定operandと値、読取り失敗フラグ、取得可能な物理ROM位置 |
+
+各sectionには`retainedBeforeExport`（取得時に保持していた件数）、`omittedByLimit`（今回の件数指定で
+除外した古い記録の数）、`entries`を保存します。0件指定でも件数情報は残ります。
+ログの既知の破棄数は`logEntriesDiscarded`です。他の履歴について保持範囲より前の全記録数を推定しません。
+履歴ごとの連番は独立しており、Traceとbankイベントの厳密な対応付けを示しません。
+`bankEventsLinkedToInstructions`はfalseです。アクセス／bank履歴にない物理ROM位置を補完しません。
+
+保存操作は既存の観測データをコピーし、CPU実行・Pause・メモリ編集・イベント消費を行いません。
+出力のためにTraceや監視を有効化しません。記録がない項目は空で出力します。
+ROM由来の内容は保持中Traceの命令byte・逆アセンブル等に限定し、任意範囲のRAM／ROM dumpや
+CPU内部RAM全体を追加取得しません。出力ファイルはROM由来の断片を含む場合があります。
+
+保存先の選択前に内容を固定し、選択中にSessionの置換・revision変更・実行開始があれば保存を拒否します。
+キャンセルではファイルを書き込みません。同じディレクトリの一時ファイルからatomic replaceし、
+保存失敗時は既存ファイルを保持します。atomic moveが使えない場合もエラーとし、通常の上書きへ切り替えません。
+キャンセル・失敗後は件数を調整して再操作できます。観測履歴は消去しません。
+
+出力ファイルの読込み・実行状態の復元、CSV形式、Checkpoint自動比較、MCPの出力操作は対象外です。
+既存Checkpoint・設定ファイルとMCPの形式は変更していません。
+
+検証：合成SessionでJSON各項目、最新件数・0件・不正上限、読取り専用性、物理ROM位置・bank切替、
+Fault状態、キャンセル、Session変更、既存ファイルの置換・失敗時保持・一時ファイル消去を確認しました。
+日英の隔離Compose操作で件数入力と保存ボタンの状態を確認しました。
+JDK 21で全体build、Core 500件、Studio 451件（失敗0、条件付きskip 2件）が成功しました。
+配布アプリのネイティブ保存ダイアログ、実ROM、Windows／Linuxでの手動受入れは未実施です。
