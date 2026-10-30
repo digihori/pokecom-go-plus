@@ -3,6 +3,43 @@
 PGPのソースコード生成・保守に使うスクリプトです。Studio利用者が実行する必要はありません。
 単独利用する補助ツールは[tools/](../tools/README.md)を参照してください。
 
+## ci-ios-changes.py
+
+GitHub CIで、iOSの入力が変わった場合だけiOSジョブを実行するための判定です。
+2026-10-31に追加しました。Desktop／Androidのジョブは従来どおり実行します。
+
+| 変更内容 | iOS CI |
+| --- | --- |
+| `iosApp/` | 実行 |
+| `core/`・`hostInput/`・`playerShared/` | 実行（共通モジュール全体を保守的に対象とする） |
+| Gradleスクリプト・設定・wrapper・`buildSrc/`・`build-logic/` | 実行（別モジュールのGradleスクリプトも構成処理へ影響し得る） |
+| `.github/`・この判定スクリプト・対応テスト | 実行 |
+| `LICENSE`・`THIRD_PARTY_NOTICES.md`・`docs/licenses/` | 実行 |
+| iOS同梱の `PLAYER_HELP_IOS.md`・`PLAYER_PRIVACY_POLICY_IOS.md`・`PLAYER_STUDIO_GUIDE.md` | 実行 |
+| 上記以外の文書・Desktop／Android／Controller UIソースだけ | 省略 |
+
+同梱文書の対象は`iosApp/build-shared.sh`と対応させています。共有モジュール内のプラットフォーム別ソースも
+今回は一括で対象に含めます。入力や同梱リソースを追加した場合は判定とテストを更新してください。
+
+`Detect iOS changes`ジョブで履歴を取得し、PRはmerge-baseからheadまで、mainへのpushは
+イベントのbeforeからafterまでを比較します。直近1コミットだけの比較やGitHubのパスフィルターの
+ファイル数上限に依存せず、削除・移動前後のパス、空白・改行・日本語を含む名前を扱います。
+差分の取得・判定に失敗した場合はiOSを実行します。判定ジョブ自体の失敗でもiOSを実行し、
+ワークフローがキャンセルされた場合は起動しません。
+
+ワークフロー全体のパスフィルターではなく、従来の`Build and test (iOS unit tests)`ジョブを
+条件付きでスキップします。既存のチェック名を維持します。省略されたジョブはテスト成功の実績として扱わず、
+チェックの状態で区別してください。全CIを明示的に実行したい場合は、Actionsの`CI`を`Run workflow`から起動できます。
+
+判定ロジックのローカル検証：
+
+```sh
+python3 -m unittest discover -s scripts/tests -p test_ci_ios_changes.py
+```
+
+Simulator起動とコンパイルの並行化は既存の`codex/ios-ci-speed`の変更です。この判定は
+それとは別に不要なiOS実行を省くもので、必要なiOSビルド1回の所要時間を短縮する変更ではありません。
+
 ## generate-s2-cp932.py
 
 PC-1360KのBASIC文字処理で使う、S2用CP932文字変換表を生成します。

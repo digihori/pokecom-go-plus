@@ -4,11 +4,29 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  changes:
+    name: Detect iOS changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ios: ${{ steps.filter.outputs.ios }}
+    steps:
+      - name: Check out comparison history
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Test iOS change detection
+        run: python3 -m unittest discover -s scripts/tests -p test_ci_ios_changes.py
+      - name: Detect changed iOS inputs
+        id: filter
+        run: python3 scripts/ci-ios-changes.py
+
   build:
     name: Build and test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -81,6 +99,11 @@ jobs:
 
   ios-player:
     name: Build and test (iOS unit tests)
+    needs: changes
+    # Keep the check name present; a skipped job succeeds instead of leaving
+    # workflow-level path-filtered required checks pending. Detection failure
+    # must run iOS, while cancellation must not start another expensive job.
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.ios != 'false') }}
     runs-on: macos-26
     timeout-minutes: 30
     env:
@@ -121,6 +144,7 @@ jobs:
           name: ios-unit-test-results
           path: |
             iosApp/build/CI-TestResults*.xcresult
+            iosApp/build/CI-SimulatorBoot.log
             core/build/test-results/iosSimulatorArm64Test/**
             hostInput/build/test-results/iosSimulatorArm64Test/**
             playerShared/build/test-results/iosSimulatorArm64Test/**
