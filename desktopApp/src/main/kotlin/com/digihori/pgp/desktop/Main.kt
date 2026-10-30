@@ -1177,12 +1177,11 @@ private fun FrameWindowScope.App(
     }
 
     var debuggerExportNotice by remember { mutableStateOf<String?>(null) }
-    fun exportDebuggerHistory(limits: com.digihori.pgp.desktop.debug.DebuggerExportLimits) {
+    fun exportDebuggerHistory(limits: com.digihori.pgp.desktop.debug.DebuggerExportLimits, debuggerOwner: Frame) {
         try {
             val saved = com.digihori.pgp.desktop.debug.DebuggerHistoryExport.save({ runner }, limits, Instant.now().toString()) {
-                selectAndRestoreFocus {
-                    selectFile(ownerWindow, uiText("debug.export.save"), "debug-history.pgtrace.json", FileDialog.SAVE)
-                }
+                // selectFile restores its owner on both save and cancel. Keep this operation in Debugger.
+                selectFile(debuggerOwner, uiText("debug.export.save"), "debug-history.pgtrace.json", FileDialog.SAVE)
             }
             debuggerExportNotice = uiText(if (saved) "debug.export.saved" else "debug.export.cancelled")
         } catch (error: Exception) {
@@ -1895,6 +1894,7 @@ private fun FrameWindowScope.App(
             onCloseRequest = { showDebuggerWindow = false },
             title = uiText("debug.window", (ProjectInfo.STUDIO_DISPLAY_NAME)),
         ) {
+            val debuggerOwner = window
             DisposableEffect(runner) {
                 runner?.setDebugObservationEnabled(true)
                 onDispose { runner?.setDebugObservationEnabled(false) }
@@ -2048,7 +2048,8 @@ private fun FrameWindowScope.App(
                                 DebuggerSection {
                                     com.digihori.pgp.desktop.debug.DebuggerHistoryExportPanel(
                                         available = runner != null, stopped = runnerState != RunnerState.RUNNING,
-                                        keyboard = keyboardInput, notice = debuggerExportNotice, onExport = ::exportDebuggerHistory,
+                                        keyboard = keyboardInput, notice = debuggerExportNotice,
+                                        onExport = { exportDebuggerHistory(it, debuggerOwner) },
                                     )
                                 }
                                 var refreshRevision by rememberSaveable { mutableStateOf(0) }
