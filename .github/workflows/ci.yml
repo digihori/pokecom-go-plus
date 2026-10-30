@@ -36,11 +36,23 @@ jobs:
 
       - name: Build and test (macOS / Linux)
         if: runner.os != 'Windows'
-        run: ./gradlew :core:desktopTest :hostInput:desktopTest :desktopApp:build --no-daemon
+        run: ./gradlew :core:desktopTest :hostInput:desktopTest :desktopApp:build :desktopApp:verifyDistributionRuntime --no-daemon
 
       - name: Build and test (Windows)
         if: runner.os == 'Windows'
-        run: .\gradlew.bat :core:desktopTest :hostInput:desktopTest :desktopApp:build --no-daemon
+        run: .\gradlew.bat :core:desktopTest :hostInput:desktopTest :desktopApp:build :desktopApp:verifyDistributionRuntime --no-daemon
+
+      - name: Upload debugger acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debugger-acceptance-${{ matrix.os }}
+          path: |
+            desktopApp/build/reports/debugger-release/*.png
+            desktopApp/build/test-results/test/*.xml
+            core/build/test-results/desktopTest/*.xml
+          retention-days: 14
+          if-no-files-found: warn
 
   android-player:
     name: Build and test (Android Player)

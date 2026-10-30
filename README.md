@@ -370,7 +370,7 @@ Use the [documentation index](docs/README.en.md) to find guides, technical refer
 Most detailed documents are in Japanese; the index provides English navigation.
 
 - [Getting started and ROM registration](docs/guides/GETTING_STARTED.md).
-- [Projects and Build & Load](docs/guides/PROJECTS.md), [assembler](docs/guides/SC61860_ASSEMBLY.md), [Debugger](docs/guides/DEBUGGER.md).
+- [Projects and Build & Load](docs/guides/PROJECTS.md), [assembler](docs/guides/SC61860_ASSEMBLY.md), [Debugger](docs/guides/DEBUGGER.en.md).
 - [WAV Tool](docs/guides/WAV_TOOL_GUIDE.md), [AI connection](docs/guides/AI_CONNECTION_GUIDE.md).
 - [Android Player](docs/guides/PLAYER_HELP.md), [iPhone Player](docs/guides/PLAYER_HELP_IOS.md).
 - [Standalone tools](tools/README.md).

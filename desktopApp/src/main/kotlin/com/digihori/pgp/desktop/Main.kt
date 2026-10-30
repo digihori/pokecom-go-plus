@@ -1993,6 +1993,19 @@ private fun FrameWindowScope.App(
                             },
                             memory = {
                                 DebuggerSection {
+                                    SelectionContainer {
+                                        MemoryViewPanel(
+                                            runner = runner,
+                                            keyboardInput = keyboardInput,
+                                            startAddress = memoryViewStartAddress,
+                                            onStartAddressChange = ::selectDebuggerMemory,
+                                            snapshotRevision = cpu,
+                                            comparison = debuggerComparison,
+                                            navigationRevision = memoryNavigationRevision,
+                                        )
+                                    }
+                                }
+                                DebuggerSection {
                                     com.digihori.pgp.desktop.debug.DebuggerMemoryEditPanel(
                                         runner, keyboardInput, memoryViewStartAddress, runner?.sessionRevision ?: 0L,
                                         onEdited = {
@@ -2018,19 +2031,6 @@ private fun FrameWindowScope.App(
                                     com.digihori.pgp.desktop.debug.DebuggerMemorySearchPanel(
                                         runner, keyboardInput, runner?.sessionRevision ?: 0L, ::navigateToMemory,
                                     )
-                                }
-                                DebuggerSection {
-                                    SelectionContainer {
-                                        MemoryViewPanel(
-                                            runner = runner,
-                                            keyboardInput = keyboardInput,
-                                            startAddress = memoryViewStartAddress,
-                                            onStartAddressChange = ::selectDebuggerMemory,
-                                            snapshotRevision = cpu,
-                                            comparison = debuggerComparison,
-                                            navigationRevision = memoryNavigationRevision,
-                                        )
-                                    }
                                 }
                                 DebuggerSection {
                                     SelectionContainer {

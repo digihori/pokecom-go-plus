@@ -3,6 +3,12 @@
 **ステータス:** 基本機能・ソース連携・条件付きBreakpoint・Step Over／Out・設定保存に加え、メモリ検索・RAMのbyte編集・ログポイント・履歴／Trace出力・bank指定Breakpoint・CASE経路のStep Over／Outを実装済み
 **更新日:** 2026-10-30
 
+[English guide](DEBUGGER.en.md)／[今回の操作性・環境別受入れ](../development/DEBUGGER_RELEASE_ACCEPTANCE.md)
+
+メモリ側はMemory View、RAM編集、検索の順に表示します。検索結果等からの位置移動は
+入力focusを解放して表示を先頭へ戻します。日英の統合レイアウトと入力所有権は自動検証済みです。
+配布アプリ・各OSの手動受入れは上記の記録を参照してください。
+
 ## 1. 目的
 
 Pokecom GO Studio Debuggerは、SC61860プログラムと機種固有のメモリ動作を観測し、停止位置、CPU状態、
