@@ -2088,17 +2088,21 @@ private fun FrameWindowScope.App(
     }
 
     if (showMcpServerWindow) {
+        val review = remember(developmentReviewRevision) { developmentChangeService.review() }
+        val executionReview = remember(executionReviewRevision) { executionChangeService.review() }
+        val debugReview = remember(debugReviewRevision) { debugChangeService.review() }
+        val pendingReviewIds = listOfNotNull(review?.id, executionReview?.id, debugReview?.id).takeIf { it.isNotEmpty() }
         StudioWindow(
             id = "mcp-server",
             onCloseRequest = { showMcpServerWindow = false },
             title = uiText("mcp.window", ProjectInfo.STUDIO_DISPLAY_NAME),
+            attentionRequest = pendingReviewIds,
         ) {
             PgpStudioTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    val review = remember(developmentReviewRevision) { developmentChangeService.review() }
                     val operations = remember(developmentReviewRevision) { developmentChangeService.history() }
                     StudioScrollableColumn(
-                        scrollResetKey = review?.id,
+                        scrollResetKey = pendingReviewIds,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = 16.dp,
                         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -2108,12 +2112,10 @@ private fun FrameWindowScope.App(
                                 review, emptyList(), developmentChangeService::approve, developmentChangeService::reject,
                             )
                         }
-                        val executionReview = remember(executionReviewRevision) { executionChangeService.review() }
                         val executionOperations = remember(executionReviewRevision) { executionChangeService.history() }
                         com.digihori.pgp.desktop.application.execution.ExecutionReviewPanel(
                             executionReview, executionOperations, executionChangeService::approve, executionChangeService::reject,
                         )
-                        val debugReview = remember(debugReviewRevision) { debugChangeService.review() }
                         val debugOperations = remember(debugReviewRevision) { debugChangeService.history() }
                         com.digihori.pgp.desktop.application.debug.DebugReviewPanel(
                             debugReview, debugOperations, debugChangeService::approve, debugChangeService::reject,

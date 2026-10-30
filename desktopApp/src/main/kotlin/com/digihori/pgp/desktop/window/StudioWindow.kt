@@ -2,6 +2,8 @@ package com.digihori.pgp.desktop.window
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.window.FrameWindowScope
@@ -22,6 +24,7 @@ internal fun StudioWindow(
     onCloseRequest: () -> Unit,
     title: String,
     onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
+    attentionRequest: Any? = null,
     content: @Composable FrameWindowScope.() -> Unit,
 ) {
     val restored = androidx.compose.runtime.remember(id) {
@@ -40,6 +43,16 @@ internal fun StudioWindow(
         icon = painterResource("pokecom-go.png"),
         state = state,
     ) {
+        LaunchedEffect(window, attentionRequest) {
+            if (attentionRequest != null) {
+                state.isMinimized = false
+                // Let a newly opened/restored native window become visible before requesting focus.
+                delay(50)
+                window.toFront()
+                window.requestFocus()
+                window.requestFocusInWindow()
+            }
+        }
         DisposableEffect(window, id) {
             val session = DesktopWindowPlacementSession(id, window, placementStore)
             val listener = object : ComponentAdapter() {
