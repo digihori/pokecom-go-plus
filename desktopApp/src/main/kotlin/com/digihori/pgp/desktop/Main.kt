@@ -132,8 +132,6 @@ import com.digihori.pgp.core.api.MachineMemoryRegion
 import com.digihori.pgp.core.api.MachineMemoryRegionKind
 import com.digihori.pgp.core.debug.Sc61860InstructionFormatter
 import com.digihori.pgp.core.debug.Sc61860Disassembler
-import com.digihori.pgp.core.debug.Sc61860Assembler
-import com.digihori.pgp.core.debug.Sc61860AssemblyResult
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomInputUnsupported
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
 import com.digihori.pgp.core.rom.MachineId
@@ -190,8 +188,7 @@ import com.digihori.pgp.desktop.project.DesktopExternalEditor
 import com.digihori.pgp.desktop.project.DesktopExternalEditorResult
 import com.digihori.pgp.desktop.project.DesktopProjectBuildOutputWriter
 import com.digihori.pgp.desktop.project.renderDisassembly
-import com.digihori.pgp.desktop.project.renderListing
-import com.digihori.pgp.desktop.project.renderMap
+import com.digihori.pgp.desktop.project.renderAssemblyOutput
 import com.digihori.pgp.desktop.project.renderMemorySummary
 import com.digihori.pgp.desktop.input.DesktopGamepadController
 import com.digihori.pgp.desktop.localization.uiText
@@ -478,6 +475,9 @@ private fun FrameWindowScope.App(
     var changedProjectSources by remember { mutableStateOf(emptySet<String>()) }
     var changedAssemblySources by remember { mutableStateOf(emptySet<String>()) }
     var projectRuntimeStatus by remember { mutableStateOf(ProjectRuntimeStatus.NOT_BUILT) }
+    var quickResult by remember { mutableStateOf<DesktopAssemblyWorkspaceResult?>(null) }
+    var quickLayout by remember { mutableStateOf(MachineMemoryLayout(selectedMachineId)) }
+    var quickSaveStatus by remember { mutableStateOf("") }
     var showAssemblyWorkspace by remember { mutableStateOf(false) }
     var showWavTool by remember { mutableStateOf(false) }
     var showCharacterEditor by remember { mutableStateOf(false) }
@@ -1140,34 +1140,13 @@ private fun FrameWindowScope.App(
     }
 
     suspend fun quickAssembleWork(sourceFile: File) {
-        val settings = currentAssemblerSettings
-        if (settings.external) {
-            val layout = runner?.memoryLayout ?: MachineMemoryLayout(selectedMachineId)
-            when (val result = com.digihori.pgp.desktop.project.DesktopConfiguredExternalAssembler.assemble(settings, sourceFile, layout)) {
-                is com.digihori.pgp.desktop.project.DesktopExternalAssemblyResult.Failure -> showError(uiText("quick.externalFailed", StudioStrings.system.projectOperationError(result.message)) + "\n" + result.log)
-                is com.digihori.pgp.desktop.project.DesktopExternalAssemblyResult.Success -> {
-                    val destination = selectAndRestoreFocus { selectAssembledDumpDestination(ownerWindow) } ?: return
-                    withContext(Dispatchers.IO) { destination.writeBytes(DesktopMemoryDumpWriter.write(result.image)) }
-                    message = uiText("quick.externalSaved", (result.image.byteCount).toString(), (destination.name).toString(), (result.log))
-                }
-            }
-            return
-        }
-        val assembled = runCatching { withContext(Dispatchers.IO) { Sc61860Assembler.assemble(sourceFile.readText()) } }.getOrElse {
-            showError(uiText("quick.readFailed", (it.message ?: it::class.simpleName).toString()))
-            return
-        }
-        when (assembled) {
-            is Sc61860AssemblyResult.Failure -> showError(
-                uiText("quick.error", (assembled.line).toString(), StudioStrings.system.transferDetail(assembled.message)),
-            )
-            is Sc61860AssemblyResult.Success -> {
-                val destination = selectAndRestoreFocus { selectAssembledDumpDestination(ownerWindow) } ?: return
-                runCatching { destination.writeBytes(DesktopMemoryDumpWriter.write(assembled.image)) }
-                    .onSuccess { message = uiText("quick.saved", (assembled.image.byteCount).toString(), (destination.name).toString()) }
-                    .onFailure { showError(uiText("quick.saveFailed", (it.message ?: it::class.simpleName).toString())) }
-            }
-        }
+        val layout = runner?.memoryLayout ?: MachineMemoryLayout(selectedMachineId)
+        quickLayout = layout
+        quickSaveStatus = ""
+        val result = DesktopAssemblyWorkspaceCompiler.compileFile(sourceFile, layout, currentAssemblerSettings)
+        quickResult = result
+        assemblyStatus = uiText(if (result is DesktopAssemblyWorkspaceResult.Success) "quick.ready" else "quick.failed")
+        message = assemblyStatus
     }
 
     fun quickAssemble() {
@@ -2154,6 +2133,57 @@ private fun FrameWindowScope.App(
         }
     }
 
+    quickResult?.let { result ->
+        StudioWindow(id = "quick-assembly", onCloseRequest = { quickResult = null }, title = uiText("assembly.quick")) {
+            PgpStudioTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    SelectionContainer {
+                        StudioScrollableColumn(modifier = Modifier.fillMaxSize(), contentPadding = 16.dp,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            when (result) {
+                                is DesktopAssemblyWorkspaceResult.Success -> {
+                                    Text(uiText("quick.ready"))
+                                    Button(onClick = {
+                                        val destination = selectAndRestoreFocus { selectAssembledDumpDestination(ownerWindow) }
+                                        if (destination != null) {
+                                            assemblyScope.launch {
+                                                runCatching { withContext(Dispatchers.IO) {
+                                                    destination.writeBytes(DesktopMemoryDumpWriter.write(result.sources.single().image))
+                                                } }.onSuccess { quickSaveStatus = uiText("quick.saved", result.sources.single().image.byteCount.toString(), destination.absolutePath) }
+                                                    .onFailure { quickSaveStatus = uiText("quick.saveFailed", it.message.orEmpty()) }
+                                            }
+                                        }
+                                    }) { Text(uiText("quick.saveDump")) }
+                                    if (quickSaveStatus.isNotEmpty()) Text(quickSaveStatus)
+                                    result.sources.forEach { source ->
+                                        if (source.consoleLog.isNotBlank()) com.digihori.pgp.desktop.project.AssemblyConsoleLog(
+                                            uiText("assembly.logTitle", source.source.definition.path), source.consoleLog)
+                                    }
+                                    val output by produceState(uiText("assembly.preparing"), result) {
+                                        value = withContext(Dispatchers.Default) { result.sources.renderAssemblyOutput(quickLayout, StudioStrings.system) }
+                                    }
+                                    AssemblyOutputField(output)
+                                }
+                                is DesktopAssemblyWorkspaceResult.Failure -> {
+                                    Text(uiText("quick.failed"))
+                                    Text(uiText("common.diagnostics"), style = MaterialTheme.typography.titleMedium)
+                                    result.diagnostics.forEach { diagnostic ->
+                                        Text("${diagnostic.file.path}:${diagnostic.line ?: "?"}: ${StudioStrings.system.projectOperationError(diagnostic.message)}\n${diagnostic.sourceText.orEmpty()}")
+                                        TextButton(onClick = { openExternalSource(diagnostic.file, diagnostic.line) }) {
+                                            Text(uiText(if (diagnostic.line == null) "assembly.openSource" else "assembly.openLine"))
+                                        }
+                                        if (diagnostic.consoleLog.isNotBlank()) com.digihori.pgp.desktop.project.AssemblyConsoleLog(
+                                            uiText("assembly.logTitle", diagnostic.source.definition.path), diagnostic.consoleLog)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     if (showAssemblyWorkspace) {
         StudioWindow(
             id = "assembly-workspace",
@@ -2300,22 +2330,9 @@ private fun FrameWindowScope.App(
                             }
                             val previewSources = assemblyPreview
                             val assemblyOutput by produceState(uiText("assembly.preparing"), previewSources, memoryLayout) {
-                                value = withContext(Dispatchers.Default) { buildString {
-                                    previewSources.forEach { result ->
-                                        appendLine(result.source.definition.path)
-                                        appendLine(uiText("assembly.memory"))
-                                        appendLine(result.renderMemorySummary(memoryLayout, StudioStrings.system))
-                                        appendLine(uiText("assembly.disassembly"))
-                                        appendLine(result.renderDisassembly().trimEnd())
-                                        appendLine(uiText("assembly.listing"))
-                                        appendLine(result.renderListing().trimEnd())
-                                        appendLine()
-                                    }
-                                    if (previewSources.isNotEmpty()) {
-                                        appendLine(uiText("assembly.symbolMap"))
-                                        append(previewSources.renderMap())
-                                    }
-                                } }
+                                value = withContext(Dispatchers.Default) {
+                                    previewSources.renderAssemblyOutput(memoryLayout, StudioStrings.system)
+                                }
                             }
                             AssemblyOutputField(assemblyOutput)
                         }

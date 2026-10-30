@@ -8,8 +8,8 @@
 
 追記: 以下は2890cd5時点の調査記録。段階1・2の実装内容と現在の制約は
 [SC61860_ASSEMBLY.md](../guides/SC61860_ASSEMBLY.md)を参照。段階3（式・EQU・DW・文字列DB・DS・ALIGN）も実装済み。
-段階4以降の主要機能は未実装。追加で`#`コメント、Workspaceの出力名・スクロール結果欄・
-ロード状態表示を改善した。Quick Assembleの結果表示は[Roadmap](planning/ROADMAP.md)に未着手課題として記録済み。
+段階4のロード済みソース表示は実装済み。残項目は[Assembler整備 第1段階](ASSEMBLER_STEP1.md)を参照。追加で`#`コメント、Workspaceの出力名・スクロール結果欄・
+ロード状態表示を改善した。Quick Assembleの結果表示と共通処理は2026-10-31に実装。
 
 ## 現状
 

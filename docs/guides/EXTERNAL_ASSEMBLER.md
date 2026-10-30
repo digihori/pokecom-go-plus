@@ -127,7 +127,7 @@ INCLUDE／INCBINの変更が主ソースの変更表示に反映されない場�
 | Assemble | ログ、Memory、Disassembly、LST、Symbol Mapをプレビューする |
 | Build | 形式・16bit範囲・同一アドレス重複を検査し、全範囲を`build/`へ保存する。対象機種の書込み可否はLoad時に検査する |
 | Build & Load | 同じビルド・保存後、対象機種の配置・物理ミラー・現在のBASIC領域を検査してロードする |
-| Program → Quick Assemble | 指定ソースからDMPを保存する。ロードはしない |
+| Program → Quick Assemble | 指定ソースの結果・ログを確認してDMPを保存する。ロードはしない |
 
 Assembly入力が1つなら出力名はそのソース名になる。複数入力なら`program.*`を使う。
 失敗時は最後の成功プレビュー・保存済み出力を保持し、その失敗結果をロードしない。

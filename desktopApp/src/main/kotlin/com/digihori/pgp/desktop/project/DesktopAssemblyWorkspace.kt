@@ -43,6 +43,17 @@ internal sealed interface DesktopAssemblyWorkspaceResult {
 
 /** One assembly pipeline shared by the workspace preview and project Build & Load. */
 internal object DesktopAssemblyWorkspaceCompiler {
+    /** Standalone assembly uses the same preprocessing and configured tool as project builds. */
+    suspend fun compileFile(file: File, layout: MachineMemoryLayout, settings: DesktopAssemblerSettings): DesktopAssemblyWorkspaceResult {
+        val source = com.digihori.pgp.core.project.ProjectSource("quick", ProjectSourceType.ASSEMBLY, file.name)
+        val workspace = DesktopProjectWorkspace(
+            File(file.absoluteFile.parentFile, "pgp-project.json"),
+            com.digihori.pgp.core.project.ProjectDefinition(file.name, layout.machineId, listOf(source)),
+            listOf(DesktopProjectSource(source, file.absoluteFile)),
+        )
+        return compileConfigured(workspace, layout, settings)
+    }
+
     suspend fun compileConfigured(workspace: DesktopProjectWorkspace, layout: MachineMemoryLayout, settings: DesktopAssemblerSettings): DesktopAssemblyWorkspaceResult {
         if (!settings.external) return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { compile(workspace, layout, validatePlacement = false) }
         val assembled = mutableMapOf<String, Sc61860AssemblyResult>()
@@ -243,3 +254,20 @@ internal object DesktopProjectBuildOutputWriter {
 }
 
 private fun Int.hex(width: Int): String = toString(16).uppercase().padStart(width, '0')
+
+internal fun List<DesktopAssemblySourceResult>.renderAssemblyOutput(layout: MachineMemoryLayout, strings: StudioStrings): String = buildString {
+    this@renderAssemblyOutput.forEach { result ->
+        appendLine(result.source.definition.path)
+        appendLine(strings.text("assembly.memory"))
+        appendLine(result.renderMemorySummary(layout, strings))
+        appendLine(strings.text("assembly.disassembly"))
+        appendLine(result.renderDisassembly().trimEnd())
+        appendLine(strings.text("assembly.listing"))
+        appendLine(result.renderListing().trimEnd())
+        appendLine()
+    }
+    if (this@renderAssemblyOutput.isNotEmpty()) {
+        appendLine(strings.text("assembly.symbolMap"))
+        append(this@renderAssemblyOutput.renderMap())
+    }
+}

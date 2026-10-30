@@ -382,10 +382,11 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](../../guides/DEBUGGE
   - [x] Source変更、Assembly済み、Build済み、EmulatorへLoad済みの状態を個別に表示する
   - [x] 診断から設定済みの外部エディタで該当ファイル・行を開けるようにする
   - [x] 現在の単発変換は補助機能`Quick Assemble`として残す
-- [ ] Quick Assembleでアセンブル結果を確認できるようにする（2026-10-11改善候補）
-  - 現状はDMP保存が中心で、生成された機械語・Listing・Symbol Mapを画面で確認できない。
-  - Assembly Workspaceと同様のスクロール付き結果表示を検討し、成功／失敗と保存先も明確にする。
-  - 単発変換の操作性を維持しつつ、結果表示とファイル保存の流れを設計する。仕様・実装は未着手。
+- [x] Quick Assembleでアセンブル結果を確認できるようにする（2026-10-31）
+  - Workspace／Buildと共通の設定済みコンパイラとソースヘッダ前処理を使用する。
+  - 保存前にMemory／Disassembly／Listing／Symbol Mapと外部ログを表示する。
+  - DMP保存は結果画面から行い、保存取消後も結果を保持する。失敗時は診断とログを表示する。
+  - 今回の範囲・検証は[Assembler整備 第1段階](../ASSEMBLER_STEP1.md)を参照。
 - [x] Assembly Workspaceの外部エディタ操作とSources表示を改善する（2026-10-13現在の対応を一旦完了。未実装の検出等は後続候補）
   - [ ] Studio内にExternal Editor設定を追加し、実行ファイル、引数テンプレート、行指定を保存する
   - [ ] macOS／Windows／Linuxで代表的なエディタを自動検出し、手動選択とTest起動も提供する
