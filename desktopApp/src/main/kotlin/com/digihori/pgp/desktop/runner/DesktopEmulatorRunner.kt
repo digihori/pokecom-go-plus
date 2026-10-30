@@ -839,7 +839,8 @@ internal class DesktopEmulatorRunner(
         return logpointChanged(logpoints.remove(id))
     }
     private fun logpointChanged(result: DebuggerLogpointResult): DebuggerLogpointResult {
-        if (result is DebuggerLogpointResult.Success) { sessionRevision++; debugSettingsRevision++ }
+        // Logpoints do not replace breakpoint/watch settings or their in-progress UI drafts.
+        if (result is DebuggerLogpointResult.Success) sessionRevision++
         return result
     }
     fun clearLogpointHistory() { logpoints.clearHistory() }
