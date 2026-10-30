@@ -1,537 +1,631 @@
 // !$*UTF8*$!
 {
-	"classes" = {
+	archiveVersion = 1;
+	classes = {
 	};
-	"objectVersion" = "56";
-	"archiveVersion" = "1";
-	"objects" = {
-        "D10000000000000000000001" = {
-            "isa" = "PBXFileReference";
-            "lastKnownFileType" = "folder.assetcatalog";
-            "path" = "Assets.xcassets";
-            "sourceTree" = "<group>";
-        };
-        "D10000000000000000000002" = {
-            "isa" = "PBXBuildFile";
-            "fileRef" = "D10000000000000000000001";
-        };
-		"C41C5CA480D5899714319D3E" = {
-			"alwaysOutOfDate" = "1";
-			"inputPaths" = ();
-			"buildActionMask" = "2147483647";
-			"shellPath" = "/bin/sh";
-			"isa" = "PBXShellScriptBuildPhase";
-			"runOnlyForDeploymentPostprocessing" = "0";
-			"outputPaths" = ();
-			"shellScript" = "/bin/sh \"$SRCROOT/build-shared.sh\"";
-			"name" = "Build shared Kotlin framework";
-			"files" = ();
-		};
-		"48EFD0F3E8CFA85291047769" = {
-			"path" = "PokecomGOPlayerTests";
-			"isa" = "PBXGroup";
-			"children" = ("04AB1E36AC63233D4AC66466");
-			"sourceTree" = "<group>";
-		};
-		"06271BAF49532C879AA3C58B" = {
-			"path" = "Info.plist";
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "text.plist.xml";
-			"sourceTree" = "<group>";
-		};
-		"53A89167E300BC338777C6F8" = {
-			"isa" = "PBXSourcesBuildPhase";
-			"buildActionMask" = "2147483647";
-			"files" = ("D98578ABF6665436A2E1567F");
-			"runOnlyForDeploymentPostprocessing" = "0";
-		};
-		"BE68C18CDC83A8E3C778204B" = {
-			"path" = "PokecomGOPlayer";
-			"isa" = "PBXGroup";
-			"children" = ("D10000000000000000000001", "6E0126D99977F1728BB738D8", "7495E441FE2F8E2386797EA0", "B16271A5E83FFF411884B88C", "06271BAF49532C879AA3C58B", "B10000000000000000000001", "B20000000000000000000001", "B30000000000000000000001", "B40000000000000000000001", "B50000000000000000000001", "B60000000000000000000001", "B00000000000000000000001", "AF0000000000000000000001", "AE0000000000000000000001", "AA0000000000000000000001", "AB0000000000000000000001", "AC0000000000000000000001", "AD0000000000000000000001");
-			"sourceTree" = "<group>";
-		};
-		"EFF7E6A0D837155469EB2071" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "6E0126D99977F1728BB738D8";
-		};
-		"1B068ECC9000A79A52E98248" = {
-			"isa" = "XCBuildConfiguration";
-			"name" = "Debug";
-			"buildSettings" = {
-				"BUNDLE_LOADER" = "$(TEST_HOST)";
-				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "x86_64";
-				"DEVELOPMENT_TEAM" = "";
-				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
-				"CLANG_ENABLE_MODULES" = "YES";
-				"PRODUCT_BUNDLE_IDENTIFIER" = "com.digihori.pgp.player.ios.PokecomGOPlayerTests";
-				"ENABLE_USER_SCRIPT_SANDBOXING" = "NO";
-				"TEST_HOST" = "$(BUILT_PRODUCTS_DIR)/PokecomGOPlayer.app/PokecomGOPlayer";
-				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG";
-				"DEBUG_INFORMATION_FORMAT" = "dwarf";
-				"TARGETED_DEVICE_FAMILY" = "1";
-				"CODE_SIGN_STYLE" = "Automatic";
-				"FRAMEWORK_SEARCH_PATHS" = ("$(inherited)", "$(SRCROOT)/../playerShared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)");
-				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
-				"ENABLE_TESTABILITY" = "YES";
-				"SDKROOT" = "iphoneos";
-				"SWIFT_VERSION" = "5.0";
-				"PRODUCT_NAME" = "$(TARGET_NAME)";
-				"IPHONEOS_DEPLOYMENT_TARGET" = "16.0";
-				"GENERATE_INFOPLIST_FILE" = "YES";
-			};
-		};
-		"B16271A5E83FFF411884B88C" = {
-			"path" = "PlayerProbeView.swift";
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"sourceTree" = "<group>";
-		};
-		"5F099CC09E667E59E9C74BF5" = {
-			"productType" = "com.apple.product-type.application";
-			"productReference" = "38CC6D404D097B2DD3AB027A";
-			"buildConfigurationList" = "B05E47B9116784F180E46537";
-			"productName" = "PokecomGOPlayer";
-			"isa" = "PBXNativeTarget";
-			"buildPhases" = ("C41C5CA480D5899714319D3E", "CF47DC1005E4B66A98FDDBD7", "312D1DDA02D2F07789BB9B79", "86B67F838F73EF0635EB165B");
-			"dependencies" = ();
-			"name" = "PokecomGOPlayer";
-			"buildRules" = ();
-		};
-		"F3AF13C27BBAAF0EC1C603FF" = {
-			"isa" = "PBXFrameworksBuildPhase";
-			"buildActionMask" = "2147483647";
-			"files" = ();
-			"runOnlyForDeploymentPostprocessing" = "0";
-		};
-		"974953D90862A72CC7848D7A" = {
-			"isa" = "PBXResourcesBuildPhase";
-			"buildActionMask" = "2147483647";
-			"files" = ();
-			"runOnlyForDeploymentPostprocessing" = "0";
-		};
-		"55539D85EAA3DF628723CCF2" = {
-			"path" = "PokecomGOPlayerUITests.xctest";
-			"isa" = "PBXFileReference";
-			"includeInIndex" = "0";
-			"explicitFileType" = "wrapper.cfbundle";
-			"sourceTree" = "BUILT_PRODUCTS_DIR";
-		};
-		"B05E47B9116784F180E46537" = {
-			"isa" = "XCConfigurationList";
-			"defaultConfigurationIsVisible" = "0";
-			"defaultConfigurationName" = "Release";
-			"buildConfigurations" = ("BFDF0562967E94F0EAB7885B", "D75033438B588F7B8C9C2E42");
-		};
-		"D3162FD8F296394D8B10B33D" = {
-			"isa" = "XCConfigurationList";
-			"defaultConfigurationIsVisible" = "0";
-			"defaultConfigurationName" = "Release";
-			"buildConfigurations" = ("1B068ECC9000A79A52E98248", "D681AC752FBECD492450F031");
-		};
-		"CFCB08EE059CD4FAD48FD867" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "72810BD81DA478EC3B4FDA9E";
-		};
-		"312D1DDA02D2F07789BB9B79" = {
-			"isa" = "PBXFrameworksBuildPhase";
-			"buildActionMask" = "2147483647";
-			"files" = ();
-			"runOnlyForDeploymentPostprocessing" = "0";
-		};
-		"CF47DC1005E4B66A98FDDBD7" = {
-			"isa" = "PBXSourcesBuildPhase";
-			"buildActionMask" = "2147483647";
-			"files" = ("EFF7E6A0D837155469EB2071", "6F9C15B626E1918F1F3DED28", "0A369D82DF0D767669917351", "AB0000000000000000000002", "AC0000000000000000000002", "AD0000000000000000000002");
-			"runOnlyForDeploymentPostprocessing" = "0";
-		};
-		"7495E441FE2F8E2386797EA0" = {
-			"path" = "PlayerHost.swift";
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"sourceTree" = "<group>";
-		};
-		"406615CA15347AF604466AD5" = {
-			"isa" = "XCBuildConfiguration";
-			"name" = "Debug";
-			"buildSettings" = {
-				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG";
-				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "x86_64";
-				"DEBUG_INFORMATION_FORMAT" = "dwarf";
-				"TEST_TARGET_NAME" = "PokecomGOPlayer";
-				"CLANG_ENABLE_MODULES" = "YES";
-				"TARGETED_DEVICE_FAMILY" = "1";
-				"DEVELOPMENT_TEAM" = "";
-				"ENABLE_TESTABILITY" = "YES";
-				"GENERATE_INFOPLIST_FILE" = "YES";
-				"ENABLE_USER_SCRIPT_SANDBOXING" = "NO";
-				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
-				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
-				"CODE_SIGN_STYLE" = "Automatic";
-				"SDKROOT" = "iphoneos";
-				"SWIFT_VERSION" = "5.0";
-				"FRAMEWORK_SEARCH_PATHS" = ("$(inherited)", "$(SRCROOT)/../playerShared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)");
-				"IPHONEOS_DEPLOYMENT_TARGET" = "16.0";
-				"PRODUCT_NAME" = "$(TARGET_NAME)";
-				"PRODUCT_BUNDLE_IDENTIFIER" = "com.digihori.pgp.player.ios.PokecomGOPlayerUITests";
-			};
-		};
-		"D98578ABF6665436A2E1567F" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "04AB1E36AC63233D4AC66466";
-		};
-		"6F9C15B626E1918F1F3DED28" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "7495E441FE2F8E2386797EA0";
-		};
-		"0DAC70573FD831CCF93683D9" = {
-			"isa" = "PBXTargetDependency";
-			"target" = "5F099CC09E667E59E9C74BF5";
-			"targetProxy" = "1D117452C29F0E96922D2D61";
-		};
-		"72810BD81DA478EC3B4FDA9E" = {
-			"path" = "PlayerSmokeTests.swift";
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"sourceTree" = "<group>";
-		};
-		"0A3E27B8CA818264D75C8D81" = {
-			"isa" = "PBXGroup";
-			"name" = "Products";
-			"children" = ("38CC6D404D097B2DD3AB027A", "4A09C89F81FF91C500E3BF02", "55539D85EAA3DF628723CCF2");
-			"sourceTree" = "<group>";
-		};
-		"73EBF6644258C120893E685D" = {
-			"isa" = "XCBuildConfiguration";
-			"name" = "Debug";
-			"buildSettings" = {
-				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG";
-				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "x86_64";
-				"DEBUG_INFORMATION_FORMAT" = "dwarf";
-				"TARGETED_DEVICE_FAMILY" = "1";
-				"CLANG_ENABLE_MODULES" = "YES";
-				"DEVELOPMENT_TEAM" = "";
-				"ENABLE_TESTABILITY" = "YES";
-				"ENABLE_USER_SCRIPT_SANDBOXING" = "NO";
-				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
-				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
-				"CODE_SIGN_STYLE" = "Automatic";
-				"SDKROOT" = "iphoneos";
-				"SWIFT_VERSION" = "5.0";
-				"FRAMEWORK_SEARCH_PATHS" = ("$(inherited)", "$(SRCROOT)/../playerShared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)");
-				"IPHONEOS_DEPLOYMENT_TARGET" = "16.0";
-			};
-		};
-		"0D6E4079E36703EBD37C0072" = {
-			"isa" = "PBXGroup";
-			"sourceTree" = "<group>";
-			"children" = ("BE68C18CDC83A8E3C778204B", "48EFD0F3E8CFA85291047769", "1C86D20763E98A17218BF2A4", "0A3E27B8CA818264D75C8D81");
-		};
-		"4A09C89F81FF91C500E3BF02" = {
-			"path" = "PokecomGOPlayerTests.xctest";
-			"isa" = "PBXFileReference";
-			"includeInIndex" = "0";
-			"explicitFileType" = "wrapper.cfbundle";
-			"sourceTree" = "BUILT_PRODUCTS_DIR";
-		};
-		"76F8DEC3DFE0BDB465198890" = {
-			"isa" = "XCConfigurationList";
-			"defaultConfigurationIsVisible" = "0";
-			"defaultConfigurationName" = "Release";
-			"buildConfigurations" = ("73EBF6644258C120893E685D", "0B0C687DF8B6B8DC790B519C");
-		};
-		"244210E48437B6556980A702" = {
-			"buildConfigurationList" = "76F8DEC3DFE0BDB465198890";
-			"targets" = ("5F099CC09E667E59E9C74BF5", "8DD3329561BAB0725320E6AD", "69C71FF48CD9262B490C1972");
-			"developmentRegion" = "en";
-			"knownRegions" = ("en", "Base");
-			"isa" = "PBXProject";
-			"compatibilityVersion" = "Xcode 14.0";
-			"productRefGroup" = "0A3E27B8CA818264D75C8D81";
-			"projectDirPath" = "";
-			"attributes" = {
-				"LastUpgradeCheck" = "2660";
-				"BuildIndependentTargetsInParallel" = "YES";
-			};
-			"hasScannedForEncodings" = "0";
-			"projectRoot" = "";
-			"mainGroup" = "0D6E4079E36703EBD37C0072";
-		};
-		"B99BCEAE768ADC3A60352A66" = {
-			"isa" = "PBXResourcesBuildPhase";
-			"buildActionMask" = "2147483647";
-			"files" = ();
-			"runOnlyForDeploymentPostprocessing" = "0";
-		};
-		"AA0000000000000000000002" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "AA0000000000000000000001";
-		};
-		"F539421C885C98DFB315361E" = {
-			"isa" = "PBXTargetDependency";
-			"target" = "5F099CC09E667E59E9C74BF5";
-			"targetProxy" = "AE3DCA58EB95D9955807EB03";
-		};
-		"6E0126D99977F1728BB738D8" = {
-			"path" = "PokecomGOPlayerApp.swift";
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"sourceTree" = "<group>";
-		};
-		"AE3DCA58EB95D9955807EB03" = {
-			"isa" = "PBXContainerItemProxy";
-			"containerPortal" = "244210E48437B6556980A702";
-			"remoteGlobalIDString" = "5F099CC09E667E59E9C74BF5";
-			"remoteInfo" = "PokecomGOPlayer";
-			"proxyType" = "1";
-		};
-		"D681AC752FBECD492450F031" = {
-			"isa" = "XCBuildConfiguration";
-			"name" = "Release";
-			"buildSettings" = {
-				"BUNDLE_LOADER" = "$(TEST_HOST)";
-				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "x86_64";
-				"DEVELOPMENT_TEAM" = "";
-				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
-				"CLANG_ENABLE_MODULES" = "YES";
-				"PRODUCT_BUNDLE_IDENTIFIER" = "com.digihori.pgp.player.ios.PokecomGOPlayerTests";
-				"ENABLE_USER_SCRIPT_SANDBOXING" = "NO";
-				"TEST_HOST" = "$(BUILT_PRODUCTS_DIR)/PokecomGOPlayer.app/PokecomGOPlayer";
-				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "";
-				"DEBUG_INFORMATION_FORMAT" = "dwarf";
-				"TARGETED_DEVICE_FAMILY" = "1";
-				"CODE_SIGN_STYLE" = "Automatic";
-				"FRAMEWORK_SEARCH_PATHS" = ("$(inherited)", "$(SRCROOT)/../playerShared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)");
-				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
-				"ENABLE_TESTABILITY" = "NO";
-				"SDKROOT" = "iphoneos";
-				"SWIFT_VERSION" = "5.0";
-				"PRODUCT_NAME" = "$(TARGET_NAME)";
-				"IPHONEOS_DEPLOYMENT_TARGET" = "16.0";
-				"GENERATE_INFOPLIST_FILE" = "YES";
-			};
-		};
-		"86B67F838F73EF0635EB165B" = {
-			"isa" = "PBXResourcesBuildPhase";
-			"buildActionMask" = "2147483647";
-			"files" = ("D10000000000000000000002", "AA0000000000000000000002", "AE0000000000000000000002", "AF0000000000000000000002", "B30000000000000000000002", "B40000000000000000000002", "B50000000000000000000002", "B60000000000000000000002", "B00000000000000000000002", "B10000000000000000000002", "B20000000000000000000002");
-			"runOnlyForDeploymentPostprocessing" = "0";
-		};
-		"38CC6D404D097B2DD3AB027A" = {
-			"path" = "PokecomGOPlayer.app";
-			"isa" = "PBXFileReference";
-			"includeInIndex" = "0";
-			"explicitFileType" = "wrapper.application";
-			"sourceTree" = "BUILT_PRODUCTS_DIR";
-		};
-		"1C86D20763E98A17218BF2A4" = {
-			"path" = "PokecomGOPlayerUITests";
-			"isa" = "PBXGroup";
-			"children" = ("72810BD81DA478EC3B4FDA9E");
-			"sourceTree" = "<group>";
-		};
-		"424C0057661A7DCC66D67EE8" = {
-			"isa" = "XCBuildConfiguration";
-			"name" = "Release";
-			"buildSettings" = {
-				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "";
-				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "x86_64";
-				"DEBUG_INFORMATION_FORMAT" = "dwarf";
-				"TEST_TARGET_NAME" = "PokecomGOPlayer";
-				"CLANG_ENABLE_MODULES" = "YES";
-				"TARGETED_DEVICE_FAMILY" = "1";
-				"DEVELOPMENT_TEAM" = "";
-				"ENABLE_TESTABILITY" = "NO";
-				"GENERATE_INFOPLIST_FILE" = "YES";
-				"ENABLE_USER_SCRIPT_SANDBOXING" = "NO";
-				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
-				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
-				"CODE_SIGN_STYLE" = "Automatic";
-				"SDKROOT" = "iphoneos";
-				"SWIFT_VERSION" = "5.0";
-				"FRAMEWORK_SEARCH_PATHS" = ("$(inherited)", "$(SRCROOT)/../playerShared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)");
-				"IPHONEOS_DEPLOYMENT_TARGET" = "16.0";
-				"PRODUCT_NAME" = "$(TARGET_NAME)";
-				"PRODUCT_BUNDLE_IDENTIFIER" = "com.digihori.pgp.player.ios.PokecomGOPlayerUITests";
-			};
-		};
-		"69C71FF48CD9262B490C1972" = {
-			"productType" = "com.apple.product-type.bundle.ui-testing";
-			"productReference" = "55539D85EAA3DF628723CCF2";
-			"buildConfigurationList" = "C3B45FF10CC2839E313A39B1";
-			"productName" = "PokecomGOPlayerUITests";
-			"isa" = "PBXNativeTarget";
-			"buildPhases" = ("F97D6530C305511F24A75761", "F3AF13C27BBAAF0EC1C603FF", "974953D90862A72CC7848D7A");
-			"dependencies" = ("0DAC70573FD831CCF93683D9");
-			"name" = "PokecomGOPlayerUITests";
-			"buildRules" = ();
-		};
-		"1B2DFFDC1F96EDFE1A90B4A8" = {
-			"isa" = "PBXFrameworksBuildPhase";
-			"buildActionMask" = "2147483647";
-			"files" = ();
-			"runOnlyForDeploymentPostprocessing" = "0";
-		};
-		"D75033438B588F7B8C9C2E42" = {
-			"isa" = "XCBuildConfiguration";
-			"name" = "Release";
-			"buildSettings" = {
-				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "x86_64";
-				"MARKETING_VERSION" = "0.7.0";
-				"DEVELOPMENT_TEAM" = "";
-				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
-				"CLANG_ENABLE_MODULES" = "YES";
-				"PRODUCT_BUNDLE_IDENTIFIER" = "com.digihori.pgp.player.ios";
-				"CURRENT_PROJECT_VERSION" = "2";
-				"ENABLE_USER_SCRIPT_SANDBOXING" = "NO";
-				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "";
-				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
-				"TARGETED_DEVICE_FAMILY" = "1";
-				"CODE_SIGN_STYLE" = "Automatic";
-				"OTHER_LDFLAGS" = ("$(inherited)", "-framework", "PgpPlayer", "-lz");
-				"FRAMEWORK_SEARCH_PATHS" = ("$(inherited)", "$(SRCROOT)/../playerShared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)");
-				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
-				"ENABLE_TESTABILITY" = "NO";
-				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks");
-				"SDKROOT" = "iphoneos";
-				"SWIFT_VERSION" = "5.0";
-				"PRODUCT_NAME" = "$(TARGET_NAME)";
-				"IPHONEOS_DEPLOYMENT_TARGET" = "16.0";
-				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
-				"INFOPLIST_FILE" = "PokecomGOPlayer/Info.plist";
-				"GENERATE_INFOPLIST_FILE" = "NO";
-			};
-		};
-		"04AB1E36AC63233D4AC66466" = {
-			"path" = "PlayerHostTests.swift";
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"sourceTree" = "<group>";
-		};
-		"8DD3329561BAB0725320E6AD" = {
-			"productType" = "com.apple.product-type.bundle.unit-test";
-			"productReference" = "4A09C89F81FF91C500E3BF02";
-			"buildConfigurationList" = "D3162FD8F296394D8B10B33D";
-			"productName" = "PokecomGOPlayerTests";
-			"isa" = "PBXNativeTarget";
-			"buildPhases" = ("53A89167E300BC338777C6F8", "1B2DFFDC1F96EDFE1A90B4A8", "B99BCEAE768ADC3A60352A66");
-			"dependencies" = ("F539421C885C98DFB315361E");
-			"name" = "PokecomGOPlayerTests";
-			"buildRules" = ();
-		};
-		"C3B45FF10CC2839E313A39B1" = {
-			"isa" = "XCConfigurationList";
-			"defaultConfigurationIsVisible" = "0";
-			"defaultConfigurationName" = "Release";
-			"buildConfigurations" = ("406615CA15347AF604466AD5", "424C0057661A7DCC66D67EE8");
-		};
-		"0B0C687DF8B6B8DC790B519C" = {
-			"isa" = "XCBuildConfiguration";
-			"name" = "Release";
-			"buildSettings" = {
-				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "";
-				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "x86_64";
-				"DEBUG_INFORMATION_FORMAT" = "dwarf";
-				"TARGETED_DEVICE_FAMILY" = "1";
-				"CLANG_ENABLE_MODULES" = "YES";
-				"DEVELOPMENT_TEAM" = "";
-				"ENABLE_TESTABILITY" = "NO";
-				"ENABLE_USER_SCRIPT_SANDBOXING" = "NO";
-				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
-				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
-				"CODE_SIGN_STYLE" = "Automatic";
-				"SDKROOT" = "iphoneos";
-				"SWIFT_VERSION" = "5.0";
-				"FRAMEWORK_SEARCH_PATHS" = ("$(inherited)", "$(SRCROOT)/../playerShared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)");
-				"IPHONEOS_DEPLOYMENT_TARGET" = "16.0";
-			};
-		};
-		"BFDF0562967E94F0EAB7885B" = {
-			"isa" = "XCBuildConfiguration";
-			"name" = "Debug";
-			"buildSettings" = {
-				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "x86_64";
-				"MARKETING_VERSION" = "0.7.0";
-				"DEVELOPMENT_TEAM" = "";
-				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
-				"CLANG_ENABLE_MODULES" = "YES";
-				"PRODUCT_BUNDLE_IDENTIFIER" = "com.digihori.pgp.player.ios";
-				"CURRENT_PROJECT_VERSION" = "2";
-				"ENABLE_USER_SCRIPT_SANDBOXING" = "NO";
-				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG";
-				"DEBUG_INFORMATION_FORMAT" = "dwarf";
-				"TARGETED_DEVICE_FAMILY" = "1";
-				"CODE_SIGN_STYLE" = "Automatic";
-				"OTHER_LDFLAGS" = ("$(inherited)", "-framework", "PgpPlayer", "-lz");
-				"FRAMEWORK_SEARCH_PATHS" = ("$(inherited)", "$(SRCROOT)/../playerShared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)");
-				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
-				"ENABLE_TESTABILITY" = "YES";
-				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks");
-				"SDKROOT" = "iphoneos";
-				"SWIFT_VERSION" = "5.0";
-				"PRODUCT_NAME" = "$(TARGET_NAME)";
-				"IPHONEOS_DEPLOYMENT_TARGET" = "16.0";
-				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
-				"INFOPLIST_FILE" = "PokecomGOPlayer/Info.plist";
-				"GENERATE_INFOPLIST_FILE" = "NO";
-			};
-		};
-        "B10000000000000000000001" = { isa = PBXFileReference; path = skin_pc1401.png; lastKnownFileType = image.png; sourceTree = "<group>"; };
-        "B10000000000000000000002" = { isa = PBXBuildFile; fileRef = B10000000000000000000001; };
-        "B20000000000000000000001" = { isa = PBXFileReference; path = skin_pc1450.png; lastKnownFileType = image.png; sourceTree = "<group>"; };
-        "B20000000000000000000002" = { isa = PBXBuildFile; fileRef = B20000000000000000000001; };
-        "B30000000000000000000001" = { isa = PBXFileReference; path = skin_pc1360.png; lastKnownFileType = image.png; sourceTree = "<group>"; };
-        "B30000000000000000000002" = { isa = PBXBuildFile; fileRef = B30000000000000000000001; };
-        "B40000000000000000000001" = { isa = PBXFileReference; path = skin_pc1460.png; lastKnownFileType = image.png; sourceTree = "<group>"; };
-        "B40000000000000000000002" = { isa = PBXBuildFile; fileRef = B40000000000000000000001; };
-        "B60000000000000000000001" = { isa = PBXFileReference; path = skin_pc1360k.png; lastKnownFileType = image.png; sourceTree = "<group>"; };
-        "B60000000000000000000002" = { isa = PBXBuildFile; fileRef = B60000000000000000000001; };
-        "B50000000000000000000001" = { isa = PBXFileReference; path = skin_pc1470u.png; lastKnownFileType = image.png; sourceTree = "<group>"; };
-        "B50000000000000000000002" = { isa = PBXBuildFile; fileRef = B50000000000000000000001; };
-        "B00000000000000000000001" = { isa = PBXFileReference; path = skin_pc1350.png; lastKnownFileType = image.png; sourceTree = "<group>"; };
-        "B00000000000000000000002" = { isa = PBXBuildFile; fileRef = B00000000000000000000001; };
-        "AF0000000000000000000001" = { isa = PBXFileReference; path = skin_pc1261.png; lastKnownFileType = image.png; sourceTree = "<group>"; };
-        "AF0000000000000000000002" = { isa = PBXBuildFile; fileRef = AF0000000000000000000001; };
-        "AE0000000000000000000001" = { isa = PBXFileReference; path = skin_pc1251.png; lastKnownFileType = image.png; sourceTree = "<group>"; };
-        "AE0000000000000000000002" = { isa = PBXBuildFile; fileRef = AE0000000000000000000001; };
+	objectVersion = 56;
+	objects = {
 
-		"AA0000000000000000000001" = {
-			"path" = "skin_pc1245.png";
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "image.png";
-			"sourceTree" = "<group>";
+/* Begin PBXBuildFile section */
+		0A369D82DF0D767669917351 /* PlayerProbeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B16271A5E83FFF411884B88C /* PlayerProbeView.swift */; };
+		6F9C15B626E1918F1F3DED28 /* PlayerHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7495E441FE2F8E2386797EA0 /* PlayerHost.swift */; };
+		AA0000000000000000000002 /* skin_pc1245.png in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000001 /* skin_pc1245.png */; };
+		AB0000000000000000000002 /* IosRomIO.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000001 /* IosRomIO.swift */; };
+		AC0000000000000000000002 /* IosPlayerAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0000000000000000000001 /* IosPlayerAudio.swift */; };
+		AD0000000000000000000002 /* IosPlayerInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0000000000000000000001 /* IosPlayerInput.swift */; };
+		AE0000000000000000000002 /* skin_pc1251.png in Resources */ = {isa = PBXBuildFile; fileRef = AE0000000000000000000001 /* skin_pc1251.png */; };
+		AF0000000000000000000002 /* skin_pc1261.png in Resources */ = {isa = PBXBuildFile; fileRef = AF0000000000000000000001 /* skin_pc1261.png */; };
+		B00000000000000000000002 /* skin_pc1350.png in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000001 /* skin_pc1350.png */; };
+		B10000000000000000000002 /* skin_pc1401.png in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000001 /* skin_pc1401.png */; };
+		B20000000000000000000002 /* skin_pc1450.png in Resources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* skin_pc1450.png */; };
+		B30000000000000000000002 /* skin_pc1360.png in Resources */ = {isa = PBXBuildFile; fileRef = B30000000000000000000001 /* skin_pc1360.png */; };
+		B40000000000000000000002 /* skin_pc1460.png in Resources */ = {isa = PBXBuildFile; fileRef = B40000000000000000000001 /* skin_pc1460.png */; };
+		B50000000000000000000002 /* skin_pc1470u.png in Resources */ = {isa = PBXBuildFile; fileRef = B50000000000000000000001 /* skin_pc1470u.png */; };
+		B60000000000000000000002 /* skin_pc1360k.png in Resources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000001 /* skin_pc1360k.png */; };
+		CFCB08EE059CD4FAD48FD867 /* PlayerSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72810BD81DA478EC3B4FDA9E /* PlayerSmokeTests.swift */; };
+		D10000000000000000000002 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000001 /* Assets.xcassets */; };
+		D98578ABF6665436A2E1567F /* PlayerHostTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04AB1E36AC63233D4AC66466 /* PlayerHostTests.swift */; };
+		EFF7E6A0D837155469EB2071 /* PokecomGOPlayerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E0126D99977F1728BB738D8 /* PokecomGOPlayerApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		1D117452C29F0E96922D2D61 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 244210E48437B6556980A702 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5F099CC09E667E59E9C74BF5;
+			remoteInfo = PokecomGOPlayer;
 		};
-		"0A369D82DF0D767669917351" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "B16271A5E83FFF411884B88C";
+		AE3DCA58EB95D9955807EB03 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 244210E48437B6556980A702 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5F099CC09E667E59E9C74BF5;
+			remoteInfo = PokecomGOPlayer;
 		};
-		"1D117452C29F0E96922D2D61" = {
-			"isa" = "PBXContainerItemProxy";
-			"containerPortal" = "244210E48437B6556980A702";
-			"remoteGlobalIDString" = "5F099CC09E667E59E9C74BF5";
-			"remoteInfo" = "PokecomGOPlayer";
-			"proxyType" = "1";
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		04AB1E36AC63233D4AC66466 /* PlayerHostTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerHostTests.swift; sourceTree = "<group>"; };
+		06271BAF49532C879AA3C58B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		38CC6D404D097B2DD3AB027A /* PokecomGOPlayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PokecomGOPlayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4A09C89F81FF91C500E3BF02 /* PokecomGOPlayerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PokecomGOPlayerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		55539D85EAA3DF628723CCF2 /* PokecomGOPlayerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PokecomGOPlayerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6E0126D99977F1728BB738D8 /* PokecomGOPlayerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PokecomGOPlayerApp.swift; sourceTree = "<group>"; };
+		72810BD81DA478EC3B4FDA9E /* PlayerSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerSmokeTests.swift; sourceTree = "<group>"; };
+		7495E441FE2F8E2386797EA0 /* PlayerHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerHost.swift; sourceTree = "<group>"; };
+		AA0000000000000000000001 /* skin_pc1245.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = skin_pc1245.png; sourceTree = "<group>"; };
+		AB0000000000000000000001 /* IosRomIO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IosRomIO.swift; sourceTree = "<group>"; };
+		AC0000000000000000000001 /* IosPlayerAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IosPlayerAudio.swift; sourceTree = "<group>"; };
+		AD0000000000000000000001 /* IosPlayerInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IosPlayerInput.swift; sourceTree = "<group>"; };
+		AE0000000000000000000001 /* skin_pc1251.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = skin_pc1251.png; sourceTree = "<group>"; };
+		AF0000000000000000000001 /* skin_pc1261.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = skin_pc1261.png; sourceTree = "<group>"; };
+		B00000000000000000000001 /* skin_pc1350.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = skin_pc1350.png; sourceTree = "<group>"; };
+		B10000000000000000000001 /* skin_pc1401.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = skin_pc1401.png; sourceTree = "<group>"; };
+		B16271A5E83FFF411884B88C /* PlayerProbeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerProbeView.swift; sourceTree = "<group>"; };
+		B20000000000000000000001 /* skin_pc1450.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = skin_pc1450.png; sourceTree = "<group>"; };
+		B30000000000000000000001 /* skin_pc1360.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = skin_pc1360.png; sourceTree = "<group>"; };
+		B40000000000000000000001 /* skin_pc1460.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = skin_pc1460.png; sourceTree = "<group>"; };
+		B50000000000000000000001 /* skin_pc1470u.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = skin_pc1470u.png; sourceTree = "<group>"; };
+		B60000000000000000000001 /* skin_pc1360k.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = skin_pc1360k.png; sourceTree = "<group>"; };
+		D10000000000000000000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		1B2DFFDC1F96EDFE1A90B4A8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
-		"F97D6530C305511F24A75761" = {
-			"isa" = "PBXSourcesBuildPhase";
-			"buildActionMask" = "2147483647";
-			"files" = ("CFCB08EE059CD4FAD48FD867");
-			"runOnlyForDeploymentPostprocessing" = "0";
+		312D1DDA02D2F07789BB9B79 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
-		"AB0000000000000000000001" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "IosRomIO.swift";
-			"sourceTree" = "<group>";
+		F3AF13C27BBAAF0EC1C603FF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
-		"AB0000000000000000000002" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "AB0000000000000000000001";
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0A3E27B8CA818264D75C8D81 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				38CC6D404D097B2DD3AB027A /* PokecomGOPlayer.app */,
+				4A09C89F81FF91C500E3BF02 /* PokecomGOPlayerTests.xctest */,
+				55539D85EAA3DF628723CCF2 /* PokecomGOPlayerUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
 		};
-        "AC0000000000000000000001" = { "isa" = "PBXFileReference"; "lastKnownFileType" = "sourcecode.swift"; "path" = "IosPlayerAudio.swift"; "sourceTree" = "<group>"; };
-        "AC0000000000000000000002" = { "isa" = "PBXBuildFile"; "fileRef" = "AC0000000000000000000001"; };
-        "AD0000000000000000000001" = { "isa" = "PBXFileReference"; "lastKnownFileType" = "sourcecode.swift"; "path" = "IosPlayerInput.swift"; "sourceTree" = "<group>"; };
-        "AD0000000000000000000002" = { "isa" = "PBXBuildFile"; "fileRef" = "AD0000000000000000000001"; };
+		0D6E4079E36703EBD37C0072 = {
+			isa = PBXGroup;
+			children = (
+				BE68C18CDC83A8E3C778204B /* PokecomGOPlayer */,
+				48EFD0F3E8CFA85291047769 /* PokecomGOPlayerTests */,
+				1C86D20763E98A17218BF2A4 /* PokecomGOPlayerUITests */,
+				0A3E27B8CA818264D75C8D81 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		1C86D20763E98A17218BF2A4 /* PokecomGOPlayerUITests */ = {
+			isa = PBXGroup;
+			children = (
+				72810BD81DA478EC3B4FDA9E /* PlayerSmokeTests.swift */,
+			);
+			path = PokecomGOPlayerUITests;
+			sourceTree = "<group>";
+		};
+		48EFD0F3E8CFA85291047769 /* PokecomGOPlayerTests */ = {
+			isa = PBXGroup;
+			children = (
+				04AB1E36AC63233D4AC66466 /* PlayerHostTests.swift */,
+			);
+			path = PokecomGOPlayerTests;
+			sourceTree = "<group>";
+		};
+		BE68C18CDC83A8E3C778204B /* PokecomGOPlayer */ = {
+			isa = PBXGroup;
+			children = (
+				D10000000000000000000001 /* Assets.xcassets */,
+				6E0126D99977F1728BB738D8 /* PokecomGOPlayerApp.swift */,
+				7495E441FE2F8E2386797EA0 /* PlayerHost.swift */,
+				B16271A5E83FFF411884B88C /* PlayerProbeView.swift */,
+				06271BAF49532C879AA3C58B /* Info.plist */,
+				B10000000000000000000001 /* skin_pc1401.png */,
+				B20000000000000000000001 /* skin_pc1450.png */,
+				B30000000000000000000001 /* skin_pc1360.png */,
+				B40000000000000000000001 /* skin_pc1460.png */,
+				B50000000000000000000001 /* skin_pc1470u.png */,
+				B60000000000000000000001 /* skin_pc1360k.png */,
+				B00000000000000000000001 /* skin_pc1350.png */,
+				AF0000000000000000000001 /* skin_pc1261.png */,
+				AE0000000000000000000001 /* skin_pc1251.png */,
+				AA0000000000000000000001 /* skin_pc1245.png */,
+				AB0000000000000000000001 /* IosRomIO.swift */,
+				AC0000000000000000000001 /* IosPlayerAudio.swift */,
+				AD0000000000000000000001 /* IosPlayerInput.swift */,
+			);
+			path = PokecomGOPlayer;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5F099CC09E667E59E9C74BF5 /* PokecomGOPlayer */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B05E47B9116784F180E46537 /* Build configuration list for PBXNativeTarget "PokecomGOPlayer" */;
+			buildPhases = (
+				C41C5CA480D5899714319D3E /* Build shared Kotlin framework */,
+				CF47DC1005E4B66A98FDDBD7 /* Sources */,
+				312D1DDA02D2F07789BB9B79 /* Frameworks */,
+				86B67F838F73EF0635EB165B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PokecomGOPlayer;
+			productName = PokecomGOPlayer;
+			productReference = 38CC6D404D097B2DD3AB027A /* PokecomGOPlayer.app */;
+			productType = "com.apple.product-type.application";
+		};
+		69C71FF48CD9262B490C1972 /* PokecomGOPlayerUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C3B45FF10CC2839E313A39B1 /* Build configuration list for PBXNativeTarget "PokecomGOPlayerUITests" */;
+			buildPhases = (
+				F97D6530C305511F24A75761 /* Sources */,
+				F3AF13C27BBAAF0EC1C603FF /* Frameworks */,
+				974953D90862A72CC7848D7A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0DAC70573FD831CCF93683D9 /* PBXTargetDependency */,
+			);
+			name = PokecomGOPlayerUITests;
+			productName = PokecomGOPlayerUITests;
+			productReference = 55539D85EAA3DF628723CCF2 /* PokecomGOPlayerUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		8DD3329561BAB0725320E6AD /* PokecomGOPlayerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D3162FD8F296394D8B10B33D /* Build configuration list for PBXNativeTarget "PokecomGOPlayerTests" */;
+			buildPhases = (
+				53A89167E300BC338777C6F8 /* Sources */,
+				1B2DFFDC1F96EDFE1A90B4A8 /* Frameworks */,
+				B99BCEAE768ADC3A60352A66 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F539421C885C98DFB315361E /* PBXTargetDependency */,
+			);
+			name = PokecomGOPlayerTests;
+			productName = PokecomGOPlayerTests;
+			productReference = 4A09C89F81FF91C500E3BF02 /* PokecomGOPlayerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		244210E48437B6556980A702 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2660;
+			};
+			buildConfigurationList = 76F8DEC3DFE0BDB465198890 /* Build configuration list for PBXProject "PokecomGOPlayer" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 0D6E4079E36703EBD37C0072;
+			productRefGroup = 0A3E27B8CA818264D75C8D81 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5F099CC09E667E59E9C74BF5 /* PokecomGOPlayer */,
+				8DD3329561BAB0725320E6AD /* PokecomGOPlayerTests */,
+				69C71FF48CD9262B490C1972 /* PokecomGOPlayerUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		86B67F838F73EF0635EB165B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D10000000000000000000002 /* Assets.xcassets in Resources */,
+				AA0000000000000000000002 /* skin_pc1245.png in Resources */,
+				AE0000000000000000000002 /* skin_pc1251.png in Resources */,
+				AF0000000000000000000002 /* skin_pc1261.png in Resources */,
+				B30000000000000000000002 /* skin_pc1360.png in Resources */,
+				B40000000000000000000002 /* skin_pc1460.png in Resources */,
+				B50000000000000000000002 /* skin_pc1470u.png in Resources */,
+				B60000000000000000000002 /* skin_pc1360k.png in Resources */,
+				B00000000000000000000002 /* skin_pc1350.png in Resources */,
+				B10000000000000000000002 /* skin_pc1401.png in Resources */,
+				B20000000000000000000002 /* skin_pc1450.png in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		974953D90862A72CC7848D7A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B99BCEAE768ADC3A60352A66 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		C41C5CA480D5899714319D3E /* Build shared Kotlin framework */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Build shared Kotlin framework";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"$SRCROOT/build-shared.sh\"";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		53A89167E300BC338777C6F8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D98578ABF6665436A2E1567F /* PlayerHostTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CF47DC1005E4B66A98FDDBD7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EFF7E6A0D837155469EB2071 /* PokecomGOPlayerApp.swift in Sources */,
+				6F9C15B626E1918F1F3DED28 /* PlayerHost.swift in Sources */,
+				0A369D82DF0D767669917351 /* PlayerProbeView.swift in Sources */,
+				AB0000000000000000000002 /* IosRomIO.swift in Sources */,
+				AC0000000000000000000002 /* IosPlayerAudio.swift in Sources */,
+				AD0000000000000000000002 /* IosPlayerInput.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F97D6530C305511F24A75761 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CFCB08EE059CD4FAD48FD867 /* PlayerSmokeTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		0DAC70573FD831CCF93683D9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5F099CC09E667E59E9C74BF5 /* PokecomGOPlayer */;
+			targetProxy = 1D117452C29F0E96922D2D61 /* PBXContainerItemProxy */;
+		};
+		F539421C885C98DFB315361E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5F099CC09E667E59E9C74BF5 /* PokecomGOPlayer */;
+			targetProxy = AE3DCA58EB95D9955807EB03 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0B0C687DF8B6B8DC790B519C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_TESTABILITY = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../playerShared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		1B068ECC9000A79A52E98248 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../playerShared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.digihori.pgp.player.ios.PokecomGOPlayerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PokecomGOPlayer.app/PokecomGOPlayer";
+			};
+			name = Debug;
+		};
+		406615CA15347AF604466AD5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../playerShared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.digihori.pgp.player.ios.PokecomGOPlayerUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = PokecomGOPlayer;
+			};
+			name = Debug;
+		};
+		424C0057661A7DCC66D67EE8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_TESTABILITY = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../playerShared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.digihori.pgp.player.ios.PokecomGOPlayerUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = PokecomGOPlayer;
+			};
+			name = Release;
+		};
+		73EBF6644258C120893E685D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../playerShared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		BFDF0562967E94F0EAB7885B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = MZ6PNL5Y7C;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../playerShared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PokecomGOPlayer/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.7.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					PgpPlayer,
+					"-lz",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.digihori.pgp.player.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		D681AC752FBECD492450F031 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_TESTABILITY = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../playerShared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.digihori.pgp.player.ios.PokecomGOPlayerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PokecomGOPlayer.app/PokecomGOPlayer";
+			};
+			name = Release;
+		};
+		D75033438B588F7B8C9C2E42 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = MZ6PNL5Y7C;
+				ENABLE_TESTABILITY = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../playerShared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PokecomGOPlayer/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.7.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					PgpPlayer,
+					"-lz",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.digihori.pgp.player.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		76F8DEC3DFE0BDB465198890 /* Build configuration list for PBXProject "PokecomGOPlayer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				73EBF6644258C120893E685D /* Debug */,
+				0B0C687DF8B6B8DC790B519C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B05E47B9116784F180E46537 /* Build configuration list for PBXNativeTarget "PokecomGOPlayer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BFDF0562967E94F0EAB7885B /* Debug */,
+				D75033438B588F7B8C9C2E42 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C3B45FF10CC2839E313A39B1 /* Build configuration list for PBXNativeTarget "PokecomGOPlayerUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				406615CA15347AF604466AD5 /* Debug */,
+				424C0057661A7DCC66D67EE8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D3162FD8F296394D8B10B33D /* Build configuration list for PBXNativeTarget "PokecomGOPlayerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1B068ECC9000A79A52E98248 /* Debug */,
+				D681AC752FBECD492450F031 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
 	};
-	"rootObject" = "244210E48437B6556980A702";
+	rootObject = 244210E48437B6556980A702 /* Project object */;
 }
