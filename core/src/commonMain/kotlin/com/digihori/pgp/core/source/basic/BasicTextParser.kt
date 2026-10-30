@@ -30,6 +30,11 @@ public object BasicTextParser {
                     index++
                     column++
                 }
+                '¥', '￥' -> {
+                    tokens += BasicTextToken(BasicTextElement.Character('\\'), line, column)
+                    index++
+                    column++
+                }
                 '\\' -> {
                     val escape = parseEscape(normalized, index, line, column)
                     when (escape) {
@@ -69,12 +74,9 @@ public object BasicTextParser {
             return EscapeParseResult.Success(BasicTextElement.RawByte(value), 4)
         }
 
-        var end = start + 1
-        while (end < source.length && source[end].isLetter()) end++
-        val name = source.substring(start + 1, end)
-        val symbol = NAMED_ESCAPES[name]
-            ?: return failure(line, column, "Unknown escape: \\$name")
-        return EscapeParseResult.Success(BasicTextElement.Special(symbol), end - start)
+        val named = NAMED_ESCAPES.entries.firstOrNull { source.startsWith(it.key, start + 1) }
+            ?: return failure(line, column, "Unknown escape: \\" + source.substring(start + 1).takeWhile(Char::isLetter))
+        return EscapeParseResult.Success(BasicTextElement.Special(named.value), named.key.length + 1)
     }
 
     private fun failure(line: Int, column: Int, message: String): EscapeParseResult.Failure =
@@ -94,6 +96,7 @@ public object BasicTextParser {
         "SQR" to BasicSpecialSymbol.SQUARE_ROOT,
         "EX" to BasicSpecialSymbol.EXPONENT,
         "BX" to BasicSpecialSymbol.BLOCK,
+        "INS" to BasicSpecialSymbol.INSERT,
     )
 
     private const val UTF8_BOM: Char = '\uFEFF'
@@ -126,6 +129,7 @@ public enum class BasicSpecialSymbol {
     SQUARE_ROOT,
     EXPONENT,
     BLOCK,
+    INSERT,
 }
 
 public sealed interface BasicTextParseResult {

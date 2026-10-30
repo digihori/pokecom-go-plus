@@ -70,7 +70,7 @@ internal class DevelopmentChangeService(
         val digest = MessageDigest.getInstance("SHA-256")
         fun add(bytes: ByteArray) { digest.update(ByteBuffer.allocate(4).putInt(bytes.size).array()); digest.update(bytes) }
         add(epoch.toByteArray()); add(state.assembler.toString().toByteArray())
-        val layout = state.runner?.takeIf { it.machineId == project.definition.machineId }?.memoryLayout ?: com.digihori.pgp.core.api.MachineMemoryLayout(project.definition.machineId)
+        val layout = state.runner?.memoryLayout ?: com.digihori.pgp.core.api.MachineMemoryLayout(project.definition.machineId, state.fallbackRamMode)
         add(layout.machineId.value.toByteArray()); add(layout.pc1251MemoryMode.name.toByteArray())
         val manifest = read(project.manifestFile, 65536)
         val parsed = com.digihori.pgp.core.project.ProjectManifestReader.read(decode(manifest))

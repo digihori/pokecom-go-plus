@@ -35,7 +35,8 @@ internal class DesktopKeyboardInput {
     private var sink: DesktopKeyInputSink? = null
     private var enabled: Boolean = true
     private var modalInputBlocked: Boolean = false
-    val isEnabled: Boolean get() = enabled && !modalInputBlocked
+    private val textInputOwners = mutableSetOf<Any>()
+    val isEnabled: Boolean get() = enabled && !modalInputBlocked && textInputOwners.isEmpty()
     private val activeInputs: MutableMap<Long, ActiveInput> = mutableMapOf()
     var inputMode: HostKeyInputMode = HostKeyInputMode.LOGICAL
         private set
@@ -55,6 +56,12 @@ internal class DesktopKeyboardInput {
     fun setEnabled(value: Boolean) {
         if (enabled && !value) clearActiveInputs()
         enabled = value
+    }
+
+    fun setTextInputFocused(owner: Any, focused: Boolean) {
+        if (focused) {
+            if (textInputOwners.add(owner)) clearActiveInputs()
+        } else textInputOwners.remove(owner)
     }
 
     // Modal ownership is independent of text-field focus callbacks. A field losing

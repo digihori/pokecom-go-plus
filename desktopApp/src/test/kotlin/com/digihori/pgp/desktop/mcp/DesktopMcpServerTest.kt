@@ -173,12 +173,13 @@ class DesktopMcpServerTest {
             assertRejected(403, request(origins = listOf("null", "https://example.invalid")))
             for (host in listOf("example.invalid:${info.port}", "localhost.example.invalid:${info.port}",
                 "127.0.0.1.example.invalid:${info.port}", "127.0.0.1", "localhost", "127.0.0.1:0",
-                "127.1:${info.port}", "[::1]:${info.port}", "127.0.0.1:${info.port},example.invalid")) {
+                "127.1:${info.port}", "[::1]:${info.port}")) {
                 assertRejected(403, request(hostHeaders = listOf(host)))
                 assertRejected(403, request(hostHeaders = listOf(host), method = "GET", path = "/"))
             }
             // The HTTP parser may reject malformed Host headers before our handler.
-            for (hosts in listOf(emptyList(), listOf("127.0.0.1:${info.port}", "example.invalid"))) {
+            for (hosts in listOf(emptyList(), listOf("127.0.0.1:${info.port}", "example.invalid"),
+                listOf("127.0.0.1:${info.port},example.invalid"))) {
                 val response = request(hostHeaders = hosts)
                 assertTrue(response.first in setOf(400, 403), response.second)
                 assertEquals(0, providerCalls)

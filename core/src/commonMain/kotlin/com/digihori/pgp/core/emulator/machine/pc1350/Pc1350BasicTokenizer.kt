@@ -1,6 +1,7 @@
 package com.digihori.pgp.core.emulator.machine.pc1350
 
 import com.digihori.pgp.core.source.basic.BasicTextDocument
+import com.digihori.pgp.core.source.basic.BasicSymbolEncoding
 import com.digihori.pgp.core.source.basic.BasicSpecialSymbol
 import com.digihori.pgp.core.source.basic.BasicTextElement
 
@@ -14,7 +15,7 @@ public object Pc1350BasicTokenizer {
         document: BasicTextDocument,
         keywords: List<Pair<String, Int>>,
         allowKana: Boolean = true,
-        specialCodes: Map<BasicSpecialSymbol, Int> = emptyMap(),
+        specialCodes: Map<BasicSpecialSymbol, Int> = BasicSymbolEncoding.later,
     ): Pc1350BasicTokenizeResult {
         val lines = mutableListOf<StringBuilder>(StringBuilder())
         document.tokens.forEach { token ->
@@ -59,7 +60,7 @@ public object Pc1350BasicTokenizer {
         bytes: ByteArray,
         tokenNames: Map<Int, String>,
         allowKana: Boolean = true,
-        specialNames: Map<Int, String> = emptyMap(),
+        specialNames: Map<Int, String> = BasicSymbolEncoding.names(BasicSymbolEncoding.later),
     ): Pc1350BasicDetokenizeResult {
         if (bytes.size < 2 || bytes.first().toInt() and 0xff != 0xff) {
             return decodeFailure(0, "Missing S1 start marker")
@@ -100,10 +101,10 @@ public object Pc1350BasicTokenizer {
                     value in 0x20..0x7e -> {
                         val character = value.toChar()
                         if (afterKeyword && (character.isLetter() || character == '$')) body.append(' ')
-                        body.append(character)
+                        body.append(if (character == '\\') '¥' else character)
                         afterKeyword = false
                     }
-                    value in specialNames -> { body.append(specialNames.getValue(value)); afterKeyword = false }
+                    value in specialNames && !(allowKana && value == 0xfe && position + 1 < end - 1 && (bytes[position + 1].toInt() and 0xff) in 0xa1..0xdf) -> { body.append(specialNames.getValue(value)); afterKeyword = false }
                     allowKana && value == 0xfe && position + 1 < end - 1 -> {
                         val kana = bytes[position + 1].toInt() and 0xff
                         if (kana in 0xa1..0xdf) {
@@ -205,7 +206,7 @@ public object Pc1350BasicTokenizer {
         groups.forEach { (base, words) ->
             words.split(' ').forEachIndexed { index, word -> if (word != "_") add(word to base + index) }
         }
-        add("<=" to 0x3c); add(">=" to 0x3e); add("<>" to 0x3c)
+        // Comparison operators are ASCII sequences, not single-byte keyword tokens.
     }.sortedByDescending { it.first.length }
 
     private val LINE_PATTERN = Regex("(\\d+)(?:\\s+|(?=:)|$)(.*)")

@@ -219,9 +219,8 @@ Project, Assembler, Debugger, WAV tools, and save states are outside the current
 
 ### Load BASIC text
 
-After booting a ROM, load a UTF-8 `.bas` file. The tokenizer normally converts it directly into intermediate code,
-allowing lines longer than the original interactive input limit and escaped special characters.
-Input through the ROM's own editor is also available as a compatibility option.
+After booting a ROM, load a UTF-8 `.bas` file. The tokenizer converts it into machine-specific intermediate code
+and loads it into the BASIC program area. Use supported escape sequences for special characters.
 Character encodings, keywords, and special characters vary by machine;
 see [BASIC text format (Japanese)](docs/reference/BASIC_TEXT_FORMAT.md).
 
@@ -240,7 +239,7 @@ Select S1 or S2 for Binary 67; validated results can be saved as `.dmp` or Intel
 WAV Encode uses explicit BASIC without password / BASIC with password / machine-code selection (S2: BASIC only). Input extensions are checked against the selected kind.
 
 For S1/S2 BASIC, enter a printable ASCII transfer name. Names longer than seven characters are shortened, with a note in the report.
-There is no target-machine picker. Project launch selects the initial dialect and BASIC/binary kind from the project machine and file; these selections remain editable. Project information is used only for the initial encode selection; validated BASIC can be saved as `.bas`.
+There is no target-machine picker. Project launch selects the initial dialect and BASIC/binary kind from the active build target (the manifest machine when no session exists) and file; these selections remain editable. Project information is used only for the initial encode selection; validated BASIC can be saved as `.bas`.
 S2 supports Japanese CP932 text and line references, with format-wide vocabulary, without individual machine restrictions.
 Type 27 is the default; the protected BASIC option selects type 37 without setting a password string. The new S1/S2 codec has passed synthetic tests; hardware round trips are unverified.
 The tool does not integrate with ROM CSAVE/CLOAD or directly load decoded data into the emulator.
@@ -333,6 +332,17 @@ and prepares a draft GitHub Release with Studio packages and the standalone memo
 Android debug APKs remain CI artifacts. Verify the assets and acceptance results before publishing the draft.
 See [Building from source (Japanese)](docs/reference/BUILDING.md) for local DMG/MSI/DEB packaging.
 
+## Fixes prepared for the next update (development source)
+
+The source includes RAM defaults/persistence, editor input isolation, MCP approval button placement,
+arrow legends, Linux menu classification, special-symbol/yen conversion, and relaxed project machine restrictions.
+It also fixes truncated BASIC comparison operators (`>=`, `<=`, `<>`).
+Studio defaults to Hardware RAM and remembers the shared 1250/1251/1255 selection.
+Opening a project keeps the current machine/ROM; builds use the active machine, or the manifest default without a session.
+The Linux test DEB was verified under Development; published 1.0.0 uses the previous classification.
+See the [fix and verification record](docs/development/planning/NEXT_RELEASE_FIXES.md).
+These source changes require an updated build and are not automatically applied to installed 1.0.0 apps.
+
 ## Known limitations
 
 - You must supply the appropriate ROMs; none are bundled.
@@ -344,7 +354,7 @@ See [Building from source (Japanese)](docs/reference/BUILDING.md) for local DMG/
   ARM64 Linux packages are unavailable; the DEB menu entry currently appears under “Other.”
 - ROM import guidance and bulk selection of banked ROM components remain provisional.
 - Sound waveforms may differ from hardware. Current Studio/Android audio is the baseline for the formal release; iOS audio improvements are separate.
-- The development source implements the revised [1245/125x/126x RAM mapping](docs/reference/machines/RAM_1245_1261.md). Unexpected MEM values remain pending. This change is separate from the published 0.7 build.
+- [RAM mapping and MEM values](docs/reference/machines/RAM_1245_1261.md) have been checked by RAM mode. Hardware RAM follows each 125x model; expanded RAM uses the PC-1255 capacity and alias mapping.
 - Android and iPhone Player support the 14 models above. Verification details remain machine- and device-specific; see the Android/iOS acceptance records. Save states are not implemented. The Android privacy policy is applicable. The iPhone policy is available in [Japanese](docs/guides/PLAYER_PRIVACY_POLICY_IOS.md) and [English](docs/guides/PLAYER_PRIVACY_POLICY_IOS.en.md); the [public iOS policy pages](docs/player/README.md#ios-privacy-policy) were verified on October 25, 2026.
 
 See the [documentation index](docs/README.en.md#releases) for versioned release notes and historical checklists.

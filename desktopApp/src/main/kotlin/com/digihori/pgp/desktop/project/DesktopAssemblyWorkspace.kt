@@ -90,7 +90,6 @@ internal object DesktopAssemblyWorkspaceCompiler {
 
     fun compile(workspace: DesktopProjectWorkspace, layout: MachineMemoryLayout = MachineMemoryLayout(workspace.definition.machineId),
         preassembled: Map<String, Sc61860AssemblyResult>? = null, validatePlacement: Boolean = true): DesktopAssemblyWorkspaceResult {
-        require(layout.machineId == workspace.definition.machineId)
         val results = mutableListOf<DesktopAssemblySourceResult>()
         val diagnostics = mutableListOf<DesktopAssemblyDiagnostic>()
         val owners = arrayOfNulls<Pair<DesktopProjectSource, Int>>(0x10000)

@@ -22,6 +22,7 @@ internal data class DesktopProjectArtifact(
     private val basicProgram: ByteArray?,
     val memoryImage: AddressedMemoryImage?,
     val assemblySources: List<DesktopAssemblySourceResult>,
+    val targetMachineId: com.digihori.pgp.core.rom.MachineId? = null,
 ) {
     fun copyBasicProgram(): ByteArray? = basicProgram?.copyOf()
 }
@@ -59,7 +60,6 @@ internal object DesktopProjectBuilder {
     fun build(workspace: DesktopProjectWorkspace, layout: MachineMemoryLayout = MachineMemoryLayout(workspace.definition.machineId),
         validateForLoad: Boolean = false,
         compiledAssembly: DesktopAssemblyWorkspaceResult = DesktopAssemblyWorkspaceCompiler.compile(workspace, layout, validatePlacement = validateForLoad)): DesktopProjectBuildResult {
-        require(layout.machineId == workspace.definition.machineId)
         val errors = mutableListOf<DesktopProjectBuildError>()
         val basicSources = workspace.sources.filter { it.definition.type == ProjectSourceType.BASIC }
         if (basicSources.size > 1) {
@@ -104,7 +104,7 @@ internal object DesktopProjectBuilder {
                 return@forEach
             }
             when (source.definition.type) {
-                ProjectSourceType.BASIC -> when (val compiled = DesktopBasicLoader.compileProgram(bytes, workspace.definition.machineId)) {
+                ProjectSourceType.BASIC -> when (val compiled = DesktopBasicLoader.compileProgram(bytes, layout.machineId)) {
                     is DesktopBasicProgramCompileResult.Failure -> errors +=
                         DesktopProjectBuildError.BasicCompile(source.definition.id, compiled.error)
                     is DesktopBasicProgramCompileResult.Success -> if (basicSources.size == 1) {
@@ -181,6 +181,6 @@ internal object DesktopProjectBuilder {
             }
         }
         if (errors.isNotEmpty()) return DesktopProjectBuildResult.Failure(errors)
-        return DesktopProjectBuildResult.Success(DesktopProjectArtifact(basicProgram, memoryImage, assemblySources))
+        return DesktopProjectBuildResult.Success(DesktopProjectArtifact(basicProgram, memoryImage, assemblySources, layout.machineId))
     }
 }

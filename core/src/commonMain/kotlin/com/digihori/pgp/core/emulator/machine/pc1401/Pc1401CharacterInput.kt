@@ -29,7 +29,7 @@ public object Pc1401RomBasicInput {
             BasicSpecialSymbol.PI -> listOf(PocketKey.SHIFT, PocketKey.EXPONENT)
             BasicSpecialSymbol.SQUARE_ROOT -> listOf(PocketKey.ROOT)
             BasicSpecialSymbol.EXPONENT -> listOf(PocketKey.EXPONENT)
-            BasicSpecialSymbol.BLOCK -> null
+            BasicSpecialSymbol.BLOCK, BasicSpecialSymbol.INSERT -> null
         } },
     )
 }

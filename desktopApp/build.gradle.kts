@@ -88,6 +88,7 @@ compose.desktop {
                 }
             }
             linux {
+                menuGroup = "Development"
                 iconFile.set(project.file("icons/pokecom-go.png"))
             }
             windows {

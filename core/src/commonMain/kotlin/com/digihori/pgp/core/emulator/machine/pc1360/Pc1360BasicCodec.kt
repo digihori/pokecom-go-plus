@@ -1,10 +1,12 @@
 package com.digihori.pgp.core.emulator.machine.pc1360
 
-import com.digihori.pgp.core.source.basic.BasicSpecialSymbol
+import com.digihori.pgp.core.source.basic.BasicSymbolEncoding
 import com.digihori.pgp.core.source.basic.BasicTextDocument
 import com.digihori.pgp.core.source.basic.BasicTextElement
 
 public object Pc1360BasicCodec {
+    private val specialCodes = BasicSymbolEncoding.later
+    private val specialNames = BasicSymbolEncoding.names(specialCodes)
     public fun tokenize(document: BasicTextDocument, tokenNames: Map<Int, String> = TOKEN_NAMES): Pc1360BasicTokenizeResult {
         val lines = mutableListOf<MutableList<Pair<BasicTextElement, Int>>>(mutableListOf())
         document.tokens.forEach { token ->
@@ -86,11 +88,10 @@ public object Pc1360BasicCodec {
                     }
                 }
                 is BasicTextElement.RawByte -> output += element.value
-                is BasicTextElement.Special -> output += when (element.symbol) {
-                    BasicSpecialSymbol.PI -> 0xfb
-                    BasicSpecialSymbol.SQUARE_ROOT -> 0xfc
-                    BasicSpecialSymbol.EXPONENT -> 'E'.code
-                    BasicSpecialSymbol.BLOCK -> 0xf9
+                is BasicTextElement.Special -> {
+                    val code = specialCodes[element.symbol]
+                        ?: return BodyResult.Failure(Pc1360BasicTokenizeError(line, column, "Special symbol ${element.symbol} is not supported"))
+                    output += code
                 }
                 BasicTextElement.LineBreak -> Unit
             }
@@ -131,12 +132,19 @@ public object Pc1360BasicCodec {
                         body.append(((bytes[p + 1].toInt() and 0xff) shl 8) or (bytes[p + 2].toInt() and 0xff))
                         p += 3; continue
                     }
-                    japanese != null && (quoted || remark || value !in setOf(0xfb, 0xfc)) -> { body.append(japanese); p += 2; continue }
+                    japanese != null && value !in setOf(0xf9, 0xfa, 0xfb, 0xfc) -> {
+                        // Unicode aliases would re-encode as single-byte symbols/yen.
+                        if (japanese in setOf('π', '√', '¥', '￥')) {
+                            body.append("\\x${value.toString(16).uppercase().padStart(2, '0')}")
+                            body.append("\\x${(bytes[p + 1].toInt() and 255).toString(16).uppercase().padStart(2, '0')}")
+                        } else body.append(japanese)
+                        p += 2; continue
+                    }
                     value == 0x22 -> { body.append('"'); if (!remark) quoted = !quoted }
-                    value in 0x20..0x7e -> body.append(value.toChar())
+                    value in 0x20..0x7e -> body.append(if (value == 0x5c) '¥' else value.toChar())
                     value in 0xa1..0xdf -> body.append((0xff61 + value - 0xa1).toChar())
-                    value == 0xfb -> body.append('π')
-                    value == 0xfc -> body.append('√')
+                    value in specialNames ->
+                        body.append(specialNames.getValue(value))
                     else -> body.append("\\x${value.toString(16).uppercase().padStart(2, '0')}")
                 }
                 p++

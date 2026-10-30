@@ -327,6 +327,25 @@ class DesktopKeyboardInputTest {
         assertEquals(listOf("press:NUM_1", "release:NUM_1", "press:NUM_1", "release:NUM_1"), sink.events)
     }
 
+    @Test
+    fun movingBetweenEditorsCannotReleaseAnotherEditorsInputBlock() {
+        val sink = FakeSink()
+        val input = DesktopKeyboardInput().also { it.attach(sink) }
+        val first = Any()
+        val second = Any()
+        input.setTextInputFocused(first, true)
+        input.setTextInputFocused(second, true)
+        input.setTextInputFocused(first, false)
+        input.setEnabled(true)
+        assertFalse(input.handle(Key.One, '1'.code, KeyEventType.KeyDown))
+        assertTrue(sink.sequences.isEmpty())
+        input.setModalInputBlocked(true)
+        input.setTextInputFocused(second, false)
+        assertFalse(input.isEnabled)
+        input.setModalInputBlocked(false)
+        assertTrue(input.handle(Key.One, '1'.code, KeyEventType.KeyDown))
+    }
+
     private class FakeSink(
         override val machineId: MachineId = Pc1245RomDefinition.MACHINE_ID,
     ) : DesktopKeyInputSink {

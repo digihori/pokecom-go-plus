@@ -62,12 +62,7 @@ public object Pc1245BasicDialect {
             put('~', 0x4d)
             ('A'..'Z').forEachIndexed { index, character -> put(character, 0x51 + index) }
         },
-        canonicalSpecialCodes = mapOf(
-            BasicSpecialSymbol.PI to 0x19,
-            BasicSpecialSymbol.SQUARE_ROOT to 0x1a,
-            BasicSpecialSymbol.EXPONENT to 0x4b,
-            BasicSpecialSymbol.BLOCK to 0x4c,
-        ),
+        canonicalSpecialCodes = com.digihori.pgp.core.source.basic.BasicSymbolEncoding.old,
     ) }
 
     public const val PROGRAM_TEXT_START: Int = 0xc000
