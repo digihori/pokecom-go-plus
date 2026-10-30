@@ -1976,6 +1976,11 @@ private fun FrameWindowScope.App(
                             },
                             memory = {
                                 DebuggerSection {
+                                    com.digihori.pgp.desktop.debug.DebuggerMemorySearchPanel(
+                                        runner, keyboardInput, runner?.sessionRevision ?: 0L, ::navigateToMemory,
+                                    )
+                                }
+                                DebuggerSection {
                                     SelectionContainer {
                                         MemoryViewPanel(
                                             runner = runner,
