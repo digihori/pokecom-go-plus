@@ -16,7 +16,7 @@ public object Pc1251RomBasicInput {
                 BasicSpecialSymbol.PI -> listOf(PocketKey.SHIFT, PocketKey.NUM_0)
                 BasicSpecialSymbol.SQUARE_ROOT -> listOf(PocketKey.SHIFT, PocketKey.DOT)
                 BasicSpecialSymbol.EXPONENT -> listOf(PocketKey.SHIFT, PocketKey.PLUS)
-                BasicSpecialSymbol.BLOCK -> null
+                BasicSpecialSymbol.BLOCK, BasicSpecialSymbol.INSERT -> null
             }
         },
     )

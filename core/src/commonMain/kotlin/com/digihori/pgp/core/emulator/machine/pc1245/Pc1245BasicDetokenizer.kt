@@ -49,7 +49,7 @@ public object Pc1245BasicDetokenizer {
                 if (inString || inRemark) {
                     when (meaning) {
                         is BasicCodeMeaning.Character -> {
-                            output.append(meaning.value)
+                            output.append(if (meaning.value == '\\') '¥' else meaning.value)
                             if (meaning.value == '"' && inString) {
                                 inString = false
                                 literalBeforeKeyword = true
@@ -77,7 +77,7 @@ public object Pc1245BasicDetokenizer {
                     }
                     is BasicCodeMeaning.Character -> {
                         if (afterKeyword) output.append(' ')
-                        output.append(meaning.value)
+                        output.append(if (meaning.value == '\\') '¥' else meaning.value)
                         afterKeyword = false
                         literalBeforeKeyword = true
                         if (meaning.value == '"') inString = true
@@ -112,12 +112,8 @@ public object Pc1245BasicDetokenizer {
         return value.takeIf { it in 1..Pc1245BasicDialect.definition.programFormat.maximumLineNumber }
     }
 
-    private fun BasicSpecialSymbol.textForm(): String = when (this) {
-        BasicSpecialSymbol.PI -> "π"
-        BasicSpecialSymbol.SQUARE_ROOT -> "√"
-        BasicSpecialSymbol.EXPONENT -> rawByte(0x4b)
-        BasicSpecialSymbol.BLOCK -> rawByte(0x4c)
-    }
+    private fun BasicSpecialSymbol.textForm(): String =
+        com.digihori.pgp.core.source.basic.BasicSymbolEncoding.text(this)
 
     private fun rawByte(value: Int): String = "\\x" + value.toString(16).uppercase().padStart(2, '0')
 

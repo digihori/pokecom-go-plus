@@ -17,7 +17,7 @@ import kotlinx.serialization.json.*
 class ExecutionChangeServiceTest {
     private fun JsonObject.string(key: String) = getValue(key).jsonPrimitive.content
     private fun expect(code: String, action: () -> Unit) = assertEquals(code, assertFailsWith<DevelopmentReadError>(block = action).code)
-    private inner class Fixture(basic: Boolean = false) : AutoCloseable {
+    private inner class Fixture(basic: Boolean = false, manifestMachine: String = "pc-1245") : AutoCloseable {
         val root = Files.createTempDirectory("pgp-load-continue-").toFile()
         var now = 0L
         val runner: DesktopEmulatorRunner
@@ -30,7 +30,7 @@ class ExecutionChangeServiceTest {
             root.resolve("main.asm").writeText("ORG 0xC500\nENTRY: LIA 0x41\nRTN\n")
             root.resolve("main.bas").writeText("10 END\n")
             val manifest = root.resolve("pgp-project.json")
-            manifest.writeText("""{"format":"pgp-project","formatVersion":1,"name":"Load test","machineId":"pc-1245","sources":[{"id":"main","type":"assembly","path":"main.asm"}${if (basic) ",{\"id\":\"basic\",\"type\":\"basic\",\"path\":\"main.bas\"}" else ""}]}""")
+            manifest.writeText("""{"format":"pgp-project","formatVersion":1,"name":"Load test","machineId":"$manifestMachine","sources":[{"id":"main","type":"assembly","path":"main.asm"}${if (basic) ",{\"id\":\"basic\",\"type\":\"basic\",\"path\":\"main.bas\"}" else ""}]}""")
             workspace = assertIs<DesktopProjectOpenResult.Success>(DesktopProjectWorkspaceLoader.open(manifest)).workspace
             val rom = RomSet(Pc1245RomDefinition.MACHINE_ID, listOf(
                 RomComponent(Pc1245RomDefinition.INTERNAL_ID, RomRole.INTERNAL, ByteArray(0x2000).also {
@@ -60,6 +60,33 @@ class ExecutionChangeServiceTest {
             assertIs<MemoryImageLoadResult.Success>(runner.loadMemoryImage(image))
         }
         override fun close() { root.deleteRecursively() }
+    }
+
+    @Test fun manifestMachineDoesNotRestrictApprovedMcpBuildAndLoad() {
+        Fixture(manifestMachine = "pc-1261").use { f ->
+            val built = f.build()
+            assertEquals("pc-1245", built.artifact.targetMachineId!!.value)
+            assertEquals("pc-1245", f.registry.metadata().string("machineId"))
+            val request = f.load(built)
+            f.service.approve()
+            assertEquals("SUCCEEDED", f.operation(request).string("status"))
+            assertContentEquals(byteArrayOf(2, 0x41, 0x37), f.runner.memorySnapshot(0xc500, 3).copyBytes())
+        }
+    }
+
+    @Test fun changingExecutionMachineInvalidatesPreviouslyBuiltArtifact() {
+        Fixture().use { f ->
+            val built = f.build()
+            val id = MachineId("pc-1261")
+            val rom = RomSet(id, listOf(
+                RomComponent(RomComponentId("internal"), RomRole.INTERNAL, ByteArray(0x2000)),
+                RomComponent(RomComponentId("external"), RomRole.EXTERNAL, ByteArray(0x8000))))
+            val session = assertIs<CreateSessionResult.Success>(EmulatorFactory.create(id, rom)).session
+            val other = DesktopEmulatorRunner(session, MonotonicClock { 0L })
+            f.state = f.state.copy(runner = other, debugService = DesktopDebugContextService(other, "other-session"))
+            expect("STALE_BUILD") { f.registry.requireCurrent(built.id) }
+            assertEquals("false", f.registry.metadata().getValue("available").jsonPrimitive.content)
+        }
     }
 
     @Test fun approvedLoadUsesExactInMemoryArtifactStaysPausedAndContinueUsesCurrentPc() {

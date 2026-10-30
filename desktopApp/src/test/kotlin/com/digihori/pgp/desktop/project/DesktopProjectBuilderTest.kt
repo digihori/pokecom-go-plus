@@ -15,6 +15,34 @@ import com.digihori.pgp.desktop.runner.DesktopEmulatorRunner
 import com.digihori.pgp.desktop.runner.MonotonicClock
 
 class DesktopProjectBuilderTest {
+    @Test fun buildsBasicForSelectedMachineRegardlessOfManifestMachine() {
+        val root = Files.createTempDirectory("pgp-cross-machine-")
+        try {
+            root.resolve("src").createDirectories()
+            root.resolve("src/main.bas").writeText("10 PRINT \"HELLO\"\n20 END\n")
+            val workspace = openWorkspace(root, """{ "id": "main", "type": "basic", "path": "src/main.bas" }""", "pc-1245")
+            val target = MachineId("pc-1261")
+            val built = assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(workspace, MachineMemoryLayout(target), validateForLoad = true))
+            assertEquals(target, built.artifact.targetMachineId)
+            val expected = assertIs<com.digihori.pgp.desktop.basic.DesktopBasicProgramCompileResult.Success>(
+                com.digihori.pgp.desktop.basic.DesktopBasicLoader.compileProgram(workspace.sources.single().file.readBytes(), target))
+            assertContentEquals(expected.bytes, built.artifact.copyBasicProgram())
+        } finally { root.toFile().deleteRecursively() }
+    }
+
+    @Test fun crossMachineAssemblyStillChecksTargetRamBeforeLoad() {
+        val root = Files.createTempDirectory("pgp-cross-placement-")
+        try {
+            root.resolve("src").createDirectories()
+            root.resolve("src/main.asm").writeText("ORG 0xC500\nRTN\n")
+            val workspace = openWorkspace(root, """{ "id": "main", "type": "assembly", "path": "src/main.asm" }""", "pc-1245")
+            val layout = MachineMemoryLayout(MachineId("pc-1261"))
+            val assembly = DesktopAssemblyWorkspaceCompiler.compile(workspace, layout, validatePlacement = false)
+            assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(workspace, layout, compiledAssembly = assembly))
+            assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace, layout, validateForLoad = true, compiledAssembly = assembly))
+        } finally { root.toFile().deleteRecursively() }
+    }
+
     @Test fun buildsUnmappedPc1261OutputButRejectsLoadWithoutPartialWrites() = kotlinx.coroutines.runBlocking {
         val root = Files.createTempDirectory("pgp-build-unmapped-")
         try {

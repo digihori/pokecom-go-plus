@@ -4,14 +4,15 @@ import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350BasicTokenizeResult
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350BasicDetokenizeResult
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350BasicTokenizer
 import com.digihori.pgp.core.source.basic.BasicTextDocument
+import com.digihori.pgp.core.source.basic.BasicSymbolEncoding
 
 /** PC-1261's S1 token table. The byte format is shared with PC-1350, the vocabulary is not. */
 public object Pc1261BasicTokenizer {
     public fun tokenize(document: BasicTextDocument): Pc1350BasicTokenizeResult =
-        Pc1350BasicTokenizer.tokenize(document, KEYWORDS)
+        Pc1350BasicTokenizer.tokenize(document, KEYWORDS, specialCodes = BasicSymbolEncoding.smallS1)
 
     public fun detokenize(bytes: ByteArray): Pc1350BasicDetokenizeResult =
-        Pc1350BasicTokenizer.detokenize(bytes, KEYWORDS.associate { (name, code) -> code to name })
+        Pc1350BasicTokenizer.detokenize(bytes, KEYWORDS.associate { (name, code) -> code to name }, specialNames = BasicSymbolEncoding.names(BasicSymbolEncoding.smallS1))
 
     private val KEYWORDS: List<Pair<String, Int>> = buildList {
         val groups = listOf(
@@ -25,6 +26,6 @@ public object Pc1261BasicTokenizer {
         groups.forEach { (base, words) ->
             words.split(' ').forEachIndexed { index, word -> if (word != "_") add(word to base + index) }
         }
-        add("<=" to 0x3c); add(">=" to 0x3e); add("<>" to 0x3c)
+        // Comparison operators are ASCII sequences, not single-byte keyword tokens.
     }.sortedByDescending { it.first.length }
 }

@@ -12,7 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
+import com.digihori.pgp.desktop.input.emulatorTextInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
@@ -68,7 +68,7 @@ internal fun DebuggerHistoryPanel(
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (filtersVisible) OutlinedTextField(bankText, { bankText = it }, label = { Text(strings.text("debug.history.bankFilter")) },
                         placeholder = { Text(strings.text("debug.history.any")) }, singleLine = true, isError = invalid,
-                        modifier = Modifier.widthIn(max = 200.dp).onFocusChanged { keyboardInput.setEnabled(!it.isFocused) })
+                        modifier = Modifier.widthIn(max = 200.dp).emulatorTextInput(keyboardInput))
                     TextButton({ onMemory(banking.windowStart) }, enabled = canNavigate) {
                         Text(strings.text("debug.history.currentWindow", banking.windowStart.historyHex(4)))
                     }
@@ -103,10 +103,10 @@ internal fun DebuggerHistoryPanel(
             if (filtersVisible) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(start, { start = it }, label = { Text(strings.text("debug.history.start")) },
                     placeholder = { Text("0000") }, singleLine = true,
-                    modifier = Modifier.widthIn(max = 150.dp).onFocusChanged { keyboardInput.setEnabled(!it.isFocused) })
+                    modifier = Modifier.widthIn(max = 150.dp).emulatorTextInput(keyboardInput))
                 OutlinedTextField(end, { end = it }, label = { Text(strings.text("debug.history.end")) },
                     placeholder = { Text("FFFF") }, singleLine = true,
-                    modifier = Modifier.widthIn(max = 150.dp).onFocusChanged { keyboardInput.setEnabled(!it.isFocused) })
+                    modifier = Modifier.widthIn(max = 150.dp).emulatorTextInput(keyboardInput))
             }
             if (!filtersVisible && range is DebuggerHistoryRange.Valid && (kind != DebuggerAccessFilter.ALL || start.isNotBlank() || end.isNotBlank())) {
                 Text(strings.text("debug.history.selection", strings.text("debug.history.filter.${kind.name}"),

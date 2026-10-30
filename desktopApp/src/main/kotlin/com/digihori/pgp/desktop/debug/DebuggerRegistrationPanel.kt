@@ -11,7 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
+import com.digihori.pgp.desktop.input.emulatorTextInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
@@ -73,13 +73,13 @@ internal fun DebuggerRegistrationPanel(
             if (showConditionHelp) Text(strings.text("debug.breakpoint.conditionHelp"), style = MaterialTheme.typography.bodySmall)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(bpAddress, { bpAddress = it; error = null }, label = { Text(strings.text("debug.addressHex")) },
-                    readOnly = !canEdit, singleLine = true, modifier = Modifier.widthIn(max = 180.dp).onFocusChanged { keyboardInput.setEnabled(!it.isFocused) })
+                    readOnly = !canEdit, singleLine = true, modifier = Modifier.widthIn(max = 180.dp).emulatorTextInput(keyboardInput))
                 OutlinedTextField(bpCondition, { bpCondition = it; error = null }, label = { Text(strings.text("debug.breakpoint.condition")) },
                     placeholder = { Text("A == 0x41") }, readOnly = !canEdit, singleLine = true,
-                    modifier = Modifier.widthIn(max = 240.dp).onFocusChanged { keyboardInput.setEnabled(!it.isFocused) })
+                    modifier = Modifier.widthIn(max = 240.dp).emulatorTextInput(keyboardInput))
                 OutlinedTextField(bpHitCondition, { bpHitCondition = it; error = null }, label = { Text(strings.text("debug.breakpoint.hitCondition")) },
                     placeholder = { Text(">= 3") }, readOnly = !canEdit, singleLine = true,
-                    modifier = Modifier.widthIn(max = 260.dp).onFocusChanged { keyboardInput.setEnabled(!it.isFocused) })
+                    modifier = Modifier.widthIn(max = 260.dp).emulatorTextInput(keyboardInput))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(bpEnabled, { bpEnabled = it }, enabled = canEdit,
                         modifier = Modifier.semantics { contentDescription = strings.text("debug.registration.formEnabled") })
@@ -120,9 +120,9 @@ internal fun DebuggerRegistrationPanel(
             Text(if (watchId == null) strings.text("debug.registration.new") else strings.text("debug.registration.editing", watchId.toString()))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(start, { start = it; error = null }, label = { Text(strings.text("debug.history.start")) }, readOnly = !canEdit,
-                    singleLine = true, modifier = Modifier.widthIn(max = 150.dp).onFocusChanged { keyboardInput.setEnabled(!it.isFocused) })
+                    singleLine = true, modifier = Modifier.widthIn(max = 150.dp).emulatorTextInput(keyboardInput))
                 OutlinedTextField(end, { end = it; error = null }, label = { Text(strings.text("debug.history.end")) }, readOnly = !canEdit,
-                    singleLine = true, modifier = Modifier.widthIn(max = 150.dp).onFocusChanged { keyboardInput.setEnabled(!it.isFocused) })
+                    singleLine = true, modifier = Modifier.widthIn(max = 150.dp).emulatorTextInput(keyboardInput))
             }
             FlowRow {
                 DebuggerWatchKind.entries.forEach { value ->

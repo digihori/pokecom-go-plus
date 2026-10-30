@@ -3,8 +3,8 @@ package com.digihori.pgp.core.emulator.machine.pc14xx
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350BasicTokenizeResult
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350BasicDetokenizeResult
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350BasicTokenizer
-import com.digihori.pgp.core.source.basic.BasicSpecialSymbol
 import com.digihori.pgp.core.source.basic.BasicTextDocument
+import com.digihori.pgp.core.source.basic.BasicSymbolEncoding
 
 /** PC-1450/1460's S1 token table. The byte format is shared with PC-1350, the vocabulary is not. */
 public object Pc14xxBasicTokenizer {
@@ -13,9 +13,9 @@ public object Pc14xxBasicTokenizer {
 
     public fun detokenize(bytes: ByteArray): Pc1350BasicDetokenizeResult =
         Pc1350BasicTokenizer.detokenize(bytes, KEYWORDS.associate { (name, code) -> code to name },
-            allowKana = true, specialNames = mapOf(0xfb to "π", 0xfc to "√", 0xf9 to "\\BX"))
+            allowKana = true, specialNames = BasicSymbolEncoding.names(BasicSymbolEncoding.later))
 
-    private val SPECIAL_CODES = mapOf(BasicSpecialSymbol.PI to 0xfb, BasicSpecialSymbol.SQUARE_ROOT to 0xfc, BasicSpecialSymbol.BLOCK to 0xf9)
+    private val SPECIAL_CODES = BasicSymbolEncoding.later
 
     private val KEYWORDS: List<Pair<String, Int>> = buildList {
         val groups = listOf(

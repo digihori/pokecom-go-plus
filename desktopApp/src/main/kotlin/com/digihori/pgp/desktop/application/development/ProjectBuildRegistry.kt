@@ -38,7 +38,7 @@ internal class ProjectBuildRegistry(
         buildJsonObject {
             put("format", "pgp-build-artifact"); put("schemaVersion", 1); put("available", true)
             put("artifactId", build.id); put("projectRevision", build.stamp.revision)
-            put("projectName", build.stamp.workspace.definition.name.take(256)); put("machineId", build.stamp.workspace.definition.machineId.value)
+            put("projectName", build.stamp.workspace.definition.name.take(256)); put("machineId", (build.artifact.targetMachineId ?: build.stamp.workspace.definition.machineId).value)
             put("basicByteCount", build.artifact.copyBasicProgram()?.size ?: 0)
             put("memoryByteCount", build.artifact.memoryImage?.byteCount ?: 0)
             put("memorySegmentCount", build.artifact.memoryImage?.segments?.size ?: 0)

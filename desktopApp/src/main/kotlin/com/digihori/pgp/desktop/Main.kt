@@ -100,7 +100,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
+import com.digihori.pgp.desktop.input.emulatorTextInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -334,7 +334,7 @@ private fun FrameWindowScope.App(
     var runnerState by remember { mutableStateOf(RunnerState.PAUSED) }
     var loadedRomName by remember { mutableStateOf<String?>(null) }
     var loadedRomFile by remember { mutableStateOf<File?>(null) }
-    var familyMemoryMode by remember { mutableStateOf(Pc1251FamilyMemoryMode.EXPANDED) }
+    var familyMemoryMode by remember { mutableStateOf(DesktopUiPreferences.ramMode()) }
     var languagePreference by remember { mutableStateOf(StudioStrings.startupPreference) }
     var languageSettingsError by remember { mutableStateOf<String?>(null) }
     var message by remember { mutableStateOf(uiText("main.initial")) }
@@ -520,12 +520,14 @@ private fun FrameWindowScope.App(
             ownerWindow.removeWindowFocusListener(listener)
         }
     }
+    // Read these states during composition: reads inside SideEffect alone do not
+    // subscribe this scope to dialog changes in independently recomposed children.
+    val emulatorInputBlocked = showCreateProjectDialog || showRenameProjectDialog || showSaveMemoryDumpDialog ||
+        showSaveDisassemblyDialog || showSaveCheckpointDialog || showDebugContextDialog ||
+        showRomManager || pendingRomRemoval != null || errorDialogMessage != null ||
+        showSettingsWindow || showCreateRomSetWindow
     SideEffect {
-        keyboardInput.setModalInputBlocked(
-            showCreateProjectDialog || showRenameProjectDialog || showSaveMemoryDumpDialog ||
-                showSaveDisassemblyDialog || showSaveCheckpointDialog || showDebugContextDialog ||
-                showRomManager || pendingRomRemoval != null || errorDialogMessage != null,
-        )
+        keyboardInput.setModalInputBlocked(emulatorInputBlocked)
         gamepad.setContext(runner, mainWindowFocused && keyboardInput.isEnabled && !showSettingsWindow && !showCreateRomSetWindow && !showCreateProjectDialog && !showRenameProjectDialog)
     }
     LaunchedEffect(gamepad) {
@@ -653,7 +655,12 @@ private fun FrameWindowScope.App(
                 }
                 loadedProgramLabel = null
                 loadedProjectManifest = null
-                if (projectWorkspace != null) projectRuntimeStatus = ProjectRuntimeStatus.NOT_BUILT
+                if (projectWorkspace != null) {
+                    projectRuntimeStatus = ProjectRuntimeStatus.NOT_BUILT
+                    assemblyPreview = emptyList()
+                    assemblyDiagnostics = emptyList()
+                    assemblyStatus = uiText("assembly.notAssembled")
+                }
                 projectBasicBaseline = null
                 projectBasicModified = false
                 return true
@@ -761,21 +768,12 @@ private fun FrameWindowScope.App(
                     projectBasicBaseline = null
                     projectBasicModified = false
                 }
-                selectedMachineId = opened.workspace.definition.machineId
                 val sourceSummary = opened.workspace.sources
                     .groupingBy { it.definition.type }
                     .eachCount()
                     .entries
                     .joinToString { "${it.key.displayName()}: ${it.value}" }
-                val projectMachineId = opened.workspace.definition.machineId
-                if (projectMachineId in installedRomMachines && runner?.machineId != projectMachineId) {
-                    switchMachine(projectMachineId)
-                }
-                message = if (projectMachineId in installedRomMachines) {
-                    uiText("project.opened" , (opened.workspace.definition.name), (sourceSummary))
-                } else {
-                    uiText("project.openedNeedsRom" , (opened.workspace.definition.name), (sourceSummary), (projectMachineId.displayName()))
-                }
+                message = uiText("project.opened", opened.workspace.definition.name, sourceSummary)
             }
         }
     }
@@ -842,8 +840,8 @@ private fun FrameWindowScope.App(
     }
 
     fun projectMemoryLayout(workspace: DesktopProjectWorkspace): MachineMemoryLayout =
-        runner?.takeIf { it.machineId == workspace.definition.machineId }?.memoryLayout
-            ?: MachineMemoryLayout(workspace.definition.machineId)
+        runner?.memoryLayout
+            ?: MachineMemoryLayout(workspace.definition.machineId, familyMemoryMode)
 
     suspend fun assembleWorkspaceWork() {
         val workspace = projectWorkspace ?: return
@@ -880,11 +878,13 @@ private fun FrameWindowScope.App(
     suspend fun buildProjectOutputsWork(): DesktopProjectBuildResult.Success? {
         val workspace = projectWorkspace ?: return null
         lastProjectBuildErrors = emptyList()
+        val buildRunner = runner
         val buildStamp = projectBuildRegistry.begin(workspace)
         val layout = projectMemoryLayout(workspace)
         val assembly = DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, layout, currentAssemblerSettings)
         val built = withContext(Dispatchers.IO) { DesktopProjectBuilder.build(workspace, layout, compiledAssembly = assembly) }
-        check(projectWorkspace === workspace) { uiText("assembly.buildProjectChanged") }
+        check(projectWorkspace === workspace && runner === buildRunner &&
+            projectMemoryLayout(workspace).pc1251MemoryMode == layout.pc1251MemoryMode) { uiText("assembly.buildProjectChanged") }
         return when (built) {
             is DesktopProjectBuildResult.Failure -> {
                 lastProjectBuildErrors = built.errors
@@ -911,7 +911,8 @@ private fun FrameWindowScope.App(
                         showError(uiText("assembly.saveFailed" , (it.message ?: it::class.simpleName).toString()))
                         return null
                     }
-                check(projectWorkspace === workspace) { uiText("assembly.changedWhileSaving") }
+                check(projectWorkspace === workspace && runner === buildRunner &&
+                    projectMemoryLayout(workspace).pc1251MemoryMode == layout.pc1251MemoryMode) { uiText("assembly.changedWhileSaving") }
                 projectBuildRegistry.publish(buildStamp, built.artifact)
                 assemblyPreview = built.artifact.assemblySources
                 assemblyDiagnostics = emptyList()
@@ -927,6 +928,7 @@ private fun FrameWindowScope.App(
 
     fun applyProjectArtifact(workspace: DesktopProjectWorkspace, activeRunner: DesktopEmulatorRunner, artifact: DesktopProjectArtifact): DesktopProjectApplyResult {
         check(runner === activeRunner && projectWorkspace === workspace) { uiText("assembly.changedBeforeLoad") }
+        check(artifact.targetMachineId == null || artifact.targetMachineId == activeRunner.machineId) { uiText("assembly.changedBeforeLoad") }
         val applied = DesktopProjectArtifactLoader.load(activeRunner, artifact)
         when (applied) {
             is DesktopProjectApplyResult.BasicFailure -> {
@@ -968,14 +970,6 @@ private fun FrameWindowScope.App(
     suspend fun buildProjectWork() {
         val workspace = projectWorkspace ?: return
         val activeRunner = runner ?: return
-        if (activeRunner.machineId != workspace.definition.machineId) {
-            projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
-            assemblyStatus = uiText("assembly.machineMismatchStatus")
-            showError(
-                uiText("project.machineMismatch" , (workspace.definition.machineId.displayName()), (activeRunner.machineId.displayName())),
-            )
-            return
-        }
         buildProjectOutputsWork()?.let { built ->
                 check(runner === activeRunner && projectWorkspace === workspace) { uiText("assembly.changedBeforeLoad") }
                 applyProjectArtifact(workspace, activeRunner, built.artifact)
@@ -991,7 +985,7 @@ private fun FrameWindowScope.App(
         com.digihori.pgp.desktop.application.development.DevelopmentReadState(
             runner, debugContextService, projectWorkspace, currentAssemblerSettings, assemblyPreview.toList(),
             assemblyDiagnostics.toList(), lastProjectBuildErrors.toList(), projectRuntimeStatus.name,
-            changedProjectSources.toSet(), assemblyBusy)
+            changedProjectSources.toSet(), assemblyBusy, fallbackRamMode = familyMemoryMode)
     }
     var assemblyJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     fun startAssembly(action: suspend () -> Unit) {
@@ -1309,6 +1303,12 @@ private fun FrameWindowScope.App(
     }
 
     fun setMemoryMode(mode: Pc1251FamilyMemoryMode) {
+        try {
+            DesktopUiPreferences.saveRamMode(mode)
+        } catch (failure: Exception) {
+            showError(uiText("memory.ramSaveFailed", failure.message.orEmpty()))
+            return
+        }
         val file = loadedRomFile
         val resume = runnerState == RunnerState.RUNNING
         familyMemoryMode = mode
@@ -2035,11 +2035,19 @@ private fun FrameWindowScope.App(
         ) {
             PgpStudioTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
+                    val review = remember(developmentReviewRevision) { developmentChangeService.review() }
+                    val operations = remember(developmentReviewRevision) { developmentChangeService.history() }
                     StudioScrollableColumn(
+                        scrollResetKey = review?.id,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = 16.dp,
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
+                        if (review != null) {
+                            com.digihori.pgp.desktop.application.development.DevelopmentReviewPanel(
+                                review, emptyList(), developmentChangeService::approve, developmentChangeService::reject,
+                            )
+                        }
                         val executionReview = remember(executionReviewRevision) { executionChangeService.review() }
                         val executionOperations = remember(executionReviewRevision) { executionChangeService.history() }
                         com.digihori.pgp.desktop.application.execution.ExecutionReviewPanel(
@@ -2050,10 +2058,8 @@ private fun FrameWindowScope.App(
                         com.digihori.pgp.desktop.application.debug.DebugReviewPanel(
                             debugReview, debugOperations, debugChangeService::approve, debugChangeService::reject,
                         )
-                        val review = remember(developmentReviewRevision) { developmentChangeService.review() }
-                        val operations = remember(developmentReviewRevision) { developmentChangeService.history() }
                         com.digihori.pgp.desktop.application.development.DevelopmentReviewPanel(
-                            review, operations, developmentChangeService::approve, developmentChangeService::reject,
+                            null, operations, developmentChangeService::approve, developmentChangeService::reject,
                         )
                         McpServerPanel(
                             port = mcpPort,
@@ -2377,7 +2383,7 @@ private fun FrameWindowScope.App(
                                     projectWorkspace?.let { workspace ->
                                         Text(workspace.definition.name, style = MaterialTheme.typography.titleSmall)
                                         Text(
-                                            "${workspace.definition.machineId.displayName()}  •  " +
+                                            "${projectMemoryLayout(workspace).machineId.displayName()}  •  " +
                                                 projectRuntimeStatus.displayName,
                                             style = MaterialTheme.typography.labelMedium,
                                         )
@@ -2420,7 +2426,7 @@ private fun FrameWindowScope.App(
                                         onSelected = { selectedProjectSourcePath = it },
                                         onEdit = { openExternalSource(it) },
                                         onCreateWav = { file ->
-                                            wavToolInput = WavToolInput(file, uiText("project.programLabel" , (workspace.definition.name)), workspace.definition.machineId, System.nanoTime(), fromProject = true)
+                                            wavToolInput = WavToolInput(file, uiText("project.programLabel" , (workspace.definition.name)), projectMemoryLayout(workspace).machineId, System.nanoTime(), fromProject = true)
                                             showWavTool = true
                                         },
                                         modifier = Modifier.weight(1f),
@@ -3050,7 +3056,7 @@ internal fun DisassemblyPanel(
                 singleLine = true,
                 modifier = Modifier
                     .widthIn(max = 180.dp)
-                    .onFocusChanged { keyboardInput.setEnabled(!it.isFocused) },
+                    .emulatorTextInput(keyboardInput),
             )
             Button(onClick = {
                 val address = parseHexAddress(addressText)
@@ -3185,7 +3191,7 @@ internal fun MemoryViewPanel(
                 singleLine = true,
                 modifier = Modifier
                     .widthIn(max = 180.dp)
-                    .onFocusChanged { keyboardInput.setEnabled(!it.isFocused) },
+                    .emulatorTextInput(keyboardInput),
             )
             Button(onClick = {
                 val address = parseHexAddress(addressText)
@@ -3277,7 +3283,7 @@ internal fun InstructionTracePanel(
                 isError = capacityError,
                 supportingText = { if (capacityError) Text(strings.text("debug.capacityError", DesktopEmulatorRunner.MIN_INSTRUCTION_TRACE_CAPACITY.toString(), DesktopEmulatorRunner.MAX_INSTRUCTION_TRACE_CAPACITY.toString())) },
                 singleLine = true,
-                modifier = Modifier.width(120.dp).onFocusChanged { keyboardInput.setEnabled(!it.isFocused) },
+                modifier = Modifier.width(120.dp).emulatorTextInput(keyboardInput),
             )
             Button(
                 enabled = runner != null,
@@ -3391,7 +3397,7 @@ internal fun DebugContextError.displayMessage(strings: StudioStrings = StudioStr
 }
 
 @Composable
-private fun PocketKeyButton(
+internal fun PocketKeyButton(
     cap: PocketKeyCap,
     runner: DesktopEmulatorRunner?,
     modifier: Modifier = Modifier,
@@ -3487,7 +3493,11 @@ private fun PocketKeyButton(
                     }) { drawText(layout, color = color) }
                 }
                 caption(upperLabel, secondaryStyle, secondaryColor, 0f, size.height * 0.25f)
-                caption(cap.primaryLabel, primaryStyle, primaryColor, size.height * (if (stackedPrimary) 0.1f else 0.25f), size.height * (if (stackedPrimary) 0.8f else 0.5f))
+                val primaryLabels = if (cap.primaryLabel.startsWith("↕")) listOf("↑", "↓") else listOf(cap.primaryLabel)
+                primaryLabels.forEach { label ->
+                    val arrowOffset = when (label) { "↑" -> -3.dp.toPx(); "↓" -> 3.dp.toPx(); else -> 0f }
+                    caption(label, primaryStyle, primaryColor, size.height * (if (stackedPrimary) 0.1f else 0.25f) + arrowOffset, size.height * (if (stackedPrimary) 0.8f else 0.5f))
+                }
                 caption(lowerLabel, secondaryStyle, primaryColor, size.height * 0.75f, size.height * 0.25f)
             }
         } else {
@@ -3498,8 +3508,15 @@ private fun PocketKeyButton(
             ) {
                 if (!stackedPrimary) Text(text = upperLabel, style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.secondary, maxLines = 1)
-                Text(text = cap.primaryLabel, style = if (stackedPrimary) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleMedium,
-                    textAlign = TextAlign.Center, maxLines = if (stackedPrimary) 2 else 1)
+                if (cap.primaryLabel.startsWith("↕")) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text("↑", modifier = Modifier.offset(y = (-3).dp), style = MaterialTheme.typography.titleMedium)
+                        Text("↓", modifier = Modifier.offset(y = 3.dp), style = MaterialTheme.typography.titleMedium)
+                    }
+                } else {
+                    Text(text = cap.primaryLabel, style = if (stackedPrimary) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleMedium,
+                        textAlign = TextAlign.Center, maxLines = if (stackedPrimary) 2 else 1)
+                }
                 if (!stackedPrimary) Text(text = lowerLabel, style = MaterialTheme.typography.labelSmall, maxLines = 1)
             }
         }
@@ -3833,9 +3850,11 @@ private fun StudioScrollableColumn(
     contentPadding: androidx.compose.ui.unit.Dp = 0.dp,
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
     verticalArrangement: Arrangement.Vertical = Arrangement.Top,
+    scrollResetKey: Any? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
+    LaunchedEffect(scrollResetKey) { scrollState.scrollTo(0) }
     Box(modifier = modifier) {
         Column(
             modifier = Modifier

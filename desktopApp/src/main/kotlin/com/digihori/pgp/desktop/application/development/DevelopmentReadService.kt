@@ -24,6 +24,7 @@ internal data class DevelopmentReadState(
     val buildStatus: String = "NOT_BUILT",
     val changedSourceIds: Set<String> = emptySet(),
     val busy: Boolean = false,
+    val fallbackRamMode: com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode = com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode.EXPANDED,
 )
 internal class DevelopmentReadError(val code: String) : Exception(code)
 internal interface DevelopmentReadService {
@@ -127,6 +128,8 @@ internal class DesktopDevelopmentReadService(private val stateProvider: () -> De
             put("project", workspace?.let { buildJsonObject {
                 put("id", projectId); put("metadataRevision", revision); put("revisionScope", "observedMetadataNotSourceContent")
                 put("name", it.definition.name.take(256)); put("machineId", it.definition.machineId.value)
+                put("buildMachineId", (state.runner?.machineId ?: it.definition.machineId).value)
+                put("machineScope", "manifestDefault; buildUsesActiveSession")
                 put("buildStatus", state.buildStatus); put("busy", state.busy)
             } } ?: JsonNull)
             put("metadataRevision", revision)

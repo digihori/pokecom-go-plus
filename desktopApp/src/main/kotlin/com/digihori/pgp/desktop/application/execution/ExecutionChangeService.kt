@@ -38,7 +38,6 @@ internal class ExecutionChangeService(
         if (active.sessionRevision != revision) fail("STALE_REVISION")
         if (active.state != RunnerState.PAUSED) fail("SESSION_NOT_PAUSED")
         val project = state.project ?: fail("NO_PROJECT")
-        if (project.definition.machineId != active.machineId) fail("MACHINE_MISMATCH")
         if (contentRevision() != projectRevision) fail("STALE_PROJECT")
         return state
     }
@@ -93,6 +92,7 @@ internal class ExecutionChangeService(
         pending = null; target = null; workspace = null; build = null; onChange()
     }
     private fun plannedWrites(runner: DesktopEmulatorRunner, artifact: DesktopProjectArtifact): List<ExecutionWriteRange> {
+        if (artifact.targetMachineId != null && artifact.targetMachineId != runner.machineId) fail("STALE_BUILD")
         val plan = ProgramImageLoader.plan(runner.memoryLayout, artifact.copyBasicProgram(), artifact.memoryImage, runner::memoryByte)
         val image = when (plan) {
             is ProgramImagePlanResult.Success -> plan.image ?: fail("EMPTY_BUILD")

@@ -214,9 +214,8 @@ Project、Assembler、Debugger、WAV、セーブステートは搭載しない�
 
 ### BASICテキストの読み込み
 
-ROM起動後にUTF-8の`.bas`ファイルを指定して読み込める。通常はTokenizerで直接中間コードへ変換するため、
-実機の1行入力長を超える行やエスケープ表記した特殊文字も扱える。ROM自身の編集処理を通して入力する方式も、
-手軽な互換入力として利用できる。
+ROM起動後にUTF-8の`.bas`ファイルを指定して読み込める。Tokenizerで機種別の中間コードへ変換し、
+BASICプログラム領域へロードする。特殊文字は対応するエスケープ表記で記載できる。
 
 文字コード、予約語、特殊文字の割り当てには機種差がある。対応する表記と現在の制約は
 `docs/reference/BASIC_TEXT_FORMAT.md`を参照する。
@@ -234,7 +233,7 @@ payload検証に失敗しても取得できたPCM/rawを確認でき、波形の
 S1/S2のバイナリーに対応し、検証済みDecode結果は`.dmp`／Intel HEXとして保存できる。
 WAVのエンコード形式はBASICパスワードなし／あり・マシン語から明示選択する（S2はBASICのみ）。拡張子は選択形式との適合確認に使用する。
 
-S1/S2 BASICは転送名は印字可能ASCIIを使用する。7文字を超える場合は先頭7文字へ短縮し、レポートに記録する。対象機種の選択UIは設けず、Projectの機種とファイルから形式・BASIC／マシン語を初期選択する。Project情報は初期選択にだけ使用し、Decode結果は`.bas`として保存できる。
+S1/S2 BASICは転送名は印字可能ASCIIを使用する。7文字を超える場合は先頭7文字へ短縮し、レポートに記録する。対象機種の選択UIは設けず、Projectから開く場合は現在のBuild対象機種（SessionがなければManifest機種）とファイルから形式・BASIC／マシン語を初期選択する。Project情報は初期選択にだけ使用し、Decode結果は`.bas`として保存できる。
 S2はCP932日本語・行参照・形式共通語彙に対応。通常はtype 27を使い、保護付き選択は転送type 37を指定する（パスワード文字列の新規設定は行わない）。新codecは合成テスト済みで、PGPでの実機往復は未確認。
 Playerには搭載せず、ROMのCSAVE/CLOADやDecodeからの
 エミュレータ直接ロードとも連動しない。操作・対応範囲は[WAV操作方針](docs/development/WAV_OPERATIONS.md)参照。
@@ -344,6 +343,14 @@ Desktopアプリを起動する場合：
 ./gradlew :desktopApp:run
 ```
 
+## 次回更新向けの修正（開発版）
+
+RAM初期値・設定保存、入力欄からのキー入力漏れ、MCP承認ボタン、矢印刻印、Linux分類、
+特殊文字・円記号、Projectの機種制約を改善した。BASICの`>=`・`<=`・`<>`が欠落する不具合も修正済み。
+StudioのRAM設定は1250／1251／1255共通で、未設定なら実機RAMを使い、選択を次回起動時に復元する。
+Projectを開いても機種・ROMは切り替えず、Buildは現在の機種を使用する。SessionがなければManifest機種を使う。
+[修正・検証記録](docs/development/planning/NEXT_RELEASE_FIXES.md)を参照。公開済み1.0.0へ自動反映されるものではない。
+
 ## 既知の制限
 
 - ROMイメージは同梱しない。利用には対象機種のROMが必要である。
@@ -352,10 +359,10 @@ Desktopアプリを起動する場合：
   当面Software描画を既定とする。ネイティブWindows x64で再確認後に既定値を再評価する。
   描画方式の比較には`PGP_RENDER_API=DIRECT3D`または`OPENGL`を指定できる。
 - Linux x86_64では展開型tar.gzの起動、音声再生と、DEBのインストール・起動・アンインストールを確認済みである。
-  ARM64 Linuxの配布物はまだ用意していない。DEBのメニュー項目は現在「その他」に分類される。
+  ARM64 Linuxの配布物はまだ用意していない。公開済み1.0.0のメニュー分類は「その他」だが、次回更新向けの検証用DEBではDevelopment分類を確認済み。
 - ROM Importerの操作ガイドと、バンクROMを持つ機種の一括選択UIは暫定実装である。
 - サウンドには実機との波形差が残る可能性がある。Studio／Androidは現状を正式版の基準とし、iOSの音声改善は別途進める。
-- 開発版では[1245／125x／126xのRAM仕様](docs/reference/machines/RAM_1245_1261.md)に沿ってメモリ容量・ミラー処理を整理した。MEM表示の期待値との不一致は保留中。公開済み0.7の動作と区別する。
+- [1245／125x／126xのRAM仕様](docs/reference/machines/RAM_1245_1261.md)とRAM設定別のMEM値を確認済み。1250／1251／1255の実機RAMでは機種別の容量、拡張RAMでは1255相当の容量・ミラー構成になる。
 - PlayerはAndroid／iPhoneとも上記14モデルに対応する。機種・端末・ROM版別の確認範囲は[Android受入れ](docs/development/ANDROID_SERIES_PROGRESS.md)・[iOS受入れ](docs/development/IOS_MACHINE_SUPPORT_STEP8.md)を参照。セーブステートは未実装。情報画面は静的同梱。Androidのプライバシーポリシーは適用済み。iPhone用は[日本語原稿](docs/guides/PLAYER_PRIVACY_POLICY_IOS.md)・[英語原稿](docs/guides/PLAYER_PRIVACY_POLICY_IOS.en.md)を用意し、[公開用HTML](docs/player/README.md#ios-privacy-policy)は2026-10-25にPages公開・本文一致を確認済み。
 
 公開済み各版の説明と過去の確認記録は[ドキュメント目次](docs/README.md#リリース情報)を参照する。

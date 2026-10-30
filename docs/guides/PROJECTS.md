@@ -1,7 +1,7 @@
 # Pokecom GO Studio projects
 
 Pokecom GO Studioは内蔵テキストエディタを持たず、任意の外部エディタで管理するソースを
-プロジェクトとして読み込む。現在のformat version 1は対象機種と複数の入力ソースを結び付ける。
+プロジェクトとして読み込む。現在のformat version 1は既定のBuild機種と複数の入力ソースを記録する。Project自体は実行機種を制限しない。
 
 本書はプロジェクト管理の基本仕様を定義する。実装済みの範囲と今後実装する範囲は
 `docs/development/planning/ROADMAP.md`で管理する。
@@ -166,7 +166,11 @@ PROモード等でEmulator内のBASICプログラムが変更された状態をP
 
 現在は1プロジェクトにつきBASICプログラムを1ファイルまで登録できる。複数の`.dmp`と
 Raw Binaryは登録できるが、配置範囲が重なる場合はEmulatorへロードせずBuildエラーにする。
-プロジェクトの対象機種と現在ロード中のROMが異なる場合もロードしない。
+Projectを開いても現在の機種・ROMは切り替えない。Buildは現在のEmulator機種・RAM設定を使用し、
+BASICをその機種の方言へ変換する。Sessionがない場合だけManifestの`machineId`を既定のBuild先として使用する。
+Manifestの`machineId`はformat version 1との互換性のため引き続き必須だが、機種IDの不一致だけではLoadを拒否しない。
+Assembly／DMPのアドレスは自動変換せず、現在機種のRAM範囲・ミラー重複・BASICとの衝突をLoad時に検証する。
+機種固有のLCD／I/O／ROM呼出しの動作互換性を保証するものではない。機種切替後は再Buildする。
 
 マシン語のRaw Binaryに指定するアドレスは実行開始位置ではなくロード位置である。実行は通常どおり
 `CALL`、BASICプログラムからの呼び出し、またはDebuggerの実行操作で行う。

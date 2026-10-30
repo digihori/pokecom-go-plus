@@ -1,65 +1,66 @@
 # PGP BASIC Text Format
 
-## Purpose
+PGP BASIC Text Formatは、ポケコンのBASICプログラムをUTF-8テキストで保存・交換する形式です。
+文字コードとBASICキーワードのトークンは区別し、特殊記号は機種別のコードへ変換します。
 
-PGP BASIC Text Formatは、ポケットコンピュータのBASICプログラムをUTF-8テキストとして
-保存・交換するための形式である。通常文字に加え、機種依存の特殊文字と任意の内部byteを
-可逆に表現する。
+## 文字コードと改行
 
-## Text encoding and line endings
+- UTF-8を使用します。先頭のBOMは読込み時に許可します。
+- CRLF／CR／LFは入力時にLFへ正規化します。
+- BASIC行はテキストの行単位で表します。
 
-- 文字コードはUTF-8とする
-- UTF-8 BOMは入力時に許可し、先頭から除去する
-- CRLF、CR、LFは入力時にLFへ正規化する
-- BASIC行はテキストの行単位で表現する
+## エスケープ表記（2026-10-30更新）
 
-## Escapes
+以下の表記のバックスラッシュはU+005Cです。通常読込みでは、単独のバックスラッシュを円記号と推測しません。
+不明・不完全なエスケープは行・列付きのエラーになります。
 
-| Canonical form | Meaning |
-|---|---|
-| `\\` | backslash character |
-| `\PI` | pi symbol |
-| `\SQR` | square-root symbol |
-| `\EX` | exponent symbol |
-| `\BX` | block symbol |
-| `\xNN` | exact byte value from `00` through `FF` |
+| 表記 | 意味 |
+| --- | --- |
+| `\PI` | π |
+| `\SQR` | √。BASICキーワードの`SQR`とは別の記号 |
+| `\EX` | 太字Eの指数記号。OLD機種だけで使用可能 |
+| `\BX` | 黒塗り記号 |
+| `\INS` | インサート時の空白記号 |
+| `\\` | リテラルのバックスラッシュ。対応機種では円記号と同じ内部コード |
+| `\xNN` | 指定した内部byte。機種・backendによっては非対応 |
 
-Named escapes are semantic. Their internal code may differ by machine, so a machine profile resolves them
-when encoding or decoding. The Unicode characters `π` and `√` are accepted as input aliases for `\PI` and
-`\SQR`; canonical text output uses the named escapes.
+`π`と`√`は入力別名として受け付けます。保存は上表の名前付きエスケープへ統一します。
+名前は大文字で固定し、既知の名前までを1記号として読みます。例えば`\SQRX`はルート記号と文字Xです。
+円記号に続く文字列SQRを表すには、`¥SQR`または`\\SQR`と記載します。
 
-Raw-byte escapes are not semantic. For example, `\xFC` always requests byte `0xFC`; it does not mean
-“square root.” A source containing raw-byte escapes can therefore be machine-dependent even when two
-machines belong to the same CPU generation.
+| 対応機種 | `\PI` | `\SQR` | `\EX` | `\INS` | `\BX` |
+| --- | --- | --- | --- | --- | --- |
+| 1245／1250／1251／1255 | 19 | 1A | 4B | 非対応 | 4C |
+| 1260／1261／1401／1402 | FB | FC | 非対応 | FD | FE |
+| 1350／1360／1360K／1450／1460／1470U | FB | FC | 非対応 | FA | F9 |
 
-Unknown, incomplete, and malformed escapes are errors. Parsers report their one-based line and column and
-must not silently replace them.
+コードは16進数です。OLD以外の機種では通常の`E`を使用し、`\EX`をEへ暗黙変換しません。
+`\xNN`は機種別の意味を変換しないため、別機種で同じ記号になるとは限りません。
 
-## Loading backends
+## 円記号とバックスラッシュ
 
-The ROM keyboard backend can load ordinary characters and named symbols that exist on the target keyboard.
-For example, PC-1245 resolves `\SQR` to the consecutive taps `SHIFT`, `DOT`. Raw bytes and symbols without a
-keyboard operation require the direct tokenizer backend.
-
-The loader must report an unsupported element instead of silently changing the program. Backend selection
-may be automatic after parsing, but source text parsing itself is machine-independent.
-
-For PC-1245 ROM keyboard loading, the current semantic mappings are:
-
-| Element | Key taps |
-|---|---|
-| `\PI` | `SHIFT`, `0` |
-| `\SQR` | `SHIFT`, `DOT` |
-| `\EX` | `SHIFT`, `PLUS` |
-
-`\BX`, `\xNN`, and characters absent from the PC-1245 keyboard are rejected with their source line and
-column. A direct tokenizer backend will handle them in a later phase.
-
-For compatibility with common pocket-computer source listings, a colon immediately following the line
-number is normalized to one space by the PC-1245 ROM keyboard compiler. Whitespace may occur between the
-line number and colon. Colons in the BASIC statement body remain unchanged.
+- `¥`（U+00A5）、`￥`（U+FFE5）、`\\`は円記号に対応する内部コードとして読み込みます。
+- OLD機種の内部コードは`0x17`、S1／S2機種では`0x5C`です。
+- 保存時は`¥`へ統一します。日本語フォントでU+005Cが円記号に見える場合も、文字コードで区別します。
+- 文字列・REM内でもエスケープを解釈します。
 
 ```basic
-10:PRINT "A"   -> 10 PRINT "A"
-20 PRINT A:B   -> 20 PRINT A:B
+40 A=A-1: IF A¥255 GOTO #;
+55 IF INKEY$ ¥"0" GOTO $=
+130 IF \SQR S:S=S+3: IF S<40 GOTO ^: GOTO #B
+135 \SQR S=V,X+V+V+2,Y+2
 ```
+
+これはLC-3形式の文字変換例です。通常のBASICとしての実行を意味しません。
+
+## 複数byteとbackend
+
+S1の`FE + A1..DF`は対応機種で半角カナの2byte表現として読みます。
+126xの単独FE（黒塗り）とカナ接頭辞は後続byteで区別するため、FEにA1..DFが続く列はカナとして解釈します。
+S2のキーワード接頭辞FEや行番号参照1Fは、文字列・REM内外の構造に従って解釈します。
+S2のF9..FCはこの形式の単独特殊記号を優先します。CP932の拡張文字と同じbyte列になる場合、
+保存テキストの見た目が元の拡張文字と一致しないことがあります。基本の日本語と記号の回帰確認は別々に行います。
+
+現在の通常ロードは直接Tokenizerで変換します。S1 Tokenizerのraw-byte escapeは未対応です。
+内部のROMキーボードbackendでは、実際のキー操作がない記号やraw byteを拒否します。
+PC-1245の例では`\PI`はSHIFT＋0、`\SQR`はSHIFT＋DOT、`\EX`はSHIFT＋PLUSに対応します。
