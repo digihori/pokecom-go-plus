@@ -1,0 +1,49 @@
+Hello App Review Team,
+
+Thank you for reviewing Pokecom GO Player (Apple ID: 6826764410), version 0.7.0, build 3. Here are our responses to the six items requested under Guideline 2.1.
+
+1. Physical-device screen recording
+
+A screen recording captured on an iPhone SE (3rd generation) running iOS 27.2 is attached. The app has been tested on a physical iPhone SE (3rd generation).
+
+There is no account registration, login, account deletion, purchase, subscription, or paid feature. There is no public posting, sharing feed, messaging, or user-to-user content service. Locally imported programs are not published to other users.
+
+2. Purpose and target audience
+
+Pokecom GO Player is an offline emulator for classic programmable pocket computers. It is intended for pocket-computer owners, enthusiasts, and people interested in BASIC programming. Users operate an on-screen keyboard and LCD, run their own programs, and import/export program files. It provides access to these devices' programming experience on an iPhone without carrying the original hardware, using ROM files the user is authorized to use.
+
+3. Setup, main features, and sample file
+
+No login, external hardware connection, or paid service is required. A compatible ROM is required to run an emulated machine; ROMs are not included.
+
+Example using PC-1245:
+a. Launch the app and select PC-1245 on the home screen.
+b. Tap "ROMを登録" (Register ROM). Select a compatible, lawfully obtained PC-1245 ROM in the iOS file picker. The app validates and copies it into its local library.
+c. Tap "プレイ" (Play). The machine screen opens in landscape and emulation starts.
+d. Switch to PRO using the RUN/PRO button. Type these lines on the on-screen keyboard, pressing ENTER after each:
+10 PRINT 1+2
+20 END
+e. Switch to RUN, type RUN, and press ENTER. The result is 3.
+f. The three-dot menu provides Run/Pause/Reset and Program Load/Save. Home supports list/tile layouts and restoring the previous machine-list position.
+
+The attached review-sample.bas contains the same two-line BASIC program, written for this review. It can also be loaded via the three-dot menu > "プログラム" (Program) > "ロード" (Load). It contains no ROM or third-party program. It is not firmware and cannot start emulation without a compatible ROM.
+
+We cannot provide copyrighted manufacturer firmware without authorization. Please advise whether the attached physical-device recording and instructions are sufficient to verify the ROM-dependent features, or what additional review access we should provide without redistributing manufacturer firmware.
+
+4. External services, tools, and platforms
+
+Core emulation runs locally. It does not depend on a developer-operated server, data provider, authentication service, payment processor, AI service, or online ROM source.
+
+The app uses Apple's file picker. Local files work without a cloud service; iCloud Drive or Google Drive may optionally be used through an enabled iOS file provider. There is no Google SDK or independent cloud login/sync. External keyboards and game controllers are optional and use Apple's APIs. Optional GitHub links provide project information and support, not core functionality.
+
+5. Regional differences
+
+Features and bundled content are consistent across all distribution regions. There are no region-specific services or content catalogs.
+
+6. Regulated services and third-party material
+
+The app does not provide a highly regulated service. No manufacturer firmware ROMs or third-party user programs are bundled, hosted, sold, or distributed. There is no ROM download feature or ROM acquisition link. Users select local files they are authorized to use.
+
+The developer does not own manufacturers' ROM copyrights or hold permission to redistribute those ROMs. We are not claiming such rights. The attached BASIC sample is original material provided for review.
+
+Thank you.
