@@ -130,7 +130,7 @@ internal class DesktopEmulatorRunner(
         if (state != RunnerState.PAUSED) return false
         if (out && callTracker.top == null) { debugStepStatus = DebuggerStepStatus.NO_FRAME; return false }
         val pc = session.cpuSnapshot().programCounter
-        val single = !out && !DebuggerCallTracker.isCall(memoryByte(pc))
+        val single = !out && !DebuggerCallTracker.createsFrame(memoryByte(pc))
         val frame = if (out) callTracker.top?.id else null
         run()
         stepPlan = StepPlan(out, frame, single)
@@ -769,11 +769,6 @@ internal class DesktopEmulatorRunner(
                 }
             }
             val plan = stepPlan
-            if (plan != null && !plan.single && memoryByte(pc) in listOf(0x7a, 0x69)) {
-                stepPlan = null
-                debugStepStatus = DebuggerStepStatus.UNSUPPORTED_FLOW
-                return BreakpointRunResult(RunResult(cycles, instructions, status), DebuggerStopReason.UserPause)
-            }
             breakpointToSkipOnce = null
             val step = stepSession()
             cycles += step.cycles
@@ -857,8 +852,9 @@ internal class DesktopEmulatorRunner(
             session.resolveRomLocation(beforeCall.programCounter)
         }
         val opcode = memoryByte(beforeCall.programCounter)
-        val callInstruction = if (DebuggerCallTracker.isCall(opcode)) Sc61860InstructionDecoder.decode(beforeCall.programCounter, ::memoryByte) else null
-        val returnRom = callInstruction?.let { session.resolveRomLocation(it.nextAddress) }
+        val callInstruction = if (DebuggerCallTracker.createsFrame(opcode)) Sc61860InstructionDecoder.decode(beforeCall.programCounter, ::memoryByte) else null
+        val explicitReturn = if (opcode == 0x7a) callInstruction?.operandValue?.and(0xffff) else null
+        val returnRom = callInstruction?.let { session.resolveRomLocation(explicitReturn ?: it.nextAddress) }
         val instructionAddress = if (debugObservationEnabled || hasMemoryAccessWatch) {
             programCounterProvider() and 0xffff
         } else {
@@ -874,7 +870,7 @@ internal class DesktopEmulatorRunner(
         lastCallEvent = if (result.status is ExecutionStatus.Faulted) {
             callTracker.clear()
             DebuggerCallTracker.Event(lost = true)
-        } else callTracker.observe(beforeCall, session.cpuSnapshot(), opcode, callInstruction?.targetAddress,
+        } else callTracker.observe(beforeCall, session.cpuSnapshot(), opcode, explicitReturn ?: callInstruction?.targetAddress,
             returnRom, session::resolveRomLocation)
         sessionRevision++
         lastStepMemoryAccesses = if (debugObservationEnabled || hasMemoryAccessWatch) {

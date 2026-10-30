@@ -132,7 +132,7 @@ class DebuggerSteppingTest {
         assertEquals(DebuggerStepStatus.LIMIT, multi.debugStepStatus)
     }
 
-    @Test fun stackDamageUnsupportedCaseAndUnobservedExecutionNeverPretendToComplete() {
+    @Test fun stackDamageAndUnobservedExecutionNeverPretendToComplete() {
         for (source in listOf(
             "ORG 0\nCALL SUB\nJP 3\nSUB: LIP 0x5E\nLIA 0\nEXAM\nRTN",
             "ORG 0\nCALL SUB\nJP 3\nSUB: PUSH\nRTN",
@@ -142,10 +142,6 @@ class DebuggerSteppingTest {
             assertEquals(DebuggerStepStatus.FRAME_LOST, runner.debugStepStatus)
             assertFalse(runner.canStepOut)
         }
-        val cases = runner("ORG 0\nCALL SUB\nJP 3\nSUB: CASE1 0x000003\nCASE2")
-        cases.stepOver(); finish(cases)
-        assertEquals(DebuggerStepStatus.UNSUPPORTED_FLOW, cases.debugStepStatus)
-        assertEquals(6, cases.cpuSnapshot().programCounter)
         val normal = runner(nested)
         normal.step()
         assertTrue(normal.canStepOut)

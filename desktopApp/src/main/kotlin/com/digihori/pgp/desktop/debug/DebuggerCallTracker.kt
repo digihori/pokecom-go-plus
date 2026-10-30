@@ -8,7 +8,7 @@ internal enum class DebuggerStepStatus {
     NO_FRAME, LIMIT, FRAME_LOST, UNSUPPORTED_FLOW, INTERRUPTED,
 }
 
-/** Only observed CALL/CAL frames; never reconstruct a call stack from arbitrary RAM. */
+/** Only observed CALL/CAL/CASE1 frames; never reconstruct a call stack from arbitrary RAM. */
 internal class DebuggerCallTracker {
     internal data class Frame(val id: Long, val returnPc: Int, val callerR: Int, val stackR: Int, val rom: PhysicalRomLocation?)
     internal data class Event(val entered: Long? = null, val returned: Long? = null, val lost: Boolean = false)
@@ -20,7 +20,6 @@ internal class DebuggerCallTracker {
     fun observe(before: CpuSnapshot, after: CpuSnapshot, opcode: Int, target: Int?, returnRom: PhysicalRomLocation?,
         currentRom: (Int) -> PhysicalRomLocation?): Event {
         fun lost(): Event { clear(); return Event(lost = true) }
-        if (opcode == 0x7a || opcode == 0x69) return lost() // CASE's explicit/synthetic return frame is not a CALL.
         val ram = after.copyInternalRam()
         if (opcode == 0x37) {
             val frame = top ?: return Event()
@@ -32,10 +31,13 @@ internal class DebuggerCallTracker {
             return Event(returned = frame.id)
         }
         if (frames.any { word(ram, it.stackR) != it.returnPc }) return lost()
-        if (isCall(opcode)) {
-            val returnPc = (before.programCounter + if (opcode == 0x78) 3 else 2) and 0xffff
+        if (createsFrame(opcode)) {
+            // CASE1 pushes an explicit return operand and falls through to its dispatch.
+            val returnPc = if (opcode == 0x7a) target ?: return lost()
+                else (before.programCounter + if (opcode == 0x78) 3 else 2) and 0xffff
+            val destination = if (opcode == 0x7a) (before.programCounter + 4) and 0xffff else target
             val stackR = (before.r - 2) and 255
-            if (frames.size >= 128 || after.r != stackR || after.programCounter != target || word(ram, stackR) != returnPc ||
+            if (frames.size >= 128 || after.r != stackR || after.programCounter != destination || word(ram, stackR) != returnPc ||
                 frames.any { existing -> listOf(stackR, (stackR + 1) and 255).any { it == existing.stackR || it == ((existing.stackR + 1) and 255) } }) return lost()
             val frame = Frame(nextId++, returnPc, before.r, stackR, returnRom)
             frames += frame
@@ -45,5 +47,8 @@ internal class DebuggerCallTracker {
     }
 
     private fun word(ram: ByteArray, r: Int): Int = (ram[r].toInt() and 255) or ((ram[(r + 1) and 255].toInt() and 255) shl 8)
-    companion object { fun isCall(opcode: Int): Boolean = opcode == 0x78 || opcode in 0xe0..0xff }
+    companion object {
+        fun isCall(opcode: Int): Boolean = opcode == 0x78 || opcode in 0xe0..0xff
+        fun createsFrame(opcode: Int): Boolean = isCall(opcode) || opcode == 0x7a
+    }
 }

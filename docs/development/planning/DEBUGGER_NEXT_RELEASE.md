@@ -83,6 +83,15 @@ Trace等は各4096件、ログ256件、出力8MiBまでです。停止理由・�
 全体build成功、Core 500件・Studio 458件で失敗0、条件付きskip 2件です。
 [仕様と手動受入れの残項目](../../guides/DEBUGGER.md#24-bank指定breakpoint2026-10-30)を参照してください。
 
+## 作業7：Step Over／Out対応拡大の結果（2026-10-30）
+
+現行CoreのCASE命令と未観測スタックを調査し、観測したCASE1の明示的戻り先を追跡する範囲を追加しました。
+CASE2の分岐でフレームを保持し、CALL／CASEのネストとRTNを識別します。
+未観測スタックからの復元や未モデル化の割込みは追加せず、追跡不能時の停止を維持します。
+[調査・設計・検証記録](../DEBUGGER_CASE_STEPPING.md)と[操作仕様](../../guides/DEBUGGER.md#25-case経路のstep-overout2026-10-30)を参照。
+全体build成功、Core 500件・Studio 466件で失敗0、条件付きskip 2件です。
+配布アプリ・実ROM・各OSの手動確認は作業8とあわせて継続します。
+
 ## 共通の検証方針
 
 作業1の[自動検証・修正結果と残る手動受入れ](../DEBUGGER_NEXT_RELEASE_STEP1.md)を記録しました。

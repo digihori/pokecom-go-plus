@@ -21,6 +21,36 @@ import kotlin.test.*
 
 @OptIn(ExperimentalComposeUiApi::class)
 class DebuggerControlsTest {
+    @Test fun observedCaseFrameEnablesStepOutAndShowsCompletionInBothLanguages() = onUiThread {
+        for (language in StudioLanguage.entries) {
+            val strings = StudioStrings(language)
+            val program = ByteArray(0x23).apply {
+                byteArrayOf(0x7a, 1, 0, 0x10, 0x69, 0, 0, 0x20, 0, 0x20).copyInto(this)
+                byteArrayOf(2, 7, 0x37).copyInto(this, 0x20)
+            }
+            val runner = debuggerTestRunner(program).apply { setExecutionSpeed(DesktopExecutionSpeed.UNLIMITED) }
+            var refresh by mutableStateOf(0)
+            val scene = ImageComposeScene(1100, 600) {
+                refresh
+                PgpStudioTheme {
+                    DebuggerControls(true, runner.state, runner.cpuSnapshot(), runner.stopReason,
+                        {}, {}, { runner.step(); refresh++ }, {}, {}, {}, strings,
+                        onStepOver = { runner.stepOver(); refresh++ }, onStepOut = { runner.stepOut(); refresh++ },
+                        canStepOut = runner.canStepOut, stepStatus = runner.debugStepStatus)
+                }
+            }
+            try {
+                scene.frames(); scene.click(strings.text("emulator.step")); scene.frames()
+                assertTrue(runner.canStepOut)
+                assertFalse(scene.button(strings.text("debug.step.out")).config.contains(SemanticsProperties.Disabled))
+                scene.click(strings.text("debug.step.out")); runner.tick(); refresh++; scene.frames()
+                assertEquals(0x10, runner.cpuSnapshot().programCounter)
+                assertTrue(strings.text("debug.step.status.OUT_COMPLETE") in scene.texts())
+                assertTrue(scene.button(strings.text("debug.step.out")).config.contains(SemanticsProperties.Disabled))
+            } finally { scene.close() }
+        }
+    }
+
     @Test fun stepOverOutControlsRespectFramesStateAndCancellationInBothLanguages() = onUiThread {
         for (language in StudioLanguage.entries) {
             val strings = StudioStrings(language)

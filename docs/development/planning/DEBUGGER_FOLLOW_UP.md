@@ -11,7 +11,8 @@
 作業3で[RAMのbyte編集](../../guides/DEBUGGER.md#21-ramのbyte編集2026-10-30)、
 作業4で[ログポイント](../../guides/DEBUGGER.md#22-ログポイント2026-10-30)、
 作業5で[履歴・Trace出力](../../guides/DEBUGGER.md#23-履歴trace出力2026-10-30)、
-作業6で[bank指定Breakpoint](../../guides/DEBUGGER.md#24-bank指定breakpoint2026-10-30)を実装しました。
+作業6で[bank指定Breakpoint](../../guides/DEBUGGER.md#24-bank指定breakpoint2026-10-30)、
+作業7で[CASE経路のStep Over／Out](../../guides/DEBUGGER.md#25-case経路のstep-overout2026-10-30)を実装しました。
 以下の候補表は過去の記録として保持します。最新の検証・未確認事項は作業計画を参照してください。
 
 ## 現在の区切り（2026-10-22）
