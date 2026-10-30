@@ -109,6 +109,7 @@ jobs:
           name: ios-unit-test-results
           path: |
             iosApp/build/CI-TestResults*.xcresult
+            iosApp/build/CI-SimulatorBoot.log
             core/build/test-results/iosSimulatorArm64Test/**
             hostInput/build/test-results/iosSimulatorArm64Test/**
             playerShared/build/test-results/iosSimulatorArm64Test/**

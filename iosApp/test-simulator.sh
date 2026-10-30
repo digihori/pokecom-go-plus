@@ -47,8 +47,13 @@ if [ "$pgp_test_mode" = "unit" ] && [ "${GITHUB_ACTIONS:-false}" = "true" ]; the
 else
     pgp_simulator_id=$(xcrun simctl create "PGP CI isolated" "$pgp_device_type" "$pgp_runtime")
 fi
+pgp_boot_pid=
 pgp_cleanup_simulator() {
     pgp_exit_status=$?
+    if [ -n "$pgp_boot_pid" ]; then
+        kill "$pgp_boot_pid" >/dev/null 2>&1 || true
+        wait "$pgp_boot_pid" 2>/dev/null || true
+    fi
     if [ "$pgp_exit_status" -ne 0 ] && [ "$pgp_test_mode" = "full" ]; then
         mkdir -p iosApp/build
         xcrun simctl spawn "$pgp_simulator_id" log show --style compact --last 20m \
@@ -63,19 +68,44 @@ pgp_cleanup_simulator() {
 trap pgp_cleanup_simulator EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-# Complete first-boot migration before XCTest installs and launches the app.
-xcrun simctl bootstatus "$pgp_simulator_id" -b
-if [ "$pgp_test_mode" = "full" ]; then
-    xcrun simctl launch "$pgp_simulator_id" com.apple.DocumentsApp
-    xcrun simctl list runtimes
-fi
 pgp_result_bundle=${PGP_IOS_RESULT_BUNDLE:-iosApp/build/CI-TestResults-$(date +%Y%m%d-%H%M%S).xcresult}
-xcodebuild -version
+mkdir -p iosApp/build
+pgp_started=$(date +%s)
 echo "Simulator runtime: $pgp_runtime"
 echo "Simulator device type: $pgp_device_type"
 echo "Test mode: $pgp_test_mode; scheme: $pgp_scheme"
+if [ "$pgp_test_mode" = "unit" ]; then
+    # A generic build destination does not wait for a booted device. Overlap
+    # first-boot migration with compilation, then require both to succeed.
+    xcrun simctl bootstatus "$pgp_simulator_id" -b > iosApp/build/CI-SimulatorBoot.log 2>&1 &
+    pgp_boot_pid=$!
+    xcodebuild -project iosApp/PokecomGOPlayer.xcodeproj -scheme "$pgp_scheme" \
+        -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+        -derivedDataPath iosApp/build/CI-DerivedData \
+        CODE_SIGNING_ALLOWED=NO build-for-testing -showBuildTimingSummary "$@"
+    echo "Build elapsed: $(($(date +%s) - pgp_started)) seconds"
+    if wait "$pgp_boot_pid"; then
+        pgp_boot_pid=
+    else
+        pgp_boot_pid=
+        cat iosApp/build/CI-SimulatorBoot.log
+        exit 1
+    fi
+    cat iosApp/build/CI-SimulatorBoot.log
+    echo "Build and Simulator ready: $(($(date +%s) - pgp_started)) seconds"
+    pgp_test_action=test-without-building
+else
+    xcrun simctl bootstatus "$pgp_simulator_id" -b
+    xcrun simctl launch "$pgp_simulator_id" com.apple.DocumentsApp
+    xcrun simctl list runtimes
+    pgp_test_action=test
+fi
+pgp_tests_started=$(date +%s)
+xcodebuild -version
 xcodebuild -project iosApp/PokecomGOPlayer.xcodeproj -scheme "$pgp_scheme" \
     -sdk iphonesimulator -destination "platform=iOS Simulator,id=$pgp_simulator_id" \
     -derivedDataPath iosApp/build/CI-DerivedData \
     -resultBundlePath "$pgp_result_bundle" \
-    CODE_SIGNING_ALLOWED=NO test -parallel-testing-enabled NO "$@"
+    CODE_SIGNING_ALLOWED=NO "$pgp_test_action" -parallel-testing-enabled NO "$@"
+echo "Test launch and execution: $(($(date +%s) - pgp_tests_started)) seconds"
+echo "Total build and test: $(($(date +%s) - pgp_started)) seconds"
