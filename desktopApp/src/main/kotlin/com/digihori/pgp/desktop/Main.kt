@@ -1976,6 +1976,28 @@ private fun FrameWindowScope.App(
                             },
                             memory = {
                                 DebuggerSection {
+                                    com.digihori.pgp.desktop.debug.DebuggerMemoryEditPanel(
+                                        runner, keyboardInput, memoryViewStartAddress, runner?.sessionRevision ?: 0L,
+                                        onEdited = {
+                                            val active = runner ?: return@DebuggerMemoryEditPanel
+                                            debuggerComparison = comparisonTracker.stopped(active)
+                                            cpu = active.cpuSnapshot()
+                                            changedCpuFields = emptySet()
+                                            display = active.displaySnapshot()
+                                            loadedProgramLabel = null
+                                            loadedProjectManifest = null
+                                            if (projectWorkspace != null) projectRuntimeStatus = ProjectRuntimeStatus.NOT_LOADED
+                                            projectBasicBaseline?.let { baseline ->
+                                                projectBasicModified = when (val snapshot = active.basicProgramSnapshot()) {
+                                                    is BasicProgramSnapshotResult.Success -> !snapshot.copyBytes().contentEquals(baseline)
+                                                    is BasicProgramSnapshotResult.Failure -> true
+                                                }
+                                            }
+                                            memoryNavigationRevision++
+                                        },
+                                    )
+                                }
+                                DebuggerSection {
                                     com.digihori.pgp.desktop.debug.DebuggerMemorySearchPanel(
                                         runner, keyboardInput, runner?.sessionRevision ?: 0L, ::navigateToMemory,
                                     )
@@ -3144,6 +3166,7 @@ internal fun MemoryViewPanel(
     snapshotRevision: CpuSnapshot? = null,
     navigationRevision: Int = 0,
     comparison: DebuggerComparisonFrame = DebuggerComparisonFrame(),
+    memoryRevision: Long = runner?.sessionRevision ?: 0L,
 ) {
     var addressText by rememberSaveable(runner) { mutableStateOf(startAddress.hex(4)) }
     var addressError by rememberSaveable(runner) { mutableStateOf(false) }
@@ -3158,7 +3181,7 @@ internal fun MemoryViewPanel(
             handledNavigation = navigationRevision
         }
     }
-    val lines = remember(runner, startAddress, refreshRevision, snapshotRevision, navigationRevision) {
+    val lines = remember(runner, startAddress, refreshRevision, snapshotRevision, navigationRevision, memoryRevision) {
         if (runner == null) {
             emptyList()
         } else {

@@ -114,6 +114,17 @@ internal class DebuggerRegistrationStore(initialId: Long = 0L, private val readB
         }
     }
 
+    /** A host edit is not a CPU write. Preserve all other pending changes, including aliases. */
+    fun rebaseEditedByte(value: Int, matchesAddress: (Int) -> Boolean) {
+        watches.values.forEach { watch ->
+            baselines[watch.id]?.let { bytes ->
+                bytes.indices.forEach { offset ->
+                    if (matchesAddress(watch.range.first + offset)) bytes[offset] = value.toByte()
+                }
+            }
+        }
+    }
+
     fun changes(): List<MemoryValueChange> {
         val changes = linkedMapOf<Int, MemoryValueChange>()
         watches.values.filter { it.enabled && it.kind == DebuggerWatchKind.CHANGE }.forEach { watch ->

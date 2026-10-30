@@ -43,6 +43,9 @@ import com.digihori.pgp.desktop.debug.DesktopInstructionTraceEntry
 import com.digihori.pgp.desktop.debug.DesktopMemoryAccessHistoryEntry
 import com.digihori.pgp.desktop.debug.DesktopBankHistoryEntry
 import com.digihori.pgp.core.debug.Sc61860InstructionDecoder
+import com.digihori.pgp.desktop.debug.DebuggerMemoryEditError
+import com.digihori.pgp.desktop.debug.DebuggerMemoryEditPreview
+import com.digihori.pgp.desktop.debug.DebuggerMemoryEditResult
 
 internal fun interface MonotonicClock {
     fun nowNanoseconds(): Long
@@ -485,6 +488,48 @@ internal class DesktopEmulatorRunner(
 
     fun memorySnapshot(startAddress: Int, length: Int): MemorySnapshot =
         session.memorySnapshot(startAddress, length)
+
+    private val memoryEditSessionId = java.util.UUID.randomUUID().toString()
+
+    fun previewMemoryEdit(address: Int, value: Int): DebuggerMemoryEditResult {
+        fun failure(error: DebuggerMemoryEditError) = DebuggerMemoryEditResult.Failure(error)
+        if (state != RunnerState.PAUSED) return failure(DebuggerMemoryEditError.PAUSED_ONLY)
+        if (address !in 0..0xffff) return failure(DebuggerMemoryEditError.ADDRESS)
+        if (value !in 0..255) return failure(DebuggerMemoryEditError.VALUE)
+        val location = memoryLayout.locate(address)
+        if (location.kind != com.digihori.pgp.core.api.MachineMemoryKind.RAM || !location.writable)
+            return failure(DebuggerMemoryEditError.RAM_ONLY)
+        val before = try { memoryByte(address) } catch (_: Exception) { return failure(DebuggerMemoryEditError.READ) }
+        if (before == value) return failure(DebuggerMemoryEditError.UNCHANGED)
+        return DebuggerMemoryEditResult.Success(DebuggerMemoryEditPreview(address, location.physicalAddress, before, value, sessionRevision, memoryEditSessionId))
+    }
+
+    /** Revalidate the preview before a one-byte host load. Rejected edits never pause or mutate the session. */
+    fun applyMemoryEdit(edit: DebuggerMemoryEditPreview): DebuggerMemoryEditResult {
+        if (state != RunnerState.PAUSED) return DebuggerMemoryEditResult.Failure(DebuggerMemoryEditError.PAUSED_ONLY)
+        if (edit.sessionId != memoryEditSessionId || edit.revision != sessionRevision) return DebuggerMemoryEditResult.Failure(DebuggerMemoryEditError.STALE)
+        val checked = previewMemoryEdit(edit.address, edit.after)
+        if (checked !is DebuggerMemoryEditResult.Success) return checked
+        if (checked.edit != edit) return DebuggerMemoryEditResult.Failure(DebuggerMemoryEditError.STALE)
+        val image = (com.digihori.pgp.core.source.machine.AddressedMemoryImageFactory.create(listOf(
+            com.digihori.pgp.core.source.machine.AddressedMemorySegmentData(edit.address, byteArrayOf(edit.after.toByte())),
+        )) as com.digihori.pgp.core.source.machine.AddressedMemoryImageCreateResult.Success).image
+        val result = session.loadMemoryImage(image)
+        if (result !is MemoryImageLoadResult.Success) return DebuggerMemoryEditResult.Failure(DebuggerMemoryEditError.WRITE)
+        registrations.rebaseEditedByte(edit.after) { address ->
+            val location = memoryLayout.locate(address)
+            location.kind == com.digihori.pgp.core.api.MachineMemoryKind.RAM && location.physicalAddress == edit.physicalAddress
+        }
+        debugTargetGeneration++
+        sessionRevision++
+        sourceMap = null
+        callTracker.clear()
+        stepPlan = null
+        debugStepStatus = DebuggerStepStatus.IDLE
+        temporaryRunToAddress = null
+        breakpointToSkipOnce = null
+        return DebuggerMemoryEditResult.Success(edit)
+    }
 
     fun memoryByte(address: Int): Int =
         session.memorySnapshot(address and 0xffff, 1).copyBytes().single().toInt() and 0xff
