@@ -10,7 +10,9 @@ Registrations and History are available in both layouts. Scroll each pane to rea
 Memory View appears first in the memory pane, followed by the RAM editor and search.
 Selecting a search result returns to Memory View and releases text input focus.
 While an input field has focus, typing is reserved for that field. Switching away from a pane releases its
-input ownership. Native Tab/Enter/IME behavior in distributed apps remains part of manual acceptance.
+input ownership. See the acceptance record for native Tab/Enter/IME verification.
+This enhancement phase is closed for now: macOS passed all manual cases except deferred T22;
+Windows and Linux were reported OK, without individual case results. T22 awaits a bank execution test program.
 
 ## Breakpoints and monitoring
 
