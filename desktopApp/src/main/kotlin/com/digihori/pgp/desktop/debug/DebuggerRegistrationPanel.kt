@@ -41,6 +41,7 @@ internal fun DebuggerRegistrationPanel(
     var showConditionHelp by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf(false) }
     var bpCondition by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf("") }
     var bpHitCondition by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf("") }
+    var bpBank by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf("") }
     var bpEnabled by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf(true) }
     var watchId by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf<Long?>(null) }
     var start by rememberSaveable(runner, runner?.debugSettingsRevision) { mutableStateOf("C000") }
@@ -80,6 +81,9 @@ internal fun DebuggerRegistrationPanel(
                 OutlinedTextField(bpHitCondition, { bpHitCondition = it; error = null }, label = { Text(strings.text("debug.breakpoint.hitCondition")) },
                     placeholder = { Text(">= 3") }, readOnly = !canEdit, singleLine = true,
                     modifier = Modifier.widthIn(max = 260.dp).emulatorTextInput(keyboardInput))
+                OutlinedTextField(bpBank, { bpBank = it; error = null }, label = { Text(strings.text("debug.breakpoint.bank")) },
+                    placeholder = { Text(strings.text("debug.breakpoint.allBanks")) }, readOnly = !canEdit, singleLine = true,
+                    modifier = Modifier.widthIn(max = 180.dp).emulatorTextInput(keyboardInput))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(bpEnabled, { bpEnabled = it }, enabled = canEdit,
                         modifier = Modifier.semantics { contentDescription = strings.text("debug.registration.formEnabled") })
@@ -87,8 +91,10 @@ internal fun DebuggerRegistrationPanel(
                 }
                 Button(enabled = canEdit, onClick = {
                     val address = parseHexAddress(bpAddress)
-                    if (address == null) error = DebuggerRegistrationError.ADDRESS
-                    else if (result(runner?.saveBreakpoint(bpId, address, bpEnabled, bpCondition, bpHitCondition))) bpId = null
+                    val bank = bpBank.trim().takeIf { it.matches(Regex("[0-9]{1,3}")) }?.toIntOrNull()
+                    if (bpBank.isNotBlank() && bank == null) error = DebuggerRegistrationError.BANK
+                    else if (address == null) error = DebuggerRegistrationError.ADDRESS
+                    else if (result(runner?.saveBreakpoint(bpId, address, bpEnabled, bpCondition, bpHitCondition, bank))) bpId = null
                 }) { Text(strings.text(if (bpId == null) "debug.registration.add" else "common.apply")) }
                 if (bpId != null) TextButton({ bpId = null; error = null }) { Text(strings.text("common.cancel")) }
             }
@@ -96,24 +102,25 @@ internal fun DebuggerRegistrationPanel(
             Text(strings.text("debug.registration.count", breakpoints.count { it.enabled }.toString(), breakpoints.size.toString()))
             if (breakpoints.isEmpty()) Text(strings.text("debug.registration.empty"))
             else RegistrationRows(breakpoints, { it.id }) { entry ->
+                Text(strings.text("debug.breakpoint.bankSummary", entry.bank?.toString() ?: strings.text("debug.breakpoint.allBanks")))
                 Text(strings.text("debug.breakpoint.ruleSummary", entry.condition.ifBlank { "—" },
                     entry.hitCondition.ifBlank { "—" }, entry.hitCount.toString()), fontFamily = FontFamily.Monospace)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(entry.enabled, { enabled ->
                         if (result(runner?.setBreakpointEnabled(entry.id, enabled)) && bpId == entry.id) bpEnabled = enabled
                     }, enabled = canEdit, modifier = Modifier.semantics {
-                        contentDescription = strings.text("debug.registration.toggleBreakpoint", entry.address.historyHex(4)) })
+                        contentDescription = strings.text("debug.registration.toggleBreakpoint", entry.address.historyHex(4) + (entry.bank?.let { " bank=$it" } ?: "")) })
                     Text("#${entry.id} ${entry.address.historyHex(4)}", fontFamily = FontFamily.Monospace)
                     Spacer(Modifier.width(8.dp))
                     Text(strings.text(if (entry.enabled) "debug.registration.enabled" else "debug.registration.disabled"))
                 }
                 FlowRow {
                     TextButton(enabled = canEdit, onClick = {
-                        bpId = entry.id; bpAddress = entry.address.historyHex(4); bpEnabled = entry.enabled; bpCondition = entry.condition; bpHitCondition = entry.hitCondition; error = null
-                    }, modifier = Modifier.semantics { contentDescription = strings.text("debug.registration.editBreakpoint", entry.address.historyHex(4)) }) { Text(strings.text("debug.registration.edit")) }
+                        bpId = entry.id; bpAddress = entry.address.historyHex(4); bpEnabled = entry.enabled; bpCondition = entry.condition; bpHitCondition = entry.hitCondition; bpBank = entry.bank?.toString().orEmpty(); error = null
+                    }, modifier = Modifier.semantics { contentDescription = strings.text("debug.registration.editBreakpoint", entry.address.historyHex(4) + (entry.bank?.let { " bank=$it" } ?: "")) }) { Text(strings.text("debug.registration.edit")) }
                     TextButton(enabled = canEdit, onClick = {
                         if (result(runner?.removeBreakpoint(entry.id)) && bpId == entry.id) bpId = null
-                    }, modifier = Modifier.semantics { contentDescription = strings.text("debug.registration.deleteBreakpoint", entry.address.historyHex(4)) }) { Text(strings.text("debug.registration.delete")) }
+                    }, modifier = Modifier.semantics { contentDescription = strings.text("debug.registration.deleteBreakpoint", entry.address.historyHex(4) + (entry.bank?.let { " bank=$it" } ?: "")) }) { Text(strings.text("debug.registration.delete")) }
                 }
             }
         } else {

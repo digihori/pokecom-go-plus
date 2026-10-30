@@ -174,7 +174,8 @@ Linuxでは`$XDG_RUNTIME_DIR/pokecom-go-studio/`（未設定時は`~/.local/stat
 既存のCodex設定がenabled_toolsで制限している場合、新toolを追加するかStudioから設定を再コピーする。
 
 応答のstructuredContentはformat `pgp-debug-registrations`、schemaVersion 1。
-sessionにはid・revision・machineId・runState、addressScopeには`logicalAllBanks`を返す。
+sessionにはid・revision・machineId・runStateを返す。通常のaddressScopeは`logicalAllBanks`、
+bank指定Breakpointがある場合は`logicalWithOptionalRomBank`を返す（2026-10-30追加、[第19節](#19-bank指定breakpoint2026-10-30)）。
 breakpointsはid・address・enabled、watchesはid・startAddress・endAddressInclusive・kind・enabled。
 kindは`change`／`read`／`write`／`readWrite`。アドレス・ID・revisionはJSON数値、enabledはboolean。
 無効登録も含み、空一覧は空配列。ブレークポイントはアドレス順、監視は登録順。
@@ -495,3 +496,21 @@ AIへの案内方針であり応答書式の強制機構ではない。反映に
 ## 18. CI追試とOS間パス照合の修正（2026-10-22）
 
 この節は記録時点の内容です。[AI連携の初期構想・実装順・検証履歴](../development/AI_INTEGRATION_HISTORY.md)へ分離しました。
+
+## 19. bank指定Breakpoint（2026-10-30）
+
+`pgp_propose_debug_action`の`save_breakpoint`に任意の`bank`（整数またはnull）を追加しました。
+整数は機種のROM切替窓の正規化されたbank番号、nullはbank指定解除、省略は編集時の指定保持です。
+新規登録で省略した場合は従来どおりbank指定なしです。Studioでの承認前に登録を変更しません。
+切替窓外・範囲外bank・指定が重複する登録は拒否します。取得したSession ID／revisionを使う規則は維持します。
+
+`pgp_get_debug_registrations`および`pgp_get_development_context`のdebug sectionは、
+bank指定登録に任意の整数項目`bank`を返します。bankがない登録の形状は従来どおりです。
+addressScopeは指定あり登録があれば`logicalWithOptionalRomBank`、なければ`logicalAllBanks`です。
+応答schemaVersion 1への任意項目の追加として扱い、既存tool名・必須入力・Debug Contextの形式を維持します。
+クライアント側でbankを無視して全bankの停止と解釈しないでください。
+
+設定保存はbankを含む場合v2、含まない場合v1です。両方の読み込みをサポートします。
+詳細は[Debuggerのbank指定仕様](../guides/DEBUGGER.md#24-bank指定breakpoint2026-10-30)を参照してください。
+MCP adapterとApplication Serviceを通す自動検証で、提案・承認・取得、型エラー・範囲外の拒否、
+省略による保持・nullによる解除を確認しました。外部AIクライアントでの実接続受入れは未実施です。

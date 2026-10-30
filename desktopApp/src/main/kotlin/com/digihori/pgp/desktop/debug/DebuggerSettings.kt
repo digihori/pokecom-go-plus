@@ -10,7 +10,7 @@ import java.security.MessageDigest
 import kotlinx.serialization.json.*
 
 internal data class DebuggerSettingsTarget(val machineId: String, val romSha256: String, val memoryConfiguration: String, val projectSha256: String?)
-internal data class DebuggerBreakpointSetting(val address: Int, val enabled: Boolean, val condition: String, val hitCondition: String)
+internal data class DebuggerBreakpointSetting(val address: Int, val enabled: Boolean, val condition: String, val hitCondition: String, val bank: Int? = null)
 internal data class DebuggerWatchSetting(val start: Int, val end: Int, val kind: DebuggerWatchKind, val enabled: Boolean)
 internal data class DebuggerSavedSettings(val target: DebuggerSettingsTarget, val breakpoints: List<DebuggerBreakpointSetting>,
     val watches: List<DebuggerWatchSetting>, val traceEnabled: Boolean, val traceCapacity: Int)
@@ -51,7 +51,7 @@ internal object DebuggerSettingsFiles {
     fun capture(runner: DesktopEmulatorRunner, project: File?): DebuggerSavedSettings {
         if (runner.state == RunnerState.RUNNING) fail(DebuggerSettingsError.RUNNING)
         return DebuggerSavedSettings(target(runner, project), runner.breakpointRegistrations().map {
-            DebuggerBreakpointSetting(it.address, it.enabled, it.condition, it.hitCondition)
+            DebuggerBreakpointSetting(it.address, it.enabled, it.condition, it.hitCondition, it.bank)
         }, runner.watchRegistrations().map { DebuggerWatchSetting(it.range.first, it.range.last, it.kind, it.enabled) },
             runner.isInstructionTraceEnabled(), runner.instructionTraceCapacity())
     }
@@ -67,7 +67,7 @@ internal object DebuggerSettingsFiles {
     fun encode(settings: DebuggerSavedSettings): String {
         validate(settings)
         val json = buildJsonObject {
-            put("format", "pgp-debug-settings"); put("schemaVersion", 1)
+            put("format", "pgp-debug-settings"); put("schemaVersion", if (settings.breakpoints.any { it.bank != null }) 2 else 1)
             put("target", buildJsonObject {
                 put("machineId", settings.target.machineId); put("romSha256", settings.target.romSha256)
                 put("memoryConfiguration", settings.target.memoryConfiguration)
@@ -75,6 +75,7 @@ internal object DebuggerSettingsFiles {
             })
             put("breakpoints", buildJsonArray { settings.breakpoints.forEach { bp -> add(buildJsonObject {
                 put("address", bp.address); put("enabled", bp.enabled); put("condition", bp.condition); put("hitCondition", bp.hitCondition)
+                if (settings.breakpoints.any { it.bank != null }) put("bank", bp.bank?.let(::JsonPrimitive) ?: JsonNull)
             }) } })
             put("watches", buildJsonArray { settings.watches.forEach { watch -> add(buildJsonObject {
                 put("start", watch.start); put("end", watch.end); put("kind", watch.kind.name); put("enabled", watch.enabled)
@@ -98,7 +99,8 @@ internal object DebuggerSettingsFiles {
         }
         val root = Json.parseToJsonElement(text).jsonObject
         if (root.string("format") != "pgp-debug-settings") fail(DebuggerSettingsError.FORMAT)
-        if (root.integer("schemaVersion") != 1) fail(DebuggerSettingsError.VERSION)
+        val version = root.integer("schemaVersion")
+        if (version !in 1..2) fail(DebuggerSettingsError.VERSION)
         root.keysExactly("format", "schemaVersion", "target", "breakpoints", "watches", "trace")
         val target = root.getValue("target").jsonObject
         target.keysExactly("machineId", "romSha256", "memoryConfiguration", "projectSha256")
@@ -110,8 +112,10 @@ internal object DebuggerSettingsFiles {
         trace.keysExactly("enabled", "capacity")
         DebuggerSavedSettings(DebuggerSettingsTarget(target.string("machineId"), target.string("romSha256"), target.string("memoryConfiguration"), project),
             points.map { element -> element.jsonObject.let {
-                it.keysExactly("address", "enabled", "condition", "hitCondition")
-                DebuggerBreakpointSetting(it.integer("address"), it.boolean("enabled"), it.string("condition"), it.string("hitCondition"))
+                if (version == 1) it.keysExactly("address", "enabled", "condition", "hitCondition")
+                else it.keysExactly("address", "enabled", "condition", "hitCondition", "bank")
+                DebuggerBreakpointSetting(it.integer("address"), it.boolean("enabled"), it.string("condition"), it.string("hitCondition"),
+                    if (version == 1 || it["bank"] == JsonNull) null else it.integer("bank"))
             } }, watches.map { element -> element.jsonObject.let {
                 it.keysExactly("start", "end", "kind", "enabled")
                 DebuggerWatchSetting(it.integer("start"), it.integer("end"), DebuggerWatchKind.valueOf(it.string("kind")), it.boolean("enabled"))
@@ -126,7 +130,8 @@ internal object DebuggerSettingsFiles {
         val store = DebuggerRegistrationStore { _, length -> ByteArray(length) }
         if (settings.breakpoints.size > DebuggerRegistrationStore.MAX_BREAKPOINTS || settings.watches.size > DebuggerRegistrationStore.MAX_WATCHES) fail(DebuggerSettingsError.REGISTRATIONS)
         settings.breakpoints.forEach {
-            if (it.condition.length > 128 || it.hitCondition.length > 32 || store.saveBreakpoint(null, it.address, it.enabled, it.condition, it.hitCondition) is DebuggerRegistrationResult.Failure) fail(DebuggerSettingsError.REGISTRATIONS)
+            if (!validBreakpointBank(com.digihori.pgp.core.rom.MachineId(settings.target.machineId), it.address, it.bank)) fail(DebuggerSettingsError.REGISTRATIONS)
+            if (it.condition.length > 128 || it.hitCondition.length > 32 || store.saveBreakpoint(null, it.address, it.enabled, it.condition, it.hitCondition, it.bank) is DebuggerRegistrationResult.Failure) fail(DebuggerSettingsError.REGISTRATIONS)
         }
         settings.watches.forEach {
             if (store.saveWatch(null, it.start, it.end, it.kind, it.enabled) is DebuggerRegistrationResult.Failure) fail(DebuggerSettingsError.REGISTRATIONS)

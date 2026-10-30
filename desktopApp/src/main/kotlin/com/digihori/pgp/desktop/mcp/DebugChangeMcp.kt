@@ -18,7 +18,7 @@ internal object DebugChangeMcp {
         val variants = listOf("save_breakpoint", "remove_breakpoint", "save_watch", "remove_watch", "trace", "pause", "step").map { action ->
             val fields = buildJsonObject {
                 if (action in setOf("save_breakpoint", "remove_breakpoint", "save_watch", "remove_watch")) put("id", number(9_007_199_254_740_991))
-                if (action == "save_breakpoint") { put("address", number(65535)); put("condition", string(128, true)); put("hitCondition", string(32, true)) }
+                if (action == "save_breakpoint") { put("address", number(65535)); put("condition", string(128, true)); put("hitCondition", string(32, true)); put("bank", buildJsonObject { put("type", buildJsonArray { add("integer"); add("null") }); put("minimum", 0); put("maximum", 255); put("description", "Optional ROM bank in the machine bank window; null clears bank scope. Omission preserves existing scope on edit, or any bank on create.") }) }
                 if (action == "save_watch") {
                     put("startAddress", number(65535)); put("endAddress", number(65535))
                     put("kind", buildJsonObject { put("type", "string"); put("enum", buildJsonArray { listOf("change", "read", "write", "readWrite").forEach { add(JsonPrimitive(it)) } }) })

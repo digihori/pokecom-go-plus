@@ -49,6 +49,7 @@ import com.digihori.pgp.desktop.debug.DebuggerMemoryEditResult
 import com.digihori.pgp.desktop.debug.DebuggerLogpoints
 import com.digihori.pgp.desktop.debug.DebuggerLogpointError
 import com.digihori.pgp.desktop.debug.DebuggerLogpointResult
+import com.digihori.pgp.desktop.debug.validBreakpointBank
 
 internal fun interface MonotonicClock {
     fun nowNanoseconds(): Long
@@ -245,7 +246,8 @@ internal class DesktopEmulatorRunner(
             return DebuggerSettingsApplyResult.Failure(DebuggerSettingsError.TARGET)
         val candidate = DebuggerRegistrationStore(registrations.nextRegistrationId, memoryBytesProvider)
         for (entry in settings.breakpoints) {
-            val result = candidate.saveBreakpoint(null, entry.address, entry.enabled, entry.condition, entry.hitCondition)
+            if (!validBreakpointBank(machineId, entry.address, entry.bank)) return DebuggerSettingsApplyResult.Failure(DebuggerSettingsError.REGISTRATIONS)
+            val result = candidate.saveBreakpoint(null, entry.address, entry.enabled, entry.condition, entry.hitCondition, entry.bank)
             if (result is DebuggerRegistrationResult.Failure) return DebuggerSettingsApplyResult.Failure(DebuggerSettingsError.REGISTRATIONS)
         }
         for (entry in settings.watches) {
@@ -276,8 +278,11 @@ internal class DesktopEmulatorRunner(
     fun breakpointRegistrations(): List<DebuggerBreakpoint> = registrations.breakpoints()
     fun watchRegistrations(): List<DebuggerWatch> = registrations.watches()
 
-    fun saveBreakpoint(id: Long?, address: Int, enabled: Boolean = true, condition: String? = null, hitCondition: String? = null): DebuggerRegistrationResult =
-        registrationChanged(registrations.saveBreakpoint(id, address, enabled, condition, hitCondition))
+    fun saveBreakpoint(id: Long?, address: Int, enabled: Boolean = true, condition: String? = null, hitCondition: String? = null,
+        bank: Int? = breakpointRegistrations().firstOrNull { it.id == id }?.bank): DebuggerRegistrationResult {
+        if (!validBreakpointBank(machineId, address, bank)) return DebuggerRegistrationResult.Failure(DebuggerRegistrationError.BANK)
+        return registrationChanged(registrations.saveBreakpoint(id, address, enabled, condition, hitCondition, bank))
+    }
 
     fun removeBreakpoint(id: Long): DebuggerRegistrationResult = registrationChanged(registrations.removeBreakpoint(id))
 
@@ -322,13 +327,15 @@ internal class DesktopEmulatorRunner(
 
     fun toggleBreakpoint(address: Int): Boolean {
         val normalized = address and 0xffff
-        val old = breakpointRegistrations().firstOrNull { it.address == normalized }
+        val atAddress = breakpointRegistrations().filter { it.address == normalized }
+        val currentBank = resolveRomLocation(normalized)?.bank
+        val old = atAddress.firstOrNull { it.bank == null || it.bank == currentBank }
         if (old?.enabled == true) { removeBreakpoint(old.id); return false }
-        return saveBreakpoint(old?.id, normalized, true) is DebuggerRegistrationResult.Success
+        return saveBreakpoint(old?.id, normalized, true, bank = old?.bank ?: if (atAddress.isNotEmpty()) currentBank else null) is DebuggerRegistrationResult.Success
     }
 
     /** Legacy active-address view, also used by execution checks. */
-    fun breakpoints(): Set<Int> = executionBreakpoints.toSortedSet()
+    fun breakpoints(): Set<Int> = breakpointRegistrations().filter { it.enabled && (it.bank == null || resolveRomLocation(it.address)?.bank == it.bank) }.map { it.address }.toSortedSet()
 
     fun setInstructionTraceEnabled(enabled: Boolean) {
         if (instructionTraceEnabled == enabled) return
@@ -753,7 +760,7 @@ internal class DesktopEmulatorRunner(
                         stopReason = DebuggerStopReason.RunToAddress(pc),
                     )
                 }
-                if (pc in executionBreakpoints && pc != breakpointToSkipOnce && registrations.breakpointHit(pc, session::cpuSnapshot)) {
+                if (pc in executionBreakpoints && pc != breakpointToSkipOnce && registrations.breakpointHit(pc, session::cpuSnapshot, session.resolveRomLocation(pc)?.bank)) {
                     sessionRevision++
                     return BreakpointRunResult(
                         RunResult(cycles, instructions, status),

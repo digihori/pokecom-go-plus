@@ -15,6 +15,33 @@ import kotlin.test.*
 
 @OptIn(ExperimentalComposeUiApi::class)
 class DebuggerRegistrationPanelTest {
+    @Test fun bankScopedRegistrationsCanBeEditedAndClearedInBothLanguages() = ui {
+        for (language in StudioLanguage.entries) {
+            val strings = StudioStrings(language)
+            val runner = bankBreakpointRunner()
+            val scene = ImageComposeScene(1100, 1500) {
+                PgpStudioTheme { DebuggerRegistrationPanel(runner, DesktopKeyboardInput(), strings = strings) }
+            }
+            try {
+                scene.frames(); scene.edit(0, "4000"); scene.edit(3, "0")
+                scene.click(strings.text("debug.registration.add")); scene.frames()
+                scene.edit(3, "1"); scene.click(strings.text("debug.registration.add")); scene.frames()
+                assertEquals(listOf(0, 1), runner.breakpointRegistrations().map { it.bank })
+                assertTrue(scene.texts().contains(strings.text("debug.breakpoint.bankSummary", "1")))
+                scene.click(strings.text("debug.registration.editBreakpoint", "4000 bank=0")); scene.frames()
+                scene.edit(3, "8"); scene.click(strings.text("common.apply")); scene.frames()
+                assertTrue(scene.texts().contains(DebuggerRegistrationError.BANK.display(strings)))
+                assertEquals(listOf(0, 1), runner.breakpointRegistrations().map { it.bank })
+                scene.edit(3, ""); scene.click(strings.text("common.apply")); scene.frames()
+                assertTrue(scene.texts().contains(DebuggerRegistrationError.DUPLICATE_ADDRESS.display(strings)))
+                scene.click(strings.text("debug.registration.deleteBreakpoint", "4000 bank=1")); scene.frames()
+                scene.click(strings.text("common.apply")); scene.frames()
+                assertNull(runner.breakpointRegistrations().single().bank)
+                assertEquals(0, runner.cpuSnapshot().programCounter)
+            } finally { scene.close() }
+        }
+    }
+
     @Test fun restoredSettingsDiscardOldEditIdsAndSynchronizeTraceControls() = ui {
         for (language in StudioLanguage.entries) {
             val strings = StudioStrings(language)

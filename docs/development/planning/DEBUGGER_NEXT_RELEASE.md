@@ -75,6 +75,14 @@ Trace等は各4096件、ログ256件、出力8MiBまでです。停止理由・�
 全体build成功、Core 500件・Studio 451件で失敗0、条件付きskip 2件です。
 [仕様・出力項目・手動受入れの残項目](../../guides/DEBUGGER.md#23-履歴trace出力2026-10-30)を参照してください。
 
+## 作業6：bank指定Breakpointの実装結果（2026-10-30）
+
+機種のROM切替窓で、論理アドレスと正規化bank番号を指定したBreakpointを実装しました。
+別bankは別登録・別ヒット回数として扱い、bank不一致では条件・回数を評価しません。
+日英UI、設定v2（旧v1読込み互換）、承認付きMCPの任意bank項目と登録読取りを接続しました。
+全体build成功、Core 500件・Studio 458件で失敗0、条件付きskip 2件です。
+[仕様と手動受入れの残項目](../../guides/DEBUGGER.md#24-bank指定breakpoint2026-10-30)を参照してください。
+
 ## 共通の検証方針
 
 作業1の[自動検証・修正結果と残る手動受入れ](../DEBUGGER_NEXT_RELEASE_STEP1.md)を記録しました。
