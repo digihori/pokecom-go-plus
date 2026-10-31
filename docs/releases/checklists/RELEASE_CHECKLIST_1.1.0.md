@@ -95,4 +95,6 @@ Play提出・公開完了とは扱いません。GitHub Releaseの一般公開�
 
 正式タグ`v1.1.0`は`027cd6d`に作成・pushしました。
 [正式タグの配布workflow 41200803433](https://github.com/digihori/pokecom-go-plus/actions/runs/41200803433)を起動済みです。
-macOS署名environmentの承認後に署名・公証とドラフトRelease作成へ進みます。
+macOS署名ジョブはステップ開始前にenvironment保護ルールで拒否されました。
+GitHubの診断：`Tag "v1.1.0" is not allowed to deploy to macos-signing due to environment protection rules.`
+`macos-signing`環境の許可タグ設定を確認・修正した後、失敗ジョブを再実行し、署名・公証とドラフト作成を確認します。
