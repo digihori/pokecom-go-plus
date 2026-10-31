@@ -1,6 +1,6 @@
 # 1.1.0公開チェックリスト
 
-2026-10-31作成。状態：`v1.1.0`タグをpush済み。正式タグの配布workflowを実行中。ストア提出・正式公開は未実施。
+2026-10-31作成。状態：`v1.1.0`タグをpush済み。正式タグの配布workflow成功・ドラフトRelease作成済み。ストア提出・正式公開は未実施。
 対象はStudio／Android Player。機能修正・既存テスト結果の基準はmainの`d493f16`。
 過去の確認と最終候補の確認を区別し、未確認項目は完了にしません。
 
@@ -98,3 +98,18 @@ Play提出・公開完了とは扱いません。GitHub Releaseの一般公開�
 macOS署名ジョブはステップ開始前にenvironment保護ルールで拒否されました。
 GitHubの診断：`Tag "v1.1.0" is not allowed to deploy to macos-signing due to environment protection rules.`
 `macos-signing`環境の許可タグ設定を確認・修正した後、失敗ジョブを再実行し、署名・公証とドラフト作成を確認します。
+
+
+## 正式タグ配布workflow再実行の結果
+
+`macos-signing`のタグ許可設定後、実行41200803433の失敗ジョブと依存ジョブを再実行（attempt 2）。
+承認後、macOS app／DMGの署名・公証、資産アップロード、ドラフトRelease作成がすべて成功しました。
+承認時に画面へgateのエラー通知が出ましたが、実行は承認を通過して正常完了しています。
+
+[1.1.0ドラフトRelease](https://github.com/digihori/pokecom-go-plus/releases/tag/untagged-8f2af235c30bccec8460)
+（Release ID `429927651`、tag `v1.1.0`、commit `027cd6d`）のDraft表示を確認しました。
+添付資産はStudio配布6点・変換ツール2点・SHA256SUMS 4点の計12点です。
+GitHub自動生成のソースarchive 2点を含むUIの表示はAssets 14です。Android APK／AABは含みません。
+資産名とGitHub表示のSHA-256を確認済みです。ダウンロード内容とSHA256SUMS本文の照合、
+正式タグ資産の手動起動確認はまだです。Android実機確認も引き続き保留です。
+一般公開・ストア提出・Latest切替は行っていません。

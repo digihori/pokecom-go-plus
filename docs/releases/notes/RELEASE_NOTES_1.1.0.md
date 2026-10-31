@@ -2,7 +2,7 @@
 
 リリースノート（2026-10-31）。タグ：`v1.1.0`。比較対象：`v1.0.0`。
 機能・受入れ記録の基準はmainの`d493f16`。最終配布候補のcommitと検証結果は
-[公開チェックリスト](../checklists/RELEASE_CHECKLIST_1.1.0.md)で確定します。
+[公開チェックリスト](https://github.com/digihori/pokecom-go-plus/blob/main/docs/releases/checklists/RELEASE_CHECKLIST_1.1.0.md)で確定します。
 
 ## 日本語
 
@@ -32,7 +32,7 @@ Playerのマシン語保存・ROMセット作成、複数AI対応は今回の対
 
 公開版数1.1.0、Studio内部パッケージ版数1.7.0、Android versionCode 11。
 Windows MSIのUpgradeCodeを維持します。Windowsは未署名のためOS警告が表示される場合があります。
-macOSの署名・公証は最終候補で確認します。Android debug APKはGitHub Releaseへ添付しません。
+macOSの正式タグ配布物はDeveloper ID署名・公証済みです。Android debug APKはGitHub Releaseへ添付しません。
 更新前にプログラム・Project・ROM原本をバックアップしてください。Playerにセーブステートはありません。
 
 ## English
@@ -56,5 +56,5 @@ Existing acceptance reports do not replace testing the final 1.1.0 packages. Deb
 WAV boundary, protected-format, Japanese and all-model coverage remain incomplete.
 Player machine-code saving, ROM-set creation and multiple AI connections are outside this release.
 Public version: 1.1.0; Studio package version: 1.7.0; Android versionCode: 11. The MSI UpgradeCode is preserved.
-Windows packages remain unsigned. Verify macOS signing/notarization on final assets. Android updates use Google Play; debug APKs are CI artifacts only.
+Windows packages remain unsigned. The tagged macOS packages are Developer ID signed and notarized. Android updates use Google Play; debug APKs are CI artifacts only.
 Back up programs, projects and ROM originals before updating. Player has no save states.
