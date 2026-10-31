@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
 
-> **[Studio 1.1.0](https://github.com/digihori/pokecom-go-plus/releases/tag/v1.1.0)** を公開しました。macOS版は署名・公証済み。Android PlayerのGoogle Play公開版は1.0.0で、1.1.0はストア申請済みで審査・公開待ちです。
+> **[Studio 1.1.0](https://github.com/digihori/pokecom-go-plus/releases/tag/v1.1.0)** を公開しました。macOS版は署名・公証済み。Android Player 1.1.0もGoogle Playで公開しています。
 
 Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向けプログラムを
 現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す
@@ -29,7 +29,7 @@ Android Playerは[Google Play](https://play.google.com/store/apps/details?id=com
 
 ## 現在のリリース
 
-Studio **1.1.0**を公開しました。Android Player 1.1.0はストア申請済みで審査・公開待ちです。
+Studio **1.1.0**を公開しました。Android Player 1.1.0もGoogle Playで公開しました。
 [リリースノート](docs/releases/notes/RELEASE_NOTES_1.1.0.md)と
 [チェックリスト](docs/releases/checklists/RELEASE_CHECKLIST_1.1.0.md)を参照してください。
 
@@ -263,7 +263,7 @@ PC-1261／1350／1401が32 KiB、PC-1360／1360Kが128 KiB（bank 0〜7の順に
 
 ### 1.1.0の公開状況
 
-Studio 1.1.0を公開しました。Android Player 1.1.0はGoogle Playへ申請済みで審査・公開待ちです。
+Studio 1.1.0を公開しました。Android Player 1.1.0もGoogle Playで公開しました。
 [リリースノート](docs/releases/notes/RELEASE_NOTES_1.1.0.md)と
 [公開チェックリスト](docs/releases/checklists/RELEASE_CHECKLIST_1.1.0.md)で対象と残作業を管理します。
 iOSは0.7.0（build 3）が審査中のため提出済みビルドを維持し、次回1.1.0は別途準備します。

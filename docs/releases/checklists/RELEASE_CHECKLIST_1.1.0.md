@@ -1,6 +1,6 @@
 # 1.1.0公開チェックリスト
 
-2026-10-31作成。状態：Studio `v1.1.0`正式公開済み・Latest。Androidはストア申請済み（2026-11-01・ユーザー報告）、審査・公開完了は未確認。
+2026-10-31作成。状態：Studio `v1.1.0`正式公開済み・Latest。Android Player 1.1.0もGoogle Play公開済み（2026-11-01・ユーザー報告）。
 対象はStudio／Android Player。機能修正・既存テスト結果の基準はmainの`d493f16`。
 過去の確認と最終候補の確認を区別し、未確認項目は完了にしません。
 
@@ -149,3 +149,12 @@ Google Playへの申請済みとして記録します。審査結果・公開完
 リポジトリの準備値はversionName 1.1.0／versionCode 11ですが、提出物の照合済みとは扱いません。
 実機確認の個別結果も未報告のため、申請報告だけで既存の未確認項目を完了にはしません。
 Studio 1.1.0の公開済みタグ・資産と、iOS 0.7.0 build 3の設定は変更しません。
+
+
+## Android Player公開完了（2026-11-01）
+
+ユーザーよりAndroid Player 1.1.0の公開完了報告を受領し、Google Play公開済みとして記録しました。
+ストアURL：https://play.google.com/store/apps/details?id=com.digihori.pgp.player
+日英READMEとドキュメント索引の審査・公開待ち表記を公開済みへ更新しました。
+公開完了の根拠はユーザー報告です。正確な公開時刻・配布トラック・配布対象地域・提出AABのhashは未記録です。
+Studioの公開済みタグ・配布資産と、iOS 0.7.0 build 3の設定は変更していません。
