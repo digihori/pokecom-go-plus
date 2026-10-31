@@ -1,6 +1,6 @@
 # Pokecom GO Studio / Android Player 1.1.0
 
-公開前のリリースノート案（2026-10-31）。予定タグ：`v1.1.0`。比較対象：`v1.0.0`。
+リリースノート（2026-10-31）。タグ：`v1.1.0`。比較対象：`v1.0.0`。
 機能・受入れ記録の基準はmainの`d493f16`。最終配布候補のcommitと検証結果は
 [公開チェックリスト](../checklists/RELEASE_CHECKLIST_1.1.0.md)で確定します。
 
@@ -37,7 +37,7 @@ macOSの署名・公証は最終候補で確認します。Android debug APKはG
 
 ## English
 
-Draft for Studio and Android Player 1.1.0; changes since `v1.0.0`, based on `d493f16`.
+Studio and Android Player 1.1.0; changes since `v1.0.0`, based on `d493f16`.
 Studio targets macOS Apple Silicon, Windows x64 and Linux x86_64; Android Player requires Android 8.0+.
 The same 14 models remain supported. ROMs and games are not included.
 iOS 0.7.0 (build 3) remains under review; iOS 1.1.0 preparation is separate.
