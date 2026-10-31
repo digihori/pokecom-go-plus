@@ -86,6 +86,11 @@ iPhone版の開発・ビルド状況は[開発用README](../iosApp/README.md)を
 [PC-1245／125x／126xのRAM容量・ミラー仕様](reference/machines/RAM_1245_1261.md)。
 機種仕様・実装履歴の区別と、資料内の確認範囲を読んでください。
 
+## 解析の読み物
+
+- [PC-1360K：読みを漢字に変える2KiBの仕事](reference/machines/PC-1360K_KANJI_RUNTIME.md)（解析途中の読み物）
+- [PC-1360Kのワークメモリ解析記録](analysis/pc1360k/KANJI_WORK_MEMORY.md)（実験条件・観測・仮説）
+
 ## リリース情報
 
 [公開済みリリースとダウンロード](https://github.com/digihori/pokecom-go-plus/releases)。

@@ -1,0 +1,2 @@
+10 PRINT "A幹事B"
+20 END
