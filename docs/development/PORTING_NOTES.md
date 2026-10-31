@@ -3235,3 +3235,12 @@ iOSポリシーの検証: 日英HTMLの構造・lang属性・見出し／段落�
 ガイド前半へ旧形式との違いと、DMPを通常ロードに使いHEXを交換用に使う範囲を記載しました。
 
 変換ツールの検証: 合成データによるPythonの12テスト、1ファイルだけをコピーした隔離環境でのDMP／HEX変換と文書例の一致、JDK 21のbuild／core:desktopTest、git diff --checkが成功。配布はPython本体とREADMEで行い、ZIP化はしません。
+
+
+### S1／S2実録音frameの同期（2026-10-31）
+
+同梱pcwav 0.5.2（`156bb6a2ed09df3ac03c6e7ccc42e96c87cc406d`）の
+`PCWAV::RawDecode`を読み取り参照し、16kHz化した提供S1録音のDecode成功を対照確認した。
+参照はnibbleごとに同期を取り直す。PGPではその実装を依存・コピーせず、既存の周波数判定と
+frame検証を残し、byteごとの有界な開始位置探索と2〜5-unit stop対応を実装した。
+合成frameと任意指定のローカル録音で回帰確認し、私有録音はrepositoryへ含めない。

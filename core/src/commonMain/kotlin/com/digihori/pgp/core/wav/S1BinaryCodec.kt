@@ -55,8 +55,8 @@ public object S1BinaryCodec {
         for ((start, count) in listOf(1 to 8, 10 to 8)) {
             checkSum(raw, start, count, start + count)?.let { return it }
         }
-        if ((10..13).any { raw[it] != 0.toByte() })
-            return fail(CodecDiagnosticCode.INVALID_HEADER, "S1 binary reserved metadata must be zero", 10, 4)
+        // The first four metadata bytes are machine-supplied. Their checksum is required,
+        // but the encoder's default zeros are not a restriction on real CSAVE M recordings.
         var padding = false
         for (i in 2..7) {
             val c = raw[i].toInt() and 255
@@ -97,7 +97,7 @@ public object S1BinaryCodec {
         cursor += 3
         if (raw.size > cursor) return fail(CodecDiagnosticCode.TRAILING_DATA,
             "S1 binary has trailing raw data", cursor, raw.size - cursor)
-        return CodecResult.Success(S1BinaryDecoding(name, address, LogicalByteSequence(body), cursor, mappings))
+        return CodecResult.Success(S1BinaryDecoding(name, address, LogicalByteSequence(body), cursor, mappings, raw.copyOfRange(10, 14)))
     }
 
     private fun checkSum(raw: ByteArray, offset: Int, count: Int, storedAt: Int): CodecResult.Failure? {
@@ -144,7 +144,10 @@ public class S1BinaryDecoding internal constructor(
     public val body: LogicalByteSequence,
     public val consumedRawBytes: Int,
     bodyMappings: List<CodecDataMapping>,
+    reservedMetadata: ByteArray = ByteArray(4),
 ) {
+    private val reserved: ByteArray = reservedMetadata.copyOf()
+    public fun copyReservedMetadata(): ByteArray = reserved.copyOf()
     public val endAddress: Int = startAddress + body.size - 1
     public val bodyMappings: List<CodecDataMapping> = bodyMappings.toList()
 }

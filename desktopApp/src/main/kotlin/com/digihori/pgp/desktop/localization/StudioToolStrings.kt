@@ -45,7 +45,7 @@ private val toolMessages = mapOf(
     "S1 binary FF FF footer is missing" to "tool.s1.9",
     "S1 binary has trailing raw data" to "tool.s1.10",
     "S1 binary checksum mismatch" to "tool.s1.11",
-    "S1/S2 signal requires a sample rate of 8000, 16000, 24000, or 32000 Hz" to "tool.s1.12",
+    "S1/S2 signal requires a sample rate of 8000, 16000, 24000, 32000, 44100, or 48000 Hz" to "tool.s1.12",
     "S1/S2 signal ends with an incomplete raw byte" to "tool.s1.13",
     "S1/S2 byte framing or carrier was lost; waiting for a new leader" to "tool.s1.14",
     "No complete S1/S2 raw byte could be decoded" to "tool.s1.15",
@@ -104,6 +104,7 @@ private val toolMessages = mapOf(
     "The byte values do not fit this format." to "tool.detail.theByteValuesDoNotFitThisFormat"
 )
 private val toolPatterns = listOf(
+    Regex("Reserved metadata: (.*)") to "tool.s1.reservedMetadata",
     Regex("Detected format: (.*)") to "tool.auto.detected",
     Regex("Validated S2 (.+), filename: (.*)") to "tool.s2Basic.validated",
     Regex("Validated S1 PASSWORD_PROTECTED_BASIC, filename: (.*)") to "tool.s1Basic.protectedValidated",

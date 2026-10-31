@@ -50,7 +50,7 @@ OLDも含め、信号破損警告が残る場合は検証済みpreviewがあっ�
 
 - rawは256-byte単位。行を選ぶと対応する波形へ移動する。波形側のbyte選択でrawへ戻れる。
 - LOW／HIGH同期marker、cursor、zoom、横移動、範囲、振幅ガイドを使用できる。
-- OLDの差分しきい値表示はOLD専用。S1／S2では波形と16-unit同期位置を表示する。
+- OLDの差分しきい値表示はOLD専用。44100／48000Hzでは元PCMの差分であり、再標本化・平滑化した復号器内部の判断値ではない。S1／S2では波形と16-unit同期位置を表示する。
 - 診断のPCM／RAW範囲を選ぶと、その位置へ移動する。末尾や空の範囲も表示範囲内へ収める。
 - 内容previewは16000文字まで。保存可能なプログラムには全文を含む。
 
@@ -63,8 +63,15 @@ OLDも含め、信号破損警告が残る場合は検証済みpreviewがあっ�
 | `TRAILING_DATA` | 複数streamや余剰byteがないか確認する。複数stream一括抽出は未対応 |
 | BASICのプログラム保存が出ない | 形式に合わないtoken、text再コンパイル不一致、信号破損、診断を確認する |
 
-S1／S2 Decodeは8000／16000／24000／32000Hzに対応。44100／48000Hzは未対応で、暗黙に再標本化しない。
-速度ずれ補正、ノイズへの許容範囲、実録音の条件は未確定。録音ファイルは原本を残して解析する。
+入力はOLDで4000〜32000Hzと44100／48000Hz、S1／S2で8000／16000／24000／32000／44100／48000Hzに対応する。
+PCM WAVは8-bit unsigned／16-bit signed、mono／stereoを受理する。
+44100／48000Hzは信号Decodeのために低域フィルタ付きで内部16000Hzへ再標本化する。
+波形・PCMの表示、raw byteへの対応位置、同期位置・診断は元の入力sample座標で保持する。
+入力原本と転送raw byte、payloadのchecksum規則は変更しない。Encode出力は全形式8000Hzを維持する。
+
+速度ずれ補正の追加は今回の対象外。ノイズへの許容範囲、実録音の条件は未確定で、
+高sample rateの受理が実機互換性や任意の録音品質を保証するものではない。録音ファイルは原本を残して解析する。
+チェックサムの計算対象・境界・今回の検証は[WAV入力・checksum検証記録](../development/WAV_INPUT_CHECKSUM_AUDIT.md)を参照。
 Player、音声デバイスI/O、ROMのCSAVE/CLOAD hook、Decodeからの直接ロードは今回の対象外。
 
 2026-10-21に一通りの動作確認を終え、今回分は一区切りとした。
@@ -72,17 +79,26 @@ Player、音声デバイスI/O、ROMのCSAVE/CLOAD hook、Decodeからの直接�
 
 ## 実機往復の確認記録
 
-PGPの新S1／S2 codecは合成テスト済み。実機往復は未確認であり、この表を実施済み扱いにしない。
-既存のOLDの動作確認記録や、1360K録音で確定したS1 Binary tail仕様とは区別する。
+PC-1245（OLD）／PC-1401（S1）／PC-1360K（S2）向けに、
+[正常データのテストケースと生成・照合手順](../../test-data/wav/hardware/README.md)を用意した。
+BASIC／Binary各1本、計6ケースで8／80／120-byte境界と末尾をまとめて確認する。実施前のケースを確認済みにしない。
 
-| 形式 | 機種 | ケース | PGP→実機 | 実機録音→PGP | byte比較 |
-| --- | --- | --- | --- | --- | --- |
-| S1 Binary | 対象S1機種 | 119／120／121 bytes、address | 未確認 | 未確認 | 未確認 |
-| S2 Binary | 対象S2機種 | 119／120／121 bytes、address | 未確認 | 未確認 | 未確認 |
-| S1 BASIC | 対象S1機種 | quote／REM／カナ、119／120／121境界 | 未確認 | 未確認 | 未確認 |
-| S2 BASIC 27 | PC-1360系 | ON行参照・THEN・日本語 | 未確認 | 未確認 | 未確認 |
-| S2 BASIC 27 | PC-1470U | 機種固有語彙・行参照 | 未確認 | 未確認 | 未確認 |
-| S2 BASIC 37 | 対象S2機種 | type識別・実機での扱い | 未確認 | 未確認 | 未確認 |
+
+2026-10-31、ユーザーから正常データ6ケースすべてOKの報告を受領した。
+[実機受入れ結果](../../test-data/wav/hardware/RESULTS_2026-10-31.md)に記録した。
+
+| 形式 | 機種 | 確認データ | PGP→実機 | 実機録音→PGP |
+| --- | --- | --- | --- | --- |
+| OLD BASIC 02 | PC-1245 | 169 bytes | OK | OK |
+| OLD Binary 62 | PC-1245 | 168 bytes、C500..C5A7 | OK | OK |
+| S1 BASIC 07 | PC-1401 | 241 bytes | OK | OK |
+| 共通Binary 67 | PC-1401 | 240 bytes、4400..44EF | OK | OK |
+| S2 BASIC 27 | PC-1360K | 241 bytes | OK | OK |
+| 共通Binary 67 | PC-1360K | 240 bytes、C000..C0EF | OK | OK |
+
+録音は44100／48000Hzの16-bit mono PCM。S2 BASICは16000Hzの提供録音も照合した。
+全byte照合の実施範囲・metadata差・未記録の条件は結果記録を参照。
+他の長さ、他機種、保護付き形式、日本語等の追加ケースは今回の受入れに含めない。
 
 実施時は機種・ROM版、source、type、address／長さ、接続機器、録音形式・sample rate、
 再現手順、結果・診断を記録する。元のBASIC imageまたはBinaryのaddressと全byteを比較する。
@@ -96,3 +112,18 @@ ROMや個人データを検証fixtureとして追加しない。
 最後の1〜120 bytesには個別SUMを付けず、末尾SUMに含めます。
 旧版で作った120の倍数のBinary WAVが終端不正になる場合は、原本のDMP／HEX等から
 WAVを再生成してください。誤SUMを無視する互換処理はありません。
+
+## 実録音の短い停止区間（2026-10-31修正）
+
+S1／S2実機がデータを13-unit間隔で送る場合もDecodeできるよう、byteごとに同期位置を取り直す。
+従来の固定16-unitでは、44.1kHzや48kHzの録音で数byteの後に同期を失うことがあった。
+末尾の搬送波の減衰や直流過渡成分も、未完のデータbyteと区別する。
+転送checksumの検査と8000Hz Encodeは変更しない。
+提供録音の照合は[検証記録](../development/WAV_INPUT_CHECKSUM_AUDIT.md)を参照。
+
+## S1／S2共通Binaryのmetadata（2026-10-31）
+
+S2機種のBinaryもtype 67のS1／S2共通BinaryとしてDecodeする。
+実機テストの`s2-binary`は対象機種を示すケース名で、別の転送形式ではない。
+PC-1360KのCSAVE Mではmetadata先頭4 bytesに0以外の値が入るため、Decodeのゼロ必須チェックを撤廃した。
+原値を保持しsummaryへ表示する。全checksum・開始・長さ・終端の検査と、Encodeの既定出力は維持する。

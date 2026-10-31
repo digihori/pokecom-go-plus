@@ -47,6 +47,28 @@ class S1BinaryCodecTest {
         }
     }
 
+    @Test fun acceptsAndPreservesOpaqueReservedMetadataWithValidChecksum() {
+        // Independent fixed header SUMs for 120 zero bytes at 9000; tail SUM is E1.
+        for ((metadata, stored) in listOf("00000000" to "71", "00000060" to "D1", "12345678" to "B3")) {
+            val header = "6700000000000000F541${metadata}90000077${stored}"
+            val raw = header.chunked(2).map { it.toInt(16).toByte() }.toByteArray() +
+                ByteArray(120) + byteArrayOf(-1, -1, 0xe1.toByte())
+            val decoded = assertIs<CodecResult.Success<S1BinaryDecoding>>(decode(raw)).value
+            val expected = metadata.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+            assertContentEquals(expected, decoded.copyReservedMetadata())
+            assertContentEquals(ByteArray(120), decoded.body.copyBytes())
+            assertEquals(0x9000, decoded.startAddress)
+            decoded.copyReservedMetadata().fill(-1)
+            assertContentEquals(expected, decoded.copyReservedMetadata())
+            val damaged = raw.copyOf().also { it[10] = (it[10].toInt() xor 1).toByte() }
+            val diagnostic = assertIs<CodecResult.Failure>(decode(damaged)).diagnostics.single()
+            assertEquals(CodecDiagnosticCode.CHECKSUM_MISMATCH, diagnostic.code)
+            assertEquals(18, diagnostic.range?.offset)
+        }
+        val encoded = encode(120).rawBytes.copyBytes()
+        assertContentEquals(ByteArray(4), encoded.copyOfRange(10, 14))
+    }
+
     @Test fun rejectsEmptyOverflowAndInvalidStart() {
         for ((address, count) in listOf(0 to 0, -1 to 1, 65536 to 1, 65535 to 2, 0 to 65537)) {
             assertIs<CodecResult.Failure>(S1BinaryCodec.encode("TEST", address, LogicalByteSequence(ByteArray(count))))

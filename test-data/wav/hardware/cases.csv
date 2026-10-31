@@ -1,0 +1,7 @@
+id,machine,kind,type,body_bytes,start_hex,end_hex,priority,file
+old-basic,pc-1245,basic,02,169,,,P0,old-basic/send.wav
+old-binary,pc-1245,binary,62,168,c500,c5a7,P0,old-binary/send.wav
+s1-basic,pc-1401,basic,07,241,,,P0,s1-basic/send.wav
+s1-binary,pc-1401,binary,67,240,4400,44ef,P0,s1-binary/send.wav
+s2-basic,pc-1360k,basic,27,241,,,P0,s2-basic/send.wav
+s2-binary,pc-1360k,binary,67,240,c000,c0ef,P0,s2-binary/send.wav

@@ -1,0 +1,7 @@
+case_id,machine,rom_revision,recording_hz,connection,playback_level,pgp_to_device,device_to_pgp,body_match,address_match,type_match,filename_match,recording_file,notes
+old-basic,pc-1245,,,,,未実施,未実施,未実施,未実施,未実施,未実施,,
+old-binary,pc-1245,,,,,未実施,未実施,未実施,未実施,未実施,未実施,,
+s1-basic,pc-1401,,,,,未実施,未実施,未実施,未実施,未実施,未実施,,
+s1-binary,pc-1401,,,,,未実施,未実施,未実施,未実施,未実施,未実施,,
+s2-basic,pc-1360k,,,,,未実施,未実施,未実施,未実施,未実施,未実施,,
+s2-binary,pc-1360k,,,,,未実施,未実施,未実施,未実施,未実施,未実施,,

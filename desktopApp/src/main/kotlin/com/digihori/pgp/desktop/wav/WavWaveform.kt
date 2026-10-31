@@ -84,6 +84,7 @@ internal fun WavWaveform(output: DesktopWavResult, cursor: Int, onCursor: (Int) 
         Text(strings.text("wave.guideValue", guide.roundToInt().toString()))
         Slider(guide, { guide = it }, valueRange = 0f..32767f, modifier = Modifier.semantics { contentDescription = strings.text("wave.guideValue", guide.roundToInt().toString()) })
     }
+    if (pcm.sampleRate == 44100 || pcm.sampleRate == 48000) Text(strings.text("wave.highRateInput"))
     if (inspection != null) {
         Row { Checkbox(showDifference, { showDifference = it }, modifier = Modifier.semantics { contentDescription = strings.text("wave.difference") }); Text(strings.text("wave.difference")) }
         Text(strings.text("wave.algorithm", inspection.tapSamples.toString(), threshold.toString()))

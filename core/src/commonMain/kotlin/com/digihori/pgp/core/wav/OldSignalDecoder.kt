@@ -9,6 +9,19 @@ public object OldSignalDecoder {
         sampleRate: Int,
         samples: PcmSampleSequence,
     ): CodecResult<OldSignalDecoding> {
+        if (sampleRate == 44100 || sampleRate == 48000) {
+            val input = HighRateSignalInput(sampleRate, samples)
+            return when (val result = decodeSignal(16000, input.samples, smoothCarrier = true)) {
+                is CodecResult.Failure -> CodecResult.Failure(input.diagnostics(result.diagnostics))
+                is CodecResult.Success -> CodecResult.Success(OldSignalDecoding(
+                    result.value.rawBytes, input.mappings(result.value.rawByteMappings), input.sync(result.value.syncPoints),
+                    sampleRate, samples.size), input.diagnostics(result.diagnostics))
+            }
+        }
+        return decodeSignal(sampleRate, samples, smoothCarrier = false)
+    }
+
+    private fun decodeSignal(sampleRate: Int, samples: PcmSampleSequence, smoothCarrier: Boolean): CodecResult<OldSignalDecoding> {
         if (sampleRate !in MIN_SAMPLE_RATE..MAX_SAMPLE_RATE) {
             return failure(
                 code = CodecDiagnosticCode.UNSUPPORTED_FORMAT,
@@ -35,7 +48,12 @@ public object OldSignalDecoder {
         val signalStart = inputSamples.indexOfFirstSignificantSample()
 
         for (sampleOffset in signalStart until inputSamples.size) {
-            val difference = differenceAt(inputSamples, sampleOffset, signalStart, tap)
+            val difference = if (smoothCarrier) {
+                // Average two carrier periods so sample quantization of a square wave does not
+                // turn isolated phase/edge errors into a false start bit.
+                val from = maxOf(signalStart, sampleOffset - 2 * tap + 1)
+                (from..sampleOffset).sumOf { kotlin.math.abs(differenceAt(inputSamples, it, signalStart, tap)) } / (sampleOffset - from + 1)
+            } else differenceAt(inputSamples, sampleOffset, signalStart, tap)
 
             if (difference > DIFFERENCE_THRESHOLD || difference < -DIFFERENCE_THRESHOLD) {
                 level = 0
@@ -49,6 +67,13 @@ public object OldSignalDecoder {
                 if (gapCount != 0) {
                     gapCount--
                 } else if (level == 0) {
+                    // A carrier-to-silence edge is not a new nibble start. Require signal
+                    // in the middle of its start unit, beyond the edge/filter transient.
+                    val from = minOf(inputSamples.size, sampleOffset + signalUnitSamples / 4)
+                    val until = minOf(inputSamples.size, sampleOffset + signalUnitSamples * 3 / 4)
+                    if (from < until && (from until until).none {
+                        kotlin.math.abs(inputSamples[it].toInt()) > DIFFERENCE_THRESHOLD
+                    }) continue
                     syncing = false
                     gapCount = signalUnitSamples * 3 / 2
                     if (readBit == 0x01) frameStart = sampleOffset
@@ -141,7 +166,9 @@ public object OldSignalDecoder {
         )
     }
 
-    /** Observes the exact difference/threshold input used by this decoder, without payload interpretation. */
+    /** Observes original PCM differences without payload interpretation.
+     * High-rate decoding additionally filters/resamples and smooths differences; this view retains the recording.
+     */
     public fun inspect(sampleRate: Int, samples: PcmSampleSequence): OldSignalInspection {
         require(sampleRate > 0)
         val input = samples.copySamples()

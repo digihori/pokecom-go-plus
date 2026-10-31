@@ -427,6 +427,8 @@ Debuggerの現在仕様とUI再構成方針は[DEBUGGER.md](../../guides/DEBUGGE
   - [x] Clear、Invert、数値入力のApply、出力Copyを実装する
   - [ ] Undo／Redo、複数文字、ファイル入出力、Emulator preview、機種固有UDC形式
 - [ ] WAV Encoder / Decoder
+  - [x] 2026-10-31：PC-1245／PC-1401／PC-1360Kの正常BASIC／Binary計6ケースを実機往復し、全ケースOKのユーザー受入れを記録する。[結果](../../../test-data/wav/hardware/RESULTS_2026-10-31.md)。確認範囲外の機種・追加ケースは残す。
+  - [x] 2026-10-31：OLD／S1／S2の44100／48000Hz入力を追加し、checksumの独立演算・境界・破損検出を点検する。Encodeは8000Hzを維持し、速度ずれ補正追加は対象外。[検証記録](../WAV_INPUT_CHECKSUM_AUDIT.md)。実機往復は引き続き別途確認。
   - [x] `pcwav`参照commitからOLD系payload、checksum、PCM/WAV仕様を文書化する
   - [x] `pcwav`参照commitからS1／S2のpayload、checksum、PCM動作と未対応範囲を文書化する
   - [x] raw／logical／PCMの不変データ型、範囲mapping、構造化diagnostic、codec resultを定義する

@@ -75,12 +75,27 @@ bit 4, bit 5, bit 6, bit 7
 W1 W1 W1 W1 W1
 ```
 
+2026-10-31の提供実録音では、ヘッダは16-unit、データ部はhigh nibble後のW1を2単位に短縮した
+13-unitの送出を確認した。末尾SUM後の停止区間も一定の5単位とは限らない。
+PGP Decodeはbyteごとの実際のW1→W0同期位置を近傍探索し、high nibble後の2〜5単位の停止を受理する。
+各start／stop、carrier、payloadの長さ・終端・SUMの検査は維持する。
+録音末尾の搬送波減衰・DC settlingを、新しいデータbyteとして出力しない。
+Encoderの16-unit／8000Hz出力は変更しない。
+
 これはOLDの19-unit framingと異なり、low nibble後の同期`W1`が1個である。参照Decode CLIは信号Decode前に
 既定で先頭1000 msを除外するが、RawDecode library自体は固定skipを要求しない。PGPでは固定skipを形式仕様に
 せずleader／同期検出として実装する。
 
 S1／S2 BASICのCLI Encoderは論理payload末尾`FF FF checksum`の後へ、物理stream trailerとしてさらに`FF`を
 1 byte追加する。この追加byteはBASIC payloadの一部として解釈しない。
+
+### PGPの入力レート（2026-10-31）
+
+S1／S2の信号Decodeは8000／16000／24000／32000／44100／48000Hzを受理する。
+44100／48000Hzは低域フィルタ付きで16000Hzへ再標本化して解析する。
+rawへの対応、同期・診断位置は元入力sample座標へ戻し、元PCMを保持する。
+Encodeの8000Hz出力、転送byte列・checksum対象は変えない。
+速度補正追加・実録音耐性の保証は今回の範囲に含めない。
 
 ## 4. S1 checksum
 
@@ -112,11 +127,17 @@ FF FF body-tail-checksum
 name blockは`00 + 逆順filename 6文字 + 00 padding + F5`で合計8 bytesである。filenameは大文字化し、
 英数字とspace以外を除外して最大6文字とする。
 
-metadataは次の8 bytesである。
+Encoderが出力するmetadataは次の8 bytesである。
 
 ```text
 00 00 00 00 startHi startLo lengthMinus1Hi lengthMinus1Lo
 ```
+
+Decodeでは先頭4 bytesを0に制限しない。PC-1360KのCSAVE M実録音では`EF C0 00 00`を確認し、
+metadata checksum、開始C000、長さ240、bodyとtail checksumがすべて一致した。
+先頭4 bytesは意味を推測して配置へ適用せず、原値を`copyReservedMetadata()`とrawで保持し、Studioのsummaryにも表示する。
+残り4 bytesによる開始・長さ、全checksum、終端、余剰dataの検証は維持する。
+DMP／HEXには転送headerを持たないため、再Encodeの先頭4 bytesは既定の0となり、元headerの再現は保証しない。
 
 従ってS1 Binaryは、開始addressから`lengthMinus1 + 1` bytesの単一連続領域だけを表す。複数領域やgapを
 記録する構造はない。PGPの`.dmp`／Intel HEX入力に複数領域またはgapがある場合は拒否し、暗黙に結合または
@@ -223,3 +244,10 @@ PGPでもtype `37`の識別・保持と、password文字列を新規設定する
 ## 10. 実装順序と今回の区切り
 
 この節は記録時点の内容です。[S1／S2 WAVのfixture・実装順履歴](../development/WAV_S1_S2_HISTORY.md)へ分離しました。
+
+## EncodeとDecodeの許容方針
+
+- Encode：既知の標準形を安定して生成する。既定の予約値・16-unit信号・8000Hz出力を維持する。
+- Decode：Encoderの既定値を必須条件にせず、実機が出す未解釈の値や確認済みのframe差を保持して受理する。
+- checksum不一致、宣言長不足、16-bit範囲外、欠落終端等は正常なプログラムとして出力しない。
+- 未知値の意味を推測して実行・配置を変更しない。許容の根拠と回帰例を記録する。

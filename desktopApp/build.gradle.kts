@@ -156,3 +156,19 @@ tasks.register<JavaExec>("localizationPreview") {
     classpath = sourceSets.test.get().runtimeClasspath
     mainClass.set("com.digihori.pgp.desktop.localization.LocalizationPreviewKt")
 }
+
+// Opt-in, synthetic hardware data; normal builds never write hardware packs or recordings.
+tasks.register<JavaExec>("generateWavHardwareFixtures") {
+    dependsOn(tasks.named("testClasses"))
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("com.digihori.pgp.desktop.wav.WavHardwareFixturesKt")
+    args("generate", rootProject.file(providers.gradleProperty("wavFixtureOutput").getOrElse("test-data/wav/hardware/generated")).absolutePath)
+}
+
+tasks.register<JavaExec>("verifyWavHardwareRecording") {
+    dependsOn(tasks.named("testClasses"))
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("com.digihori.pgp.desktop.wav.WavHardwareFixturesKt")
+    args("check", rootProject.file(providers.gradleProperty("wavCase").getOrElse("test-data/wav/hardware/generated/old-basic")).absolutePath,
+        rootProject.file(providers.gradleProperty("wavRecording").getOrElse("test-data/wav/hardware/recordings/recording.wav")).absolutePath)
+}

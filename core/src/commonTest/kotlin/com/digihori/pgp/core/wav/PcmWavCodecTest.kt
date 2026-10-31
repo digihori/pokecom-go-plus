@@ -74,7 +74,7 @@ class PcmWavCodecTest {
     @Test
     fun rejectsUnsupportedAndTruncatedWavInputs() {
         val unsupported = wavWithChunks(
-            formatChunk(sampleRate = 44100, channels = 1, bits = 8),
+            formatChunk(sampleRate = 96000, channels = 1, bits = 8),
             chunk("data", bytes(0x80), includePad = false),
         )
         assertEquals(

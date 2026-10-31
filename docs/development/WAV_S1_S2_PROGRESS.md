@@ -217,3 +217,18 @@ Project情報はEncodeの初期選択にだけ使用する。DecodeはOLD／S1�
 自動判別対応の検証：JDK 21の全ビルド・Core Desktop 490件・Core iOS Simulator 433件・Studio 343件（1 skip）が成功。
 全通常／保護付き形式、共通Binary、自動判別競合、S1カナの機種非依存変換を確認。
 日英のDecode画面・Desktop起動・`git diff --check`も確認した。
+
+## 2026-10-31：高sample rate入力とchecksum点検
+
+OLD／S1／S2共通で44100／48000Hz入力を追加。Encodeは8000Hzを維持する。
+過去の「44100／48000Hz未対応」は当時の記録。現行仕様と今回の境界・破損検証は
+[WAV入力・checksum検証記録](WAV_INPUT_CHECKSUM_AUDIT.md)と[操作ガイド](../guides/WAV_TOOL_GUIDE.md)を参照。
+速度ずれ補正の追加は今回の範囲外とする。
+
+## 2026-10-31：実機往復6ケースのユーザー受入れ
+
+PC-1245（OLD）／PC-1401（S1）／PC-1360K（S2）のBASIC／Binaryについて、
+用意した正常6ケースすべてOKとのユーザー報告を受領した。
+今回分を実機受入れ完了とし、過去の「未確認」は当時の履歴として保持する。
+対象・確認範囲は[実機結果記録](../../test-data/wav/hardware/RESULTS_2026-10-31.md)を参照。
+保護付き形式、他機種、文字種・全長境界の網羅確認まで完了したとは扱わない。

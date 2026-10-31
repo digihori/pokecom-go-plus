@@ -165,7 +165,7 @@ public object PcmWavReader {
     private const val RIFF_HEADER_SIZE: Int = 12
     private const val CHUNK_HEADER_SIZE: Int = 8
     private const val PCM_FORMAT_SIZE: Int = 16
-    private const val MAX_SAMPLE_RATE: Int = 32000
+    private const val MAX_SAMPLE_RATE: Int = 48000
 }
 
 public class WavPcmData internal constructor(

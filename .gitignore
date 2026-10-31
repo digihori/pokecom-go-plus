@@ -56,3 +56,9 @@ xcuserdata/
 # Python analysis-tool caches
 __pycache__/
 *.pyc
+
+# Locally generated WAV hardware packs and private recordings/results
+/test-data/wav/hardware/generated/
+/test-data/wav/hardware/recordings/
+/test-data/wav/hardware/results/
+/test-data/wav/hardware/*.zip

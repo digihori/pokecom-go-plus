@@ -344,7 +344,8 @@ internal object DesktopWavOperation {
         // Signal damage may hide bytes/records; keep the validated preview but do not offer a program export.
         val signalDamaged = diagnostics.any { it.stage == CodecStage.SIGNAL_DECODE && it.severity != CodecDiagnosticSeverity.INFO }
         return partial.copy(summary = partial.summary + "\nValidated S1 BINARY, filename: ${payload.filename}\n" +
-            "${payload.body.size} logical bytes / ${hex(payload.startAddress)}..${hex(payload.endAddress)}",
+            "${payload.body.size} logical bytes / ${hex(payload.startAddress)}..${hex(payload.endAddress)}" +
+                "\nReserved metadata: " + payload.copyReservedMetadata().joinToString(" ") { (it.toInt() and 255).toString(16).uppercase().padStart(2, '0') },
             diagnostics = diagnostics.toList(), s1Payload = payload, content = dump,
             programName = if (signalDamaged) null else "${payload.filename.ifBlank { "program" }}.dmp",
             program = if (signalDamaged) null else dump.encodeToByteArray(),
