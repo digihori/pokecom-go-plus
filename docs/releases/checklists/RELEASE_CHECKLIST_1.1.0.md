@@ -67,3 +67,19 @@ Core desktopは520件成功、Studioは476件中473件成功・3件skip、失敗
 Android lintに既存のKotlin metadataバージョン診断が出ましたが、全体buildは成功しました。
 `git diff --check`、新規リリース文書の相対リンク、版数設定とiOSの0.7.0／build 3維持も確認済みです。
 最終配布物・CI・ストアの結果は上記で別途管理します。
+
+
+## 1.1.0確認用配布物の受入れ報告
+
+対象commit：`1b775f5b6404864c9c8a38d1950190417cc16417`。
+[配布workflow 41199341887](https://github.com/digihori/pokecom-go-plus/actions/runs/41199341887)は
+Windows／Linux／Androidの生成と、承認付きmacOS app／DMGの署名・公証を含め成功しました。
+Windows MSIのidentity／version検査も成功しています。タグなしの手動実行のため、ドラフトRelease作成はskipです。
+[同commitのCI 41198985220](https://github.com/digihori/pokecom-go-plus/actions/runs/41198985220)も成功しました。
+
+ユーザーより「mac/windows/linuxすべて確認しました」との報告を受領し、
+この確認用配布物の3 OSでの動作確認済みとして記録します。
+OS詳細版・利用機種・操作別の結果・取得ファイルのchecksumは未記録です。
+この総括報告を、全スモーク項目・更新インストール・Gatekeeper検査・T22の個別合格へ拡大しません。
+Android実機の確認完了報告はまだありません。
+正式タグで生成する最終配布物のhash・受入れ・公開判断は引き続き上記チェックリストで管理します。
