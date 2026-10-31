@@ -71,7 +71,15 @@ internal class Pc1245Machine(
     }
 
     internal fun loadBasicProgram(program: ByteArray): Pc1245BasicMemoryResult =
-        Pc1245BasicProgramMemory.load(program, ::readMemory, ::writeMemory)
+        Pc1245BasicProgramMemory.load(program, ::readMemory, ::writeMemory).also {
+            if (it is Pc1245BasicMemoryResult.Success) invalidateBasicExecutionPosition()
+        }
+
+    internal fun invalidateBasicExecutionPosition() {
+        // ROM UP tests bit 4 of internal RAM 15 to resume a RUN/error position
+        // in cursor-edit mode. Replacing text invalidates that execution context.
+        cpu.state.internalRam[0x15] = cpu.state.internalRam[0x15] and 0xef
+    }
 
     internal fun basicProgram(): Pc1245BasicMemoryResult =
         Pc1245BasicProgramMemory.extract(::readMemory)

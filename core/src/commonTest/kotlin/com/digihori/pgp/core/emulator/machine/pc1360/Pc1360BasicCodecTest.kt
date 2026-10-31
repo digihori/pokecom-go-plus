@@ -9,6 +9,28 @@ import kotlin.test.assertIs
 
 class Pc1360BasicCodecTest {
     @Test
+    fun successfulReplacementInvalidatesOnlyTheSavedRunContext() {
+        for (id in listOf(Pc1360RomDefinition.MACHINE_ID, Pc1360RomDefinition.PC1360K_MACHINE_ID)) {
+            val rom = assertIs<com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult.Success>(
+                Pc1360ComponentRomImporter.importImages(ByteArray(0x2000), List(8) { ByteArray(0x4000) }, id),
+            ).romSet
+            val machine = Pc1360Machine(rom)
+            machine.cpuState.internalRam[0x35] = 0x19
+            machine.cpuState.internalRam[0x34] = 0xa5
+            assertIs<com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicMemoryResult.InvalidProgram>(
+                machine.loadBasicProgram(byteArrayOf(0)),
+            )
+            assertEquals(0x19, machine.cpuState.internalRam[0x35])
+            assertIs<com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicMemoryResult.Success>(
+                machine.loadBasicProgram(byteArrayOf(-1, -1)),
+            )
+            assertEquals(0x09, machine.cpuState.internalRam[0x35])
+            assertEquals(0xa5, machine.cpuState.internalRam[0x34])
+            assertEquals(0, machine.cpuState.programCounter)
+        }
+    }
+
+    @Test
     fun encodesReferenceListsJapaneseAndRemarkQuotesWithoutChangingBytes() {
         val source = "10 ON A GOSUB 0,65535:IF A=1 THEN 100\n100 PRINT \"漢字ｱ\"\n200 REM THEN 100 \""
         val document = assertIs<BasicTextParseResult.Success>(BasicTextParser.parse(source)).document

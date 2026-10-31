@@ -62,3 +62,5 @@ __pycache__/
 /test-data/wav/hardware/recordings/
 /test-data/wav/hardware/results/
 /test-data/wav/hardware/*.zip
+# Local BASIC files saved during manual acceptance; keep source/expected fixtures tracked.
+test-data/basic/io/pc*/saved*.bas

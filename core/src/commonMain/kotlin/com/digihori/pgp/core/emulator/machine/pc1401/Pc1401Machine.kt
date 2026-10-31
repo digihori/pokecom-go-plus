@@ -86,7 +86,14 @@ internal class Pc1401Machine(romSet: RomSet, val model: Pc1401FamilyModel = Pc14
     fun readMemory(address: Int) = bus.read(address)
     fun writeMemory(address: Int, value: Int) = bus.write(address, value)
     fun loadBasicProgram(program: ByteArray): Pc1245BasicMemoryResult =
-        Pc1401BasicProgramMemory.load(program, ::readMemory, ::writeMemory, model)
+        Pc1401BasicProgramMemory.load(program, ::readMemory, ::writeMemory, model).also {
+            if (it is Pc1245BasicMemoryResult.Success) invalidateBasicExecutionPosition()
+        }
+    fun invalidateBasicExecutionPosition() {
+        // PC-1401/1402 ROM keeps the RUN-to-editor context at internal RAM 0x35.
+        // Preserve unrelated flags; replacing text invalidates the saved execution context.
+        cpu.state.internalRam[0x35] = cpu.state.internalRam[0x35] and 0xef
+    }
     fun basicProgram(): Pc1245BasicMemoryResult = Pc1401BasicProgramMemory.extract(::readMemory, model)
     fun isWritableAddress(address: Int) = bus.isWritableAddress(address)
     val cpuState get() = cpu.state

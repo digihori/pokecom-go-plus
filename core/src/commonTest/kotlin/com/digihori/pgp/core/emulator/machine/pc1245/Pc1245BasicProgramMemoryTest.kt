@@ -19,9 +19,21 @@ class Pc1245BasicProgramMemoryTest {
         assertEquals(0xc000 + program.lastIndex, loaded.end)
         assertContentEquals(program, memory.copyOfRange(loaded.start, loaded.end + 1))
         assertEquals(loaded.end, pointer(memory, Pc1245BasicDialect.PROGRAM_END_POINTER_LOW))
+        assertEquals(loaded.end, pointer(memory, Pc1245BasicDialect.PROGRAM_NAVIGATION_POINTER_LOW))
         assertEquals(0, memory[loaded.end + 1].toInt())
         val extracted = assertIs<Pc1245BasicMemoryResult.Success>(extract(memory))
         assertContentEquals(program, extracted.bytes)
+    }
+
+    @Test
+    fun replacementInvalidatesTheRomNavigationPositionEvenInsideTheNewRange() {
+        val memory = preparedMemory(previousEnd = 0xc100, fill = 0x55)
+        val short = tokenize("10 PRINT \"SHORT OK\"\n20 END")
+        for (oldPosition in listOf(0xc0c0, 0xc002)) {
+            setPointer(memory, Pc1245BasicDialect.PROGRAM_NAVIGATION_POINTER_LOW, oldPosition)
+            val loaded = assertIs<Pc1245BasicMemoryResult.Success>(load(memory, short))
+            assertEquals(loaded.end, pointer(memory, Pc1245BasicDialect.PROGRAM_NAVIGATION_POINTER_LOW))
+        }
     }
 
     @Test

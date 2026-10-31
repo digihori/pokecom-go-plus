@@ -157,6 +157,15 @@ tasks.register<JavaExec>("localizationPreview") {
     mainClass.set("com.digihori.pgp.desktop.localization.LocalizationPreviewKt")
 }
 
+tasks.register<JavaExec>("verifyBasicIoSave") {
+    dependsOn(tasks.named("testClasses"))
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("com.digihori.pgp.desktop.basic.BasicIoComparisonKt")
+    args(providers.gradleProperty("basicMachine").getOrElse("pc-1245"),
+        rootProject.file(providers.gradleProperty("basicExpected").getOrElse("test-data/basic/io/pc1245/edited.bas")).absolutePath,
+        rootProject.file(providers.gradleProperty("basicSaved").getOrElse("saved-edited.bas")).absolutePath)
+}
+
 // Opt-in, synthetic hardware data; normal builds never write hardware packs or recordings.
 tasks.register<JavaExec>("generateWavHardwareFixtures") {
     dependsOn(tasks.named("testClasses"))

@@ -37,7 +37,14 @@ internal class Pc1360Machine(romSet: RomSet) {
     }
     fun readMemory(address: Int): Int = bus.read(address)
     fun writeMemory(address: Int, value: Int) = bus.write(address, value)
-    fun loadBasicProgram(program: ByteArray): Pc1245BasicMemoryResult = Pc1360BasicProgramMemory.load(program, ::readMemory, ::writeMemory)
+    fun loadBasicProgram(program: ByteArray): Pc1245BasicMemoryResult =
+        Pc1360BasicProgramMemory.load(program, ::readMemory, ::writeMemory).also {
+            if (it is Pc1245BasicMemoryResult.Success) invalidateBasicExecutionPosition()
+        }
+    fun invalidateBasicExecutionPosition() {
+        // PC-1360/1360K ROM uses internal RAM 0x35 bit 0x10 for RUN-to-editor return.
+        cpu.state.internalRam[0x35] = cpu.state.internalRam[0x35] and 0xef
+    }
     fun basicProgram(): Pc1245BasicMemoryResult = Pc1360BasicProgramMemory.extract(::readMemory)
     val cpuState get() = cpu.state
     val displayState get() = display

@@ -14,6 +14,25 @@ import kotlin.test.assertNull
 
 class Pc1245MachineTest {
     @Test
+    fun basicReplacementInvalidatesRunPositionOnlyAfterSuccessfulLoad() {
+        val machine = machineWithProgram(0x33)
+        machine.writeMemory(0xc6e1, 0)
+        machine.writeMemory(0xc6e2, 0xc0)
+        machine.writeMemory(0xc6e3, 0xff)
+        machine.writeMemory(0xc6e4, 0xbf)
+        machine.cpuState.internalRam[0x15] = 0x19
+        machine.cpuState.internalRam[0x14] = 0xa5
+
+        assertIs<Pc1245BasicMemoryResult.InvalidProgram>(machine.loadBasicProgram(byteArrayOf(0)))
+        assertEquals(0x19, machine.cpuState.internalRam[0x15])
+
+        assertIs<Pc1245BasicMemoryResult.Success>(machine.loadBasicProgram(byteArrayOf(-1, -1)))
+        assertEquals(0x09, machine.cpuState.internalRam[0x15])
+        assertEquals(0xa5, machine.cpuState.internalRam[0x14])
+        assertEquals(0, machine.cpuState.programCounter)
+    }
+
+    @Test
     fun constructionStartsFromAColdReset() {
         val machine = machineWithProgram(0x02, 0x55)
 

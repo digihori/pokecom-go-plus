@@ -24,6 +24,9 @@ internal object Pc1245BasicProgramMemory {
         }
         writePointer(Pc1245BasicDialect.PROGRAM_START_POINTER_LOW, range.start, write)
         writePointer(Pc1245BasicDialect.PROGRAM_END_POINTER_LOW, newEnd, write)
+        // UP after RUN/CL resumes from this ROM-maintained text position, not the
+        // program end pointer. A replacement invalidates even in-range positions.
+        writePointer(Pc1245BasicDialect.PROGRAM_NAVIGATION_POINTER_LOW, newEnd, write)
         return Pc1245BasicMemoryResult.Success(range.start, newEnd, program.copyOf())
     }
 

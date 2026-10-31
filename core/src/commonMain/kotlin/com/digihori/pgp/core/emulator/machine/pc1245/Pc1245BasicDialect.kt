@@ -70,6 +70,7 @@ public object Pc1245BasicDialect {
     public const val PROGRAM_START_POINTER_HIGH: Int = 0xc6e2
     public const val PROGRAM_END_POINTER_LOW: Int = 0xc6e3
     public const val PROGRAM_END_POINTER_HIGH: Int = 0xc6e4
+    internal const val PROGRAM_NAVIGATION_POINTER_LOW: Int = 0xc6fe
     public const val PROGRAM_STORAGE_END_EXCLUSIVE: Int = PROGRAM_START_POINTER_LOW
 
     private val KEYWORDS: Map<Int, String> = mapOf(

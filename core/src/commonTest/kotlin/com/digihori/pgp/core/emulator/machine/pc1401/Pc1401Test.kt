@@ -8,6 +8,18 @@ import com.digihori.pgp.core.source.machine.*
 import kotlin.test.*
 
 class Pc1401Test {
+    @Test fun basicReplacementInvalidatesOnlyTheSavedRunContextOnSuccess() {
+        val machine = Pc1401Machine(rom())
+        machine.cpuState.internalRam[0x35] = 0x19
+        machine.cpuState.internalRam[0x34] = 0xa5
+        assertIs<Pc1245BasicMemoryResult.InvalidProgram>(machine.loadBasicProgram(byteArrayOf(0)))
+        assertEquals(0x19, machine.cpuState.internalRam[0x35])
+        assertIs<Pc1245BasicMemoryResult.Success>(machine.loadBasicProgram(byteArrayOf(-1, -1)))
+        assertEquals(0x09, machine.cpuState.internalRam[0x35])
+        assertEquals(0xa5, machine.cpuState.internalRam[0x34])
+        assertEquals(0, machine.cpuState.programCounter)
+    }
+
     private fun rom() = assertIs<RomImportResult.Success>(
         Pc1401ComponentRomImporter.importImages(ByteArray(0x2000), ByteArray(0x8000)),
     ).romSet

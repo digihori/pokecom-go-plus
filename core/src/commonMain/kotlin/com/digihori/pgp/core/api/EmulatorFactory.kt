@@ -27,6 +27,7 @@ import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc14xx.*
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.rom.RomSet
+import com.digihori.pgp.core.source.machine.AddressedMemoryImage
 
 public object EmulatorFactory {
     public fun supportedMachineIds(): List<MachineId> = MachineCatalog.definitions.map(MachineDefinition::id)
@@ -164,6 +165,10 @@ private class Pc1261EmulatorSession(private val machine: Pc1261Machine) : Emulat
 private class Pc1401EmulatorSession(private val machine: Pc1401Machine) : EmulatorSession {
     override val machineId: MachineId = machine.model.machineId
     private var status: ExecutionStatus = ExecutionStatus.Ready
+    override fun loadProgramImage(program: ByteArray?, image: AddressedMemoryImage?): ProgramImageLoadResult =
+        ProgramImageLoader.load(this, program, image).also {
+            if (program != null && it is ProgramImageLoadResult.Success) machine.invalidateBasicExecutionPosition()
+        }
     override fun reset() { machine.coldReset(); status = ExecutionStatus.Ready }
     override fun step(): StepResult = machine.step().let {
         status = it.stopReason.toExecutionStatus(); StepResult(it.cycles, status)
@@ -269,6 +274,10 @@ private class Pc1360EmulatorSession(
 ) : EmulatorSession {
     override val machineId: MachineId = machine.machineId
     private var status: ExecutionStatus = ExecutionStatus.Ready
+    override fun loadProgramImage(program: ByteArray?, image: AddressedMemoryImage?): ProgramImageLoadResult =
+        ProgramImageLoader.load(this, program, image).also {
+            if (program != null && it is ProgramImageLoadResult.Success) machine.invalidateBasicExecutionPosition()
+        }
     override fun reset() { machine.coldReset(); status = ExecutionStatus.Ready }
     override fun step(): StepResult = machine.step().let {
         status = it.stopReason.toExecutionStatus()
@@ -546,6 +555,11 @@ private class Pc1245EmulatorSession(
     override val machineId: MachineId = Pc1245RomDefinition.MACHINE_ID
 
     private var status: ExecutionStatus = ExecutionStatus.Ready
+
+    override fun loadProgramImage(program: ByteArray?, image: AddressedMemoryImage?): ProgramImageLoadResult =
+        ProgramImageLoader.load(this, program, image).also {
+            if (program != null && it is ProgramImageLoadResult.Success) machine.invalidateBasicExecutionPosition()
+        }
 
     override fun reset() {
         machine.coldReset()
