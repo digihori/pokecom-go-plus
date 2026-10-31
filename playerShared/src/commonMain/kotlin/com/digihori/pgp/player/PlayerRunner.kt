@@ -57,21 +57,27 @@ public class PlayerRunner(
         previousTimeNanoseconds?.let { require(nowNanoseconds >= it) }
         speed = value
         planner.reset()
+        cycleOvershoot = 0
         if (state == PlayerRunState.RUNNING) previousTimeNanoseconds = nowNanoseconds
     }
 
     private var previousTimeNanoseconds: Long? = null
+    // Instructions complete atomically. Charge their excess to later ticks, so PCM and CPU
+    // time do not run progressively ahead of the host clock (notably with WAIT instructions).
+    private var cycleOvershoot: Long = 0
 
     public fun run(nowNanoseconds: Long) {
         require(nowNanoseconds >= 0) { "Monotonic time must not be negative" }
         if (state != PlayerRunState.PAUSED) return
         planner.reset()
+        cycleOvershoot = 0
         previousTimeNanoseconds = nowNanoseconds
         state = PlayerRunState.RUNNING
     }
 
     public fun pause() {
         planner.reset()
+        cycleOvershoot = 0
         previousTimeNanoseconds = null
         if (state != PlayerRunState.FAULTED) state = PlayerRunState.PAUSED
     }
@@ -79,6 +85,7 @@ public class PlayerRunner(
     public fun reset() {
         session.reset()
         planner.reset()
+        cycleOvershoot = 0
         previousTimeNanoseconds = null
         executionStatus = ExecutionStatus.Ready
         state = PlayerRunState.PAUSED
@@ -93,12 +100,19 @@ public class PlayerRunner(
 
         val budget = planner.plan(nowNanoseconds - previous, speed.ratio)
         if (budget.cycles == 0L) return PlayerTick(budget, null, speed = speed)
-        val result = session.runCycles(budget.cycles)
+        if (cycleOvershoot >= budget.cycles) {
+            cycleOvershoot -= budget.cycles
+            return PlayerTick(budget, null, speed = speed)
+        }
+        val requestedCycles = budget.cycles - cycleOvershoot
+        val result = session.runCycles(requestedCycles)
+        cycleOvershoot = maxOf(0, result.executedCycles - requestedCycles)
         executionStatus = result.status
         if (result.status is ExecutionStatus.Faulted) {
             state = PlayerRunState.FAULTED
             previousTimeNanoseconds = null
             planner.reset()
+            cycleOvershoot = 0
         }
         return PlayerTick(budget, result, session.drainAudioSamples(), speed)
     }

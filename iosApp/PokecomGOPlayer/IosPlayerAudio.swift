@@ -1,6 +1,15 @@
 import AVFoundation
 import Foundation
 import PgpPlayer
+#if DEBUG
+import os
+
+/// Infrequent diagnostics only; never called from the render callback.
+enum PlayerAudioTrace {
+    private static let logger = Logger(subsystem: "com.digihori.pgp", category: "PlayerAudio")
+    static func event(_ message: String) { logger.debug("\(message, privacy: .public)") }
+}
+#endif
 
 /// Swift-owned immutable packet. An empty sample array means frameCount zeros.
 struct PlayerPCM {
@@ -22,15 +31,20 @@ struct PlayerPCM {
 
 protocol PlayerPCMSink: AnyObject {
     func schedule(_ packet: PlayerPCM, completion: @escaping () -> Void) throws
+    var pendingFrames: Int { get }
+    func start()
+    func pause()
     func close()
 }
 
-/// Owns AV objects on one worker. Completion means output consumed the buffer, not just copied it.
+/// Owns AV objects on one worker. Presentation callbacks are separate from render-position accounting.
 final class EnginePCMSink: PlayerPCMSink {
     private let engine = AVAudioEngine()
     private let node = AVAudioPlayerNode()
     private let format: AVAudioFormat
     private let session: AVAudioSession?
+    private var scheduledFrames: Int64 = 0
+    private var playedThrough: Int64 = 0
 
     init(rate: Int, live: Bool = true) throws {
         format = AVAudioFormat(standardFormatWithSampleRate: Double(rate), channels: 1)!
@@ -47,7 +61,7 @@ final class EnginePCMSink: PlayerPCMSink {
         engine.attach(node)
         engine.connect(node, to: engine.mainMixerNode, format: format)
         if live {
-            do { try engine.start(); node.play() }
+            do { try engine.start() }
             catch { close(); throw error }
         }
     }
@@ -66,8 +80,23 @@ final class EnginePCMSink: PlayerPCMSink {
 
     func schedule(_ packet: PlayerPCM, completion: @escaping () -> Void) throws {
         guard let buffer = Self.buffer(packet) else { throw CocoaError(.coderInvalidValue) }
+        _ = pendingFrames
+        scheduledFrames = max(scheduledFrames, playedThrough) + Int64(packet.frameCount)
         node.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { _ in completion() }
     }
+
+    // Player sample time measures rendered frames, independently of device presentation latency.
+    var pendingFrames: Int {
+        if node.isPlaying, let time = node.lastRenderTime,
+           time.isSampleTimeValid || time.isHostTimeValid,
+           let playerTime = node.playerTime(forNodeTime: time), playerTime.isSampleTimeValid {
+            playedThrough = max(playedThrough, playerTime.sampleTime)
+        }
+        return Int(max(0, scheduledFrames - playedThrough))
+    }
+
+    func start() { node.play() }
+    func pause() { node.pause() }
 
     /// Exercises the actual engine/node/converter path without device output or listening claims.
     func renderOffline(_ packet: PlayerPCM) throws -> [Float] {
@@ -94,6 +123,7 @@ final class EnginePCMSink: PlayerPCMSink {
 final class PlayerAudioPump {
     private let lock = NSLock()
     private let enqueue: (@escaping () -> Void) -> Void
+    private let later: (TimeInterval, @escaping () -> Void) -> Void
     private let open: (Int) throws -> PlayerPCMSink
     private let failure: () -> Void
     private var generation = 0
@@ -106,17 +136,27 @@ final class PlayerAudioPump {
     private var sink: PlayerPCMSink?
     private var workerGeneration = -1
     private var toneBuffers = 0
+    private var started = false
+    private var startupFrames = 0
+    private var workerRate = 0
+    private var silentFrames = 0
+    private var stream = 0
+    private var idleToken = 0
+    private var startupToken = 0
     private var nextBuffer = 0
     private var inFlight: [Int: (frames: Int, tone: Bool)] = [:]
 
     init(enqueue: ((@escaping () -> Void) -> Void)? = nil,
+         later: ((TimeInterval, @escaping () -> Void) -> Void)? = nil,
          open: @escaping (Int) throws -> PlayerPCMSink = { try EnginePCMSink(rate: $0) },
          failure: @escaping () -> Void = {}) {
         let queue = DispatchQueue(label: "com.digihori.pgp.ios.pcm", qos: .userInteractive)
         self.enqueue = enqueue ?? { queue.async(execute: $0) }
+        self.later = later ?? { delay, action in queue.asyncAfter(deadline: .now() + delay, execute: action) }
         self.open = open; self.failure = failure
     }
     var isFailed: Bool { lock.lock(); defer { lock.unlock() }; return failed }
+    /// Unsubmitted PCM only; the sink separately bounds its render reservations.
     var pendingFrames: Int { lock.lock(); defer { lock.unlock() }; return reservedFrames }
 
     // Called with the command lock held. A single work item owns the bounded queue.
@@ -133,6 +173,11 @@ final class PlayerAudioPump {
         guard packet.isValid else { return }
         lock.lock(); defer { lock.unlock() }
         guard !failed else { return }
+        #if DEBUG
+        if rate == packet.rate && reservedFrames + packet.frameCount > packet.rate / 10 {
+            PlayerAudioTrace.event("queue overflow queued=\(reservedFrames) incoming=\(packet.frameCount) rate=\(packet.rate)")
+        }
+        #endif
         if rate != packet.rate || reservedFrames + packet.frameCount > packet.rate / 10 {
             generation += 1; reservedFrames = 0; packets.removeAll(); rate = packet.rate
         }
@@ -147,18 +192,41 @@ final class PlayerAudioPump {
             let current = generation
             if workerGeneration != current {
                 lock.unlock()
-                sink?.close(); sink = nil; toneBuffers = 0; inFlight.removeAll(); workerGeneration = current
+                closeStream(); workerGeneration = current
                 continue
             }
             guard !packets.isEmpty else { scheduled = false; lock.unlock(); return }
             let packet = packets.removeFirst()
+            reservedFrames -= packet.frameCount
+            workerRate = packet.rate
             lock.unlock()
-            if sink == nil && packet.samples.isEmpty { _ = consume(packet.frameCount, current); continue }
+            if sink == nil && packet.samples.isEmpty { continue }
             do {
-                if sink == nil { sink = try open(packet.rate) }
+                if let sink {
+                    let pending = sink.pendingFrames
+                    if pending + packet.frameCount > packet.rate / 10 {
+                        // Bound render reservations, independently of presentation callbacks.
+                        #if DEBUG
+                        PlayerAudioTrace.event("node overflow pending=\(pending) incoming=\(packet.frameCount) rate=\(packet.rate)")
+                        #endif
+                        closeStream()
+                    } else if started && pending == 0 {
+                        #if DEBUG
+                        PlayerAudioTrace.event("underrun incoming=\(packet.frameCount) rate=\(packet.rate)")
+                        #endif
+                        sink.pause()
+                        started = false; startupFrames = 0
+                        armStartup(current)
+                    }
+                }
+                if sink == nil {
+                    sink = try open(packet.rate)
+                    armStartup(current)
+                }
                 guard isCurrent(current) else { continue }
                 let tone = !packet.samples.isEmpty
-                if tone { toneBuffers += 1 }
+                if tone { toneBuffers += 1; silentFrames = 0; idleToken += 1 }
+                else { silentFrames += packet.frameCount }
                 nextBuffer += 1
                 let bufferID = nextBuffer
                 inFlight[bufferID] = (packet.frameCount, tone)
@@ -166,8 +234,11 @@ final class PlayerAudioPump {
                     guard let self else { return }
                     self.enqueue { self.complete(bufferID, current) }
                 }
+                startupFrames += packet.frameCount
+                if startupFrames >= packet.rate / 20 { startStream() }
+                finishIdle()
             } catch {
-                sink?.close(); sink = nil; toneBuffers = 0; inFlight.removeAll()
+                closeStream()
                 lock.lock()
                 let notify = generation == current
                 if notify { failed = true; reservedFrames = 0; packets.removeAll() }
@@ -179,24 +250,45 @@ final class PlayerAudioPump {
     private func isCurrent(_ value: Int) -> Bool {
         lock.lock(); defer { lock.unlock() }; return generation == value && !failed
     }
-    @discardableResult
-    private func consume(_ count: Int, _ current: Int) -> Bool {
-        lock.lock(); defer { lock.unlock() }
-        guard generation == current && !failed else { return false }
-        reservedFrames -= count
-        return true
+    private func armStartup(_ current: Int) {
+        startupToken += 1
+        let token = startupToken
+        later(0.05) { [weak self] in
+            guard let self, self.isCurrent(current), self.startupToken == token else { return }
+            self.startStream()
+        }
     }
+
+    private func startStream() {
+        guard !started, let sink else { return }
+        sink.start()
+        started = true
+    }
+
+    private func closeStream() {
+        stream += 1; idleToken += 1; startupToken += 1
+        sink?.close(); sink = nil
+        toneBuffers = 0; inFlight.removeAll()
+        started = false; startupFrames = 0; silentFrames = 0
+    }
+
+    private func finishIdle() {
+        // Preserve short gaps. Close only after 250 ms of source silence and tone presentation.
+        if toneBuffers == 0 && silentFrames >= workerRate / 4 { closeStream() }
+    }
+
     private func complete(_ bufferID: Int, _ current: Int) {
-        guard isCurrent(current), let buffer = inFlight.removeValue(forKey: bufferID),
-              consume(buffer.frames, current) else { return }
+        guard isCurrent(current), let buffer = inFlight.removeValue(forKey: bufferID) else { return }
         if buffer.tone { toneBuffers -= 1 }
-        if toneBuffers == 0 {
-            // Remaining buffers contain only trailing zeros. Account for their cancellation
-            // ourselves; AV completion on stop must never decrement a new stream's count.
-            let trailingFrames = inFlight.values.reduce(0) { $0 + $1.frames }
-            inFlight.removeAll()
-            _ = consume(trailingFrames, current)
-            sink?.close(); sink = nil
+        finishIdle()
+        if buffer.tone && toneBuffers == 0 && sink != nil {
+            let token = idleToken
+            let streamToken = stream
+            later(0.25) { [weak self] in
+                guard let self, self.isCurrent(current), self.stream == streamToken,
+                      self.idleToken == token, self.toneBuffers == 0 else { return }
+                self.closeStream()
+            }
         }
     }
 

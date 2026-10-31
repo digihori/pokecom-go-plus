@@ -1241,6 +1241,38 @@ final class PlayerHostTests: XCTestCase {
         XCTAssertFalse(host.pendingAutomaticStart)
     }
 
+    func testLoadSuccessReplacesPanelWithCompactCompletionForBasicAndDump() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let frames = ManualFrames(), host = try programHost(root, frames: frames)
+        host.setActive(true)
+        for (name, text) in [("test.bas", "10 PRINT 1\n20 END\n"), ("test.dmp", "C500 FF")] {
+            let file = root.appendingPathComponent(name)
+            try Data(text.utf8).write(to: file)
+            host.openProgram(save: false); host.programPanelDidAppear()
+            host.importProgram(file)
+            waitUntil { !host.programBusy }
+            XCTAssertNil(host.programIssue)
+            XCTAssertFalse(host.programPanelOpen)
+            XCTAssertNil(host.programDocument)
+            XCTAssertNil(host.programLoadMessage) // Wait for the parent sheet to dismiss.
+            host.programPanelDidDismiss()
+            XCTAssertEqual(host.programLoadMessage, "\(name) をロードしました。")
+            XCTAssertFalse(host.externalInputReceiving)
+            host.dismissProgramLoadMessage()
+            frames.send(name == "test.bas" ? 0 : 20_000_000)
+            XCTAssertEqual(host.status.runState, "RUNNING")
+            XCTAssertTrue(host.externalInputReceiving)
+        }
+        host.openProgram(save: false)
+        host.importProgram(root.appendingPathComponent("test.bas"))
+        waitUntil { !host.programBusy }
+        host.reset() // A delayed sheet callback cannot show a stale completion.
+        host.programPanelDidDismiss()
+        XCTAssertNil(host.programLoadMessage)
+    }
+
     func testProgramPickerWaitsForParentPresentationAndDoesNotReopenAfterCancel() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -1389,16 +1421,33 @@ final class PlayerHostTests: XCTestCase {
 
 private final class AudioWork {
     var jobs: [() -> Void] = []
+    private var now: TimeInterval = 0
+    private var timers: [(TimeInterval, () -> Void)] = []
+    func later(_ delay: TimeInterval, _ action: @escaping () -> Void) { timers.append((now + delay, action)) }
+    func advance(_ interval: TimeInterval) {
+        now += interval
+        while let index = timers.indices.filter({ timers[$0].0 <= now }).min(by: { timers[$0].0 < timers[$1].0 }) {
+            timers.remove(at: index).1()
+            drain()
+        }
+    }
     func drain() { while !jobs.isEmpty { jobs.removeFirst()() } }
 }
 private final class RecordingSink: PlayerPCMSink {
     var packets: [PlayerPCM] = []
     var completions: [() -> Void] = []
     var closed = false
+    var starts = 0
+    var pauses = 0
+    var pendingFrames = 0
+    func start() { starts += 1 }
+    func pause() { pauses += 1 }
+    func render(_ count: Int) { pendingFrames = max(0, pendingFrames - count) }
     func schedule(_ packet: PlayerPCM, completion: @escaping () -> Void) throws {
+        pendingFrames += packet.frameCount
         packets.append(packet); completions.append(completion)
     }
-    func close() { closed = true }
+    func close() { closed = true; pendingFrames = 0 }
 }
 
 final class PlayerAudioTests: XCTestCase {
@@ -1407,37 +1456,93 @@ final class PlayerAudioTests: XCTestCase {
     func testSilenceBetweenTonesAndNaturalDrain() {
         let work = AudioWork(); let sink = RecordingSink()
         var opens = 0
-        let pump = PlayerAudioPump(enqueue: { work.jobs.append($0) }, open: { _ in opens += 1; return sink })
+        let pump = PlayerAudioPump(enqueue: { work.jobs.append($0) }, later: work.later, open: { _ in opens += 1; return sink })
         let silence = PlayerPCM(samples: [], frameCount: 220, rate: 22050)
         pump.offer(silence); work.drain()
         XCTAssertEqual(opens, 0); XCTAssertEqual(pump.pendingFrames, 0)
         pump.offer(tone); pump.offer(silence); pump.offer(tone); work.drain()
         XCTAssertEqual(sink.packets.map(\.frameCount), [220, 220, 220])
         XCTAssertTrue(sink.packets[1].samples.isEmpty)
-        XCTAssertEqual(pump.pendingFrames, 660)
+        XCTAssertEqual(pump.pendingFrames, 0)
+        XCTAssertEqual(sink.pendingFrames, 660)
         sink.completions[0](); work.drain(); XCTAssertFalse(sink.closed)
         sink.completions[1](); work.drain(); XCTAssertFalse(sink.closed)
-        sink.completions[2](); work.drain(); XCTAssertTrue(sink.closed)
+        sink.completions[2](); work.drain(); XCTAssertFalse(sink.closed)
+        work.advance(0.25); XCTAssertTrue(sink.closed)
         XCTAssertEqual(pump.pendingFrames, 0)
     }
 
-    func testContinuousSilenceClosesAfterLastTonePlayed() {
+    func testShortGapKeepsOutputAndIdleDeadlineIgnoresNewTone() {
         let work = AudioWork(); let sink = RecordingSink()
-        let pump = PlayerAudioPump(enqueue: { work.jobs.append($0) }, open: { _ in sink })
+        let pump = PlayerAudioPump(enqueue: { work.jobs.append($0) }, later: work.later, open: { _ in sink })
         pump.offer(tone); pump.offer(PlayerPCM(samples: [], frameCount: 220, rate: 22050)); work.drain()
-        sink.completions[0](); work.drain()
-        XCTAssertTrue(sink.closed) // Does not keep a device/session alive with zeros forever.
-        XCTAssertEqual(pump.pendingFrames, 0)
+        sink.render(440); sink.completions[0](); work.drain()
+        work.advance(0.1); XCTAssertFalse(sink.closed)
         pump.offer(tone); work.drain()
-        sink.completions[1](); work.drain() // Cancelled zeros cannot consume the new stream.
-        XCTAssertEqual(pump.pendingFrames, 220)
+        sink.completions[1](); work.drain() // Old silence cannot end the new tone.
+        work.advance(0.2); XCTAssertFalse(sink.closed)
+        sink.render(220); sink.completions[2](); work.drain()
+        work.advance(0.25); XCTAssertTrue(sink.closed)
         pump.stop(); work.drain()
+    }
+
+    func testPrebufferStartsOnceAndShortToneHasDeadline() {
+        let work = AudioWork(); var sinks: [RecordingSink] = []
+        let pump = PlayerAudioPump(enqueue: { work.jobs.append($0) }, later: work.later, open: { _ in
+            let sink = RecordingSink(); sinks.append(sink); return sink
+        })
+        pump.offer(tone); work.drain()
+        XCTAssertEqual(sinks[0].starts, 0)
+        work.advance(0.05); XCTAssertEqual(sinks[0].starts, 1)
+        pump.stop(); work.drain()
+        for _ in 0..<6 { pump.offer(tone) }
+        work.drain(); XCTAssertEqual(sinks[1].starts, 1)
+        work.advance(0.05); XCTAssertEqual(sinks[1].starts, 1)
+        pump.stop(); work.drain()
+        pump.offer(tone); work.drain()
+        pump.stop(); work.drain()
+        work.advance(1); XCTAssertEqual(sinks[2].starts, 0)
+    }
+
+    func testUnderrunRebuffersWithoutRecreatingEngine() {
+        let work = AudioWork(); let sink = RecordingSink(); var opens = 0
+        let pump = PlayerAudioPump(enqueue: { work.jobs.append($0) }, later: work.later, open: { _ in opens += 1; return sink })
+        pump.offer(tone); work.drain(); work.advance(0.05)
+        sink.render(220)
+        pump.offer(tone); work.drain()
+        XCTAssertEqual(sink.pauses, 1); XCTAssertEqual(sink.starts, 1)
+        work.advance(0.05)
+        XCTAssertEqual(sink.starts, 2); XCTAssertEqual(opens, 1)
+        XCTAssertFalse(sink.closed)
+        pump.stop(); work.drain()
+    }
+
+    func testRenderingProgressPreventsOverflowDespiteDelayedPresentation() {
+        for rate in [17640, 19845, 22050, 24255, 26460] {
+            let work = AudioWork(); let sink = RecordingSink(); var opens = 0
+            let pump = PlayerAudioPump(enqueue: { work.jobs.append($0) }, later: work.later, open: { _ in opens += 1; return sink })
+            let count = rate / 60
+            let packet = PlayerPCM(samples: Array(repeating: 8192, count: count), frameCount: count, rate: rate)
+            // 50 ms lead, then 10 seconds of rendering with presentation callbacks held back.
+            for _ in 0..<3 { pump.offer(packet) }
+            work.drain(); work.advance(0.05)
+            for _ in 0..<600 {
+                sink.render(count)
+                pump.offer(packet); work.drain()
+                work.advance(1.0 / 60)
+            }
+            XCTAssertEqual(opens, 1); XCTAssertFalse(sink.closed)
+            XCTAssertEqual(sink.starts, 1)
+            for complete in sink.completions { complete() }
+            work.drain(); work.advance(0.25); XCTAssertTrue(sink.closed)
+            pump.stop(); work.drain()
+        }
     }
 
     func testOverflowStopStaleCompletionAndRateChangeDiscardOldAudio() {
         let work = AudioWork(); var sinks: [RecordingSink] = []
         var rates: [Int] = []
-        let pump = PlayerAudioPump(enqueue: { work.jobs.append($0) }, open: { rate in
+        let pump = PlayerAudioPump(enqueue: { work.jobs.append($0) }, later: work.later, open: { rate in
             rates.append(rate); let sink = RecordingSink(); sinks.append(sink); return sink
         })
         pump.offer(tone); work.drain()
@@ -1445,12 +1550,13 @@ final class PlayerAudioTests: XCTestCase {
         for _ in 0..<12 { pump.offer(tone) }
         XCTAssertLessThanOrEqual(pump.pendingFrames, 2205)
         work.drain(); XCTAssertTrue(sinks[0].closed)
-        stale(); work.drain(); XCTAssertGreaterThan(pump.pendingFrames, 0)
+        stale(); work.drain(); XCTAssertGreaterThan(sinks.last!.pendingFrames, 0)
         pump.stop(); XCTAssertEqual(pump.pendingFrames, 0); work.drain()
         XCTAssertTrue(sinks.last!.closed)
         pump.offer(PlayerPCM(samples: [1, -1], frameCount: 2, rate: 26460)); work.drain()
         XCTAssertEqual(rates.last, 26460)
-        XCTAssertEqual(pump.pendingFrames, 2)
+        XCTAssertEqual(pump.pendingFrames, 0)
+        XCTAssertEqual(sinks.last!.pendingFrames, 2)
         pump.stop(); work.drain()
         for sink in sinks { for complete in sink.completions { complete() } }
         work.drain(); XCTAssertEqual(pump.pendingFrames, 0)
@@ -1458,7 +1564,7 @@ final class PlayerAudioTests: XCTestCase {
 
     func testWorkerBacklogIsBoundedEvenBeforeWorkerStarts() {
         let work = AudioWork(); let sink = RecordingSink()
-        let pump = PlayerAudioPump(enqueue: { work.jobs.append($0) }, open: { _ in sink })
+        let pump = PlayerAudioPump(enqueue: { work.jobs.append($0) }, later: work.later, open: { _ in sink })
         for _ in 0..<10_000 { pump.offer(tone) }
         XCTAssertEqual(work.jobs.count, 1)
         XCTAssertLessThanOrEqual(pump.pendingFrames, 2205)
@@ -1470,7 +1576,7 @@ final class PlayerAudioTests: XCTestCase {
 
     func testOutputFailureLatchesUntilExplicitRetry() {
         let work = AudioWork(); var attempts = 0; var failures = 0
-        let pump = PlayerAudioPump(enqueue: { work.jobs.append($0) }, open: { _ in
+        let pump = PlayerAudioPump(enqueue: { work.jobs.append($0) }, later: work.later, open: { _ in
             attempts += 1; throw CocoaError(.fileReadUnknown)
         }, failure: { failures += 1 })
         pump.offer(tone); work.drain()
@@ -1562,7 +1668,7 @@ final class PlayerPlaybackHostTests: XCTestCase {
 
     func testInterruptResumeRouteRemovalAndPauseNeverReplayOldPCM() {
         let work = AudioWork(); var sinks: [RecordingSink] = []
-        let pump = PlayerAudioPump(enqueue: { work.jobs.append($0) }, open: { _ in
+        let pump = PlayerAudioPump(enqueue: { work.jobs.append($0) }, later: work.later, open: { _ in
             let sink = RecordingSink(); sinks.append(sink); return sink
         })
         let audio = IosPlayerAudio(pump: pump, observeNotifications: false)
@@ -1605,6 +1711,7 @@ final class PlayerPlaybackHostTests: XCTestCase {
             let sink = try EnginePCMSink(rate: rate)
             XCTAssertEqual(AVAudioSession.sharedInstance().category, .ambient)
             try sink.schedule(PlayerPCM(samples: samples, frameCount: samples.count, rate: rate)) { completed.fulfill() }
+            sink.start()
             wait(for: [completed], timeout: 5)
             sink.close()
         }

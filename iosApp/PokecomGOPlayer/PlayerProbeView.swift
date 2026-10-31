@@ -16,7 +16,11 @@ struct PlayerProbeView: View {
             else { player }
         }
         .sheet(isPresented: Binding(get: { host.romPanelOpen }, set: { if !$0 { host.closeRomPanel() } })) { RomLibraryPanel(host: host) }
-        .sheet(isPresented: Binding(get: { host.programPanelOpen }, set: { if !$0 { host.closeProgram() } })) { ProgramPanel(host: host) }
+        .sheet(isPresented: Binding(get: { host.programPanelOpen }, set: { if !$0 && host.programPanelOpen { host.closeProgram() } }),
+               onDismiss: host.programPanelDidDismiss) { ProgramPanel(host: host) }
+        .alert("ロード完了", isPresented: Binding(get: { host.programLoadMessage != nil }, set: { if !$0 { host.dismissProgramLoadMessage() } })) {
+            Button("閉じる", action: host.dismissProgramLoadMessage)
+        } message: { Text(host.programLoadMessage ?? "") }
         .sheet(isPresented: Binding(get: { information != nil }, set: { if !$0 { information = nil } })) {
             if let information { InformationPanel(title: information) }
         }

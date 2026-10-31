@@ -195,8 +195,11 @@ final class PlayerSmokeTests: XCTestCase {
         app.buttons["playPC1245"].tap(); waitFor("PAUSED", in: app)
         playerAction(app, "プログラム", "ロード")
         localFile(app, "picker-test.bas").tap()
-        expectLabel(app.staticTexts["programMessage"], contains: "ロードしました")
-        app.buttons["閉じる"].tap(); waitFor("RUNNING", in: app)
+        XCTAssertTrue(app.alerts["ロード完了"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.alerts["ロード完了"].staticTexts["picker-test.bas をロードしました。"].exists)
+        XCTAssertFalse(app.buttons["ファイルを選択"].exists)
+        attachScreen("Compact program load completion")
+        app.alerts["ロード完了"].buttons["閉じる"].tap(); waitFor("RUNNING", in: app)
         playerAction(app, "プログラム", "セーブ")
         app.buttons["exportProgram"].tap()
         cancelPicker(app)
@@ -210,12 +213,16 @@ final class PlayerSmokeTests: XCTestCase {
         app.buttons["閉じる"].tap(); waitFor("PAUSED", in: app)
         playerAction(app, "プログラム", "ロード")
         localFile(app, "pc-1245-program.bas").tap()
-        expectLabel(app.staticTexts["programMessage"], contains: "ロードしました")
-        app.buttons["閉じる"].tap(); waitFor("RUNNING", in: app)
+        XCTAssertTrue(app.alerts["ロード完了"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.alerts["ロード完了"].staticTexts["pc-1245-program.bas をロードしました。"].exists)
+        XCTAssertFalse(app.buttons["ファイルを選択"].exists)
+        app.alerts["ロード完了"].buttons["閉じる"].tap(); waitFor("RUNNING", in: app)
         playerAction(app, "プログラム", "ロード")
         localFile(app, "picker-test.dmp").tap()
-        expectLabel(app.staticTexts["programMessage"], contains: "ロードしました")
-        app.buttons["閉じる"].tap(); waitFor("RUNNING", in: app)
+        XCTAssertTrue(app.alerts["ロード完了"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.alerts["ロード完了"].staticTexts["picker-test.dmp をロードしました。"].exists)
+        XCTAssertFalse(app.buttons["ファイルを選択"].exists)
+        app.alerts["ロード完了"].buttons["閉じる"].tap(); waitFor("RUNNING", in: app)
         app.buttons["runState"].tap(); waitFor("PAUSED", in: app)
         playerAction(app, "プログラム", "セーブ")
         app.buttons["ダンプ"].tap()
@@ -226,8 +233,10 @@ final class PlayerSmokeTests: XCTestCase {
         app.buttons["閉じる"].tap(); waitFor("PAUSED", in: app)
         playerAction(app, "プログラム", "ロード")
         localFile(app, "pc-1245-program.dmp").tap()
-        expectLabel(app.staticTexts["programMessage"], contains: "ロードしました")
-        app.buttons["閉じる"].tap(); waitFor("RUNNING", in: app)
+        XCTAssertTrue(app.alerts["ロード完了"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.alerts["ロード完了"].staticTexts["pc-1245-program.dmp をロードしました。"].exists)
+        XCTAssertFalse(app.buttons["ファイルを選択"].exists)
+        app.alerts["ロード完了"].buttons["閉じる"].tap(); waitFor("RUNNING", in: app)
         app.buttons["runState"].tap(); waitFor("PAUSED", in: app)
         home(app)
         for title in ["Playerとは", "Studioについて", "プライバシーポリシー", "バージョン・ライセンス"] {
@@ -701,6 +710,19 @@ final class PlayerSmokeTests: XCTestCase {
     }
     private func localFile(_ app: XCUIApplication, _ name: String) -> XCUIElement {
         let file = app.cells.matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch
+        // A fresh Simulator has no Recents. Navigate without changing the product picker policy.
+        if !file.waitForExistence(timeout: 2) {
+            let browse = app.buttons.matching(NSPredicate(format: "label IN %@", ["Browse", "ブラウズ"])).firstMatch
+            if browse.exists { browse.tap() }
+            let local = app.buttons.matching(NSPredicate(format: "label IN %@", ["On My iPhone", "このiPhone内"])).firstMatch
+            if local.waitForExistence(timeout: 3) { local.tap() }
+            else {
+                let localCell = app.cells.containing(NSPredicate(format: "label IN %@", ["On My iPhone", "このiPhone内"])).firstMatch
+                if localCell.exists { localCell.tap() }
+            }
+            let folder = app.cells.containing(NSPredicate(format: "label CONTAINS %@", "Pokecom GO Player")).firstMatch
+            if folder.waitForExistence(timeout: 3) { folder.tap() }
+        }
         XCTAssertTrue(file.waitForExistence(timeout: 10), app.debugDescription)
         XCTAssertTrue(file.isEnabled)
         return file

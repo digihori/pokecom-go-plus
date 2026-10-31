@@ -116,6 +116,9 @@ public class ApplePlayerFacade internal constructor(private val session: PlayerS
         return result.audio?.let { AppleAudioPacket(it, result.speed.playbackRate(it.sampleRate)) }
     }
 
+    /** Lightweight host state query; does not allocate an LCD snapshot. */
+    public val runState: String get() = session.runner.state.name
+
     public val speedId: String get() = session.runner.speed.id
     public fun setSpeed(id: String, nowNanoseconds: Long) {
         session.runner.setSpeed(PlayerExecutionSpeed.fromId(id), nowNanoseconds)

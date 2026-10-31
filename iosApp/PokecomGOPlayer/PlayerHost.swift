@@ -73,6 +73,7 @@ final class PlayerHost: ObservableObject {
     @Published private(set) var presentationMode: PresentationMode = .fullDevice
     @Published private(set) var inputEpoch = 0
     private var player: ApplePlayerFacade?
+    private var previousFrameTime: Int64?
     private let frames: PlayerFrameDriver
     @Published private(set) var isActive = false
     private(set) var pendingAutomaticStart = false
@@ -117,6 +118,11 @@ final class PlayerHost: ObservableObject {
     @Published private(set) var programBusy = false
     @Published private(set) var programMessage = ""
     @Published private(set) var programIssue: ProgramIssue?
+    @Published private(set) var programLoadMessage: String?
+    private var pendingProgramLoadMessage: String?
+    private var programModalOpen: Bool {
+        programPanelOpen || programLoadMessage != nil || pendingProgramLoadMessage != nil
+    }
     @Published private(set) var exportURL: URL?
     private var programSource: ApplePlayerFacade?
     private var programGeneration = 0
@@ -161,7 +167,7 @@ final class PlayerHost: ObservableObject {
     var externalInputReceiving: Bool { canReceiveExternal(status.runState) }
     private func canReceiveExternal(_ runState: String) -> Bool {
         isActive && !showHome && inputFocused && !inputMenuOpen && !romPanelOpen &&
-            !programPanelOpen && !isBusy && !programBusy && runState == "RUNNING"
+            !programModalOpen && !isBusy && !programBusy && runState == "RUNNING"
     }
     func setInputFocus(_ focused: Bool) {
         guard inputFocused != focused else { return }
@@ -412,6 +418,7 @@ final class PlayerHost: ObservableObject {
     func run() {
         guard isActive, !showHome, hasSession, status.runState == "PAUSED", !startRequested else { return }
         startRequested = true
+        previousFrameTime = nil
         if soundEnabled { audio?.start() }
         frames.start { [weak self] now in self?.onFrame(now) }
     }
@@ -450,10 +457,28 @@ final class PlayerHost: ObservableObject {
             pendingAutomaticStart = false
             player.run(nowNanoseconds: now)
         }
+        #if DEBUG
+        let began = CACurrentMediaTime()
+        let gap = previousFrameTime.map { Double(now - $0) / 1_000_000 } ?? 0
+        #endif
+        previousFrameTime = now
         let packet = player.tick(nowNanoseconds: now)
-        refresh()
-        if status.runState != "RUNNING" { frames.stop(); audio?.stop() }
+        #if DEBUG
+        let tickEnded = CACurrentMediaTime()
+        #endif
+        // Hand PCM to its worker before LCD snapshots and UI publication.
+        if player.runState != "RUNNING" { frames.stop(); audio?.stop() }
         else if soundEnabled, let packet { audio?.offer(PlayerPCM(packet)) }
+        #if DEBUG
+        let offered = CACurrentMediaTime()
+        #endif
+        refresh()
+        #if DEBUG
+        let finished = CACurrentMediaTime()
+        if gap > 40 || finished - began > 0.02 {
+            PlayerAudioTrace.event("frame gapMs=\(gap) tickMs=\((tickEnded - began) * 1000) copyOfferMs=\((offered - tickEnded) * 1000) refreshMs=\((finished - offered) * 1000)")
+        }
+        #endif
     }
 
     func pressBreak(owner: String) {
@@ -462,7 +487,7 @@ final class PlayerHost: ObservableObject {
 
     @discardableResult
     func press(keyName: String, owner: String) -> Bool {
-        guard isActive, !showHome, hasSession, !isControllerDisplay, !inputMenuOpen, !romPanelOpen, !programPanelOpen, !isBusy else { return false }
+        guard isActive, !showHome, hasSession, !isControllerDisplay, !inputMenuOpen, !romPanelOpen, !programModalOpen, !isBusy else { return false }
         let accepted = player?.press(keyName: keyName, owner: owner) ?? false
         refresh()
         return accepted
@@ -711,7 +736,7 @@ final class PlayerHost: ObservableObject {
     }
 
     func returnHome() {
-        guard !programPanelOpen, !romPanelOpen else { return }
+        guard !programModalOpen, !romPanelOpen else { return }
         homeShouldRun = status.runState == "RUNNING" || pendingAutomaticStart || startRequested
         pause()
         inputMenuOpen = false
@@ -782,19 +807,22 @@ final class PlayerHost: ObservableObject {
         programQueue.async { [weak self] in
             let result = Result { try read(url) }
             // Parsing owns copied bytes and does not touch the Session.
-            let parsed = result.map { AppleProgramCodec.shared.parseForMachine(bytes: $0.bytes.kotlinBytes, basic: $0.basic, machineId: machineId) }
+            let parsed = result.map { file in
+                (name: file.name, parsed: AppleProgramCodec.shared.parseForMachine(bytes: file.bytes.kotlinBytes, basic: file.basic, machineId: machineId))
+            }
             DispatchQueue.main.async {
                 guard let self, self.programGeneration == ticket, source === self.player else { return }
                 self.programBusy = false
                 switch parsed {
                 case .failure(let error): self.setProgramFailure(error)
-                case .success(let value):
-                    if let error = value.error { self.programIssue = .shared(error); return }
-                    guard let input = value.input else { return }
+                case .success(let file):
+                    if let error = file.parsed.error { self.programIssue = .shared(error); return }
+                    guard let input = file.parsed.input else { return }
                     self.pause()
                     if let error = source.loadProgram(input: input) { self.programIssue = .shared(error); return }
                     self.refresh()
-                    self.programMessage = "ロードしました。CPUを再開します。BASICのRUNコマンドは自動入力しません。"
+                    self.closeProgram()
+                    self.pendingProgramLoadMessage = "\(file.name) をロードしました。"
                     self.requestAutomaticRun()
                 }
             }
@@ -868,6 +896,20 @@ final class PlayerHost: ObservableObject {
         if resume { requestAutomaticRun() }
     }
 
+    /// Present the compact completion only after the load sheet and its picker have gone away.
+    func programPanelDidDismiss() {
+        guard !programPanelOpen else { return }
+        let message = pendingProgramLoadMessage
+        pendingProgramLoadMessage = nil
+        if isActive && !showHome { programLoadMessage = message }
+        refresh()
+    }
+
+    func dismissProgramLoadMessage() {
+        programLoadMessage = nil
+        refresh()
+    }
+
     private func restoreSaveIntent() {
         let resume = saveShouldResume && programSource === player
         saveShouldResume = false
@@ -881,6 +923,8 @@ final class PlayerHost: ObservableObject {
 
     private func invalidateProgramOperation() {
         programGeneration += 1
+        pendingProgramLoadMessage = nil
+        programLoadMessage = nil
         programPanelOpen = false
         programSource = nil
         awaitingProgramSelection = false
@@ -897,7 +941,7 @@ final class PlayerHost: ObservableObject {
     }
 
     private func refresh() {
-        let state = player?.snapshot().runState ?? "PAUSED"
+        let state = player?.runState ?? "PAUSED"
         input.configure(player: player, receiving: canReceiveExternal(state), epoch: inputEpoch)
         guard let snapshot = player?.snapshot() else { return }
         let next = PlayerStatus(runState: snapshot.runState, operatingMode: snapshot.operatingMode,
