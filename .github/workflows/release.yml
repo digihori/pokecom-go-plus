@@ -7,7 +7,7 @@ on:
       - "v*"
 
 env:
-  RELEASE_VERSION: 1.0.0
+  RELEASE_VERSION: 1.1.0
 
 jobs:
   package:
@@ -168,7 +168,7 @@ jobs:
         run: ./gradlew :desktopApp:packageDmg -x :desktopApp:createDistributable --no-daemon
 
       - name: Notarize macOS DMG
-        run: python3 scripts/notarize-macos.py desktopApp/build/compose/binaries/main/dmg/PokecomGOStudio-1.6.0.dmg --keychain "$PGP_MAC_SIGNING_KEYCHAIN"
+        run: python3 scripts/notarize-macos.py desktopApp/build/compose/binaries/main/dmg/PokecomGOStudio-1.7.0.dmg --keychain "$PGP_MAC_SIGNING_KEYCHAIN"
 
       - name: Collect macOS packages
         shell: bash
@@ -286,5 +286,5 @@ jobs:
         run: |
           gh release create "${GITHUB_REF_NAME}" release-assets/* \
             --draft \
-            --title "Pokecom GO Studio 1.0.0" \
-            --notes-file docs/releases/notes/RELEASE_NOTES_1.0.0.md
+            --title "Pokecom GO Studio 1.1.0" \
+            --notes-file docs/releases/notes/RELEASE_NOTES_1.1.0.md

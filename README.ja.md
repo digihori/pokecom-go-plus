@@ -261,12 +261,13 @@ PC-1261／1350／1401が32 KiB、PC-1360／1360Kが128 KiB（bank 0〜7の順に
 初回ビルドではGradle、Kotlin/Native、Compose等をダウンロードするため、回線環境によっては
 数分かかり、数百MB以上のディスク領域を使用する。2回目以降はローカルキャッシュを再利用する。
 
-### 正式版1.0.0の準備
+### 1.1.0の準備
 
-Studio／Androidの正式版1.0.0を準備しています。現在公開中の最新版は冒頭の0.7 alpha 1です。
-macOS候補はDeveloper ID署名・公証済みで、インストールとMCPの受入れを完了しています。WindowsはOSS無料署名を検討し、難しければ当面未署名で配布します。
-AndroidはGoogle Playで更新し、debug署名APKはCI成果物のみにします。iOSのリリース準備は別途進めます。
-[準備状況](docs/development/planning/FORMAL_RELEASE_TASKS.md)を参照してください。
+Studio／Android Player 1.1.0を準備しています。公開済み最新版は1.0.0です。
+[リリースノート案](docs/releases/notes/RELEASE_NOTES_1.1.0.md)と
+[公開チェックリスト](docs/releases/checklists/RELEASE_CHECKLIST_1.1.0.md)で対象と残作業を管理します。
+iOSは0.7.0（build 3）が審査中のため提出済みビルドを維持し、次回1.1.0は別途準備します。
+AndroidはGoogle Playで更新し、debug署名APKはCI成果物のみにします。
 
 ### Technical Preview配布物
 
@@ -279,7 +280,7 @@ OSのセキュリティ警告が表示される可能性がある。ROMイメー
 Releaseには各ファイルのSHA-256チェックサムを掲載する。
 
 `.github/workflows/release.yml`をGitHub Actionsから手動実行すると、Studioを3環境、PlayerをAndroid環境で
-テストして配布物を生成し、14日間保持されるworkflow artifactとして取得できる。`v1.0.0` tagをpushすると、
+テストして配布物を生成し、14日間保持されるworkflow artifactとして取得できる。`v1.1.0` tagをpushすると、
 承認後にmacOSの署名・公証を行い、Studio配布物と単独変換ツールを添付したドラフトReleaseを作成する。
 Android debug APKはCI成果物としてのみ保持する。資産と受入れ結果を確認してからドラフトを公開する。
 

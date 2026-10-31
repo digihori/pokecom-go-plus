@@ -311,12 +311,13 @@ PGP_GOLDEN_PRODUCER_REVISION=<git-revision> \
 The output includes the ROM SHA-256 and is replay-validated immediately. ROMs and generated JSON remain
 under `local-data/`, outside Git.
 
-### Preparing version 1.0.0
+### Preparing version 1.1.0
 
-Studio and Android Player 1.0.0 are in preparation. The latest published version remains 0.7 alpha 1 above.
-macOS candidate packages are Developer ID signed and notarized, with installation and MCP checks completed. Free OSS signing is under review for Windows;
-Windows packages may remain unsigned initially. Android updates will use Google Play, with debug APKs kept as CI artifacts only.
-iOS release preparation is separate. See the [release preparation tasks](docs/development/planning/FORMAL_RELEASE_TASKS.md).
+Studio and Android Player 1.1.0 are in preparation; the latest published version is 1.0.0.
+See the [draft release notes](docs/releases/notes/RELEASE_NOTES_1.1.0.md) and
+[release checklist](docs/releases/checklists/RELEASE_CHECKLIST_1.1.0.md).
+iOS 0.7.0 (build 3) remains under review. Keep that submitted build and prepare iOS 1.1.0 separately.
+Android updates use Google Play; debug APKs remain CI artifacts only.
 
 ### CI and preview packages
 
@@ -327,7 +328,7 @@ iOS app builds and Swift unit tests run in regular CI; Native-only tests use a m
 and UI interactions are verified locally.
 
 Running `.github/workflows/release.yml` manually creates Studio and Android Player packages,
-retained as workflow artifacts for 14 days. A matching `v1.0.0` tag builds signed/notarized macOS packages after approval
+retained as workflow artifacts for 14 days. A matching `v1.1.0` tag builds signed/notarized macOS packages after approval
 and prepares a draft GitHub Release with Studio packages and the standalone memory converter.
 Android debug APKs remain CI artifacts. Verify the assets and acceptance results before publishing the draft.
 See [Building from source (Japanese)](docs/reference/BUILDING.md) for local DMG/MSI/DEB packaging.

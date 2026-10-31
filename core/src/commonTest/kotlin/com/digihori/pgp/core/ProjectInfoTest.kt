@@ -8,7 +8,7 @@ class ProjectInfoTest {
     fun exposesProjectIdentityFromCommonCode() {
         assertEquals("Pokecom GO Plus", ProjectInfo.DISPLAY_NAME)
         assertEquals("Pokecom GO Studio", ProjectInfo.STUDIO_DISPLAY_NAME)
-        assertEquals("1.0.0", ProjectInfo.VERSION)
+        assertEquals("1.1.0", ProjectInfo.VERSION)
         assertEquals("PGP", ProjectInfo.DEVELOPMENT_NAME)
     }
 }

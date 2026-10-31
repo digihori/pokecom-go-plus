@@ -256,9 +256,9 @@ androidApp/build/outputs/apk/debug/androidApp-debug.apk
 pushおよびPull Requestでは`.github/workflows/ci.yml`がDesktopの3 OSとAndroid Playerの自動テストを
 実行する。`.github/workflows/release.yml`を手動実行すると、macOS、Windows、LinuxのStudioパッケージと
 Android Playerのdebug APKを生成し、workflow artifactとして保存する。検証済みのversion tagをpushした
-場合だけStudio配布物をGitHub prereleaseへ公開する。Androidのdebug APKはCI成果物としてのみ保持し、Releaseには添付しない。
-Playerのdebug APKはストア配布用の正式署名版ではない。1.0.0の正式Release設定は候補版準備時に更新する。
-macOSの署名・公証は[ローカル手順](MACOS_SIGNING.md)を参照。通常のCIビルドでの署名・公証はまだ設定していない。
+場合だけStudio配布物を添付したドラフトReleaseを作成する。資産・受入れを確認してから公開する。Androidのdebug APKはCI成果物としてのみ保持し、Releaseには添付しない。
+Playerのdebug APKはストア配布用の正式署名版ではない。現在の準備対象は1.1.0。
+macOSの署名・公証は[ローカル手順](MACOS_SIGNING.md)を参照。正式タグの配布workflowでは承認付きの署名・公証を行う。通常のCIでは行わない。
 
 ## 8. よくある問題
 
