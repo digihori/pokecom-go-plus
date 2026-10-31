@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
 
-> **[Studio 1.1.0](https://github.com/digihori/pokecom-go-plus/releases/tag/v1.1.0)** is available, with signed and notarized macOS packages. Android Player remains 1.0.0 on Google Play; its 1.1.0 update is pending.
+> **[Studio 1.1.0](https://github.com/digihori/pokecom-go-plus/releases/tag/v1.1.0)** is available, with signed and notarized macOS packages. Android Player remains 1.0.0 on Google Play; its 1.1.0 update has been submitted for review and is awaiting publication.
 
 Pokecom GO Plus (PGP) is a multiplatform development environment for vintage pocket computers.
 It aims to help you write, run, and analyze programs on a modern PC, then transfer them to the original hardware.
@@ -27,7 +27,7 @@ Android Player is now available on [Google Play](https://play.google.com/store/a
 
 ## Current release
 
-Studio **1.1.0** is available. Android Player 1.1.0 device verification and store release are pending. See the
+Studio **1.1.0** is available. Android Player 1.1.0 has been submitted to Google Play; review and publication are pending. See the
 [release notes](docs/releases/notes/RELEASE_NOTES_1.1.0.md) and
 [release checklist](docs/releases/checklists/RELEASE_CHECKLIST_1.1.0.md).
 
@@ -313,7 +313,7 @@ under `local-data/`, outside Git.
 
 ### Version 1.1.0
 
-Studio 1.1.0 is published. Android Player 1.1.0 remains pending device verification and Google Play release.
+Studio 1.1.0 is published. Android Player 1.1.0 has been submitted to Google Play; review and publication are pending.
 See the [release notes](docs/releases/notes/RELEASE_NOTES_1.1.0.md) and
 [release checklist](docs/releases/checklists/RELEASE_CHECKLIST_1.1.0.md).
 iOS 0.7.0 (build 3) remains under review. Keep that submitted build and prepare iOS 1.1.0 separately.
