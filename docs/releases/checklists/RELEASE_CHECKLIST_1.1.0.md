@@ -106,8 +106,8 @@ GitHubの診断：`Tag "v1.1.0" is not allowed to deploy to macos-signing due to
 承認後、macOS app／DMGの署名・公証、資産アップロード、ドラフトRelease作成がすべて成功しました。
 承認時に画面へgateのエラー通知が出ましたが、実行は承認を通過して正常完了しています。
 
-[1.1.0ドラフトRelease](https://github.com/digihori/pokecom-go-plus/releases/tag/untagged-8f2af235c30bccec8460)
-（Release ID `429927651`、tag `v1.1.0`、commit `027cd6d`）のDraft表示を確認しました。
+[1.1.0ドラフトRelease](https://github.com/digihori/pokecom-go-plus/releases)
+（Draftの一時URLは保存で変わるため一覧へリンク。Release ID `429927651`、tag `v1.1.0`、commit `027cd6d`）のDraft表示を確認しました。
 添付資産はStudio配布6点・変換ツール2点・SHA256SUMS 4点の計12点です。
 GitHub自動生成のソースarchive 2点を含むUIの表示はAssets 14です。Android APK／AABは含みません。
 資産名とGitHub表示のSHA-256を確認済みです。ダウンロード内容とSHA256SUMS本文の照合、
