@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
 
-> **[1.0.0](https://github.com/digihori/pokecom-go-plus/releases/tag/v1.0.0)** — Studioの正式版です。macOS版は署名・公証済み。Android Player 1.0.0もGoogle Playで公開しています。
+> **[Studio 1.1.0](https://github.com/digihori/pokecom-go-plus/releases/tag/v1.1.0)** を公開しました。macOS版は署名・公証済み。Android PlayerのGoogle Play公開版は1.0.0で、1.1.0は実機確認・公開待ちです。
 
 Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向けプログラムを
 現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す
@@ -29,9 +29,9 @@ Android Playerは[Google Play](https://play.google.com/store/apps/details?id=com
 
 ## 現在のリリース
 
-Android Playerに合わせてStudio **1.0.0**を公開しました。
-[リリースノート](docs/releases/notes/RELEASE_NOTES_1.0.0.md)と
-[チェックリスト](docs/releases/checklists/RELEASE_CHECKLIST_1.0.0.md)を参照してください。
+Studio **1.1.0**を公開しました。Android Player 1.1.0は実機確認・ストア公開待ちです。
+[リリースノート](docs/releases/notes/RELEASE_NOTES_1.1.0.md)と
+[チェックリスト](docs/releases/checklists/RELEASE_CHECKLIST_1.1.0.md)を参照してください。
 
 ## 現在の状態
 
@@ -261,10 +261,10 @@ PC-1261／1350／1401が32 KiB、PC-1360／1360Kが128 KiB（bank 0〜7の順に
 初回ビルドではGradle、Kotlin/Native、Compose等をダウンロードするため、回線環境によっては
 数分かかり、数百MB以上のディスク領域を使用する。2回目以降はローカルキャッシュを再利用する。
 
-### 1.1.0の準備
+### 1.1.0の公開状況
 
-Studio／Android Player 1.1.0を準備しています。公開済み最新版は1.0.0です。
-[リリースノート案](docs/releases/notes/RELEASE_NOTES_1.1.0.md)と
+Studio 1.1.0を公開しました。Android Player 1.1.0は実機確認・Google Play公開待ちです。
+[リリースノート](docs/releases/notes/RELEASE_NOTES_1.1.0.md)と
 [公開チェックリスト](docs/releases/checklists/RELEASE_CHECKLIST_1.1.0.md)で対象と残作業を管理します。
 iOSは0.7.0（build 3）が審査中のため提出済みビルドを維持し、次回1.1.0は別途準備します。
 AndroidはGoogle Playで更新し、debug署名APKはCI成果物のみにします。

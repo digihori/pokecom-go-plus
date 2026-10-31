@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
 
-> **[1.0.0](https://github.com/digihori/pokecom-go-plus/releases/tag/v1.0.0)** — The first stable release of Studio, with signed and notarized macOS packages. Android Player 1.0.0 is available on Google Play.
+> **[Studio 1.1.0](https://github.com/digihori/pokecom-go-plus/releases/tag/v1.1.0)** is available, with signed and notarized macOS packages. Android Player remains 1.0.0 on Google Play; its 1.1.0 update is pending.
 
 Pokecom GO Plus (PGP) is a multiplatform development environment for vintage pocket computers.
 It aims to help you write, run, and analyze programs on a modern PC, then transfer them to the original hardware.
@@ -27,9 +27,9 @@ Android Player is now available on [Google Play](https://play.google.com/store/a
 
 ## Current release
 
-Studio **1.0.0** is available alongside Android Player. See the
-[release notes](docs/releases/notes/RELEASE_NOTES_1.0.0.md) and
-[release checklist](docs/releases/checklists/RELEASE_CHECKLIST_1.0.0.md).
+Studio **1.1.0** is available. Android Player 1.1.0 device verification and store release are pending. See the
+[release notes](docs/releases/notes/RELEASE_NOTES_1.1.0.md) and
+[release checklist](docs/releases/checklists/RELEASE_CHECKLIST_1.1.0.md).
 
 ## Current status
 
@@ -311,10 +311,10 @@ PGP_GOLDEN_PRODUCER_REVISION=<git-revision> \
 The output includes the ROM SHA-256 and is replay-validated immediately. ROMs and generated JSON remain
 under `local-data/`, outside Git.
 
-### Preparing version 1.1.0
+### Version 1.1.0
 
-Studio and Android Player 1.1.0 are in preparation; the latest published version is 1.0.0.
-See the [draft release notes](docs/releases/notes/RELEASE_NOTES_1.1.0.md) and
+Studio 1.1.0 is published. Android Player 1.1.0 remains pending device verification and Google Play release.
+See the [release notes](docs/releases/notes/RELEASE_NOTES_1.1.0.md) and
 [release checklist](docs/releases/checklists/RELEASE_CHECKLIST_1.1.0.md).
 iOS 0.7.0 (build 3) remains under review. Keep that submitted build and prepare iOS 1.1.0 separately.
 Android updates use Google Play; debug APKs remain CI artifacts only.
