@@ -8,6 +8,7 @@ import com.digihori.pgp.core.rom.RomRole
 import com.digihori.pgp.core.rom.RomSet
 import com.digihori.pgp.desktop.runner.DesktopEmulatorRunner
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -18,6 +19,37 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class DesktopDebugContextServiceTest {
+    @Test
+    fun serializesStopEvidenceWithoutReplacingItWithNull() {
+        val context = assertIs<DebugContextResult.Success>(
+            DesktopDebugContextService(runner()).capture(DebugContextRequest()),
+        ).context
+        val reasons = listOf(
+            DebugStopContext.Reset,
+            DebugStopContext.UserPause,
+            DebugStopContext.StepComplete,
+            DebugStopContext.Breakpoint(0xc000),
+            DebugStopContext.RunToAddress(0xc009),
+            DebugStopContext.MemoryChanged(0xc005, listOf(DebugMemoryChangeContext(0xc100, 0, 0x41))),
+            DebugStopContext.Fault("testFault", 0xc023, 0xff),
+        )
+        for (reason in reasons) {
+            val root = Json.parseToJsonElement(DebugContextJsonWriter.write(context.copy(stop = reason)).decodeToString()).jsonObject
+            val stop = root.getValue("stop").jsonObject
+            assertEquals(reason.kind, stop.getValue("kind").jsonPrimitive.content)
+            when (reason) {
+                is DebugStopContext.Breakpoint -> assertEquals("49152", stop.getValue("address").jsonPrimitive.content)
+                is DebugStopContext.MemoryChanged -> {
+                    assertEquals("49157", stop.getValue("instructionAddress").jsonPrimitive.content)
+                    assertEquals("65", stop.getValue("changes").jsonArray.single().jsonObject.getValue("after").jsonPrimitive.content)
+                }
+                else -> Unit
+            }
+        }
+        val noStop = Json.parseToJsonElement(DebugContextJsonWriter.write(context.copy(stop = null)).decodeToString()).jsonObject
+        assertEquals(JsonNull, noStop.getValue("stop"))
+    }
+
     @Test
     fun capturesVersionedContextForExplicitRamRange() {
         val runner = runner()

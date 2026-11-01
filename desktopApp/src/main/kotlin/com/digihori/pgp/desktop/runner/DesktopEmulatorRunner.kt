@@ -119,6 +119,32 @@ internal class DesktopEmulatorRunner(
     private data class StepPlan(val out: Boolean, var frame: Long?, val single: Boolean = false,
         var instructions: Long = 0, var cycles: Long = 0)
     private var stepPlan: StepPlan? = null
+    private var boundedPlan: BoundedExecutionPlan? = null
+    private var lastBoundedResult: BoundedExecutionResult? = null
+    val boundedExecutionActive: Boolean get() = boundedPlan != null
+
+    fun startBoundedExecution(id: String, keys: List<PocketKey>, maxInstructions: Long, maxCycles: Long) {
+        require(maxInstructions in 1..1_000_000 && maxCycles in 1..5_000_000)
+        check(state == RunnerState.PAUSED && boundedPlan == null)
+        check(keyInputQueue.isIdle && PocketKey.entries.none(hostKeys::isHeld)) { "Input is already active" }
+        run()
+        boundedPlan = BoundedExecutionPlan(id, maxInstructions, maxCycles)
+        keyInputQueue.enqueue(keys)
+    }
+
+    fun boundedExecution(id: String): BoundedExecutionResult? = boundedPlan?.takeIf { it.id == id }?.let {
+        BoundedExecutionResult(it.id, it.instructions, it.cycles, keyInputQueue.isIdle, null,
+            cpuSnapshot().programCounter, sessionRevision)
+    } ?: lastBoundedResult?.takeIf { it.id == id }
+
+    fun canStartBoundedInput(): Boolean = keyInputQueue.isIdle && PocketKey.entries.none(hostKeys::isHeld)
+
+    private fun finishBoundedExecution(reason: String, inputComplete: Boolean = keyInputQueue.isIdle) {
+        val plan = boundedPlan ?: return
+        lastBoundedResult = BoundedExecutionResult(plan.id, plan.instructions, plan.cycles,
+            inputComplete, reason, cpuSnapshot().programCounter, sessionRevision)
+        boundedPlan = null
+    }
     var debugStepStatus: DebuggerStepStatus = DebuggerStepStatus.IDLE
         private set
     val canStepOut: Boolean get() = state == RunnerState.PAUSED && callTracker.top != null
@@ -179,6 +205,7 @@ internal class DesktopEmulatorRunner(
     }
 
     fun pause() {
+        val completedInput = keyInputQueue.isIdle
         interruptDebugStep()
         val previousState = state
         val previousReason = stopReason
@@ -193,6 +220,7 @@ internal class DesktopEmulatorRunner(
         }
         temporaryRunToAddress = null
         if (state != previousState || stopReason != previousReason) sessionRevision++
+        finishBoundedExecution("interrupted", completedInput)
     }
 
     var sourceMap: com.digihori.pgp.desktop.project.DesktopDebugSourceMap? = null
@@ -203,6 +231,7 @@ internal class DesktopEmulatorRunner(
     }
 
     fun reset() {
+        finishBoundedExecution("interrupted")
         debugTargetGeneration++
         stepPlan = null
         debugStepStatus = DebuggerStepStatus.IDLE
@@ -449,7 +478,7 @@ internal class DesktopEmulatorRunner(
 
     fun loadBasicProgram(program: ByteArray): BasicProgramLoadResult {
         debugTargetGeneration++
-        val resumeAfterLoad = state == RunnerState.RUNNING
+        val resumeAfterLoad = state == RunnerState.RUNNING && !boundedExecutionActive
         pause()
         val result = session.loadBasicProgram(program)
         if (result is BasicProgramLoadResult.Success) {
@@ -466,7 +495,7 @@ internal class DesktopEmulatorRunner(
 
     fun loadProgramImage(program: ByteArray?, image: AddressedMemoryImage?): com.digihori.pgp.core.api.ProgramImageLoadResult {
         debugTargetGeneration++
-        val resumeAfterLoad = state == RunnerState.RUNNING
+        val resumeAfterLoad = state == RunnerState.RUNNING && !boundedExecutionActive
         pause()
         val result = session.loadProgramImage(program, image)
         if (result is com.digihori.pgp.core.api.ProgramImageLoadResult.Success) {
@@ -485,7 +514,7 @@ internal class DesktopEmulatorRunner(
 
     fun loadMemoryImage(image: AddressedMemoryImage): MemoryImageLoadResult {
         debugTargetGeneration++
-        val resumeAfterLoad = state == RunnerState.RUNNING
+        val resumeAfterLoad = state == RunnerState.RUNNING && !boundedExecutionActive
         pause()
         val result = session.loadMemoryImage(image)
         if (result is MemoryImageLoadResult.Success) {
@@ -556,6 +585,7 @@ internal class DesktopEmulatorRunner(
     override fun pressKey(key: PocketKey): InputResult = pressHostKey(key, "screen:${key.name}")
 
     override fun pressHostKey(key: PocketKey, owner: String): InputResult {
+        if (boundedExecutionActive) pause()
         val wasHeld = hostKeys.isHeld(key)
         return hostKeys.press(owner, key).also { result ->
             if (result is InputResult.Accepted) {
@@ -576,6 +606,7 @@ internal class DesktopEmulatorRunner(
     }
 
     fun pressGamepadKey(button: GamepadButton, key: PocketKey) {
+        if (boundedExecutionActive) pause()
         if (hostKeys.press("gamepad:${button.name}", key) is InputResult.Accepted) {
             commandHistory.clearPendingInput()
             sessionRevision++
@@ -587,10 +618,12 @@ internal class DesktopEmulatorRunner(
     }
 
     override fun enqueueKeySequence(keys: Iterable<PocketKey>) {
+        if (boundedExecutionActive) pause()
         keyInputQueue.enqueue(keys)
     }
 
     override fun enqueueUserKeySequence(keys: Iterable<PocketKey>) {
+        if (boundedExecutionActive) pause()
         val captured = keys.toList()
         if (operatingMode == OperatingMode.RUN) commandHistory.recordUserSequence(captured)
         keyInputQueue.enqueue(captured)
@@ -604,6 +637,7 @@ internal class DesktopEmulatorRunner(
 
     /** Runs a complete generated key sequence without host-time pacing. */
     fun runKeySequenceImmediately(keys: Iterable<PocketKey>): RunResult {
+        if (boundedExecutionActive) pause()
         interruptDebugStep()
         check(state != RunnerState.FAULTED) { "Cannot run input while the emulator is faulted" }
         val resumeAfterInput = state == RunnerState.RUNNING
@@ -642,6 +676,7 @@ internal class DesktopEmulatorRunner(
         }
 
         if (status is ExecutionStatus.Faulted) {
+            finishBoundedExecution("fault")
             applyTransition(keyInputQueue.cancel())
             state = RunnerState.FAULTED
             stopReason = DebuggerStopReason.Fault(status.fault)
@@ -660,6 +695,7 @@ internal class DesktopEmulatorRunner(
     fun currentOperatingMode(): OperatingMode = operatingMode
 
     fun setOperatingMode(mode: OperatingMode) {
+        if (boundedExecutionActive) pause()
         session.setOperatingMode(mode)
         if (operatingMode != mode) { sessionRevision++; debugTargetGeneration++ }
         if (operatingMode != mode) {
@@ -688,7 +724,7 @@ internal class DesktopEmulatorRunner(
         require(now >= previous) { "Monotonic clock moved backwards" }
         previousTimeNanoseconds = now
 
-        val budget = if (unlimited) CycleBudget(4_096L, 0L, 0L) else planner.plan(now - previous, speed)
+        val budget = if (boundedExecutionActive || unlimited) CycleBudget(4_096L, 0L, 0L) else planner.plan(now - previous, speed)
         if (budget.cycles == 0L) return RunnerTick(budget, null)
 
         if (!session.isOperatingModeTransitionPending()) applyTransition(keyInputQueue.start())
@@ -709,6 +745,13 @@ internal class DesktopEmulatorRunner(
                 applyTransition(keyInputQueue.advance(partialResult.executedCycles))
             }
             if (partial.stopReason != null) {
+                finishBoundedExecution(when (val reason = partial.stopReason) {
+                    is DebuggerStopReason.ExecutionLimit -> reason.limit
+                    is DebuggerStopReason.Breakpoint -> "breakpoint"
+                    is DebuggerStopReason.RunToAddress -> "runToAddress"
+                    is DebuggerStopReason.MemoryChanged, is DebuggerStopReason.MemoryAccessed -> "watch"
+                    else -> "interrupted"
+                })
                 interruptDebugStep()
                 applyTransition(keyInputQueue.cancel())
                 state = RunnerState.PAUSED
@@ -721,6 +764,7 @@ internal class DesktopEmulatorRunner(
         }
         val result = RunResult(executedCycles, executedInstructions, status)
         if (status is ExecutionStatus.Faulted) {
+            finishBoundedExecution("fault")
             applyTransition(keyInputQueue.cancel())
             state = RunnerState.FAULTED
             previousTimeNanoseconds = null
@@ -737,7 +781,7 @@ internal class DesktopEmulatorRunner(
         if (
             executionBreakpoints.isEmpty() && temporaryRunToAddress == null &&
             !instructionTraceEnabled && !hasMemoryWatch && !hasMemoryAccessWatch &&
-            !debugObservationEnabled && stepPlan == null && !logpoints.hasEnabled
+            !debugObservationEnabled && stepPlan == null && boundedPlan == null && !logpoints.hasEnabled
         ) {
             callTracker.clear()
             val result = session.runCycles(cycleBudget)
@@ -777,6 +821,12 @@ internal class DesktopEmulatorRunner(
             val watchStop = detectWatches(pc)
             if (watchStop != null) {
                 return BreakpointRunResult(RunResult(cycles, instructions, status), stopReason = watchStop)
+            }
+            val bounded = boundedPlan
+            if (bounded != null && status !is ExecutionStatus.Faulted &&
+                (bounded.instructions >= bounded.maxInstructions || bounded.cycles >= bounded.maxCycles)) {
+                return BreakpointRunResult(RunResult(cycles, instructions, status),
+                    DebuggerStopReason.ExecutionLimit(if (bounded.instructions >= bounded.maxInstructions) "instructionLimit" else "cycleLimit"))
             }
             if (plan != null && status !is ExecutionStatus.Faulted) {
                 plan.instructions++
@@ -868,6 +918,7 @@ internal class DesktopEmulatorRunner(
             nextTraceSequence++
         }
         val result = session.step()
+        boundedPlan?.let { it.instructions++; it.cycles += result.cycles }
         lastCallEvent = if (result.status is ExecutionStatus.Faulted) {
             callTracker.clear()
             DebuggerCallTracker.Event(lost = true)

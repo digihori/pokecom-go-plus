@@ -36,6 +36,8 @@ ROMは同梱していません。自分で適法に入手したROMが必要で�
 | 実行停止・Breakpoint・Watch・Trace・ソース連携 | [Debugger](guides/DEBUGGER.md)／[English](guides/DEBUGGER.en.md) |
 | Debugger強化の実施結果・保留・手動テスト | [受入れ記録](development/DEBUGGER_RELEASE_ACCEPTANCE.md)／[テストケース](development/DEBUGGER_MANUAL_TEST_CASES.md) |
 | 外部AIクライアントを接続する | [AI接続ガイド](guides/AI_CONNECTION_GUIDE.md) |
+| 既存BASIC・機械語ファイルをAIで解析する | [プログラム解析](guides/AI_PROGRAM_ANALYSIS.md) |
+| AIからProject・Sourceを新規作成してBuildする | [プログラム生成](guides/AI_PROGRAM_GENERATION.md) |
 | 実機転送用WAVの作成・録音WAVの解析と復元 | [WAV Tool](guides/WAV_TOOL_GUIDE.md) |
 | ドットパターンを作成する | [Character Editor](guides/CHARACTER_EDITOR.md) |
 
@@ -74,6 +76,9 @@ iPhone版の開発・ビルド状況は[開発用README](../iosApp/README.md)を
 | ROMセット | [pgrom形式](reference/ROM_PACKAGE.md) |
 | WAVの仕様と境界 | [OLD](reference/WAV_OLD_FORMAT.md)、[S1／S2](reference/WAV_S1_S2_FORMAT.md)、[操作方針](development/WAV_OPERATIONS.md) |
 | AI APIの引数・承認条件・制限 | [AI連携仕様](reference/AI_INTEGRATION.md) |
+| AIが取得する機種知識・出典・未提供情報 | [MCP知識カタログ](reference/knowledge/README.md) |
+| MCP対応AIクライアントへの拡充方針・開発順・完了条件 | [AI連携拡充計画](development/AI_MCP_EXPANSION_PLAN.md) |
+| AI連携開発の中断地点・再開手順・残作業と見積もり | [AI連携の再開メモ](development/AI_MCP_RESUME.md) |
 | 機種の世代分類 | [SC61860 Machine Families](reference/MACHINE_FAMILIES.md) |
 | ビルド・自動検証 | [BUILDING](reference/BUILDING.md)、[Golden Test Data](reference/GOLDEN_TEST_DATA.md)、[fixture一覧](../test-data/README.md) |
 | 開発用の生成スクリプト | [scripts](../scripts/README.md) |

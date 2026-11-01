@@ -70,6 +70,7 @@ internal sealed interface DebugStopContext {
     data object Reset : DebugStopContext { override val kind = "reset" }
     data object UserPause : DebugStopContext { override val kind = "userPause" }
     data object StepComplete : DebugStopContext { override val kind = "stepComplete" }
+    data class ExecutionLimit(val limit: String) : DebugStopContext { override val kind = "executionLimit" }
     data class Breakpoint(val address: Int) : DebugStopContext { override val kind = "breakpoint" }
     data class RunToAddress(val address: Int) : DebugStopContext { override val kind = "runToAddress" }
     data class MemoryChanged(

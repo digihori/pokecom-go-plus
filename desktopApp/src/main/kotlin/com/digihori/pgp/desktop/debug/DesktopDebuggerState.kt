@@ -9,6 +9,7 @@ internal sealed interface DebuggerStopReason {
     data object Reset : DebuggerStopReason
     data object UserPause : DebuggerStopReason
     data object StepComplete : DebuggerStopReason
+    data class ExecutionLimit(val limit: String) : DebuggerStopReason
     data class Breakpoint(val address: Int) : DebuggerStopReason
     data class RunToAddress(val address: Int) : DebuggerStopReason
     data class MemoryChanged(

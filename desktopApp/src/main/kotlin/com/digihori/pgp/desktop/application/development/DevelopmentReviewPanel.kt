@@ -15,15 +15,27 @@ import com.digihori.pgp.desktop.localization.StudioStrings
 internal fun DevelopmentReviewPanel(
     review: DevelopmentReview?, history: List<DevelopmentOperation>, onApprove: () -> Unit, onReject: () -> Unit,
     strings: StudioStrings = StudioStrings.system,
+    creationDestination: String? = null,
+    onChooseCreationParent: () -> Unit = {},
 ) {
     if (review == null && history.isEmpty()) return
     review?.let {
         Text(strings.text("mcp.review.heading"), style = MaterialTheme.typography.titleLarge)
-        Text(strings.text(if (it.kind == "PATCH") "mcp.review.patch" else "mcp.review.build", it.projectName))
+        Text(strings.text(when (it.kind) {
+            "PATCH" -> "mcp.review.patch"
+            "CREATE_PROJECT" -> "mcp.review.createProject"
+            "ADD_SOURCE" -> "mcp.review.addSource"
+            else -> "mcp.review.build"
+        }, it.projectName))
         it.sourcePath?.let { path -> Text(path, fontFamily = FontFamily.Monospace) }
         Text(strings.text("mcp.review.untrusted"))
+        if (it.kind == "CREATE_PROJECT") {
+            Text(strings.text("mcp.review.creationMachine", it.machineId))
+            Text(strings.text("mcp.review.destination", creationDestination ?: strings.text("mcp.review.destinationMissing")))
+            OutlinedButton(onClick = onChooseCreationParent) { Text(strings.text("mcp.review.chooseParent")) }
+        }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onApprove) { Text(strings.text("mcp.review.approve")) }
+            Button(onClick = onApprove, enabled = it.kind != "CREATE_PROJECT" || creationDestination != null) { Text(strings.text("mcp.review.approve")) }
             OutlinedButton(onClick = onReject) { Text(strings.text("mcp.review.reject")) }
         }
         SelectionContainer {
@@ -34,6 +46,11 @@ internal fun DevelopmentReviewPanel(
                     Text(edit.oldText, fontFamily = FontFamily.Monospace)
                     Text(strings.text("mcp.review.after"))
                     Text(edit.newText, fontFamily = FontFamily.Monospace)
+                }
+                if (it.generatedSources.isNotEmpty()) Text(it.machineId)
+                it.generatedSources.forEach { source ->
+                    Text("${source.definition.path} · ${source.type}", fontFamily = FontFamily.Monospace)
+                    Text(source.text, fontFamily = FontFamily.Monospace)
                 }
             }
         }

@@ -34,6 +34,7 @@ internal object DebuggerHistoryExport {
             DebuggerStopReason.Reset -> "RESET"
             DebuggerStopReason.UserPause -> "USER_PAUSE"
             DebuggerStopReason.StepComplete -> "STEP_COMPLETE"
+            is DebuggerStopReason.ExecutionLimit -> "EXECUTION_LIMIT"
             is DebuggerStopReason.Breakpoint -> "BREAKPOINT"
             is DebuggerStopReason.RunToAddress -> "RUN_TO_ADDRESS"
             is DebuggerStopReason.MemoryChanged -> "MEMORY_CHANGED"

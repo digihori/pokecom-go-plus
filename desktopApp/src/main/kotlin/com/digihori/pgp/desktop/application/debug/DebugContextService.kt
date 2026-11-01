@@ -232,6 +232,7 @@ internal class DesktopDebugContextService(
         DebuggerStopReason.Reset -> DebugStopContext.Reset
         DebuggerStopReason.UserPause -> DebugStopContext.UserPause
         DebuggerStopReason.StepComplete -> DebugStopContext.StepComplete
+        is DebuggerStopReason.ExecutionLimit -> DebugStopContext.ExecutionLimit(limit)
         is DebuggerStopReason.Breakpoint -> DebugStopContext.Breakpoint(address)
         is DebuggerStopReason.RunToAddress -> DebugStopContext.RunToAddress(address)
         is DebuggerStopReason.MemoryChanged -> DebugStopContext.MemoryChanged(

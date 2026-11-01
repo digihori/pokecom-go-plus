@@ -50,6 +50,25 @@ val prepareDistributionResources by tasks.registering(Sync::class) {
     into(layout.buildDirectory.dir("generated/distribution-resources/common"))
 }
 
+// Curated knowledge and the existing tested example are available in installed apps, without a checkout.
+val prepareKnowledgeResources by tasks.registering(Sync::class) {
+    from(rootProject.file("docs/reference/knowledge")) { include("*.md"); into("knowledge/articles") }
+    from(rootProject.file("test-data/assembly/pc1245-hello")) {
+        include("pgp-project.json", "src/main.bas", "src/hello.asm")
+        into("knowledge/examples/pc1245-hello-world")
+    }
+    from(rootProject.file("test-data/basic/ai/pc1245-numeric-labels")) {
+        include("pgp-project.json", "src/main.bas")
+        into("knowledge/examples/pc1245-numeric-labels")
+    }
+    from(rootProject.file("test-data/basic/ai/pc1251-numeric-labels")) {
+        include("pgp-project.json", "src/main.bas")
+        into("knowledge/examples/pc1251-numeric-labels")
+    }
+    into(layout.buildDirectory.dir("generated/knowledge-resources"))
+}
+sourceSets.main { resources.srcDir(prepareKnowledgeResources) }
+
 tasks.matching { it.name == "prepareAppResources" }.configureEach {
     dependsOn(prepareDistributionResources)
 }

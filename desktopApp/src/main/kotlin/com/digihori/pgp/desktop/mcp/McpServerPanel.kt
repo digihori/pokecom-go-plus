@@ -23,6 +23,8 @@ internal fun McpServerPanel(
     onCopyToken: () -> Unit,
     onCopyConfiguration: () -> Unit,
     strings: StudioStrings = StudioStrings.system,
+    onCopyStdioConfiguration: (StdioMcpClient) -> Unit = {},
+    stdioConfigurationAvailable: Boolean = false,
 ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(strings.text("mcp.heading"), style = MaterialTheme.typography.headlineSmall)
@@ -69,9 +71,18 @@ internal fun McpServerPanel(
             Text(
                 strings.text("mcp.credentialHelp"),
             )
+            Text(strings.text("mcp.stdioHelp"))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StdioMcpClient.entries.forEach { client ->
+                    TextButton(enabled = stdioConfigurationAvailable, onClick = { onCopyStdioConfiguration(client) }) {
+                        Text(strings.text("mcp.copyStdioConfig", client.label))
+                    }
+                }
+            }
+            if (!stdioConfigurationAvailable) Text(strings.text("mcp.stdioPackagedOnly"))
         }
         Text(strings.text("mcp.tools"), style = MaterialTheme.typography.titleMedium)
-        Text("• pgp_get_capabilities\n• pgp_get_debug_context\n• pgp_get_debug_registrations\n• pgp_get_machine_spec\n• pgp_get_development_context\n• pgp_get_source\n• pgp_propose_source_patch\n• pgp_build_project\n• pgp_get_operation\n• pgp_propose_debug_action\n• pgp_get_debug_operation\n• pgp_get_build_artifact\n• pgp_propose_load\n• pgp_propose_continue\n• pgp_get_execution_operation", fontFamily = FontFamily.Monospace)
+        Text(PgpMcpToolAdapter.publicToolNames.joinToString("\n") { "• $it" }, fontFamily = FontFamily.Monospace)
         Text(strings.text("mcp.lastRequest"), style = MaterialTheme.typography.titleMedium)
         Text(strings.mcpRequestDescription(lastRequest))
     }

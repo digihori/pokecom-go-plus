@@ -23,7 +23,7 @@ internal object DebugContextJsonWriter {
                 put("runState", context.session.runState)
                 putNullable("executedCycles", context.session.executedCycles)
             })
-            context.stop?.let { put("stop", it.toJson()) } ?: put("stop", JsonNull)
+            put("stop", context.stop?.toJson() ?: JsonNull)
             put("cpu", context.cpu.toJson())
             put("rom", buildJsonObject {
                 putNullable("selectedBank", context.rom.selectedBank)
@@ -78,6 +78,7 @@ internal object DebugContextJsonWriter {
         put("kind", kind)
         when (val stop = this@toJson) {
             DebugStopContext.Reset, DebugStopContext.UserPause, DebugStopContext.StepComplete -> Unit
+            is DebugStopContext.ExecutionLimit -> put("limit", stop.limit)
             is DebugStopContext.Breakpoint -> put("address", stop.address)
             is DebugStopContext.RunToAddress -> put("address", stop.address)
             is DebugStopContext.MemoryChanged -> {

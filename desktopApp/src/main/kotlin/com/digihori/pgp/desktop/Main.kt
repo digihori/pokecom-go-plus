@@ -263,7 +263,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 
-fun main() {
+fun main(args: Array<String>) {
+    if (args.firstOrNull() == "--mcp-stdio") {
+        com.digihori.pgp.desktop.mcp.runMcpStdio(args)
+        return
+    }
     StudioStrings.configureForStartup(DesktopUiPreferences.languagePreference())
     StudioStrings.system // Resolve and freeze the UI language before opening windows.
     configureSkikoRenderApi()
@@ -385,6 +389,9 @@ private fun FrameWindowScope.App(
         }
     }
     var showMcpServerWindow by remember { mutableStateOf(false) }
+    var showProgramAnalysisWindow by remember { mutableStateOf(false) }
+    val programAnalysisService = remember { com.digihori.pgp.desktop.application.development.ProgramAnalysisService() }
+    var analysisPublicationRevision by remember { mutableStateOf(0) }
     var mcpPort by remember { mutableStateOf(DesktopMcpServer.DEFAULT_PORT.toString()) }
     var mcpServerInfo by remember { mutableStateOf<DesktopMcpServerInfo?>(null) }
     var mcpServerError by remember { mutableStateOf<String?>(null) }
@@ -400,12 +407,14 @@ private fun FrameWindowScope.App(
     var developmentReviewRevision by remember { mutableStateOf(0) }
     val developmentAppliedCallback = remember { AtomicReference<((String) -> Unit)?>(null) }
     val developmentBuildCallback = remember { AtomicReference<((String) -> Unit)?>(null) }
+    val developmentWorkspaceCallback = remember { AtomicReference<((DesktopProjectWorkspace) -> Unit)?>(null) }
     val developmentChangeService = remember {
         com.digihori.pgp.desktop.application.development.DevelopmentChangeService(
             stateProvider = { developmentStateReference.get() ?: throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("NOT_READY") },
             onChange = { developmentReviewRevision++; showMcpServerWindow = true },
             onApplied = { developmentAppliedCallback.get()?.invoke(it) },
             onBuild = { id -> (developmentBuildCallback.get() ?: throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("NOT_READY"))(id) },
+            onWorkspaceChanged = { updated -> (developmentWorkspaceCallback.get() ?: throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("NOT_READY"))(updated) },
         )
     }
     val projectBuildRegistry = remember {
@@ -428,6 +437,19 @@ private fun FrameWindowScope.App(
         )
     }
     val debugPauseCallback = remember { AtomicReference<((DesktopEmulatorRunner) -> Unit)?>(null) }
+    var boundedReviewRevision by remember { mutableStateOf(0) }
+    val boundedExecutionService = remember {
+        com.digihori.pgp.desktop.application.execution.BoundedExecutionService(
+            { developmentStateReference.get() ?: throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("NOT_READY") },
+            { developmentChangeService.projectRevision() },
+            { boundedReviewRevision++; showMcpServerWindow = true },
+        )
+    }
+    val displayReadService = remember {
+        com.digihori.pgp.desktop.application.execution.DisplayReadService {
+            developmentStateReference.get() ?: throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("NOT_READY")
+        }
+    }
     val debugStepCallback = remember { AtomicReference<((DesktopEmulatorRunner) -> Unit)?>(null) }
     val debugRefreshCallback = remember { AtomicReference<((DesktopEmulatorRunner) -> Unit)?>(null) }
     var debugReviewRevision by remember { mutableStateOf(0) }
@@ -449,12 +471,15 @@ private fun FrameWindowScope.App(
                 changesProvider = { developmentChangeService },
                 debugChangesProvider = { debugChangeService },
                 executionProvider = { executionChangeService },
+                analysisProvider = { programAnalysisService },
+                boundedProvider = { boundedExecutionService },
+                displayProvider = { displayReadService },
             ),
             onRequest = { request -> EventQueue.invokeLater { mcpLastRequest = request } },
         )
     }
     DisposableEffect(mcpServer) {
-        onDispose { mcpServer.stop() }
+        onDispose { boundedExecutionService.cancel(); mcpServer.stop() }
     }
     var focusRestoreRequest by remember { mutableLongStateOf(0L) }
     var debuggerSettingsNotice by remember { mutableStateOf<String?>(null) }
@@ -525,7 +550,7 @@ private fun FrameWindowScope.App(
     val emulatorInputBlocked = showCreateProjectDialog || showRenameProjectDialog || showSaveMemoryDumpDialog ||
         showSaveDisassemblyDialog || showSaveCheckpointDialog || showDebugContextDialog ||
         showRomManager || pendingRomRemoval != null || errorDialogMessage != null ||
-        showSettingsWindow || showCreateRomSetWindow
+        showSettingsWindow || showCreateRomSetWindow || showProgramAnalysisWindow
     SideEffect {
         keyboardInput.setModalInputBlocked(emulatorInputBlocked)
         gamepad.setContext(runner, mainWindowFocused && keyboardInput.isEnabled && !showSettingsWindow && !showCreateRomSetWindow && !showCreateProjectDialog && !showRenameProjectDialog)
@@ -1013,6 +1038,10 @@ private fun FrameWindowScope.App(
             changedAssemblySources = changedAssemblySources + sourceId
             projectRuntimeStatus = ProjectRuntimeStatus.SOURCE_CHANGED
         }
+        developmentWorkspaceCallback.set { updated ->
+            openProject(updated.manifestFile,
+                resetBasicTracking = projectWorkspace?.manifestFile?.absolutePath != updated.manifestFile.absolutePath)
+        }
         developmentBuildCallback.set { operationId ->
             if (assemblyBusy) throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("BUSY")
             startAssembly {
@@ -1370,6 +1399,7 @@ private fun FrameWindowScope.App(
             // A real suspension lets AWT input and rendering run between unlimited CPU batches.
             delay(if (runner?.unlimited == true && runner?.state == RunnerState.RUNNING) 1L
                 else FRAME_DELAY_MILLISECONDS)
+            boundedExecutionService.observe()
             val activeRunner = runner ?: continue
             val stateBeforeTick = activeRunner.state
             if (stateBeforeTick == RunnerState.RUNNING && debuggerComparison.cpuBasis != DebuggerComparisonBasis.RUNNING) {
@@ -1377,6 +1407,7 @@ private fun FrameWindowScope.App(
                 changedCpuFields = emptySet()
             }
             val tick = activeRunner.tick()
+            boundedExecutionService.observe()
             executedCycles += tick.runResult?.executedCycles ?: 0L
             runnerState = activeRunner.state
             debuggerStopReason = activeRunner.stopReason
@@ -1537,6 +1568,8 @@ private fun FrameWindowScope.App(
             Item(uiText("project.update"), enabled = projectWorkspace != null, onClick = ::updateProject)
         }
         Menu(uiText("menu.program")) {
+            Item(uiText("analysis.menu"), enabled = !showProgramAnalysisWindow, onClick = { showProgramAnalysisWindow = true })
+            Separator()
             Item(
                 uiText("basic.load"),
                 enabled = runner != null && runnerState != RunnerState.FAULTED,
@@ -2066,11 +2099,33 @@ private fun FrameWindowScope.App(
         }
     }
 
+    if (showProgramAnalysisWindow) {
+        val metadata = remember(analysisPublicationRevision) { programAnalysisService.metadata() }
+        StudioWindow(id = "program-analysis", onCloseRequest = { showProgramAnalysisWindow = false },
+            title = uiText("analysis.window", ProjectInfo.STUDIO_DISPLAY_NAME)) {
+            PgpStudioTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    com.digihori.pgp.desktop.application.development.ProgramAnalysisPanel(
+                        programAnalysisService, metadata,
+                        onChoose = {
+                            selectFile(window, uiText("analysis.choose"), "*.*")?.let { file ->
+                                file.name to file.inputStream().use { it.readNBytes(com.digihori.pgp.desktop.application.development.ProgramAnalysisService.MAX_INPUT_BYTES + 1) }
+                            }
+                        },
+                        onPublish = { programAnalysisService.publish(it); analysisPublicationRevision++ },
+                        onClear = { programAnalysisService.clear(); analysisPublicationRevision++ },
+                    )
+                }
+            }
+        }
+    }
+
     if (showMcpServerWindow) {
         val review = remember(developmentReviewRevision) { developmentChangeService.review() }
         val executionReview = remember(executionReviewRevision) { executionChangeService.review() }
         val debugReview = remember(debugReviewRevision) { debugChangeService.review() }
-        val pendingReviewIds = listOfNotNull(review?.id, executionReview?.id, debugReview?.id).takeIf { it.isNotEmpty() }
+        val boundedReview = remember(boundedReviewRevision) { boundedExecutionService.review() }
+        val pendingReviewIds = listOfNotNull(review?.id, executionReview?.id, debugReview?.id, boundedReview?.id).takeIf { it.isNotEmpty() }
         StudioWindow(
             id = "mcp-server",
             onCloseRequest = { showMcpServerWindow = false },
@@ -2089,9 +2144,19 @@ private fun FrameWindowScope.App(
                         if (review != null) {
                             com.digihori.pgp.desktop.application.development.DevelopmentReviewPanel(
                                 review, emptyList(), developmentChangeService::approve, developmentChangeService::reject,
+                                creationDestination = developmentChangeService.creationDestination()?.absolutePath,
+                                onChooseCreationParent = {
+                                    runCatching {
+                                        selectDirectory(window, uiText("mcp.review.chooseParent"))?.let(developmentChangeService::selectCreationParent)
+                                    }.onFailure { showError(uiText("project.chooseFolderFailed", it.message ?: "")) }
+                                },
                             )
                         }
                         val executionOperations = remember(executionReviewRevision) { executionChangeService.history() }
+                        val boundedOperations = remember(boundedReviewRevision) { boundedExecutionService.history() }
+                        com.digihori.pgp.desktop.application.execution.BoundedExecutionReviewPanel(
+                            boundedReview, boundedOperations, boundedExecutionService::approve, boundedExecutionService::reject,
+                        )
                         com.digihori.pgp.desktop.application.execution.ExecutionReviewPanel(
                             executionReview, executionOperations, executionChangeService::approve, executionChangeService::reject,
                         )
@@ -2122,10 +2187,18 @@ private fun FrameWindowScope.App(
                                     }
                                 }
                             },
-                            onStop = { executionChangeService.reject(); debugChangeService.reject(); developmentChangeService.reject(); mcpServer.stop(); mcpServerInfo = null; mcpLastRequest = null },
+                            onStop = { boundedExecutionService.cancel(); executionChangeService.reject(); debugChangeService.reject(); developmentChangeService.reject(); mcpServer.stop(); mcpServerInfo = null; mcpLastRequest = null },
                             onCopyUrl = { mcpServerInfo?.let { copyToClipboard(it.url); message = uiText("mcp.copiedUrl") } },
                             onCopyToken = { mcpServerInfo?.let { copyToClipboard(it.token); message = uiText("mcp.copiedToken") } },
                             onCopyConfiguration = { mcpServerInfo?.let { copyToClipboard(codexMcpConfiguration(it)); message = uiText("mcp.copiedConfig") } },
+                            onCopyStdioConfiguration = { client ->
+                                val launcher = com.digihori.pgp.desktop.mcp.packagedMcpLauncher()
+                                if (launcher != null) mcpServerInfo?.let {
+                                    copyToClipboard(com.digihori.pgp.desktop.mcp.stdioMcpConfiguration(client, launcher, it.port))
+                                    message = uiText("mcp.copiedStdioConfig", client.label)
+                                }
+                            },
+                            stdioConfigurationAvailable = com.digihori.pgp.desktop.mcp.packagedMcpLauncher() != null,
                         )
                     }
                 }
@@ -3449,6 +3522,7 @@ internal fun DebuggerStopReason.displayName(strings: StudioStrings = StudioStrin
     DebuggerStopReason.Reset -> strings.text("emulator.reset")
     DebuggerStopReason.UserPause -> strings.text("main.userPause")
     DebuggerStopReason.StepComplete -> strings.text("main.stepComplete")
+    is DebuggerStopReason.ExecutionLimit -> strings.text("main.executionLimit", limit)
     is DebuggerStopReason.Breakpoint -> strings.text("debug.stop.breakpoint", address.hex(4))
     is DebuggerStopReason.RunToAddress -> strings.text("debug.stop.runToReached", address.hex(4))
     is DebuggerStopReason.MemoryChanged -> {
@@ -3888,7 +3962,7 @@ internal fun codexMcpConfiguration(info: DesktopMcpServerInfo): String = """
     [mcp_servers.pokecom_go_studio]
     url = "${info.url}"
     http_headers_helper = "${tomlEscape(info.headerHelperCommand)}"
-    enabled_tools = ["pgp_get_capabilities", "pgp_get_debug_context", "pgp_get_debug_registrations", "pgp_get_machine_spec", "pgp_get_development_context", "pgp_get_source", "pgp_propose_source_patch", "pgp_build_project", "pgp_get_operation", "pgp_propose_debug_action", "pgp_get_debug_operation", "pgp_get_build_artifact", "pgp_propose_load", "pgp_propose_continue", "pgp_get_execution_operation"]
+    enabled_tools = [${PgpMcpToolAdapter.publicToolNames.joinToString(", ") { "\"$it\"" }}]
     default_tools_approval_mode = "auto"
 """.trimIndent()
 

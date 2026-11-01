@@ -35,8 +35,14 @@ internal class PgpMcpToolAdapter(
     private val changesProvider: () -> com.digihori.pgp.desktop.application.development.DevelopmentChangeService? = { null },
     private val debugChangesProvider: () -> com.digihori.pgp.desktop.application.debug.DebugChangeService? = { null },
     private val executionProvider: () -> com.digihori.pgp.desktop.application.execution.ExecutionChangeService? = { null },
+    private val analysisProvider: () -> com.digihori.pgp.desktop.application.development.ProgramAnalysisService? = { null },
+    private val boundedProvider: () -> com.digihori.pgp.desktop.application.execution.BoundedExecutionService? = { null },
+    private val displayProvider: () -> com.digihori.pgp.desktop.application.execution.DisplayReadService? = { null },
 ) {
+    private val knowledge = com.digihori.pgp.desktop.application.development.PocketKnowledgeService()
     fun tools(): JsonArray = buildJsonArray {
+        add(ProgramAnalysisMcp.tool())
+        KnowledgeMcp.tools().forEach { add(it) }
         add(buildJsonObject {
             put("name", GET_CAPABILITIES)
             put("title", "Get Pokecom GO capabilities")
@@ -80,6 +86,8 @@ internal class PgpMcpToolAdapter(
             })
         }))
         changeTools().forEach { add(it) }
+        ProjectGenerationMcp.tools().forEach { add(it) }
+        BoundedExecutionMcp.tools().forEach { add(it) }
         DebugChangeMcp.tools().forEach { add(it) }
         ExecutionChangeMcp.tools().forEach { add(it) }
     }
@@ -170,6 +178,42 @@ internal class PgpMcpToolAdapter(
     }
 
     fun call(name: String, arguments: JsonObject): JsonObject = applicationDispatcher.dispatch {
+        if (name in BoundedExecutionMcp.names) return@dispatch try {
+            if (name == BoundedExecutionMcp.DISPLAY) {
+                if (arguments.keys != setOf("sessionId", "sessionRevision")) throw DevelopmentReadError("INVALID_ARGUMENTS")
+                (displayProvider() ?: throw DevelopmentReadError("NOT_AVAILABLE")).read(
+                    BoundedExecutionMcp.string(arguments, "sessionId"), BoundedExecutionMcp.number(arguments, "sessionRevision"))
+            } else toolSuccess(BoundedExecutionMcp.call(boundedProvider() ?: throw DevelopmentReadError("NOT_AVAILABLE"), name, arguments), "Studio bounded execution data")
+        } catch (error: DevelopmentReadError) { toolError(error.code, "Bounded execution/display rejected: ${error.code}") }
+          catch (_: Exception) { toolError("EXECUTION_READ_FAILED", "Bounded execution/display request failed") }
+        if (name in ProjectGenerationMcp.names) return@dispatch try {
+            val value = ProjectGenerationMcp.call(changesProvider() ?: throw DevelopmentReadError("NOT_AVAILABLE"), name, arguments)
+            toolSuccess(value, "Studio project/source creation review data")
+        } catch (error: DevelopmentReadError) { toolError(error.code, "Creation proposal rejected: ${error.code}") }
+          catch (_: Exception) { toolError("CREATION_FAILED", "Creation proposal failed") }
+        if (name == ProgramAnalysisMcp.GET) return@dispatch try {
+            val value = ProgramAnalysisMcp.call(analysisProvider() ?: throw DevelopmentReadError("NOT_AVAILABLE"), arguments)
+            buildJsonObject {
+                put("structuredContent", value)
+                put("content", kotlinx.serialization.json.buildJsonArray {
+                    add(buildJsonObject { put("type", "text"); put("text", value.toString()) })
+                })
+                put("isError", false)
+            }
+        } catch (error: DevelopmentReadError) { toolError(error.code, "Analysis read rejected: ${error.code}") }
+          catch (_: Exception) { toolError("ANALYSIS_READ_FAILED", "Analysis snapshot could not be read") }
+        if (name in KnowledgeMcp.names) return@dispatch try {
+            val value = KnowledgeMcp.call(knowledge, name, arguments)
+            // Include the actual data as text for clients that do not consume structuredContent.
+            buildJsonObject {
+                put("structuredContent", value)
+                put("content", kotlinx.serialization.json.buildJsonArray {
+                    add(buildJsonObject { put("type", "text"); put("text", value.toString()) })
+                })
+                put("isError", false)
+            }
+        } catch (error: DevelopmentReadError) { toolError(error.code, "Knowledge read rejected: ${error.code}") }
+          catch (_: Exception) { toolError("KNOWLEDGE_READ_FAILED", "Bundled knowledge could not be read") }
         if (name in ExecutionChangeMcp.names) return@dispatch try {
             val service = executionProvider() ?: throw DevelopmentReadError("NOT_AVAILABLE")
             toolSuccess(ExecutionChangeMcp.call(service, name, arguments), "Studio Load/Continue review data")
@@ -295,7 +339,7 @@ internal class PgpMcpToolAdapter(
     private fun toolSuccess(structured: JsonObject, summary: String): JsonObject = buildJsonObject {
         put("structuredContent", structured)
         put("content", buildJsonArray {
-            add(buildJsonObject { put("type", "text"); put("text", summary) })
+            add(buildJsonObject { put("type", "text"); put("text", "$summary\n$structured") })
         })
         put("isError", false)
     }
@@ -355,6 +399,9 @@ internal class PgpMcpToolAdapter(
     }
 
     companion object {
+        val publicToolNames: List<String> by lazy {
+            PgpMcpToolAdapter({ null }).tools().map { it.jsonObject.getValue("name").jsonPrimitive.content }
+        }
         const val GET_MACHINE_SPEC = "pgp_get_machine_spec"
         const val GET_DEVELOPMENT_CONTEXT = "pgp_get_development_context"
         const val GET_CAPABILITIES: String = "pgp_get_capabilities"

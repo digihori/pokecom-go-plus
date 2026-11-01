@@ -1,7 +1,11 @@
 # Pokecom GO Studio AI Integration
 
-**ステータス:** 作業順8〜12を実装し、今回のAI連携強化を一区切り。公開MCP toolは15件
-**更新日:** 2026-10-22
+**ステータス:** 作業順8〜12に加え、同梱stdioブリッジ、PC-1245知識APIと解析用取り込みを実装。Project／Source作成提案を追加。上限付き実行・LCD取得を追加。公開MCP toolは24件
+**更新日:** 2026-11-01
+
+今後の拡充方針は[MCP対応AIクライアントへのAI連携拡充計画](../development/AI_MCP_EXPANSION_PLAN.md)
+（2026-11-01）を参照。Codexを主な開発・確認環境とし、Copilot等で相互運用を検証する。
+以下は現行APIの仕様であり、計画中の機能とは区別する。
 
 ## 現在の到達点（2026-10-22）
 
@@ -21,7 +25,7 @@ PauseまでをStudio承認付きで接続した。Source差分／BuildとLoad／
 
 新規Project作成、キー入力、LCD画像取得、直接Memory書込み、外部assemblerのMCP Build、
 自動の実行上限は今回の対象外。ContinueはBASICのRUN / CALLを入力しない。
-次の機能追加は未確定とし、実利用で得られた不具合や操作性の改善を個別に判断する。
+次の機能追加は上記の拡充計画に沿って具体化し、実利用で得られた不具合や操作性の改善も反映する。
 接続手順は[AI接続ガイド](../guides/AI_CONNECTION_GUIDE.md)、初期構想・実装順・検証結果は[履歴](../development/AI_INTEGRATION_HISTORY.md)を参照。
 以下は現行APIの仕様・制約を中心に記載し、段階名と日付は由来の識別に残す。
 
@@ -158,7 +162,7 @@ Codexから接続する場合は、管理画面の`Copy Codex config`で取得�
 [mcp_servers.pokecom_go_studio]
 url = "http://127.0.0.1:8765/mcp"
 http_headers_helper = "/bin/cat '/Users/example/Library/Application Support/PokecomGOStudio/mcp-headers.json'"
-enabled_tools = ["pgp_get_capabilities", "pgp_get_debug_context", "pgp_get_debug_registrations", "pgp_get_machine_spec", "pgp_get_development_context", "pgp_get_source", "pgp_propose_source_patch", "pgp_build_project", "pgp_get_operation", "pgp_propose_debug_action", "pgp_get_debug_operation", "pgp_get_build_artifact", "pgp_propose_load", "pgp_propose_continue", "pgp_get_execution_operation"]
+enabled_tools = ["pgp_propose_bounded_execution", "pgp_get_bounded_execution", "pgp_get_display", "pgp_propose_project_creation", "pgp_propose_source_creation", "pgp_get_analysis_context", "pgp_search_knowledge", "pgp_get_knowledge", "pgp_get_example", "pgp_get_capabilities", "pgp_get_debug_context", "pgp_get_debug_registrations", "pgp_get_machine_spec", "pgp_get_development_context", "pgp_get_source", "pgp_propose_source_patch", "pgp_build_project", "pgp_get_operation", "pgp_propose_debug_action", "pgp_get_debug_operation", "pgp_get_build_artifact", "pgp_propose_load", "pgp_propose_continue", "pgp_get_execution_operation"]
 default_tools_approval_mode = "auto"
 ```
 
@@ -514,3 +518,268 @@ addressScopeは指定あり登録があれば`logicalWithOptionalRomBank`、な�
 詳細は[Debuggerのbank指定仕様](../guides/DEBUGGER.md#24-bank指定breakpoint2026-10-30)を参照してください。
 MCP adapterとApplication Serviceを通す自動検証で、提案・承認・取得、型エラー・範囲外の拒否、
 省略による保持・nullによる解除を確認しました。外部AIクライアントでの実接続受入れは未実施です。
+
+## 20. 同梱stdioブリッジ（2026-11-01）
+
+開発版は`PokecomGOStudio --mcp-stdio [--port <1..65535>]`でstdioブリッジを起動できる。
+既定portは8765。GUI、設定読込み、ROM、Sessionの初期化に入る前に分岐する。
+既存のlocalhost HTTPサーバーと15ツールを共用し、承認・revision照合の意味を変更しない。
+Studioのサーバーは利用者が別途起動する。ブリッジ自身は待受けない。
+
+stdin/stdoutはUTF-8の改行区切りJSON-RPC。通知には応答しない。
+要求は64 KiB、応答は1 MiBまで。過大な入力は残りを読み捨て、次の行から処理を続ける。
+接続先は`127.0.0.1`の指定portに固定し、プロキシ・HTTPリダイレクトを使わない。
+接続timeoutは5秒、応答timeoutは30秒。自動再送・承認・実行操作は追加しない。
+
+既存と同じOS別保存先から、要求ごとに一時Authorizationを読み直す。
+通常ファイル、所有者限定のPOSIX権限またはWindows ACL、サイズ、ヘッダー形式を検証する。
+認証情報、任意の例外メッセージ、ローカルパスをstdoutやエラー応答へ出力しない。
+HTTP失敗、接続不能、認証読込み失敗は要求ID付きのJSON-RPC error `-32050`を返す。
+失敗後の状態変更要求は、呼出し側がoperation等を照合してから再提案する。
+
+配布アプリではVS Code、Copilot portable形式、Claude Desktop、Gemini CLI向けの
+トークンを含まないstdio設定をコピーできる。既存のCodex HTTP設定は維持する。
+設定形式と対応確認範囲は[接続ガイド](../guides/AI_CONNECTION_GUIDE.md)、
+検証結果は[接続検証記録](../development/AI_MCP_CONNECTION_VERIFICATION.md)を参照。
+
+## 21. PC-1245機種知識API初版（2026-11-01）
+
+セッション・Project・ROMなしでも、インストール済みの知識を次の3ツールで取得できる。
+既存15ツールの名前・schemaは維持する。知識ツールは読み取り専用で、Build・Load・実行を行わない。
+
+| Tool | 引数 | 応答format |
+| --- | --- | --- |
+| `pgp_search_knowledge` | 必須machineId、任意query／topic／offset／limit | `pgp-knowledge-search` |
+| `pgp_get_knowledge` | 必須machineId／id | `pgp-knowledge-item` |
+| `pgp_get_example` | 必須machineId／exampleId | `pgp-knowledge-example` |
+
+初版のmachineIdは`pc-1245`のみ。他機種は`UNSUPPORTED_KNOWLEDGE_MACHINE`。
+queryは最大256文字、空文字／省略は一覧。空白区切りの全語を大小文字無視で照合する。
+topicはbasic／memory／display／assembler／execution／example／instruction。
+offsetは0〜1000000（既定0）、limitは1〜16（既定8）。totalとnextOffsetでページングする。
+本文を検索対象に含むが、検索結果は本文を含まない要約一覧。該当なしは空配列。
+
+項目ID・exampleIdは最大128文字の文字列。未知IDは`KNOWLEDGE_NOT_FOUND`／`EXAMPLE_NOT_FOUND`。
+パスやURLの読込み引数はない。未知キー、null、文字列化した数値、範囲外の値は`INVALID_ARGUMENTS`。
+structuredContentはschemaVersion 1、catalogVersion `pc1245-v1`。構造化応答は最大64 KiBで、
+超過時は`RESPONSE_TOO_LARGE`。クライアント互換性のため、同じJSONをcontentのtextにも格納する。
+
+項目はsources（リポジトリ相対の参照先）、verification（根拠種別・実機未検証・ROM適用条件）を返す。
+本文・作例はclasspath内の固定resourceのみを読む。実行時の任意ファイル・ネットワーク・ROM・Project参照は行わない。
+BASICコード表、メモリ既定値、LCD情報、命令メタデータは現行Core／既存機種仕様サービスを共用する。
+機種知識のcodeTableはTokenizerの認識情報であり、全BASIC構文や実ROM実行を保証しない。
+命令の完全な動作・フラグ・cycle数とROMルーチンABIは未提供として明示する。
+
+作例ID `pc1245-hello-world`はmanifest・BASIC・Assemblyの本文3ファイルと適用条件を返す。
+既存テストfixtureをビルド時に同梱し、ROM・生成済みバイナリは含めない。
+詳しい項目一覧と情報源は[MCP知識カタログ](knowledge/README.md)を参照。
+enabled_toolsを制限するクライアントでは、設定を再コピーして追加3ツールを有効にする。
+
+## 22. 解析用プログラムの取り込み・取得（2026-11-01）
+
+StudioのProgram Analysis画面で利用者が選択・確認・公開した1件のスナップショットを、
+新しい読み取り専用tool `pgp_get_analysis_context`で取得する。公開toolは合計19件。
+任意ファイルパスのMCP引数、リモートの取り込み・承認、直接Memory書込み、Load・実行は追加しない。
+入力・公開手順は[プログラム解析ガイド](../guides/AI_PROGRAM_ANALYSIS.md)を参照。
+
+| section | 引数 | 内容 |
+| --- | --- | --- |
+| metadata（省略時） | section以外は不要・拒否 | available、対象情報、解析結果の根拠の記載方針 |
+| source | targetId、revision必須。offset／limit任意 | 行番号付きソース。offsetは0基準の物理行、limitは行数 |
+| disassembly | targetId、revision必須。startAddress／instructionCount任意 | 取り込んだRAMバイト列の線形逆アセンブル |
+
+metadataは未公開時もavailable=falseで取得できる。対象にtargetId、内容と条件のrevision、
+machineId、ファイル名（絶対パスなし）、形式、入力hash、正規化ソースhash、image hash、区間、
+入口と利用者メモを返す。入口・メモは利用者の未検証情報。Sessionやロード済み成果物とは照合しない。
+`importLoadsEmulator=false`は公開操作がLoadしないという意味で、現在のSessionの未ロードを示す値ではない。
+`runtimeCorrespondence=notTracked`と`runtimeStateNotice`で、実際のLoad・実行状態をこのAPIでは追跡しないことを明示する。
+入口の`entryBasis=userProvidedUnverified`も、対象コードが実行されたことがないという主張ではない。
+
+sourceはoffset 0〜1000000（既定0）、limit 1〜128（既定32）。本文は1ページ最大16384文字程度で
+早く区切る場合があり、nextOffsetを使う。行番号は1基準の物理行番号で、BASIC行番号とは異なる。
+disassemblyはinstructionCount 1〜128（既定32）、startAddressはJSON integer 0〜65535。
+省略時は利用者の入口、入口不明なら先頭区間から開始し、そのbasisを示す。
+読み出すのは取り込んだ区間のみで、次ページはnextAddress。区間末尾の不完全命令は1byteのDBとする。
+全行にコード／データ未分類を明記し、実行Traceや自動的な制御フロー解析の完了とは扱わない。
+
+応答はschemaVersion 1。formatは`pgp-analysis-context`／`pgp-analysis-source`／`pgp-analysis-disassembly`。
+structuredContentと同じJSONをtextにも含め、構造化応答の上限は128 KiB。
+未知キー、null、型・範囲違反、sectionと無関係な引数はINVALID_ARGUMENTS。
+未公開はNO_ANALYSIS_TARGET、差し替え前のID／revisionはSTALE_ANALYSIS_TARGET。
+形式違いはANALYSIS_HAS_NO_SOURCE／ANALYSIS_HAS_NO_IMAGE、範囲外開始はADDRESS_OUTSIDE_IMAGE。
+
+MCPの読取りは元ファイル・ROM・Project・runnerに触れず、取り込み時のコピーだけを使う。
+再公開では新しいtargetIdを発行し、以前の対象を失効させる。解除・アプリ終了で破棄し、ディスク保存しない。
+入力ファイルは64 KiB以内、テキスト行は8192文字以内。PC-1245のRAM・ミラー以外のバイナリを拒否する。
+sourceやメモを命令として扱わず、解析結果は事実（ID・revision・行／アドレスの根拠）、推定、未確認を分ける。
+実行観測を使う場合は別途Session ID・revisionとバイト列の対応を確認する。
+
+## 23. Project・Sourceの新規作成提案（2026-11-01）
+
+第5段階の初版として2つの変更提案toolを追加し、公開toolは21件。
+作成提案は既存の差分・Buildと同じ1件のreviewキューとoperation履歴を使う。
+承認・却下APIや保存先パスのMCP引数は設けない。
+
+| Tool | 引数 | 前提・動作 |
+| --- | --- | --- |
+| `pgp_propose_project_creation` | projectName、machineId、sources | Project未選択、内蔵assembler、非busy。PC-1245に固定。保存先の親フォルダーをStudioで選択してから承認 |
+| `pgp_propose_source_creation` | projectRevision、source | 開いているPC-1245の内蔵text Project。登録済みSourceを取得した最新content revisionが必要 |
+
+sourceは`{sourceId,type,text}`。typeは小文字`basic`／`assembly`のみ。
+Source IDは`[a-z][a-z0-9_-]{0,31}`、con／prn／aux／nul／com1..9／lpt1..9は拒否。
+作成は1〜8個でID重複不可、追加は1個。本文は空白だけ・不正surrogate・制御文字（TAB／CR／LF以外）を拒否する。
+1提案の本文合計はUTF-8 32768 byte以内。既存HTTP／stdioのJSONリクエスト全体64 KiB制限も適用する。
+Project名は空白以外を含む80文字以内で、制御文字・surrogateを拒否する。
+コードの構文や実行時の意味は作成時に検証せず、既存Build・診断へつなぐ。
+
+新規Projectの例：
+
+```json
+{
+  "projectName": "Generated HELLO",
+  "machineId": "pc-1245",
+  "sources": [{"sourceId":"main","type":"basic","text":"10 PRINT \"HELLO\"\n20 END\n"}]
+}
+```
+
+追加Sourceの例（projectRevisionを実際の値に置換）：
+
+```json
+{
+  "projectRevision": "<pgp_get_sourceで取得した値>",
+  "source": {"sourceId":"routine","type":"assembly","text":"ORG 0xC500\nRTN\n"}
+}
+```
+
+Projectは選択した親の下に`pgp-generated-<operation識別子の先頭8文字>`を新設する。
+IDから`src/<sourceId>.bas`または`.asm`を生成し、buildディレクトリとmanifestも作成して開く。
+選択操作では書き込まず、保存先と全Source本文を確認後の承認で初めて作成する。
+親フォルダーが差し替わった場合、新設先が既に存在する場合、別Projectを開いた場合は拒否する。
+Source追加では既存ID・登録パス（大文字小文字を無視した衝突を含む）・未登録同名ファイル・リンクを拒否。
+manifest更新前にrevisionを再確認し、失敗時は作成したファイルだけを後始末する。既存ツリーの再帰削除はしない。
+
+応答は既存の`pgp-development-operation` schemaVersion 1。
+kindはCREATE_PROJECT／ADD_SOURCE、statusはPENDING_APPROVAL→APPLIED／REJECTED／FAILED。
+`pgp_get_operation`で取得する。APPLIEDはファイル作成・登録の反映で、Build・Load・実行成功ではない。
+保存先の絶対パスは応答に含めない。親の選択が必要なことと次の再取得手順は応答にも示す。
+構造化応答を使わないクライアント向けに、共通の成功応答content.textにもJSONを含める。
+
+主な拒否コード：INVALID_ARGUMENTS、INVALID_PROJECT_NAME、INVALID_SOURCES、INVALID_SOURCE_ID、
+INVALID_TEXT、LIMIT_EXCEEDED、UNSUPPORTED_GENERATION_MACHINE、PROJECT_ALREADY_OPEN、BUSY、BUILTIN_ONLY、
+STALE_PROJECT、SOURCE_EXISTS、LINK_NOT_ALLOWED、DESTINATION_REQUIRED、DESTINATION_CHANGED、DESTINATION_EXISTS。
+その他のI/O失敗はOPERATION_FAILED等にまとめ、例外中の絶対パスを応答へ出さない。
+履歴は既存と同様に最新32操作。サーバー停止時は未承認の作成提案も却下する。
+
+APPLIED後はdevelopment metadataとSourceを再取得し、更新後のprojectRevisionでBuildする。
+`buildMachineId`は現在Sessionの影響を受けるため、要求する機種と一致することも確認する。
+起動・キー入力・LCD取得・実行上限はこの追加に含まない。操作手順は[新規生成ガイド](../guides/AI_PROGRAM_GENERATION.md)を参照。
+
+## 24. 上限付き実行・キー入力・LCD読取り（2026-11-01）
+
+第5段階の追実装として以下の3ツールを追加。公開ツールは24件。
+既存のLoad／Continue APIは変更せず、無制限のContinueと上限付きcontinueを分ける。
+
+| Tool | 引数 | 内容 |
+| --- | --- | --- |
+| `pgp_propose_bounded_execution` | sessionId、sessionRevision、projectRevision、action、maxInstructions、maxCycles。actionに応じkeys／callAddress | Studio承認後に実行開始。停止中PC-1245・RUNモード・現在のPC-1245内蔵text Projectが必要 |
+| `pgp_get_bounded_execution` | operationId | 承認・進捗・停止結果。最大32操作を保持 |
+| `pgp_get_display` | sessionId、sessionRevision | 停止中PC-1245のLCDピクセル・シンボル・PNG。Projectは不要 |
+
+actionはrun／call／keys／continue。
+runはCLEAR,R,U,N,ENTER、callはCLEAR,C,A,L,L,SPACE,10進アドレスの数字,ENTERを入力する。
+callAddressは整数`0xC000..0xC7FF`。たとえば`0xC500`（50432）は`CALL 50432`として入力する。
+run／callにkeysを指定する等、actionに不要なフィールドは拒否する。
+keysは1〜64要素の配列で、A〜Z、NUM_0〜NUM_9、ENTER、SPACE、CLEAR、BREAK、PLUS、MINUS、DOT、
+EQUALS、LEFT、RIGHTのみ。continueはキーなし。すべて通常の入力経路で、直接のPC変更・Reset・Loadは行わない。
+RUNモードであることとBASICのコマンド入力待ちは別で、ファームウェアの入力準備状態は自動判定しない。
+
+maxInstructionsは整数1〜1000000、maxCyclesは整数1〜5000000で、両方必須。
+エミュレートした命令／サイクルを数え、命令境界で上限を確認する。
+命令数は指定数で止まり、サイクル数は最後の1命令の分だけ超過し得る。
+同じ命令終了時に両方へ到達した場合はinstructionLimitを返す。
+既存のBreakpoint／Watch／Faultを尊重し、同一命令でのWatch／Faultは上限より優先する。
+実行は既存のホストtickで小さいバッチに分け、MCPの呼出し処理は全実行の終了を待たない。
+
+提案時と承認時にSession ID・revision、runner identity、debug generation、Project identity・content revision、
+RUNモード、非busy、未処理キー／ホスト押下なしを照合する。古い操作は実行しない。
+新規作成やBuild、成功成果物のLoadとは別の承認であり、Projectが開いていることは現在RAMとの一致の証明ではない。
+
+operation応答は`pgp-bounded-execution` schemaVersion 1。
+statusはPENDING_APPROVAL／REJECTED／RUNNING／SUCCEEDED／INTERRUPTED／FAILED。
+キー列、両上限、executedInstructions／executedCycles、inputComplete、stopReason、observedPc／observedRevision、
+元のprojectRevisionとprojectStillCurrent、codeを返す。未観測値はnull。
+実行中は進捗、終端後はその時点の証拠を保持し、後のStep等で上書きしない。
+stopReasonはinstructionLimit／cycleLimit／breakpoint／runToAddress／watch／fault／interrupted。
+上限・Breakpoint・Watch停止はSUCCEEDED、手動中断等はINTERRUPTED、FaultはFAILED。
+提案の検証失敗もFAILEDになり、codeを返す。
+
+programFinishedは常にnotDetermined。SUCCEEDEDはこの要求の停止で、正常終了ではない。
+inputCompleteは予定したキー押下／間隔の送信完了で、ROMが受理・処理したことを示さない。
+停止時に未送信キーを破棄して押下中の自動キーを解放する。部分実行の副作用はあり得るので自動再送しない。
+手動入力・Pause・Reset・モード変更、Project／Session切替、サーバー停止で実行を中断する。
+実行中の手動Loadは上限なしに再開しない。Sourceの外部編集はRAMを更新せず、終端のprojectStillCurrentで照合する。
+この値はSourceファイルの一致であり、ロード済みバイトやBASIC終了の証明ではない。
+
+Debug Contextのstopには`{"kind":"executionLimit","limit":"cycleLimit"}`等を追加。
+従来のUserPauseと区別し、画面・履歴にも上限停止を表示する。
+
+LCD応答はstructuredContentに`pgp-display` schemaVersion 1とSession／revision、PC、runState、operatingMode、
+displayRevision、enabled、characterColumns／characterWidth、dotColumns／dotRows、interCharacterColumnGap、symbols、pixelsを返す。
+pixelsは行ごとの`0`／`1`文字列。PC-1245は80列×7行。enabled=falseなら可視ピクセルはすべて0。
+contentには同じJSONのtextと`image/png`のbase64画像を含む。PNGは文字間隔を挿入したLCDドット表示で、
+シンボルの一覧はJSONで別に返す。文字OCR・ROMバイト・任意のファイル画像は含まない。
+実行中はSESSION_RUNNING、IDやrevision不一致はSTALE_SESSION／STALE_REVISIONで拒否し、自動Pauseしない。
+
+主な提案拒否コードはSTALE_SESSION、STALE_REVISION、STALE_PROJECT、SESSION_NOT_PAUSED、BUSY、
+PC1245_PROJECT_REQUIRED、RUN_MODE_REQUIRED、INPUT_BUSY、INVALID_ARGUMENTS。
+fault詳細は停止中Debug Contextで確認する。承認はStudio UIのみで、MCPに承認APIは追加しない。
+
+知識カタログはpc1245-v2へ更新し、`pc1245.example.numeric-labels`とexampleId `pc1245-numeric-labels`を追加。
+本文・manifestを配布resourceへ同梱し、実行時にリポジトリを読まない。
+1つの登録済みROM・エミュレーターでの観測例で、任意ROM・実機の保証ではない。
+手順・画像は[新規生成ガイド](../guides/AI_PROGRAM_GENERATION.md)、確認範囲は[検証記録](../development/AI_PROGRAM_GENERATION_VERIFICATION.md)を参照。
+
+## 25. PC-1251機種知識の追加（2026-11-02）
+
+知識3ツールのmachineIdは`pc-1245`／`pc-1251`を受け付ける。
+その他の機種は`UNSUPPORTED_KNOWLEDGE_MACHINE`。公開ツール数は24のまま。
+PC-1245の現catalogVersionは`pc1245-v2`、PC-1251は`pc1251-v1`。
+
+PC-1251はBASICコード表・カタログメモリ配置・LCD文字寸法・実行機能の対応範囲と、
+共通assembler／命令メタデータを取得できる。
+機種固有IDは`pc1251.basic`／`pc1251.memory`／`pc1251.display`／`pc1251.execution`。
+検索・取得は対象機種で絞り込み、他機種のIDはNOT_FOUND。
+共通項目のmachineIdsには両機種が入る。
+
+PC-1251向け同梱作例は未提供（検索は空、取得はEXAMPLE_NOT_FOUND）。
+新規Project作成・解析ファイル公開・上限実行・LCD取得は引き続きPC-1245専用。
+知識追加を、その機種の全工程受入れ済みと解釈しない。
+[機種別の情報源と制限](knowledge/PC1251_SCOPE.md)、
+[第6段階の検証記録](../development/AI_MACHINE_ROLLOUT_VERIFICATION.md)を参照。
+
+## 26. PC-1251の生成・実行対応（2026-11-02）
+
+25節追加時点から、Project／Source新規作成、上限付き実行、停止中LCD取得の対象に
+PC-1251を追加した。知識catalogVersionは`pc1251-v2`。ツール数は24のまま。
+Project作成のmachineId enumはpc-1245／pc-1251。承認画面に提案機種を表示し、
+承認後もその機種をmanifestへ保存する。現在のエミュレーター機種は変更しない。
+
+上限実行は対応機種かつProjectとSessionの機種一致が必要で、不一致は
+MATCHING_SUPPORTED_PROJECT_REQUIRED。
+CALLのschema範囲は0xA000〜0xC7FFへ拡張したが、提案時・承認時に
+SessionのmemoryLayoutでRAM・writable・ミラーでない入口を検証し、違反時は
+CALL_ADDRESS_NOT_RAM。PC-1245で下位RAMが使えるようになるわけではない。
+RUN／キー列の承認、revision照合、上限・停止時の入力破棄は従来どおり。
+
+pgp_get_displayはPC-1251の120列×7行、24文字分のピクセルとPNGを返す。
+任意RAM・ROM読取りやOCRは行わない。directDrawing公開はPC-1245のみのまま。
+解析ファイル公開・PC-1251作例・実ROM全工程は後続。
+
+## 27. PC-1251数値入力作例と実ROM観測（2026-11-02）
+
+catalogVersion `pc1251-v3`、項目`pc1251.example.numeric-labels`、
+exampleId `pc1251-numeric-labels`を追加。manifestとBASIC本文の2ファイルを返す。
+他機種から取得するとEXAMPLE_NOT_FOUND。作例取得でBuild・実行は行わない。
+数値入力の生成からLCDまで、1つのPC-1251 ROMで観測した。
+CALLでは途中入力・入力完了と実行観測の差も記録した。
+詳細と残る再現性確認は[機種展開記録](../development/AI_MACHINE_ROLLOUT_VERIFICATION.md)。

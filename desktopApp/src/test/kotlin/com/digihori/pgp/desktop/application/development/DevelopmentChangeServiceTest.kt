@@ -183,6 +183,6 @@ class DevelopmentChangeServiceTest {
         assertTrue(call("pgp_get_source", buildJsonObject { put("sourceId", "main"); put("path", "/private/secret") })["isError"]!!.jsonPrimitive.boolean)
         assertTrue(workspace.sources.single().file.readText().contains("LIA 1"))
         val mutations = adapter.tools().filter { !it.jsonObject["annotations"]!!.jsonObject["readOnlyHint"]!!.jsonPrimitive.boolean }
-        assertEquals(setOf("pgp_propose_source_patch", "pgp_build_project", DebugChangeMcp.PROPOSE, ExecutionChangeMcp.LOAD, ExecutionChangeMcp.CONTINUE), mutations.map { it.jsonObject.string("name") }.toSet())
+        assertEquals(ProjectGenerationMcp.names + setOf(BoundedExecutionMcp.PROPOSE, "pgp_propose_source_patch", "pgp_build_project", DebugChangeMcp.PROPOSE, ExecutionChangeMcp.LOAD, ExecutionChangeMcp.CONTINUE), mutations.map { it.jsonObject.string("name") }.toSet())
     }
 }

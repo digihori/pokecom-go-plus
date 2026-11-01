@@ -1,0 +1,7 @@
+{
+  "format": "pgp-project",
+  "formatVersion": 1,
+  "name": "PC-1251 Numeric Labels",
+  "machineId": "pc-1251",
+  "sources": [{"id": "main", "type": "basic", "path": "src/main.bas"}]
+}

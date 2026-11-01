@@ -29,10 +29,10 @@ class DesktopMcpServerTest {
         val adapter = PgpMcpToolAdapter({ FakeDebugContextService() })
         val tools = adapter.tools()
 
-        assertEquals(setOf(PgpMcpToolAdapter.GET_CAPABILITIES, PgpMcpToolAdapter.GET_DEBUG_CONTEXT, PgpMcpToolAdapter.GET_DEBUG_REGISTRATIONS, PgpMcpToolAdapter.GET_MACHINE_SPEC, PgpMcpToolAdapter.GET_DEVELOPMENT_CONTEXT, "pgp_get_source", "pgp_propose_source_patch", "pgp_build_project", "pgp_get_operation", DebugChangeMcp.PROPOSE, DebugChangeMcp.OPERATION, ExecutionChangeMcp.ARTIFACT, ExecutionChangeMcp.LOAD, ExecutionChangeMcp.CONTINUE, ExecutionChangeMcp.OPERATION), tools.map {
+        assertEquals(KnowledgeMcp.names + ProjectGenerationMcp.names + BoundedExecutionMcp.names + setOf(ProgramAnalysisMcp.GET, PgpMcpToolAdapter.GET_CAPABILITIES, PgpMcpToolAdapter.GET_DEBUG_CONTEXT, PgpMcpToolAdapter.GET_DEBUG_REGISTRATIONS, PgpMcpToolAdapter.GET_MACHINE_SPEC, PgpMcpToolAdapter.GET_DEVELOPMENT_CONTEXT, "pgp_get_source", "pgp_propose_source_patch", "pgp_build_project", "pgp_get_operation", DebugChangeMcp.PROPOSE, DebugChangeMcp.OPERATION, ExecutionChangeMcp.ARTIFACT, ExecutionChangeMcp.LOAD, ExecutionChangeMcp.CONTINUE, ExecutionChangeMcp.OPERATION), tools.map {
             it.jsonObject.getValue("name").jsonPrimitive.content
         }.toSet())
-        assertTrue(tools.filter { it.jsonObject.getValue("name").jsonPrimitive.content !in setOf("pgp_propose_source_patch", "pgp_build_project", DebugChangeMcp.PROPOSE, ExecutionChangeMcp.LOAD, ExecutionChangeMcp.CONTINUE) }.all {
+        assertTrue(tools.filter { it.jsonObject.getValue("name").jsonPrimitive.content !in ProjectGenerationMcp.names + setOf(BoundedExecutionMcp.PROPOSE, "pgp_propose_source_patch", "pgp_build_project", DebugChangeMcp.PROPOSE, ExecutionChangeMcp.LOAD, ExecutionChangeMcp.CONTINUE) }.all {
             it.jsonObject.getValue("annotations").jsonObject.getValue("readOnlyHint").jsonPrimitive.content == "true"
         })
 
@@ -87,7 +87,7 @@ class DesktopMcpServerTest {
             )
             val tools = Json.parseToJsonElement(toolsResponse.body()).jsonObject
                 .getValue("result").jsonObject.getValue("tools").jsonArray
-            assertEquals(15, tools.size)
+            assertEquals(24, tools.size)
 
             val callResponse = post(
                 info.url,

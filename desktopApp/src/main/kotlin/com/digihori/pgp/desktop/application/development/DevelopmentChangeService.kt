@@ -15,6 +15,8 @@ internal data class SourceReplacement(val oldText: String, val newText: String)
 internal data class DevelopmentReview(
     val id: String, val kind: String, val projectName: String, val sourcePath: String?,
     val replacements: List<SourceReplacement>, val revision: String, val sourceId: String? = null,
+    val generatedSources: List<GeneratedSource> = emptyList(),
+    val machineId: String = "pc-1245",
 )
 internal data class DevelopmentOperation(val id: String, val kind: String, val status: String, val code: String? = null)
 
@@ -24,6 +26,7 @@ internal class DevelopmentChangeService(
     private val onChange: () -> Unit = {},
     private val onApplied: (String) -> Unit = {},
     private val onBuild: (String) -> Unit = {},
+    private val onWorkspaceChanged: (DesktopProjectWorkspace) -> Unit = {},
 ) {
     private var workspace: DesktopProjectWorkspace? = null
     private var epoch = UUID.randomUUID().toString()
@@ -31,8 +34,53 @@ internal class DevelopmentChangeService(
     private var replacementText: String? = null
     private val operations = linkedMapOf<String, DevelopmentOperation>()
     private val revisions = mutableMapOf<String, String>()
+    private var creationParent: java.nio.file.Path? = null
+    private var creationParentKey: Any? = null
     fun review(): DevelopmentReview? = pending
     fun history(): List<DevelopmentOperation> = operations.values.toList().asReversed()
+    fun creationDestination(): java.io.File? = pending?.takeIf { it.kind == "CREATE_PROJECT" }?.let { review ->
+        creationParent?.resolve("pgp-generated-${review.id.take(8)}")?.toFile()
+    }
+
+    /** Local UI only. Selecting a parent does not create any files. */
+    fun selectCreationParent(parent: java.io.File) {
+        if (pending?.kind != "CREATE_PROJECT") fail("NO_CREATION_REVIEW")
+        val path = parent.toPath().toRealPath()
+        if (!Files.isDirectory(path, NOFOLLOW_LINKS)) fail("INVALID_DESTINATION")
+        creationParent = path
+        creationParentKey = Files.readAttributes(path, java.nio.file.attribute.BasicFileAttributes::class.java, NOFOLLOW_LINKS).fileKey()
+        onChange()
+    }
+
+    fun proposeProject(name: String, machineId: String, sources: List<GeneratedSource>): JsonObject {
+        checkQueue()
+        checkNoProject()
+        if (machineId !in GeneratedProjectFiles.MACHINES) fail("UNSUPPORTED_GENERATION_MACHINE")
+        if (name.isBlank() || name.length > 80 || name.any { it < ' ' || it == '\u007f' || it.isSurrogate() }) fail("INVALID_PROJECT_NAME")
+        GeneratedProjectFiles.validate(sources)
+        creationParent = null; creationParentKey = null
+        return queue(DevelopmentReview(UUID.randomUUID().toString(), "CREATE_PROJECT", name.trim(), null,
+            emptyList(), "no-project", generatedSources = sources.toList(), machineId = machineId))
+    }
+
+    fun proposeSource(revision: String, source: GeneratedSource): JsonObject {
+        checkQueue()
+        val snapshot = snapshot()
+        if (snapshot.revision != revision) fail("STALE_PROJECT")
+        GeneratedProjectFiles.checkAddition(snapshot.state.project!!, source)
+        return queue(DevelopmentReview(UUID.randomUUID().toString(), "ADD_SOURCE", snapshot.state.project.definition.name,
+            source.definition.path, emptyList(), revision, source.id, listOf(source), machineId = snapshot.state.project.definition.machineId.value))
+    }
+
+    private fun checkQueue() {
+        if (pending != null || operations.values.any { it.status == "RUNNING" }) fail("BUSY")
+    }
+    private fun checkNoProject() {
+        val state = stateProvider()
+        if (state.project != null) fail("PROJECT_ALREADY_OPEN")
+        if (state.busy) fail("BUSY")
+        if (state.assembler.external) fail("BUILTIN_ONLY")
+    }
 
     private data class Snapshot(val state: DevelopmentReadState, val revision: String, val bytes: Map<String, ByteArray>)
     private fun snapshot(ignoreBusy: Boolean = false): Snapshot {
@@ -168,10 +216,27 @@ internal class DevelopmentChangeService(
     fun approve() {
         val review = pending ?: return
         try {
+            if (review.kind == "CREATE_PROJECT") {
+                checkNoProject()
+                val parent = creationParent ?: fail("DESTINATION_REQUIRED")
+                if (Files.isSymbolicLink(parent) || !Files.isDirectory(parent, NOFOLLOW_LINKS) ||
+                    Files.readAttributes(parent, java.nio.file.attribute.BasicFileAttributes::class.java, NOFOLLOW_LINKS).fileKey() != creationParentKey) fail("DESTINATION_CHANGED")
+                val created = GeneratedProjectFiles.create(parent, "pgp-generated-${review.id.take(8)}", review.projectName, review.generatedSources, review.machineId)
+                pending = null
+                operations[review.id] = DevelopmentOperation(review.id, review.kind, "APPLIED")
+                onWorkspaceChanged(created)
+                return
+            }
             val current = snapshot()
             if (current.revision != review.revision) fail("STALE_PROJECT")
             pending = null
-            if (review.kind == "PATCH") {
+            if (review.kind == "ADD_SOURCE") {
+                val updated = GeneratedProjectFiles.add(current.state.project!!, review.generatedSources.single()) {
+                    if (snapshot().revision != review.revision) fail("STALE_PROJECT")
+                }
+                operations[review.id] = DevelopmentOperation(review.id, review.kind, "APPLIED")
+                onWorkspaceChanged(updated)
+            } else if (review.kind == "PATCH") {
                 val project = current.state.project!!
                 val source = project.sources.single { it.definition.id == review.sourceId }
                 val target = source.file.toPath().toRealPath()
@@ -192,12 +257,12 @@ internal class DevelopmentChangeService(
         } catch (error: Exception) {
             pending = null
             operations[review.id] = DevelopmentOperation(review.id, review.kind, "FAILED", (error as? DevelopmentReadError)?.code ?: "OPERATION_FAILED")
-        } finally { replacementText = null; onChange() }
+        } finally { replacementText = null; creationParent = null; creationParentKey = null; onChange() }
     }
 
     fun reject() {
         val review = pending ?: return
-        pending = null; replacementText = null
+        pending = null; replacementText = null; creationParent = null; creationParentKey = null
         operations[review.id] = DevelopmentOperation(review.id, review.kind, "REJECTED")
         onChange()
     }
@@ -215,6 +280,10 @@ internal class DevelopmentChangeService(
             put("operationId", operation.id); put("kind", operation.kind); put("status", operation.status)
             put("code", operation.code?.let(::JsonPrimitive) ?: JsonNull)
             put("approval", "Studio UI only"); put("loadsOrRuns", false)
+            if (operation.kind in setOf("CREATE_PROJECT", "ADD_SOURCE")) {
+                put("destinationSelection", if (operation.kind == "CREATE_PROJECT") "Studio UI only" else "current project src directory")
+                put("nextStep", "After APPLIED, re-read development metadata and pgp_get_source for a fresh projectRevision before Build or edits. Created text has not been validated by Build.")
+            }
         }
     }
     private fun decode(bytes: ByteArray): String = try {
