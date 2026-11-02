@@ -14,7 +14,7 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicDetokenizeResult
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicDetokenizer
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomInputResult
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FlatRomImporter
-import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
+import com.digihori.pgp.core.api.RamMode
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomBasicInput
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
@@ -108,7 +108,7 @@ class RealPc1251RomSmokeTest {
         )
 
         expectedProgramStarts.forEach { (model, expectedStart) ->
-            val session = requireNotNull(createLocalSession(model, Pc1251FamilyMemoryMode.HARDWARE))
+            val session = requireNotNull(createLocalSession(model, RamMode.HARDWARE))
             val result = session.runCycles(BOOT_CYCLE_BUDGET)
             val pointers = session.memorySnapshot(0xc6e1, 4).copyBytes()
             val actualStart = pointers[0].toInt() and 0xff or ((pointers[1].toInt() and 0xff) shl 8)
@@ -120,7 +120,7 @@ class RealPc1251RomSmokeTest {
     }
 
     @Test fun locallySuppliedBeepProducesPcmThenSettlesToSilence() {
-        val session = createLocalSession(memoryMode = Pc1251FamilyMemoryMode.HARDWARE) ?: return
+        val session = createLocalSession(memoryMode = RamMode.HARDWARE) ?: return
         var nonSilent = 0
         var lastSampleCount = 0
         fun advance(cycles: Long) {
@@ -144,7 +144,7 @@ class RealPc1251RomSmokeTest {
 
     private fun createLocalSession(
         model: Pc1251FamilyModel = Pc1251FamilyModel.PC_1251,
-        memoryMode: Pc1251FamilyMemoryMode = Pc1251FamilyMemoryMode.EXPANDED,
+        memoryMode: RamMode = RamMode.UNRESTRICTED,
     ) = findLocalRom()?.let { romFile ->
         val imported = assertIs<RomImportResult.Success>(
             Pc1251FlatRomImporter.importImage(romFile.readBytes(), model.machineId),

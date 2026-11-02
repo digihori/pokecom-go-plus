@@ -1,5 +1,7 @@
 package com.digihori.pgp.core.emulator.machine.pc1401
 
+import com.digihori.pgp.core.api.RamMode
+
 import com.digihori.pgp.core.api.OperatingMode
 import com.digihori.pgp.core.api.DisplaySymbol
 import com.digihori.pgp.core.api.PocketKey
@@ -15,11 +17,12 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicMemoryResult
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245Buzzer
 import com.digihori.pgp.core.rom.RomSet
 
-internal class Pc1401Machine(romSet: RomSet, val model: Pc1401FamilyModel = Pc1401FamilyModel.PC_1401) {
+internal class Pc1401Machine(romSet: RomSet, val model: Pc1401FamilyModel = Pc1401FamilyModel.PC_1401, val ramMode: RamMode = RamMode.HARDWARE) {
+    private val minimumBasicStart = if (ramMode == RamMode.UNRESTRICTED) 0x2000 else model.basicStart
     private val display = Pc1401Display()
     private val keyboard = Pc1401Keyboard()
     private val buzzer = Pc1245Buzzer(clockHz = 192_000.0)
-    private val bus = Pc1401MemoryBus(romSet, display, model)
+    private val bus = Pc1401MemoryBus(romSet, display, model, ramMode)
     private val cpuBus = Sc61860BusAccessRecorder(bus)
     private val cpu = Sc61860Cpu(cpuBus, Pc1401Io(keyboard, display, buzzer))
 
@@ -86,7 +89,7 @@ internal class Pc1401Machine(romSet: RomSet, val model: Pc1401FamilyModel = Pc14
     fun readMemory(address: Int) = bus.read(address)
     fun writeMemory(address: Int, value: Int) = bus.write(address, value)
     fun loadBasicProgram(program: ByteArray): Pc1245BasicMemoryResult =
-        Pc1401BasicProgramMemory.load(program, ::readMemory, ::writeMemory, model).also {
+        Pc1401BasicProgramMemory.load(program, ::readMemory, ::writeMemory, model, minimumBasicStart).also {
             if (it is Pc1245BasicMemoryResult.Success) invalidateBasicExecutionPosition()
         }
     fun invalidateBasicExecutionPosition() {
@@ -94,7 +97,7 @@ internal class Pc1401Machine(romSet: RomSet, val model: Pc1401FamilyModel = Pc14
         // Preserve unrelated flags; replacing text invalidates the saved execution context.
         cpu.state.internalRam[0x35] = cpu.state.internalRam[0x35] and 0xef
     }
-    fun basicProgram(): Pc1245BasicMemoryResult = Pc1401BasicProgramMemory.extract(::readMemory, model)
+    fun basicProgram(): Pc1245BasicMemoryResult = Pc1401BasicProgramMemory.extract(::readMemory, model, minimumBasicStart)
     fun isWritableAddress(address: Int) = bus.isWritableAddress(address)
     val cpuState get() = cpu.state
     val displayState get() = display

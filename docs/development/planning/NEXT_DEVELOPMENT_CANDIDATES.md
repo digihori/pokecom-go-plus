@@ -103,3 +103,11 @@ Buildでホスト側の内蔵／外部Assemblerを実行する操作と、Emulat
 
 関連：[Debuggerの後続](DEBUGGER_FOLLOW_UP.md)、[ロードマップ](ROADMAP.md)、
 [既存候補](FORMAL_RELEASE_TASKS.md)、[Projectの現行仕様](../../guides/PROJECTS.md)。
+
+
+## 2026-11-02の進捗
+
+Playerのマシン語保存はAndroid／iOSの動作確認を終え、mainへ反映済み。
+Studioの125x／126x／1401系RAM構成は、実機準拠／制限解除へ整理する開発変更を実施。
+[現行仕様](../../reference/machines/STUDIO_RAM_CONFIGURATION.md)を参照。
+RAMカード管理、PlayerのROMセット登録、複数AI等の残る候補は別途検討する。

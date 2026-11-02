@@ -133,7 +133,7 @@ import com.digihori.pgp.core.api.MachineMemoryRegionKind
 import com.digihori.pgp.core.debug.Sc61860InstructionFormatter
 import com.digihori.pgp.core.debug.Sc61860Disassembler
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomInputUnsupported
-import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
+import com.digihori.pgp.core.api.RamMode
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.core.source.machine.PgpMemoryDumpError
 import com.digihori.pgp.core.project.ProjectManifestError
@@ -331,7 +331,9 @@ private fun FrameWindowScope.App(
     var runnerState by remember { mutableStateOf(RunnerState.PAUSED) }
     var loadedRomName by remember { mutableStateOf<String?>(null) }
     var loadedRomFile by remember { mutableStateOf<File?>(null) }
-    var familyMemoryMode by remember { mutableStateOf(DesktopUiPreferences.ramMode()) }
+    var familyMemoryModes by remember { mutableStateOf(DesktopUiPreferences.ramModes()) }
+    fun ramModeFor(id: MachineId): RamMode = familyMemoryModes[MachineCatalog.require(id).family] ?: RamMode.HARDWARE
+    val familyMemoryMode = runner?.memoryLayout?.ramMode ?: ramModeFor(selectedMachineId)
     var languagePreference by remember { mutableStateOf(StudioStrings.startupPreference) }
     var languageSettingsError by remember { mutableStateOf<String?>(null) }
     var message by remember { mutableStateOf(uiText("main.initial")) }
@@ -587,10 +589,12 @@ private fun FrameWindowScope.App(
         file: File,
         startAutomatically: Boolean,
         reportErrors: Boolean = true,
-        memoryMode: Pc1251FamilyMemoryMode = familyMemoryMode,
+        memoryMode: RamMode? = null,
         machineIdOverride: MachineId? = null,
     ): Boolean {
-        val configuration = EmulatorConfiguration(pc1251FamilyMemoryMode = memoryMode)
+        val modes = if (memoryMode == null) familyMemoryModes else familyMemoryModes +
+            (MachineCatalog.require(machineIdOverride ?: selectedMachineId).family to memoryMode)
+        val configuration = EmulatorConfiguration(ramModes = modes)
         val result = runCatching {
             val bytes = file.readBytes()
             if (file.extension.equals("pgrom", ignoreCase = true)) {
@@ -841,7 +845,7 @@ private fun FrameWindowScope.App(
 
     fun projectMemoryLayout(workspace: DesktopProjectWorkspace): MachineMemoryLayout =
         runner?.memoryLayout
-            ?: MachineMemoryLayout(workspace.definition.machineId, familyMemoryMode)
+            ?: MachineMemoryLayout(workspace.definition.machineId, ramModeFor(workspace.definition.machineId))
 
     suspend fun assembleWorkspaceWork() {
         val workspace = projectWorkspace ?: return
@@ -884,7 +888,7 @@ private fun FrameWindowScope.App(
         val assembly = DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, layout, currentAssemblerSettings)
         val built = withContext(Dispatchers.IO) { DesktopProjectBuilder.build(workspace, layout, compiledAssembly = assembly) }
         check(projectWorkspace === workspace && runner === buildRunner &&
-            projectMemoryLayout(workspace).pc1251MemoryMode == layout.pc1251MemoryMode) { uiText("assembly.buildProjectChanged") }
+            projectMemoryLayout(workspace).ramMode == layout.ramMode) { uiText("assembly.buildProjectChanged") }
         return when (built) {
             is DesktopProjectBuildResult.Failure -> {
                 lastProjectBuildErrors = built.errors
@@ -912,7 +916,7 @@ private fun FrameWindowScope.App(
                         return null
                     }
                 check(projectWorkspace === workspace && runner === buildRunner &&
-                    projectMemoryLayout(workspace).pc1251MemoryMode == layout.pc1251MemoryMode) { uiText("assembly.changedWhileSaving") }
+                    projectMemoryLayout(workspace).ramMode == layout.ramMode) { uiText("assembly.changedWhileSaving") }
                 projectBuildRegistry.publish(buildStamp, built.artifact)
                 assemblyPreview = built.artifact.assemblySources
                 assemblyDiagnostics = emptyList()
@@ -985,7 +989,7 @@ private fun FrameWindowScope.App(
         com.digihori.pgp.desktop.application.development.DevelopmentReadState(
             runner, debugContextService, projectWorkspace, currentAssemblerSettings, assemblyPreview.toList(),
             assemblyDiagnostics.toList(), lastProjectBuildErrors.toList(), projectRuntimeStatus.name,
-            changedProjectSources.toSet(), assemblyBusy, fallbackRamMode = familyMemoryMode)
+            changedProjectSources.toSet(), assemblyBusy, fallbackRamModes = familyMemoryModes)
     }
     var assemblyJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     fun startAssembly(action: suspend () -> Unit) {
@@ -1297,24 +1301,25 @@ private fun FrameWindowScope.App(
         display = runner?.displaySnapshot()
     }
 
-    fun setMemoryMode(mode: Pc1251FamilyMemoryMode) {
+    fun setMemoryMode(mode: RamMode) {
+        val family = MachineCatalog.require(runner?.machineId ?: selectedMachineId).family
         try {
-            DesktopUiPreferences.saveRamMode(mode)
+            DesktopUiPreferences.saveRamMode(family, mode)
         } catch (failure: Exception) {
             showError(uiText("memory.ramSaveFailed", failure.message.orEmpty()))
             return
         }
         val file = loadedRomFile
         val resume = runnerState == RunnerState.RUNNING
-        familyMemoryMode = mode
+        familyMemoryModes = familyMemoryModes + (family to mode)
         if (file == null) {
-            message = if (mode == Pc1251FamilyMemoryMode.EXPANDED) {
+            message = if (mode == RamMode.UNRESTRICTED) {
                 uiText("main.expandedSelected")
             } else {
                 uiText("main.hardwareSelected")
             }
         } else if (loadRom(file, resume, memoryMode = mode, machineIdOverride = runner?.machineId)) {
-            message = if (mode == Pc1251FamilyMemoryMode.EXPANDED) {
+            message = if (mode == RamMode.UNRESTRICTED) {
                 uiText("main.expandedRestart")
             } else {
                 uiText("main.hardwareRestart", selectedMachineId.displayName())
@@ -1603,13 +1608,13 @@ private fun FrameWindowScope.App(
                 Separator()
                 Item(
                     uiText("memory.expanded"),
-                    enabled = familyMemoryMode != Pc1251FamilyMemoryMode.EXPANDED,
-                    onClick = { setMemoryMode(Pc1251FamilyMemoryMode.EXPANDED) },
+                    enabled = familyMemoryMode != RamMode.UNRESTRICTED,
+                    onClick = { setMemoryMode(RamMode.UNRESTRICTED) },
                 )
                 Item(
                     uiText("memory.hardware"),
-                    enabled = familyMemoryMode != Pc1251FamilyMemoryMode.HARDWARE,
-                    onClick = { setMemoryMode(Pc1251FamilyMemoryMode.HARDWARE) },
+                    enabled = familyMemoryMode != RamMode.HARDWARE,
+                    onClick = { setMemoryMode(RamMode.HARDWARE) },
                 )
             }
         }
@@ -1621,7 +1626,7 @@ private fun FrameWindowScope.App(
             })
             Item(uiText("debug.exportContext"), enabled = runner != null && cpu != null, onClick = {
                 val activeRunner = runner ?: return@Item
-                val ram = MachineCatalog.require(activeRunner.machineId).memoryRegions
+                val ram = activeRunner.memoryLayout.debuggerMemoryRegions()
                     .firstOrNull { it.kind == MachineMemoryRegionKind.RAM }
                 ram?.let {
                     debugContextMemoryStart = it.startAddress.hex(4)
@@ -1959,7 +1964,7 @@ private fun FrameWindowScope.App(
                                         enabled = runner != null && cpu != null,
                                         onClick = {
                                             val activeRunner = runner ?: return@Button
-                                            val ram = MachineCatalog.require(activeRunner.machineId).memoryRegions
+                                            val ram = activeRunner.memoryLayout.debuggerMemoryRegions()
                                                 .firstOrNull { it.kind == MachineMemoryRegionKind.RAM }
                                             ram?.let {
                                                 debugContextMemoryStart = it.startAddress.hex(4)
@@ -2017,7 +2022,10 @@ private fun FrameWindowScope.App(
                                 DebuggerSection {
                                     SelectionContainer {
                                         MemoryMapPanel(
-                                            regions = MachineCatalog.require(runner?.machineId ?: selectedMachineId).memoryRegions,
+                                            regions = remember(runner, selectedMachineId, familyMemoryModes) {
+                                                (runner?.memoryLayout ?: MachineMemoryLayout(selectedMachineId, ramModeFor(selectedMachineId)))
+                                                    .debuggerMemoryRegions()
+                                            },
                                             onSelect = { navigateToMemory(it.startAddress) },
                                         )
                                     }
@@ -2217,7 +2225,7 @@ private fun FrameWindowScope.App(
                                 AssemblyPreviewSection(uiText("assembly.logTitle" , (it.source.definition.path)), it.consoleLog, boundedLog = true)
                             }
                             val memoryLayout = projectMemoryLayout(workspace)
-                            val memoryLayoutText = remember(memoryLayout.machineId, memoryLayout.pc1251MemoryMode) {
+                            val memoryLayoutText = remember(memoryLayout.machineId, memoryLayout.ramMode) {
                                 memoryLayout.renderMemoryLayout(StudioStrings.system)
                             }
                             var showMemoryLayout by remember { mutableStateOf(false) }

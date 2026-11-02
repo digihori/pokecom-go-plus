@@ -4,7 +4,7 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicDetokenizeResult
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicDetokenizer
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicMemoryResult
 
-/** The PC-1250/1251/1255 family uses OLD BASIC; the largest model can start at A000. */
+/** OLD BASIC storage follows the start/end pointers established by the selected ROM. */
 internal object Pc1251BasicProgramMemory {
     const val PROGRAM_TEXT_START: Int = 0xa000
     const val PROGRAM_START_POINTER_LOW: Int = 0xc6e1
@@ -15,8 +15,9 @@ internal object Pc1251BasicProgramMemory {
         program: ByteArray,
         read: (Int) -> Int,
         write: (Int, Int) -> Unit,
+        minimumStart: Int = PROGRAM_TEXT_START,
     ): Pc1245BasicMemoryResult {
-        val range = readRange(read) ?: return invalidPointers(read)
+        val range = readRange(read, minimumStart) ?: return invalidPointers(read)
         val validation = Pc1245BasicDetokenizer.detokenize(program)
         if (validation is Pc1245BasicDetokenizeResult.Failure) {
             return Pc1245BasicMemoryResult.InvalidProgram(validation.error.offset, validation.error.message)
@@ -37,8 +38,10 @@ internal object Pc1251BasicProgramMemory {
         return Pc1245BasicMemoryResult.Success(range.start, newEnd, program.copyOf())
     }
 
-    fun extract(read: (Int) -> Int): Pc1245BasicMemoryResult {
-        val range = readRange(read) ?: return invalidPointers(read)
+    fun extract(read: (Int) -> Int): Pc1245BasicMemoryResult = extract(read, PROGRAM_TEXT_START)
+
+    fun extract(read: (Int) -> Int, minimumStart: Int): Pc1245BasicMemoryResult {
+        val range = readRange(read, minimumStart) ?: return invalidPointers(read)
         if (range.end < range.start || range.end >= PROGRAM_STORAGE_END_EXCLUSIVE) {
             return Pc1245BasicMemoryResult.InvalidPointers(range.start, range.end)
         }
@@ -50,11 +53,11 @@ internal object Pc1251BasicProgramMemory {
         return Pc1245BasicMemoryResult.Success(range.start, range.end, program)
     }
 
-    private fun readRange(read: (Int) -> Int): ProgramRange? {
+    private fun readRange(read: (Int) -> Int, minimumStart: Int): ProgramRange? {
         val start = readPointer(PROGRAM_START_POINTER_LOW, read)
         val end = readPointer(PROGRAM_END_POINTER_LOW, read)
         return ProgramRange(start, end).takeIf {
-            it.start in PROGRAM_TEXT_START until PROGRAM_STORAGE_END_EXCLUSIVE &&
+            it.start in minimumStart until PROGRAM_STORAGE_END_EXCLUSIVE &&
                 it.end in (it.start - 1) until PROGRAM_STORAGE_END_EXCLUSIVE
         }
     }

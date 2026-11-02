@@ -1,6 +1,6 @@
 package com.digihori.pgp.core.api
 
-import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
+import com.digihori.pgp.core.api.RamMode
 import com.digihori.pgp.core.rom.*
 import com.digihori.pgp.core.source.machine.*
 import kotlin.test.*
@@ -12,7 +12,7 @@ class ProgramImageLoaderTest {
             segments.map { AddressedMemorySegmentData(it.first, it.second) },
         )).image
 
-    private fun session(id: MachineId, mode: Pc1251FamilyMemoryMode = Pc1251FamilyMemoryMode.EXPANDED): EmulatorSession {
+    private fun session(id: MachineId, mode: RamMode = RamMode.UNRESTRICTED): EmulatorSession {
         val components = mutableListOf(RomComponent(RomComponentId("internal"), RomRole.INTERNAL, ByteArray(0x2000)))
         val bankCount = (MachineCatalog.require(id).memoryBanking as? MachineMemoryBanking.Banked)?.bankCount ?: 0
         if (bankCount > 0) repeat(bankCount) { components += RomComponent(RomComponentId("bank-$it"), RomRole.EXTERNAL, ByteArray(0x4000)) }
@@ -29,7 +29,7 @@ class ProgramImageLoaderTest {
     }
 
     @Test fun loadsBasicAndMachineCodeForEveryModelAndMemoryMode() {
-        for (id in EmulatorFactory.supportedMachineIds()) for (mode in Pc1251FamilyMemoryMode.entries) {
+        for (id in EmulatorFactory.supportedMachineIds()) for (mode in RamMode.entries) {
             val session = session(id, mode)
             initialisePointers(session)
             val address = session.memoryLayout.assemblyStartAddress
@@ -103,14 +103,14 @@ class ProgramImageLoaderTest {
     }
 
     @Test fun validatesActualHardwareRamAndReadonlyBoundaries() {
-        val hardware = session(MachineId("pc-1250"), Pc1251FamilyMemoryMode.HARDWARE)
-        val expanded = session(MachineId("pc-1250"), Pc1251FamilyMemoryMode.EXPANDED)
+        val hardware = session(MachineId("pc-1250"), RamMode.HARDWARE)
+        val expanded = session(MachineId("pc-1250"), RamMode.UNRESTRICTED)
         assertFalse(hardware.memoryLayout.locate(0xa000).writable)
         assertTrue(expanded.memoryLayout.locate(0xa000).writable)
         assertIs<ProgramImageLoadResult.MemoryFailure>(hardware.loadProgramImage(null, image(0xa000 to byteArrayOf(1))))
         assertIs<ProgramImageLoadResult.Success>(expanded.loadProgramImage(null, image(0xa000 to byteArrayOf(1))))
         for ((id, boundary) in listOf("pc-1261" to 0x67ff, "pc-1350" to 0x7fff, "pc-1401" to 0x47ff)) {
-            val current = session(MachineId(id))
+            val current = session(MachineId(id), RamMode.HARDWARE)
             assertIs<MemoryImageLoadResult.Failure>(current.loadMemoryImage(image(boundary to byteArrayOf(1, 2))))
             assertEquals(0, current.memorySnapshot(boundary, 1).copyBytes()[0].toInt())
         }

@@ -9,10 +9,10 @@ import com.digihori.pgp.desktop.runner.DesktopExecutionSpeed
 internal object DesktopUiPreferences {
     private val preferences = Preferences.userRoot().node("com/digihori/pgp/desktop/ui")
 
-    fun ramMode() = DesktopRamPreferences(preferences).load()
+    fun ramModes() = DesktopRamPreferences.FAMILIES.associateWith { DesktopRamPreferences(preferences).load(it) }
 
-    fun saveRamMode(value: com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode) {
-        DesktopRamPreferences(preferences).save(value)
+    fun saveRamMode(family: com.digihori.pgp.core.api.MachineFamily, value: com.digihori.pgp.core.api.RamMode) {
+        DesktopRamPreferences(preferences).save(value, family)
     }
 
     fun languagePreference(): StudioLanguagePreference = runCatching {

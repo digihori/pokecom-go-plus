@@ -30,6 +30,21 @@ class DesktopProjectBuilderTest {
         } finally { root.toFile().deleteRecursively() }
     }
 
+    @Test fun addedRamPlacementsFollowTheSelectedModeForEverySeries() {
+        for ((id, address) in listOf("pc-1250" to 0x8000, "pc-1260" to 0x7000, "pc-1401" to 0x5000)) {
+            val root = Files.createTempDirectory("pgp-unrestricted-placement-")
+            try {
+                root.resolve("src").createDirectories()
+                root.resolve("src/main.asm").writeText("ORG 0x${address.toString(16)}\nRTN\n")
+                val workspace = openWorkspace(root, """{ "id": "main", "type": "assembly", "path": "src/main.asm" }""", id)
+                assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(workspace,
+                    MachineMemoryLayout(MachineId(id), com.digihori.pgp.core.api.RamMode.UNRESTRICTED), validateForLoad = true))
+                assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace,
+                    MachineMemoryLayout(MachineId(id), com.digihori.pgp.core.api.RamMode.HARDWARE), validateForLoad = true))
+            } finally { root.toFile().deleteRecursively() }
+        }
+    }
+
     @Test fun crossMachineAssemblyStillChecksTargetRamBeforeLoad() {
         val root = Files.createTempDirectory("pgp-cross-placement-")
         try {
@@ -376,7 +391,7 @@ class DesktopProjectBuilderTest {
         val workspace = openWorkspace(root, """{ "id": "asm", "type": "assembly", "path": "src/main.asm" }""", "pc-1250")
         assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(workspace))
         assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace,
-            com.digihori.pgp.core.api.MachineMemoryLayout(workspace.definition.machineId, com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode.HARDWARE),
+            com.digihori.pgp.core.api.MachineMemoryLayout(workspace.definition.machineId, com.digihori.pgp.core.api.RamMode.HARDWARE),
             validateForLoad = true,
         ))
     }

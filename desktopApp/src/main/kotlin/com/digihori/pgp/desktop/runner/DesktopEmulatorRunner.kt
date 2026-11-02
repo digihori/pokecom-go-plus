@@ -242,7 +242,7 @@ internal class DesktopEmulatorRunner(
         if (settings.traceCapacity !in MIN_INSTRUCTION_TRACE_CAPACITY..MAX_INSTRUCTION_TRACE_CAPACITY)
             return DebuggerSettingsApplyResult.Failure(DebuggerSettingsError.TRACE)
         if (settings.target.machineId != machineId.value || settings.target.romSha256 != debugRomFingerprint ||
-            settings.target.memoryConfiguration != memoryLayout.pc1251MemoryMode.name)
+            settings.target.memoryConfiguration != memoryLayout.ramMode.name)
             return DebuggerSettingsApplyResult.Failure(DebuggerSettingsError.TARGET)
         val candidate = DebuggerRegistrationStore(registrations.nextRegistrationId, memoryBytesProvider)
         for (entry in settings.breakpoints) {

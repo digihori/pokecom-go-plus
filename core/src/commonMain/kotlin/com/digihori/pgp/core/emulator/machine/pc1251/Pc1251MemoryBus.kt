@@ -1,5 +1,7 @@
 package com.digihori.pgp.core.emulator.machine.pc1251
 
+import com.digihori.pgp.core.api.RamMode
+
 import com.digihori.pgp.core.emulator.cpu.Sc61860Bus
 import com.digihori.pgp.core.rom.RomComponentId
 import com.digihori.pgp.core.rom.RomSet
@@ -8,12 +10,12 @@ internal class Pc1251MemoryBus(
     romSet: RomSet,
     private val display: Pc1251Display = Pc1251Display(),
     model: Pc1251FamilyModel = Pc1251FamilyModel.PC_1251,
-    memoryMode: Pc1251FamilyMemoryMode = Pc1251FamilyMemoryMode.EXPANDED,
+    memoryMode: RamMode = RamMode.HARDWARE,
 ) : Sc61860Bus {
     private val memory = ByteArray(0x10000)
     private val model = model
     private val memoryMode = memoryMode
-    private val ramRange = (if (memoryMode == Pc1251FamilyMemoryMode.EXPANDED) 0xa000 else model.physicalRamStart)..0xc7ff
+    private val ramRange = if (memoryMode == RamMode.UNRESTRICTED) 0x8000..0xcfff else model.physicalRamStart..0xc7ff
 
     init {
         require(romSet.machineId == model.machineId) { "${model.name} ROM set has wrong machine ID" }

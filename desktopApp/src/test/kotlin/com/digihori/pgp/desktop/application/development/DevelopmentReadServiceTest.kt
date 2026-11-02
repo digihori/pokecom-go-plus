@@ -39,6 +39,23 @@ class DevelopmentReadServiceTest {
         assertEquals(revision + 1, runner.sessionRevision)
     }
 
+    @Test fun machineSpecsUseTheSeriesPreferenceAndReportActualRamAndMirrors() {
+        val service = DesktopDevelopmentReadService { DevelopmentReadState(fallbackRamModes = mapOf(
+            MachineFamily.PC_1251 to RamMode.UNRESTRICTED, MachineFamily.PC_1261 to RamMode.UNRESTRICTED)) }
+        val layout = service.machineSpec("pc-1250").getValue("memoryLayout").jsonObject
+        assertEquals("UNRESTRICTED", layout.getValue("ramConfiguration").jsonPrimitive.content)
+        val ranges = layout.getValue("ramRanges").jsonArray.map { it.jsonObject }
+        assertEquals(0x8000, ranges[0].getValue("startAddress").jsonPrimitive.int)
+        assertEquals(0xcfff, ranges[0].getValue("endAddressInclusive").jsonPrimitive.int)
+        assertFalse(ranges[0].getValue("mirror").jsonPrimitive.boolean)
+        assertEquals(0xc000, ranges[1].getValue("physicalStartAddress").jsonPrimitive.int)
+        assertTrue(ranges[1].getValue("mirror").jsonPrimitive.boolean)
+        val sibling = service.machineSpec("pc-1260").getValue("memoryLayout").jsonObject
+        assertEquals("UNRESTRICTED", sibling.getValue("ramConfiguration").jsonPrimitive.content)
+        assertEquals(0x7fff, sibling.getValue("ramRanges").jsonArray.single().jsonObject.getValue("endAddressInclusive").jsonPrimitive.int)
+        assertEquals("HARDWARE", service.machineSpec("pc-1401").getValue("memoryLayout").jsonObject.getValue("ramConfiguration").jsonPrimitive.content)
+    }
+
     @Test fun scopedProjectMetadataSymbolsAndLoadedLocationNeverExposeRawSourceCommandsOrPaths() = project { workspace ->
         val runner = debuggerTestRunner(byteArrayOf(0x79, 0xc5.toByte(), 0))
         val assembly = assertIs<DesktopAssemblyWorkspaceResult.Success>(DesktopAssemblyWorkspaceCompiler.compile(workspace)).sources

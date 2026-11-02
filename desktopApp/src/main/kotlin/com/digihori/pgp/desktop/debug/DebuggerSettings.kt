@@ -44,7 +44,7 @@ internal object DebuggerSettingsFiles {
 
     fun target(runner: DesktopEmulatorRunner, project: File?): DebuggerSettingsTarget {
         val rom = runner.debugRomFingerprint?.takeIf { hashPattern.matches(it) } ?: fail(DebuggerSettingsError.NO_ROM_ID)
-        return DebuggerSettingsTarget(runner.machineId.value, rom, runner.memoryLayout.pc1251MemoryMode.name,
+        return DebuggerSettingsTarget(runner.machineId.value, rom, runner.memoryLayout.ramMode.name,
             project?.let { hash(it.canonicalPath.encodeToByteArray()) })
     }
 
@@ -110,7 +110,12 @@ internal object DebuggerSettingsFiles {
         if (points.size > DebuggerRegistrationStore.MAX_BREAKPOINTS || watches.size > DebuggerRegistrationStore.MAX_WATCHES) fail(DebuggerSettingsError.REGISTRATIONS)
         val trace = root.getValue("trace").jsonObject
         trace.keysExactly("enabled", "capacity")
-        DebuggerSavedSettings(DebuggerSettingsTarget(target.string("machineId"), target.string("romSha256"), target.string("memoryConfiguration"), project),
+        val machineId = target.string("machineId")
+        val storedRam = target.string("memoryConfiguration")
+        // Older releases used the 1251-only default label on physical-RAM sessions of other families.
+        val knownFamily = com.digihori.pgp.core.api.MachineCatalog.find(com.digihori.pgp.core.rom.MachineId(machineId))?.family
+        val ram = if (storedRam == "EXPANDED" && knownFamily != null && knownFamily != com.digihori.pgp.core.api.MachineFamily.PC_1251) "HARDWARE" else storedRam
+        DebuggerSavedSettings(DebuggerSettingsTarget(machineId, target.string("romSha256"), ram, project),
             points.map { element -> element.jsonObject.let {
                 if (version == 1) it.keysExactly("address", "enabled", "condition", "hitCondition")
                 else it.keysExactly("address", "enabled", "condition", "hitCondition", "bank")

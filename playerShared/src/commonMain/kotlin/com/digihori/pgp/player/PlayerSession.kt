@@ -3,7 +3,7 @@ package com.digihori.pgp.player
 import com.digihori.pgp.core.api.CreateSessionError
 import com.digihori.pgp.core.api.CreateSessionResult
 import com.digihori.pgp.core.api.EmulatorConfiguration
-import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
+import com.digihori.pgp.core.api.RamMode
 import com.digihori.pgp.core.api.EmulatorFactory
 import com.digihori.pgp.core.api.EmulatorSession
 import com.digihori.pgp.core.api.InputResult
@@ -79,7 +79,7 @@ public object PlayerSessionFactory {
     public fun create(romSet: RomSet): PlayerSessionCreationResult =
         when (val created = EmulatorFactory.create(romSet.machineId, romSet, EmulatorConfiguration(
             // Player always uses the selected model's standard RAM capacity.
-            pc1251FamilyMemoryMode = Pc1251FamilyMemoryMode.HARDWARE,
+            ramMode = RamMode.HARDWARE,
         ))) {
             is CreateSessionResult.Success -> PlayerSessionCreationResult.Success(
                 PlayerSession(created.session),

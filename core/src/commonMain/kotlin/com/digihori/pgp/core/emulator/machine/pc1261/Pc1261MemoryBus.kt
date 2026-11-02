@@ -1,5 +1,7 @@
 package com.digihori.pgp.core.emulator.machine.pc1261
 
+import com.digihori.pgp.core.api.RamMode
+
 import com.digihori.pgp.core.emulator.cpu.Sc61860Bus
 import com.digihori.pgp.core.rom.RomComponentId
 import com.digihori.pgp.core.rom.RomSet
@@ -8,7 +10,9 @@ internal class Pc1261MemoryBus(
     romSet: RomSet,
     private val display: Pc1261Display = Pc1261Display(),
     private val model: Pc1261FamilyModel = Pc1261FamilyModel.PC_1261,
+    ramMode: RamMode = RamMode.HARDWARE,
 ) : Sc61860Bus {
+    private val ramRange = if (ramMode == RamMode.UNRESTRICTED) 0x4000..0x7fff else model.physicalRamStart..0x67ff
     private val memory = ByteArray(0x10000)
 
     init {
@@ -37,7 +41,7 @@ internal class Pc1261MemoryBus(
         display.reset()
     }
 
-    fun isWritableAddress(address: Int): Boolean = address in 0x2000..0x3fff || address in model.physicalRamStart..0x67ff
+    fun isWritableAddress(address: Int): Boolean = address in 0x2000..0x3fff || address in ramRange
 
     private fun install(romSet: RomSet, id: RomComponentId, size: Int, start: Int) {
         val component = requireNotNull(romSet.component(id)) { "PC-1261 ROM set is missing ${id.value}" }

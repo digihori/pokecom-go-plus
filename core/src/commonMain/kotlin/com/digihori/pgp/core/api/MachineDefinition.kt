@@ -223,7 +223,7 @@ public object MachineCatalog {
         cyclesPerSecond = 256_000L,
         automaticKeyHoldCycles = 15_360L,
         automaticKeyGapCycles = 25_600L,
-        supportsConfigurableRam = false,
+        supportsConfigurableRam = true,
         memoryRegions = listOf(
             MachineMemoryRegion("internal-rom", "Internal ROM", 0x0000, 0x1fff, MachineMemoryRegionKind.ROM),
             MachineMemoryRegion("display", "Display memory", 0x2000, 0x287f, MachineMemoryRegionKind.DISPLAY),
@@ -248,7 +248,7 @@ public object MachineCatalog {
         cyclesPerSecond = 192_000L,
         automaticKeyHoldCycles = 40_000L,
         automaticKeyGapCycles = 20_000L,
-        supportsConfigurableRam = false,
+        supportsConfigurableRam = true,
         memoryRegions = listOf(
             MachineMemoryRegion("internal-rom", "Internal ROM", 0x0000, 0x1fff, MachineMemoryRegionKind.ROM),
             MachineMemoryRegion("display", "Display memory", 0x6000, 0x67ff, MachineMemoryRegionKind.DISPLAY),
