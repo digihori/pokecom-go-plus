@@ -146,6 +146,9 @@ public class ApplePlayerFacade internal constructor(private val session: PlayerS
     public fun exportDump(start: Int, end: Int): AppleProgramExport =
         AppleProgramExport.from(session.exportMemoryDump(start, end))
 
+    public fun exportAddressSpaceDump(start: Int, end: Int): AppleProgramExport =
+        AppleProgramExport.from(session.exportAddressSpaceDump(start, end))
+
     public fun setOperatingMode(name: String): Boolean {
         if (name !in machine.operatingModes) return false
         val mode = session.supportedOperatingModes.find { appleModeName(it) == name } ?: return false

@@ -193,6 +193,7 @@ open class MainActivity : ComponentActivity() {
                     },
                     onLoadProgram = programIo::openLoad,
                     onSaveProgram = programIo::openSave,
+                    onSaveMemory = programIo::openSaveMemory,
                     onKeyPress = ::pressKey,
                     onKeyRelease = ::releaseKey,
                     onRun = ::runEmulator,
@@ -455,6 +456,7 @@ open class MainActivity : ComponentActivity() {
                 entryPolicy.newSession()
                 presentationMode = PresentationMode.FULL_DEVICE
                 session.runner.setSpeed(executionSpeed, System.nanoTime())
+                programIo.memorySaveAddresses.clear()
                 playerSession = session
                 keyboard = session.keyboard()
                 if (session.machineId.value == "pc-1245") session.setOperatingMode(OperatingMode.RUN)

@@ -262,7 +262,7 @@ struct PlayerNativeMenu: UIViewRepresentable {
                 action("Run", enabled: host.status.runState == "PAUSED", host.run),
                 action("Pause", enabled: host.status.runState == "RUNNING", host.pause),
                 action("Reset", host.reset)]),
-            UIMenu(title: "プログラム", children: [action("ロード") { host.openProgram(save: false) }, action("セーブ") { host.openProgram(save: true) }]),
+            UIMenu(title: "プログラム", children: [action("ロード") { host.openProgram(save: false) }, action("BASICを保存") { host.openProgram(save: true) }, action("マシン語を保存") { host.openProgram(save: true, basic: false) }]),
             UIMenu(title: "表示", children: [action(host.isControllerDisplay ? "通常表示" : "Controller Display", host.togglePresentation)]),
             action("ホームへ戻る", host.returnHome)]
         let modes: [UIMenuElement] = host.operatingModes.isEmpty ? [] : [UIMenu(title: "動作モード", children: host.operatingModes.map { mode in action(mode) { host.setOperatingMode(mode) } })]

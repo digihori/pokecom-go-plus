@@ -12,6 +12,7 @@ import java.util.concurrent.Executor
 
 internal sealed interface ProgramDialogState {
     data object Save : ProgramDialogState
+    data object SaveMemory : ProgramDialogState
     data class Busy(val message: String) : ProgramDialogState
     data class Message(val title: String, val text: String) : ProgramDialogState
 }
@@ -28,6 +29,7 @@ internal class AndroidProgramIo(
 ) {
     var dialog: ProgramDialogState? by mutableStateOf(null)
         private set
+    val memorySaveAddresses = MemorySaveAddressState()
     private var sourceSession: PlayerSession? = null
     private var output: ProgramOutput? = null
     private val saveResume = SaveResumeState<PlayerSession>()
@@ -66,6 +68,11 @@ internal class AndroidProgramIo(
         val target = session() ?: return
         saveResume.begin(target, target.runner.state == PlayerRunState.RUNNING)
         open(ProgramDialogState.Save)
+    }
+    fun openSaveMemory() {
+        val target = session() ?: return
+        saveResume.begin(target, target.runner.state == PlayerRunState.RUNNING)
+        open(ProgramDialogState.SaveMemory)
     }
     private fun open(state: ProgramDialogState) {
         pause()
@@ -124,13 +131,21 @@ internal class AndroidProgramIo(
     fun exportBasic() {
         val target = sourceSession ?: return
         if (session() !== target) { message("保存できませんでした", "Sessionが変更されました。"); return }
-        val result = target.exportBasic()
+        saveOutput(target.exportBasic(), "${target.machineId.value}-program.bas")
+    }
+
+    fun exportMemory(start: Int, end: Int) {
+        val target = sourceSession ?: return
+        if (session() !== target) { message("保存できませんでした", "Sessionが変更されました。"); return }
+        saveOutput(target.exportAddressSpaceDump(start, end),
+            "${target.machineId.value}-${start.toString(16).uppercase().padStart(4, '0')}-${end.toString(16).uppercase().padStart(4, '0')}.dmp")
+    }
+
+    private fun saveOutput(result: PlayerProgramExportResult, name: String) {
         when (result) {
             is PlayerProgramExportResult.Failure -> message("保存できませんでした", result.error.userMessage())
             is PlayerProgramExportResult.Success -> {
-                val name = "${target.machineId.value}-program.bas"
-                val snapshot = ProgramOutput(name, result.copyBytes())
-                output = snapshot
+                output = ProgramOutput(name, result.copyBytes())
                 showDialog(ProgramDialogState.Busy("保存先を選択してください"))
                 runCatching { saver.launch(name) }.onFailure { output = null; message("保存できませんでした", it.message.orEmpty()) }
             }

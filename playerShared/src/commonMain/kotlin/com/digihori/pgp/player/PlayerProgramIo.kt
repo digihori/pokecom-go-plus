@@ -133,17 +133,19 @@ internal class PlayerProgramIo(private val session: EmulatorSession, private val
         }
     }
 
-    fun exportDump(start: Int, end: Int): PlayerProgramExportResult {
+    fun exportDump(start: Int, end: Int, includeAllMemory: Boolean = false): PlayerProgramExportResult {
         if (runner.state != PlayerRunState.PAUSED) return PlayerProgramExportResult.Failure(PlayerProgramError.NotPaused)
         if (start !in 0..0xffff || end !in start..0xffff) return PlayerProgramExportResult.Failure(PlayerProgramError.InvalidRange)
-        val owners = mutableMapOf<Int, Int>()
-        for (address in start..end) {
-            val location = session.memoryLayout.locate(address)
-            if (location.kind != MachineMemoryKind.RAM || !location.writable) return PlayerProgramExportResult.Failure(PlayerProgramError.NonRam(address))
-            val previous = owners.put(location.physicalAddress, address)
-            if (previous != null) return PlayerProgramExportResult.Failure(
-                PlayerProgramError.Placement(MemoryImageLoadError.MirrorOverlap(address, previous, location.physicalAddress, 0)),
-            )
+        if (!includeAllMemory) {
+            val owners = mutableMapOf<Int, Int>()
+            for (address in start..end) {
+                val location = session.memoryLayout.locate(address)
+                if (location.kind != MachineMemoryKind.RAM || !location.writable) return PlayerProgramExportResult.Failure(PlayerProgramError.NonRam(address))
+                val previous = owners.put(location.physicalAddress, address)
+                if (previous != null) return PlayerProgramExportResult.Failure(
+                    PlayerProgramError.Placement(MemoryImageLoadError.MirrorOverlap(address, previous, location.physicalAddress, 0)),
+                )
+            }
         }
         val bytes = session.memorySnapshot(start, end - start + 1).copyBytes()
         return PlayerProgramExportResult.Success(PgpMemoryDumpWriter.write(start, bytes).encodeToByteArray())

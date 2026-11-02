@@ -124,6 +124,7 @@ internal fun PlayerApp(
     onPlaybackSettings: (String) -> Unit = {},
     onLoadProgram: () -> Unit = {},
     onSaveProgram: () -> Unit = {},
+    onSaveMemory: () -> Unit = {},
     onMenuVisibilityChange: (Boolean) -> Unit = {},
     onManageRom: () -> Unit = {},
     onInformation: (String) -> Unit = {},
@@ -173,6 +174,7 @@ internal fun PlayerApp(
                         onOperatingModeChange,
                         onLoadProgram = onLoadProgram,
                         onSaveProgram = onSaveProgram,
+                        onSaveMemory = onSaveMemory,
                         onMenuVisibilityChange = onMenuVisibilityChange,
                         onHome = onHome,
                     )
@@ -285,6 +287,7 @@ private fun EmulatorScreen(
     onOperatingModeChange: (OperatingMode) -> Unit,
     onLoadProgram: () -> Unit = {},
     onSaveProgram: () -> Unit = {},
+    onSaveMemory: () -> Unit = {},
     onMenuVisibilityChange: (Boolean) -> Unit = {},
     onHome: () -> Unit = {},
 ) {
@@ -330,6 +333,7 @@ private fun EmulatorScreen(
             onOperatingModeChange = onOperatingModeChange,
             onLoadProgram = onLoadProgram,
             onSaveProgram = onSaveProgram,
+            onSaveMemory = onSaveMemory,
             onMenuVisibilityChange = onMenuVisibilityChange,
             onHome = onHome,
             quickModes = quickModes,
@@ -393,6 +397,7 @@ private fun PlayerMenu(
     onPlaybackSettings: (String) -> Unit = {},
     onLoadProgram: () -> Unit = {},
     onSaveProgram: () -> Unit = {},
+    onSaveMemory: () -> Unit = {},
     onMenuVisibilityChange: (Boolean) -> Unit = {},
     onManageRom: () -> Unit = {},
     onInformation: (String) -> Unit = {},
@@ -499,7 +504,8 @@ private fun PlayerMenu(
                             }
                             "プログラム" -> {
                                 MenuEntry("ロード") { close(); onLoadProgram() }
-                                MenuEntry("セーブ") { close(); onSaveProgram() }
+                                MenuEntry("BASICを保存") { close(); onSaveProgram() }
+                                MenuEntry("マシン語を保存") { close(); onSaveMemory() }
                             }
                             "ヘルプ・情報" -> listOf("Playerとは", "Studioについて", "プライバシーポリシー", "バージョン・ライセンス").forEach { label ->
                                 MenuEntry(label) { close(); onInformation(label) }

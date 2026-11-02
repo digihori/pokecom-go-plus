@@ -1185,6 +1185,29 @@ final class PlayerHostTests: XCTestCase {
         return PlayerHost(player: player, frames: frames, romStore: IosRomStore(root: root))
     }
 
+    func testMemorySaveAllowsROMAndRetainsAddressesOnClose() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let host = try programHost(root, frames: ManualFrames())
+        host.setActive(true)
+        host.openProgram(save: true, basic: false)
+        XCTAssertFalse(host.programSaveBasic)
+        XCTAssertEqual(host.programExportName, "pc-1245-program.dmp")
+        host.dumpStart = "0000"
+        host.dumpEnd = "000F"
+        host.prepareProgramExport(basic: false, start: host.dumpStart, end: host.dumpEnd)
+        waitUntil { !host.programBusy }
+        XCTAssertNil(host.programIssue)
+        let url = try XCTUnwrap(host.exportURL)
+        XCTAssertTrue(try String(contentsOf: url, encoding: .utf8).contains("0000"))
+        host.finishProgramExport(saved: false)
+        host.closeProgram()
+        host.openProgram(save: true, basic: false)
+        XCTAssertEqual(host.dumpStart, "0000")
+        XCTAssertEqual(host.dumpEnd, "000F")
+        host.closeProgram()
+    }
+
     func testProgramRoundTripFailuresAndSaveResumeIntent() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -1210,6 +1233,9 @@ final class PlayerHostTests: XCTestCase {
         let saved = root.appendingPathComponent("saved.bas")
         try FileManager.default.copyItem(at: output, to: saved)
         host.finishProgramExport(saved: true)
+        XCTAssertFalse(host.programPanelOpen)
+        host.programDocumentDidDismiss()
+        XCTAssertFalse(host.programPanelOpen)
         XCTAssertFalse(FileManager.default.fileExists(atPath: output.path))
         frames.send(10_000_000)
         XCTAssertEqual(host.status.runState, "RUNNING")
@@ -1328,6 +1354,8 @@ final class PlayerHostTests: XCTestCase {
         XCTAssertNotEqual(next, url)
         host.finishProgramExport(saved: true)
         host.programDocumentDidDismiss()
+        XCTAssertFalse(host.programPanelOpen)
+        XCTAssertNil(host.exportURL)
         XCTAssertTrue(host.programMessage.contains("ファイルへセーブしました"))
         host.closeProgram()
     }

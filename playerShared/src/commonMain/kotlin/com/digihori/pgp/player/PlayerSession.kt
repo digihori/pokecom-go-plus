@@ -31,6 +31,10 @@ public class PlayerSession internal constructor(
     public fun exportMemoryDump(startAddress: Int, endAddress: Int): PlayerProgramExportResult =
         programIo.exportDump(startAddress, endAddress)
 
+    /** Saves the visible address space, including ROM, I/O, aliases and the current bank. */
+    public fun exportAddressSpaceDump(startAddress: Int, endAddress: Int): PlayerProgramExportResult =
+        programIo.exportDump(startAddress, endAddress, includeAllMemory = true)
+
     public val machineId: MachineId get() = coreSession.machineId
     public val supportedOperatingModes: Set<OperatingMode> =
         MachineCatalog.require(machineId).supportedOperatingModes
