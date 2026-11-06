@@ -263,7 +263,8 @@ PC-1261／1350／1401が32 KiB、PC-1360／1360Kが128 KiB（bank 0〜7の順に
 
 ### Studio 1.1.2
 
-PC-1251・1261・1401系の系列別RAM設定を改善したStudio 1.1.2を公開準備中です。
+PC-1251・1261・1401系の系列別RAM設定を改善したStudio 1.1.2を正式公開しました（Latest）。
+[Studio 1.1.2のダウンロード](https://github.com/digihori/pokecom-go-plus/releases/tag/v1.1.2)。
 [リリースノート](docs/releases/notes/RELEASE_NOTES_STUDIO_1.1.2.md) ·
 [公開チェックリスト](docs/releases/checklists/RELEASE_CHECKLIST_STUDIO_1.1.2.md)。
 Playerのストア公開は別途実施します。

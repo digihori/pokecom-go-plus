@@ -313,7 +313,8 @@ under `local-data/`, outside Git.
 
 ### Studio 1.1.2
 
-Studio 1.1.2 is being prepared with per-family RAM settings for PC-1251, PC-1261 and PC-1401.
+Studio 1.1.2 is published as the latest release, with per-family RAM settings for PC-1251, PC-1261 and PC-1401.
+[Download Studio 1.1.2](https://github.com/digihori/pokecom-go-plus/releases/tag/v1.1.2).
 [Release notes](docs/releases/notes/RELEASE_NOTES_STUDIO_1.1.2.md) ·
 [Release checklist](docs/releases/checklists/RELEASE_CHECKLIST_STUDIO_1.1.2.md).
 Player store releases are handled separately.

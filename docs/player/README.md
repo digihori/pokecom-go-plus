@@ -67,3 +67,9 @@ Published from `main` on October 25, 2026. The Pages deployment succeeded and bo
 - `https://digihori.github.io/pokecom-go-plus/player/privacy-ios-en.html`
 
 Both pages are publicly accessible without signing in and can be used in App Store Connect.
+
+## Studio 1.1.2 publication (2026-11-06)
+
+The Japanese and English setup pages now link to published Studio v1.1.2.
+Player 1.1.2 store text remains a preparation draft; Studio publication does
+not change the Player store submission status.

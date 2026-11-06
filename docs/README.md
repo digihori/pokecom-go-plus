@@ -96,12 +96,11 @@ iPhone版の開発・ビルド状況は[開発用README](../iosApp/README.md)を
 [公開済みリリースとダウンロード](https://github.com/digihori/pokecom-go-plus/releases)。
 以下は各タグの説明で、現在の開発版の機能一覧ではありません。
 
-Studio 1.1.2準備中：[ノート](releases/notes/RELEASE_NOTES_STUDIO_1.1.2.md) · [チェックリスト](releases/checklists/RELEASE_CHECKLIST_STUDIO_1.1.2.md)。
-
 Player 1.1.2準備中（未公開）：[リリースノート原稿](releases/notes/RELEASE_NOTES_1.1.2.md) · [提出前チェックリスト](releases/checklists/RELEASE_CHECKLIST_1.1.2.md)。
 
 | 対象タグ | リリースノート |
 | --- | --- |
+| v1.1.2 (Studio) | [Release notes](releases/notes/RELEASE_NOTES_STUDIO_1.1.2.md) · [Checklist](releases/checklists/RELEASE_CHECKLIST_STUDIO_1.1.2.md) |
 | v1.1.0 (Studio / Android) | [Release notes](releases/notes/RELEASE_NOTES_1.1.0.md) · [Checklist](releases/checklists/RELEASE_CHECKLIST_1.1.0.md) |
 | v1.0.0 | [Release notes](releases/notes/RELEASE_NOTES_1.0.0.md) · [Checklist](releases/checklists/RELEASE_CHECKLIST_1.0.0.md) |
 | v0.7.0-alpha.1 | [リリースノート](releases/notes/RELEASE_NOTES_0.7.0-alpha.1.md) · [公開チェックリスト](releases/checklists/RELEASE_CHECKLIST_0.7.0-alpha.1.md) |
