@@ -132,6 +132,7 @@ private class Pc1261EmulatorSession(private val machine: Pc1261Machine) : Emulat
                 if (state1 and 0x01 != 0) add(DisplaySymbol.DEG)
                 if (state1 and 0x02 != 0) add(DisplaySymbol.RAD)
                 if (state1 and 0x20 != 0) add(DisplaySymbol.ERROR)
+                if (state1 and 0x40 != 0) add(DisplaySymbol.UNLABELLED)
                 add(when (machine.keyboardState.operatingMode) {
                     OperatingMode.RUN -> DisplaySymbol.RUN
                     OperatingMode.PROGRAM -> DisplaySymbol.PRO

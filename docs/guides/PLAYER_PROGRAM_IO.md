@@ -28,8 +28,10 @@ Resetは「エミュレータ操作」から行う。Reset後はPC-1245がRUN、
 
 - 既存CoreのOLD BASIC codecを使用。標準開始B800、開始／終了pointer C6E1／C6E3。
   実ROMが初期化した有効pointerを尊重し、格納上限はC6E1未満。管理情報が不正な場合は拒否する。
-- Playerは実機容量（HARDWARE）を使用し、RAM拡張の選択は提供しない。
-- DMPはB800〜C7FFとCoreのRAM aliasだけを扱う。A000等の拡張専用範囲・ROM・LCDは拒否し、
+- Playerの初期値は実機容量（HARDWARE）。ホームの「RAM制限解除」でモデルごとに切り替えられる。
+  次のプレイ時に適用し、起動中の構成と異なる場合はRAM消去を確認して起動し直す。
+- 標準構成のDMPはB800〜C7FFとCoreのRAM aliasを扱う。RAM制限解除時はCoreの
+  8000〜CFFFのRAM構成に従う。選択した構成のRAM外・ROM・LCDは拒否し、
   同じ物理RAMへ重なるmirror範囲も拒否する。管理領域の直接上書きでBASICを壊す場合がある。
 - DMPロード例はC500〜C5FF。専用予約領域ではなくBASICと共有するRAM。検証状況は[対応記録](../development/ANDROID_PC1251_PROGRESS.md)を参照。
 

@@ -46,8 +46,8 @@ struct PlayerProbeView: View {
             }
         }
         .sheet(isPresented: $controllerPanel) { ControllerSettingsPanel(input: host.input) }
-        .alert("機種を切り替えますか？", isPresented: Binding(get: { host.pendingMachineId != nil }, set: { if !$0 { host.cancelMachineSelection() } })) {
-            Button("切替", role: .destructive, action: host.confirmMachineSelection)
+        .alert(host.pendingMachineId == host.machine.id ? "RAM設定を適用して起動し直しますか？" : "機種を切り替えますか？", isPresented: Binding(get: { host.pendingMachineId != nil }, set: { if !$0 { host.cancelMachineSelection() } })) {
+            Button(host.pendingMachineId == host.machine.id ? "再起動" : "切替", role: .destructive, action: host.confirmMachineSelection)
             Button("キャンセル", role: .cancel, action: host.cancelMachineSelection)
         } message: { Text("現在のRAMとロード済みプログラムは失われます。登録ROMは保持します。") }
         .onChange(of: information) { _ in host.releaseAllKeys() }
@@ -138,6 +138,18 @@ struct PlayerProbeView: View {
                     }
                 }.labelsHidden().accessibilityIdentifier("model-" + series.id)
             } else { Text(series.displayName).font(.headline) }
+            let model = host.selectedModel(series.id)
+            if host.supportsRamUnlock(model) {
+                Button {
+                    host.setRamUnlocked(model, !host.ramUnlocked(model))
+                } label: {
+                    Label("RAM制限解除", systemImage: host.ramUnlocked(model) ? "checkmark.square" : "square")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .padding(.vertical, 6)
+                }.buttonStyle(.plain)
+                    .accessibilityValue(host.ramUnlocked(model) ? "オン" : "オフ")
+                    .accessibilityIdentifier("ramUnlock-" + model)
+            }
             Text(host.hasRom(series.id) ? "登録済み" : "ROM未登録").font(.subheadline)
             if host.isRunningSeries(series.id) { Text("起動中：" + host.machine.displayName).font(.caption) }
         }
@@ -720,9 +732,13 @@ final class PlayerSkinView: UIView {
                                width: cellW * 0.8, height: cellH * 0.8))
             }
         }
-        let angleNames = ["DE", "G", "RAD"]
+        let angleNames = skin.id == "pc1261-default" ? [] : ["DE", "G", "RAD"]
         for region in skin.statusRegions where !angleNames.contains(region.symbol.name) {
             let on = lcd.enabled && lcd.symbols.contains(region.symbol)
+            if region.style == .rectangle {
+                if on { activeColor.setFill(); cg.fill(region.bounds.cgRect) }
+                continue
+            }
             if region.symbol == .s {
                 let rect = region.bounds.cgRect
                 let side = min(rect.width, rect.height)
@@ -734,7 +750,7 @@ final class PlayerSkinView: UIView {
                     .foregroundColor: panelColor]), in: square.insetBy(dx: side * 0.04, dy: side * 0.04), centered: true)
                 continue
             }
-            drawLabel(Self.symbolLabel(region.symbol), in: region.bounds.cgRect, on: on, alignEnd: region.symbol == .shift)
+            drawLabel(region.symbol == .kana ? "カナ" : Self.symbolLabel(region.symbol), in: region.bounds.cgRect, on: on, alignEnd: region.symbol == .shift && skin.id != "pc1261-default")
         }
         let angleRegions = angleNames.compactMap { name in skin.statusRegions.first { $0.symbol.name == name } }
         if let first = angleRegions.first {
@@ -767,6 +783,7 @@ final class PlayerSkinView: UIView {
         case .parentheses: return "( )"
         case .error: return "E"
         case .battery: return "BATT"
+        case .unlabelled: return "無名シンボル"
         default: return symbol.name
         }
     }
@@ -825,7 +842,7 @@ final class PlayerSkinView: UIView {
         for region in skin.statusRegions {
             let element = UIAccessibilityElement(accessibilityContainer: self)
             element.accessibilityTraits = .staticText
-            element.accessibilityLabel = Self.symbolLabel(region.symbol)
+            element.accessibilityLabel = region.symbol == .error && region.style == .rectangle ? "ERROR" : Self.symbolLabel(region.symbol)
             element.accessibilityIdentifier = "symbol_\(region.symbol.name)"
             element.accessibilityFrameInContainerSpace = screenRect(region.bounds)
             symbolElements[region.symbol.name] = element

@@ -1,5 +1,7 @@
 package com.digihori.pgp.player.android
 
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
@@ -47,6 +49,8 @@ internal fun PlayerHomeScreen(
     gridState: LazyGridState,
     homeModels: Map<MachineId, MachineId>,
     onModelChange: (MachineId) -> Unit,
+    ramUnlocked: Map<MachineId, Boolean>,
+    onRamUnlockedChange: (MachineId, Boolean) -> Unit,
 ) {
     val machines = PlayerMachineCatalog.homeDefinitions
     val selectedMachineId = (state as? PlayerScreenState.Emulator)?.machineId
@@ -86,7 +90,7 @@ internal fun PlayerHomeScreen(
                     val model = PlayerMachineCatalog.selectedModel(machine.id, homeModels)
                     MachineCard(com.digihori.pgp.core.api.MachineCatalog.require(model),
                         entries?.find { it.machineId == machine.id }, entries != null,
-                        selectedMachineId, layout, importEnabled, onPlay, onImportRom, onModelChange)
+                        selectedMachineId, layout, importEnabled, onPlay, onImportRom, onModelChange, ramUnlocked, onRamUnlockedChange)
                 }
                 if (state is PlayerScreenState.Failure) item(span = { GridItemSpan(maxLineSpan) }) {
                     Text("選択中のROMを復元できませんでした。ROM管理で確認するか、別の機種を選択してください。")
@@ -152,18 +156,20 @@ private fun MachineCard(
     onPlay: (MachineId) -> Unit,
     onImportRom: (MachineId) -> Unit,
     onModelChange: (MachineId) -> Unit,
+    ramUnlocked: Map<MachineId, Boolean>,
+    onRamUnlockedChange: (MachineId, Boolean) -> Unit,
 ) {
     val selected = activeMachine?.let(PlayerMachineCatalog::romId) == PlayerMachineCatalog.romId(machine.id)
     Surface(shape = RoundedCornerShape(12.dp), tonalElevation = if (selected) 5.dp else 2.dp) {
         if (layout == PlayerHomeLayout.TILES) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                MachineSummary(machine, entry, loaded, activeMachine, onModelChange)
+                MachineSummary(machine, entry, loaded, activeMachine, onModelChange, ramUnlocked, onRamUnlockedChange)
                 MachineAction(machine.id, entry, loaded, importEnabled, onPlay, onImportRom, Modifier.fillMaxWidth())
             }
         } else {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.weight(1f)) { MachineSummary(machine, entry, loaded, activeMachine, onModelChange) }
+                Column(Modifier.weight(1f)) { MachineSummary(machine, entry, loaded, activeMachine, onModelChange, ramUnlocked, onRamUnlockedChange) }
                 MachineAction(machine.id, entry, loaded, importEnabled, onPlay, onImportRom)
             }
         }
@@ -172,7 +178,8 @@ private fun MachineCard(
 
 @Composable
 private fun MachineSummary(machine: MachineDefinition, entry: PlayerRomEntry?, loaded: Boolean,
-                           activeMachine: MachineId?, onModelChange: (MachineId) -> Unit) {
+                           activeMachine: MachineId?, onModelChange: (MachineId) -> Unit,
+                           ramUnlocked: Map<MachineId, Boolean>, onRamUnlockedChange: (MachineId, Boolean) -> Unit) {
     val models = PlayerMachineCatalog.models(machine.id)
     val label = (if (activeMachine == machine.id) "*" else "") + machine.displayName
     if (models.size > 1) {
@@ -195,6 +202,15 @@ private fun MachineSummary(machine: MachineDefinition, entry: PlayerRomEntry?, l
         PlayerMachineCatalog.romId(activeMachine) == PlayerMachineCatalog.romId(machine.id)) {
         Text("起動中：${com.digihori.pgp.core.api.MachineCatalog.require(activeMachine).displayName}",
             style = MaterialTheme.typography.bodySmall)
+    }
+    if (supportsPlayerRamUnlock(machine.id)) {
+        Row(Modifier.toggleable(value = ramUnlocked[machine.id] == true, role = Role.Checkbox,
+            onValueChange = { onRamUnlockedChange(machine.id, it) }),
+            verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = ramUnlocked[machine.id] == true, onCheckedChange = null)
+            Text("RAM制限解除", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
     Text(when {
         !loaded -> "ROMを確認しています…"

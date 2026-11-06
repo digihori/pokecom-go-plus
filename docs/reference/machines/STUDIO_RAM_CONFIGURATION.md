@@ -40,8 +40,9 @@ Build時の仮配置には従来のモデル別既定開始位置を使い、Loa
 
 ## Playerと対象外機種
 
-この設定はStudio専用。Android／iOS Playerの生成処理はRamMode.HARDWAREを明示し、
-モデル別の実機構成に固定する。Playerの画面・設定・操作は変更しない。
+Android／iOS PlayerはPC-1251／1261／1401系の機種カードに「RAM制限解除」を表示する。
+初期値はOFFで、モデルごとに保存し、次のプレイ時に適用する。起動中の構成と異なる場合は、
+RAMとロード済みプログラムの消去を確認してSessionを作り直す。
 カード方式などその他機種ではUNRESTRICTEDを渡しても従来のRAM構成を維持する。
 RAMカードの管理は別途設計する。
 

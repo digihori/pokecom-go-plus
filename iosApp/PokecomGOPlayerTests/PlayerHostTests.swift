@@ -15,6 +15,47 @@ private final class ManualFrames: PlayerFrameDriver {
 
 @MainActor
 final class PlayerHostTests: XCTestCase {
+    func testRamUnlockPersistsPerModelAndRequiresRestartConfirmation() throws {
+        let domain = "pgp-ram-test-" + UUID().uuidString
+        let defaults = UserDefaults(suiteName: domain)!
+        defer { defaults.removePersistentDomain(forName: domain) }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let preferences = IosMachinePreferences(defaults: defaults)
+        preferences.select("pc-1250")
+        let input = try IosRomCodec.read(bytes: Data(repeating: 0x4d, count: 0x8000), name: "synthetic.bin")
+        let prepared = try IosRomCodec.prepare(input, machineId: "pc-1250")
+        let store = IosRomStore(root: root, machineId: "pc-1250")
+        try store.install(archive: prepared.archive, sourceName: "synthetic.bin")
+        let host = PlayerHost(player: prepared.player, frames: ManualFrames(), romStore: store,
+                              startsAtHome: true, machinePreferences: preferences)
+        XCTAssertFalse(host.ramUnlocked("pc-1250"))
+        host.setRamUnlocked("pc-1250", true)
+        XCTAssertTrue(IosMachinePreferences(defaults: defaults).ramUnlocked("pc-1250"))
+        XCTAssertFalse(host.ramUnlocked("pc-1251"))
+        host.setRamUnlocked("pc-1245", true)
+        XCTAssertFalse(host.ramUnlocked("pc-1245"))
+        XCTAssertFalse(prepared.player.ramUnlocked)
+        host.enterPlayer()
+        XCTAssertEqual(host.pendingMachineId, "pc-1250")
+        host.cancelMachineSelection()
+        XCTAssertTrue(host.showHome)
+        XCTAssertFalse(prepared.player.ramUnlocked)
+        host.enterPlayer(); host.confirmMachineSelection()
+        waitUntil { !host.isBusy }
+        XCTAssertFalse(host.showHome)
+        let unlocked = try IosRomCodec.prepare(input, machineId: "pc-1250", ramUnlocked: true).player
+        XCTAssertTrue(unlocked.ramUnlocked)
+        XCTAssertEqual(unlocked.machine.id, "pc-1250")
+        host.returnHome()
+        host.enterPlayer()
+        XCTAssertNil(host.pendingMachineId)
+        host.returnHome()
+        host.setRamUnlocked("pc-1250", false)
+        host.enterPlayer()
+        XCTAssertEqual(host.pendingMachineId, "pc-1250")
+    }
+
     func testHomeLayoutDefaultsPersistsAndKeepsModelSelectionIndependent() {
         let domain = "pgp-home-test-" + UUID().uuidString
         let defaults = UserDefaults(suiteName: domain)!
@@ -510,7 +551,7 @@ final class PlayerHostTests: XCTestCase {
                 view.update(lcd: player.snapshot().display, mode: .fullDevice, operatingMode: mode, pressedKeys: [], inputEpoch: 0, active: true)
                 view.layoutIfNeeded()
                 let elements = try XCTUnwrap(view.accessibilityElements as? [UIAccessibilityElement])
-                let names = id == "pc-1245" ? ["RUN", "PRO"] : ["RUN", "PRO", "RESERVE"]
+                let names = id.hasPrefix("pc-126") ? [] : (id == "pc-1245" ? ["RUN", "PRO"] : ["RUN", "PRO", "RESERVE"])
                 let regions = try names.map { name in try XCTUnwrap(elements.first { $0.accessibilityIdentifier == "symbol_" + name }) }
                 for (index, element) in regions.enumerated() {
                     XCTAssertEqual(element.accessibilityValue, names[index] == (mode == "RSV" ? "RESERVE" : mode) ? "点灯" : "消灯")
@@ -796,7 +837,8 @@ final class PlayerHostTests: XCTestCase {
         let display = try XCTUnwrap(elements.first { $0.accessibilityIdentifier == "lcd" })
         XCTAssertTrue(display.accessibilityLabel?.contains("24桁×2行") == true)
         XCTAssertTrue(view.bounds.contains(display.accessibilityFrameInContainerSpace))
-        XCTAssertEqual(elements.first { $0.accessibilityIdentifier == "symbol_RESERVE" }?.accessibilityLabel, "RSV")
+        XCTAssertNil(elements.first { $0.accessibilityIdentifier == "symbol_RESERVE" })
+        XCTAssertEqual(elements.first { $0.accessibilityIdentifier == "symbol_UNLABELLED" }?.accessibilityLabel, "無名シンボル")
         XCTAssertEqual(elements.first { $0.accessibilityIdentifier == "symbol_SMALL" }?.accessibilityLabel, "SML")
         XCTAssertEqual(elements.filter { $0.accessibilityTraits.contains(.button) }.count, 52)
         view.update(lcd: lcd, mode: .controllerDisplay, operatingMode: "RUN", pressedKeys: [], inputEpoch: 1, active: true)

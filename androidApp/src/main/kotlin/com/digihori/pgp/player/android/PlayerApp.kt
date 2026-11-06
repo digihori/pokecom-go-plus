@@ -96,6 +96,7 @@ import com.digihori.pgp.player.PlayerScreenState
 import com.digihori.pgp.player.PlayerKeyCap
 import com.digihori.pgp.player.PlayerKeyboard
 import com.digihori.pgp.player.PresentationMode
+import com.digihori.pgp.player.skin.withUpdatedKeyLayout
 import com.digihori.pgp.player.skin.withFixedModeIndicators
 import com.digihori.pgp.player.skin.PlayerSkinCatalog
 import com.digihori.pgp.player.skin.SkinDefinition
@@ -134,6 +135,8 @@ internal fun PlayerApp(
     onImportMachineRom: (MachineId) -> Unit = {},
     onHome: () -> Unit = {},
     homeModels: Map<MachineId, MachineId> = emptyMap(),
+    ramUnlocked: Map<MachineId, Boolean> = emptyMap(),
+    onRamUnlockedChange: (MachineId, Boolean) -> Unit = { _, _ -> },
     onHomeModelChange: (MachineId) -> Unit = {},
     homeLayout: PlayerHomeLayout = PlayerHomeLayout.TILES,
     onHomeLayoutChange: (PlayerHomeLayout) -> Unit = {},
@@ -152,7 +155,7 @@ internal fun PlayerApp(
                 if (showHome) {
                     PlayerHomeScreen(screenState, homeRomEntries, onPlay, onImportMachineRom, romImportEnabled,
                         homeLayout, onHomeLayoutChange,
-                        if (homeLayout == PlayerHomeLayout.TILES) homeTileState else homeListState, homeModels, onHomeModelChange)
+                        if (homeLayout == PlayerHomeLayout.TILES) homeTileState else homeListState, homeModels, onHomeModelChange, ramUnlocked, onRamUnlockedChange)
                 } else when (screenState) {
                     PlayerScreenState.RomMissing -> RomMissingScreen(onImportRom, romImportEnabled)
                     PlayerScreenState.Loading -> LoadingScreen()
@@ -291,7 +294,7 @@ private fun EmulatorScreen(
     onMenuVisibilityChange: (Boolean) -> Unit = {},
     onHome: () -> Unit = {},
 ) {
-    val skin = remember(machineId) { PlayerSkinCatalog.forMachine(machineId)?.withFixedModeIndicators() }
+    val skin = remember(machineId) { PlayerSkinCatalog.forMachine(machineId)?.withUpdatedKeyLayout()?.withFixedModeIndicators() }
     val quickModes = MachineCatalog.require(machineId).family in setOf(MachineFamily.PC_1245, MachineFamily.PC_1251, MachineFamily.PC_1261) &&
         supportedOperatingModes.containsAll(setOf(OperatingMode.RUN, OperatingMode.PROGRAM))
     Box(modifier = Modifier.fillMaxSize()) {
@@ -611,10 +614,16 @@ private fun SkinnedDevice(
                 .width((panel.width * placement.scale).dp).height((panel.height * placement.scale).dp)
                 .background(Color(0xFFB7C8A7)))
             skin.statusRegions.forEach { region ->
-                val joinedAngle = skin.id == PlayerSkinCatalog.PC1261_SKIN_ID && region.symbol == DisplaySymbol.DEG
-                if (skin.id == PlayerSkinCatalog.PC1261_SKIN_ID && region.symbol == DisplaySymbol.RAD) return@forEach
-                val bounds = if (joinedAngle) region.bounds.copy(width = region.bounds.width +
-                    skin.statusRegions.single { it.symbol == DisplaySymbol.RAD }.bounds.width) else region.bounds
+                if (region.style == com.digihori.pgp.player.skin.SkinStatusStyle.RECTANGLE) {
+                    if (displayFrame.enabled && region.symbol in displayFrame.symbols) {
+                        val bounds = region.bounds
+                        Box(Modifier.offset(placement.screenX(bounds.x).dp, placement.screenY(bounds.y).dp)
+                            .width((bounds.width * placement.scale).dp).height((bounds.height * placement.scale).dp)
+                            .background(Color(0xFF26352C)))
+                    }
+                    return@forEach
+                }
+                val bounds = region.bounds
                 SkinLcdLabel(
                     text = if (skin.id in setOf(PlayerSkinCatalog.PC1470U_SKIN_ID, PlayerSkinCatalog.PC1460_SKIN_ID, PlayerSkinCatalog.PC1450_SKIN_ID,PlayerSkinCatalog.PC1350_SKIN_ID, PlayerSkinCatalog.PC1360_SKIN_ID, PlayerSkinCatalog.PC1360K_SKIN_ID, PlayerSkinCatalog.PC1261_SKIN_ID)) when (region.symbol) {
                         DisplaySymbol.KANA -> "カナ"
@@ -625,9 +634,6 @@ private fun SkinnedDevice(
                     color = if (displayFrame.enabled && region.symbol in displayFrame.symbols)
                         Color(0xFF26352C) else Color(0x1F26352C),
                     invertedSquare = region.symbol == DisplaySymbol.S,
-                    trailingText = if (joinedAngle) "RAD" else "",
-                    trailingColor = if (displayFrame.enabled && DisplaySymbol.RAD in displayFrame.symbols)
-                        Color(0xFF26352C) else Color(0x1F26352C),
                     alignEnd = region.symbol == DisplaySymbol.SHIFT && skin.id == PlayerSkinCatalog.PC1245_SKIN_ID,
                     bold = skin.id in setOf(PlayerSkinCatalog.PC1470U_SKIN_ID, PlayerSkinCatalog.PC1460_SKIN_ID, PlayerSkinCatalog.PC1450_SKIN_ID,PlayerSkinCatalog.PC1401_SKIN_ID, PlayerSkinCatalog.PC1360_SKIN_ID, PlayerSkinCatalog.PC1360K_SKIN_ID, PlayerSkinCatalog.PC1350_SKIN_ID, PlayerSkinCatalog.PC1261_SKIN_ID),
                     modifier = Modifier.offset(placement.screenX(bounds.x).dp, placement.screenY(bounds.y).dp)

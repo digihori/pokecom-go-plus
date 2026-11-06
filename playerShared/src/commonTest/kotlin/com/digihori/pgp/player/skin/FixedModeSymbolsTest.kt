@@ -10,7 +10,7 @@ class FixedModeSymbolsTest {
         OperatingMode.PROGRAM to DisplaySymbol.PRO, OperatingMode.RESERVE to DisplaySymbol.RESERVE)
 
     @Test fun fixedLabelsMatchEachMachinesModesAndOnlyTheCurrentOneIsActive() {
-        for (name in listOf("pc-1245", "pc-1251", "pc-1261")) {
+        for (name in listOf("pc-1245", "pc-1251")) {
             val id = MachineId(name)
             val skin = assertNotNull(PlayerSkinCatalog.forMachine(id)).withFixedModeIndicators()
             val supported = MachineCatalog.require(id).supportedOperatingModes
@@ -33,14 +33,17 @@ class FixedModeSymbolsTest {
         }
     }
 
-    @Test fun referenceLayoutEnlargesAndGroupsThe1261StatusBands() {
+    @Test fun referenceLayoutSeparatesTextLabelsAndPrintedPanelSegments() {
         val skin = assertNotNull(PlayerSkinCatalog.forMachine(MachineId("pc-1261")))
-        fun bounds(symbol: DisplaySymbol) = skin.statusRegions.single { it.symbol == symbol }.bounds
-        assertTrue(skin.statusRegions.all { it.bounds.height == 24f })
-        assertEquals(bounds(DisplaySymbol.DEG).right, bounds(DisplaySymbol.RAD).x)
-        assertEquals(bounds(DisplaySymbol.SMALL).x, bounds(DisplaySymbol.PRINT).x)
-        assertTrue(bounds(DisplaySymbol.DEF).x < bounds(DisplaySymbol.SHIFT).x)
-        assertTrue(bounds(DisplaySymbol.SHIFT).right < bounds(DisplaySymbol.SMALL).x)
-        assertTrue(bounds(DisplaySymbol.RAD).right < bounds(DisplaySymbol.ERROR).x)
+        val labels = skin.statusRegions.filter { it.style == SkinStatusStyle.LABEL }
+        val segments = skin.statusRegions.filter { it.style == SkinStatusStyle.RECTANGLE }
+        assertEquals(listOf(DisplaySymbol.KANA, DisplaySymbol.SMALL, DisplaySymbol.SHIFT, DisplaySymbol.DEF), labels.map { it.symbol })
+        assertTrue(labels.all { it.bounds.right <= skin.lcdContentRegion.x })
+        assertEquals(labels.map { it.bounds.y }.sorted(), labels.map { it.bounds.y })
+        assertEquals(listOf(DisplaySymbol.BUSY, DisplaySymbol.PRINT, DisplaySymbol.DEG, DisplaySymbol.RAD,
+            DisplaySymbol.ERROR, DisplaySymbol.UNLABELLED), segments.map { it.symbol })
+        assertTrue(segments.all { it.bounds.y > skin.lcdContentRegion.bottom })
+        assertEquals(segments.map { it.bounds.x }.sorted(), segments.map { it.bounds.x })
+        assertTrue(skin.statusRegions.none { it.symbol in modes.values })
     }
 }

@@ -111,10 +111,10 @@ class Pc1261SkinProbeActivity : ComponentActivity() {
         }
         // Original checker pattern, no firmware glyphs or ROM-derived data.
         listOf(0x2000..0x203b, 0x2800..0x283b, 0x2040..0x207b, 0x2840..0x287b).forEach { range ->
-            range.forEach { write(it, if (it % 2 == 0) 0x55 else 0x2a) }
+            range.forEach { write(it, if (intent.getBooleanExtra("allLcdOn", false)) 0x7f else if (it % 2 == 0) 0x55 else 0x2a) }
         }
         write(0x203d, 0x7b)
-        write(0x207c, intent.getIntExtra("angleFlags", 0x23))
+        write(0x207c, if (intent.getBooleanExtra("allLcdOn", false)) 0x63 else intent.getIntExtra("angleFlags", 0x23))
         val loop = program.size
         program += listOf(0x4d, 0x79, loop shr 8, loop and 255)
         program.forEachIndexed { index, value -> internal[index] = value.toByte() }

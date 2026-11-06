@@ -71,6 +71,7 @@ open class MainActivity : ComponentActivity() {
     private lateinit var gamepad: AndroidGamepadController
     private val entryPolicy = PlayerEntryPolicy()
     private var homeModels by mutableStateOf<Map<com.digihori.pgp.core.rom.MachineId, com.digihori.pgp.core.rom.MachineId>>(emptyMap())
+    private var ramUnlocked by mutableStateOf<Map<com.digihori.pgp.core.rom.MachineId, Boolean>>(emptyMap())
     private var homeLayout by mutableStateOf(PlayerHomeLayout.TILES)
     private val homePreferences by lazy { getSharedPreferences("player-home", MODE_PRIVATE) }
     private var showHome by mutableStateOf(true)
@@ -103,6 +104,9 @@ open class MainActivity : ComponentActivity() {
             row.id to com.digihori.pgp.player.PlayerMachineCatalog.selectedModel(row.id,
                 if (stored == null) emptyMap() else mapOf(row.id to stored))
         }
+        ramUnlocked = com.digihori.pgp.player.PlayerMachineCatalog.definitions.associate {
+            it.id to homePreferences.getBoolean("ramUnlocked:${it.id.value}", false)
+        }
         enableEdgeToEdge()
         configureSystemBars()
         volumeControlStream = android.media.AudioManager.STREAM_MUSIC
@@ -126,7 +130,8 @@ open class MainActivity : ComponentActivity() {
         programIo = AndroidProgramIo(this, ioExecutor, { playerSession }, ::pauseEmulator,
             { playerSession?.let(::refreshSession) }, ::requestAutomaticRun, ::updateGamepadContext)
         romManager = AndroidRomManager(this, ioExecutor, { playerSession }, ::pauseEmulator,
-            ::publishSession, ::replaceScreenState, ::updateGamepadContext)
+            ::publishSession, ::replaceScreenState, ::updateGamepadContext,
+            { id -> playerRamMode(id, homePreferences.getBoolean("ramUnlocked:${id.value}", false)) })
         val packageInfo = packageManager.getPackageInfo(packageName, 0)
         playerVersion = "${packageInfo.versionName} (${androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(packageInfo)})"
         setContent {
@@ -164,6 +169,11 @@ open class MainActivity : ComponentActivity() {
                     showHome = showHome,
                     homeLayout = homeLayout,
                     homeModels = homeModels,
+                    ramUnlocked = ramUnlocked,
+                    onRamUnlockedChange = { id, enabled ->
+                        homePreferences.edit().putBoolean("ramUnlocked:${id.value}", enabled).apply()
+                        ramUnlocked = ramUnlocked + (id to enabled)
+                    },
                     onHomeModelChange = { id ->
                         val row = com.digihori.pgp.player.PlayerMachineCatalog.romId(id)
                         homeModels = homeModels + (row to id)
@@ -330,7 +340,8 @@ open class MainActivity : ComponentActivity() {
         if (::gamepad.isInitialized && gamepad.onMotion(event)) true else super.onGenericMotionEvent(event)
 
     private fun openPlayer(machineId: com.digihori.pgp.core.rom.MachineId) {
-        if (playerSession?.machineId != machineId) {
+        if (playerSession?.machineId != machineId ||
+            playerSession?.ramMode != playerRamMode(machineId, ramUnlocked[machineId] == true)) {
             romManager.use(machineId, fromHome = true) { enterPlayer() }
         } else enterPlayer()
     }

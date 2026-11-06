@@ -7,6 +7,24 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ApplePlayerFacadeTest {
+    @Test fun ramUnlockPreservesModelIdentityAndOpensExtraRam() {
+        for (id in listOf("pc-1250", "pc-1251", "pc-1255", "pc-1260", "pc-1261", "pc-1401", "pc-1402")) {
+            val bytes = ByteArray(if (id.startsWith("pc-125")) 0x8000 else 0x10000) { 0x4d }
+            val prepared = ApplePlayerFactory.prepareLegacyForMachine(bytes, id)
+            val standard = kotlin.test.assertNotNull(prepared.playerWithRamUnlock(false))
+            val unlocked = kotlin.test.assertNotNull(prepared.playerWithRamUnlock(true))
+            assertFalse(standard.ramUnlocked)
+            assertTrue(unlocked.ramUnlocked)
+            assertEquals(id, unlocked.machine.id)
+            val extra = if (id.startsWith("pc-125")) 0x8000 else if (id.startsWith("pc-126")) 0x4000 else 0x2000
+            kotlin.test.assertNull(unlocked.exportDump(extra, extra).error)
+            unlocked.reset()
+            assertTrue(unlocked.ramUnlocked)
+        }
+        val unsupported = ApplePlayerFactory.prepareLegacy(ByteArray(0x8000) { 0x4d })
+        assertFalse(kotlin.test.assertNotNull(unsupported.playerWithRamUnlock(true)).ramUnlocked)
+    }
+
     @Test fun iosCatalogKeepsExplicitTargetsAndModePolicy() {
         assertEquals(listOf("pc-1245", "pc-1250", "pc-1251", "pc-1255", "pc-1260", "pc-1261", "pc-1350", "pc-1401", "pc-1402", "pc-1450", "pc-1360", "pc-1460", "pc-1470u", "pc-1360k"), AppleMachineCatalog.machines.map { it.id })
         assertEquals(PlayerMachineCatalog.homeDefinitions.map { it.id.value }, AppleMachineCatalog.homeMachines.map { it.id })
@@ -141,7 +159,7 @@ class ApplePlayerFacadeTest {
             val symbols = listOf(com.digihori.pgp.core.api.DisplaySymbol.RUN,
                 com.digihori.pgp.core.api.DisplaySymbol.PRO, com.digihori.pgp.core.api.DisplaySymbol.RESERVE)
             val regions = player.skin.statusRegions.filter { it.symbol in symbols }
-            assertEquals(if (machine.id == "pc-1245") 2 else 3, regions.size)
+            assertEquals(if (machine.romId == "pc-1261") 0 else if (machine.id == "pc-1245") 2 else 3, regions.size)
             assertEquals(listOf(70f, 135f, 200f).take(regions.size), regions.map { it.bounds.x })
             for ((index, mode) in machine.operatingModes.withIndex()) {
                 assertTrue(player.setOperatingMode(mode))

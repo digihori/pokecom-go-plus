@@ -22,6 +22,7 @@ import com.digihori.pgp.core.rom.RomSet
 public class PlayerSession internal constructor(
     private val coreSession: EmulatorSession,
 ) {
+    public val ramMode: RamMode = coreSession.memoryLayout.ramMode
     public val runner: PlayerRunner = PlayerRunner(coreSession)
     private val programIo = PlayerProgramIo(coreSession, runner)
 
@@ -76,10 +77,9 @@ public class PlayerSession internal constructor(
 }
 
 public object PlayerSessionFactory {
-    public fun create(romSet: RomSet): PlayerSessionCreationResult =
+    public fun create(romSet: RomSet, ramMode: RamMode = RamMode.HARDWARE): PlayerSessionCreationResult =
         when (val created = EmulatorFactory.create(romSet.machineId, romSet, EmulatorConfiguration(
-            // Player always uses the selected model's standard RAM capacity.
-            ramMode = RamMode.HARDWARE,
+            ramMode = ramMode,
         ))) {
             is CreateSessionResult.Success -> PlayerSessionCreationResult.Success(
                 PlayerSession(created.session),

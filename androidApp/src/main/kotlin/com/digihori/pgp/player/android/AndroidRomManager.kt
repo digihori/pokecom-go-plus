@@ -25,6 +25,7 @@ internal class AndroidRomManager(
     private val publishSession: (PlayerSession) -> Unit,
     private val publishState: (PlayerScreenState) -> Unit,
     private val onModalChange: () -> Unit,
+    private val ramMode: (MachineId) -> com.digihori.pgp.core.api.RamMode = { com.digihori.pgp.core.api.RamMode.HARDWARE },
 ) {
     var state: RomManagerState? by mutableStateOf(null)
         private set
@@ -93,15 +94,20 @@ internal class AndroidRomManager(
     }
 
     private fun install(prepared: PreparedAndroidRom) {
-        work("ROMを保存しています…", { library.install(prepared.bytes, prepared.romSet, prepared.sourceName) }) {
-            publishSession(prepared.session)
+        work("ROMを保存しています…", {
+            val created = (PlayerSessionFactory.create(prepared.romSet, ramMode(prepared.romSet.machineId))
+                as? PlayerSessionCreationResult.Success)?.session ?: error("Sessionを生成できませんでした")
+            library.install(prepared.bytes, prepared.romSet, prepared.sourceName)
+            created
+        }) {
+            publishSession(it)
             dismiss()
         }
     }
 
     fun use(machineId: MachineId, fromHome: Boolean = false, onReady: () -> Unit = {}) {
         require(PlayerMachineCatalog.definitions.any { it.id == machineId })
-        if (session()?.machineId == machineId) { onReady(); return }
+        if (session()?.machineId == machineId && session()?.ramMode == ramMode(machineId)) { onReady(); return }
         pause()
         val start = {
             work("ROMを読み込んでいます…", {
@@ -112,7 +118,9 @@ internal class AndroidRomManager(
         }
         if (session() == null) { start(); return }
         show(RomManagerState.Confirm(
-            "${MachineCatalog.require(machineId).displayName}へ切り替えます。現在の${MachineCatalog.require(session()!!.machineId).displayName}のRAMとロード済みプログラムは失われます。",
+            (if (session()?.machineId == machineId) "RAM制限解除の設定を適用して起動し直します。"
+                else "${MachineCatalog.require(machineId).displayName}へ切り替えます。") +
+                "現在の${MachineCatalog.require(session()!!.machineId).displayName}のRAMとロード済みプログラムは失われます。",
             start,
             if (fromHome) ::dismiss else ::open,
         ))
@@ -143,7 +151,7 @@ internal class AndroidRomManager(
     private fun createStoredSession(id: MachineId): PlayerSession {
         val bytes = library.load(id) ?: error("保存済みROMが見つかりません")
         val parsed = PlayerRomDecoder.decode(bytes, id) ?: error("保存済みROMの検証に失敗しました")
-        return (PlayerSessionFactory.create(parsed) as? PlayerSessionCreationResult.Success)?.session
+        return (PlayerSessionFactory.create(parsed, ramMode(id)) as? PlayerSessionCreationResult.Success)?.session
             ?: error("Sessionを生成できませんでした")
     }
 

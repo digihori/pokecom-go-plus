@@ -8,11 +8,12 @@
 **対象:** `core/src/commonMain`\
 **互換性:** 以下の初期案は安定APIの保証ではない。現行実装は上記ソースを参照
 
-## 現行のRAM構成（2026-11-02）
+## 現行のRAM構成（2026-11-06）
 
 EmulatorConfiguration(ramMode = RamMode.HARDWARE)が既定。
 StudioはramModesでPC_1251／PC_1261／PC_1401系列の保存済み設定を指定し、
-PlayerはHARDWAREを明示する。MachineMemoryLayout.ramModeが実際の構成を表す。
+Playerは既定のHARDWARE、または機種ごとに保存した「RAM制限解除」のUNRESTRICTEDを指定する。
+MachineMemoryLayout.ramModeが実際の構成を表す。
 旧Pc1251FamilyMemoryModeのAPI名はRamModeへ移行した。
 [範囲・ミラー・BASIC・設定移行](machines/STUDIO_RAM_CONFIGURATION.md)を参照。
 

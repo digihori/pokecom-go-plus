@@ -92,14 +92,34 @@ class Pc1261PlayerFoundationTest {
         assertContentEquals(exported, assertIs<PlayerProgramExportResult.Success>(player.exportBasic()).copyBytes())
     }
 
-    @Test fun skinMatchesKeysAndBothRowsFitBetweenStatusBands() {
+    @Test fun unlabelledSegmentUsesOnlyBitSixAndSurvivesSnapshotCopy() {
+        for (flags in listOf(0, 0x20, 0x40, 0x60, 0x80)) {
+            val code = listOf(0x10, 0x20, 0x7c, 0x02, flags, 0x52, 0x79, 0, 6)
+            val player = session(code)
+            val before = player.displayFrame()
+            player.runner.run(0); player.runner.tick(10_000_000); player.runner.pause()
+            val frame = player.displayFrame()
+            assertEquals(flags and 0x40 != 0, DisplaySymbol.UNLABELLED in frame.symbols)
+            assertEquals(flags and 0x20 != 0, DisplaySymbol.ERROR in frame.symbols)
+            assertFalse(DisplaySymbol.UNLABELLED in before.symbols)
+            player.reset()
+            assertFalse(DisplaySymbol.UNLABELLED in player.displayFrame().symbols)
+            assertEquals(flags and 0x40 != 0, DisplaySymbol.UNLABELLED in frame.symbols)
+        }
+    }
+
+    @Test fun skinMatchesKeysAndBothRowsFitBesideLabelsAndAboveSegments() {
         val skin = assertNotNull(PlayerSkinCatalog.forMachine(MachineId("pc-1261")))
         assertEquals(1206f, skin.designSize.width)
         assertEquals(session().keyboard()!!.rows.flatten().map { it.id }.toSet(), skin.keyRegions.map { it.id }.toSet())
         assertEquals(143f / 15f, skin.lcdContentRegion.width / skin.lcdContentRegion.height, 0.001f)
         skin.statusRegions.forEach {
-            assertTrue(it.bounds.bottom <= skin.lcdContentRegion.y || it.bounds.y >= skin.lcdContentRegion.bottom)
+            assertTrue(it.bounds.right <= skin.lcdContentRegion.x ||
+                it.bounds.y >= skin.lcdContentRegion.bottom)
+            assertTrue(it.bounds.bottom <= skin.lcdPanelRegion.bottom)
         }
+        assertEquals(6, skin.statusRegions.count { it.style == com.digihori.pgp.player.skin.SkinStatusStyle.RECTANGLE })
+        assertEquals(DisplaySymbol.UNLABELLED, skin.statusRegions.last().symbol)
         skin.keyRegions.forEach { assertTrue(it.bounds.y > skin.lcdPanelRegion.bottom) }
     }
 }

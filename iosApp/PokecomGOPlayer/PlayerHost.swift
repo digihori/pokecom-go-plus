@@ -197,6 +197,15 @@ final class PlayerHost: ObservableObject {
         guard hasSavedRom else { return nil }
         return player?.machine.romId == selectedMachine.romId ? romSourceName : "登録済み"
     }
+    func supportsRamUnlock(_ id: String) -> Bool {
+        ["pc-1250", "pc-1251", "pc-1255", "pc-1260", "pc-1261", "pc-1401", "pc-1402"].contains(id)
+    }
+    func ramUnlocked(_ id: String) -> Bool { supportsRamUnlock(id) && machinePreferences.ramUnlocked(id) }
+    func setRamUnlocked(_ id: String, _ enabled: Bool) {
+        guard !isBusy, preparedRom == nil, supportsRamUnlock(id) else { return }
+        objectWillChange.send()
+        machinePreferences.setRamUnlocked(id, enabled)
+    }
     func selectedModel(_ seriesId: String) -> String { modelSelections[seriesId] ?? seriesId }
     func hasRom(_ id: String) -> Bool {
         let store = IosRomStore(root: romStore.root, machineId: id)
@@ -569,7 +578,7 @@ final class PlayerHost: ObservableObject {
                 self.isBusy = false
                 self.canCancelRomRead = false
                 do {
-                    self.preparedRom = try IosRomCodec.prepare(result.get(), machineId: self.selectedMachineId)
+                    self.preparedRom = try IosRomCodec.prepare(result.get(), machineId: self.selectedMachineId, ramUnlocked: self.ramUnlocked(self.selectedMachineId))
                     if self.hasSession || FileManager.default.fileExists(atPath: self.romStore.recordURL.path) {
                         self.awaitingReplacement = true
                         self.romMessage = "ROMを置換します。現在のRAMとロード済みプログラムは失われます。"
@@ -694,7 +703,7 @@ final class PlayerHost: ObservableObject {
                 self.isBusy = false
                 do {
                     if let input = try result.get() {
-                        let restored = try IosRomCodec.prepare(input, machineId: id)
+                        let restored = try IosRomCodec.prepare(input, machineId: id, ramUnlocked: self.ramUnlocked(id))
                         self.lcd = nil
                         self.dumpStart = ""
                         self.dumpEnd = ""
@@ -734,7 +743,7 @@ final class PlayerHost: ObservableObject {
 
     func enterPlayer() {
         guard !isBusy else { return }
-        if player?.machine.id == selectedMachineId { enterPlayerNow() }
+        if player?.machine.id == selectedMachineId && player?.ramUnlocked == ramUnlocked(selectedMachineId) { enterPlayerNow() }
         else if !hasSavedRom { openRomPicker() }
         else if hasSession { pendingMachineId = selectedMachineId }
         else { restoreRom(modelId: selectedMachineId, enter: true) }
@@ -1000,6 +1009,8 @@ final class IosMachinePreferences {
               AppleMachineCatalog.shared.models(id: seriesId).contains(where: { $0.id == id }) else { return seriesId }
         return id
     }
+    func ramUnlocked(_ id: String) -> Bool { defaults?.bool(forKey: "machine.ramUnlocked." + id) ?? false }
+    func setRamUnlocked(_ id: String, _ enabled: Bool) { defaults?.set(enabled, forKey: "machine.ramUnlocked." + id) }
     func select(_ id: String) {
         guard let machine = AppleMachineCatalog.shared.find(id: id) else { return }
         defaults?.set(id, forKey: "machine.selected")
