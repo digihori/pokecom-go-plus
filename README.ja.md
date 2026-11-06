@@ -261,12 +261,23 @@ PC-1261／1350／1401が32 KiB、PC-1360／1360Kが128 KiB（bank 0〜7の順に
 初回ビルドではGradle、Kotlin/Native、Compose等をダウンロードするため、回線環境によっては
 数分かかり、数百MB以上のディスク領域を使用する。2回目以降はローカルキャッシュを再利用する。
 
+### Studio 1.1.2
+
+PC-1251・1261・1401系の系列別RAM設定を改善したStudio 1.1.2を公開準備中です。
+[リリースノート](docs/releases/notes/RELEASE_NOTES_STUDIO_1.1.2.md) ·
+[公開チェックリスト](docs/releases/checklists/RELEASE_CHECKLIST_STUDIO_1.1.2.md)。
+Playerのストア公開は別途実施します。
+
 ### 1.1.0の公開状況
 
 Studio 1.1.0を公開しました。Android Player 1.1.0もGoogle Playで公開しました。
 [リリースノート](docs/releases/notes/RELEASE_NOTES_1.1.0.md)と
 [公開チェックリスト](docs/releases/checklists/RELEASE_CHECKLIST_1.1.0.md)で対象と残作業を管理します。
-iOSは0.7.0（build 3）が審査中のため提出済みビルドを維持し、次回1.1.0は別途準備します。
+Playerの次回1.1.2はAndroid／iOS向けに準備中です。
+[1.1.2リリースノート原稿](docs/releases/notes/RELEASE_NOTES_1.1.2.md)と
+[リリース引継ぎ](docs/releases/checklists/RELEASE_CHECKLIST_1.1.2.md)を参照してください。
+iOSのソース上の版数はまだ0.7.0（build 3）で、Archive前に予定の1.1.2 (13)へ更新します。
+提出済み0.7.0の審査資料は過去の記録として保持し、現在の審査・公開状態はここでは再確認していません。
 AndroidはGoogle Playで更新し、debug署名APKはCI成果物のみにします。
 
 ### Technical Preview配布物

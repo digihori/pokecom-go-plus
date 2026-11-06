@@ -3337,3 +3337,11 @@ reported Kotlin metadata-version diagnostics during lint and a debug packaging
 failure; a subsequent targeted debug build succeeded. The Swift unit run had
 58 passing tests and one old-layout expectation; after updating that expectation,
 the two related Swift tests passed. Physical-device checks belong to the owner.
+
+### Studio 1.1.2 release preparation (2026-11-06)
+
+Public Gradle/ProjectInfo version and release workflow advance to 1.1.2.
+Native packages advance from 1.7.0 to 1.8.0, preserving MSI UpgradeCode and
+bundle identity; MSI validation and the notarization DMG path follow that version.
+Studio release notes are separate from Player store drafts. iOS version/signing
+and Player store distribution remain outside this Studio release operation.

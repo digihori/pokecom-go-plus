@@ -311,12 +311,23 @@ PGP_GOLDEN_PRODUCER_REVISION=<git-revision> \
 The output includes the ROM SHA-256 and is replay-validated immediately. ROMs and generated JSON remain
 under `local-data/`, outside Git.
 
+### Studio 1.1.2
+
+Studio 1.1.2 is being prepared with per-family RAM settings for PC-1251, PC-1261 and PC-1401.
+[Release notes](docs/releases/notes/RELEASE_NOTES_STUDIO_1.1.2.md) ·
+[Release checklist](docs/releases/checklists/RELEASE_CHECKLIST_STUDIO_1.1.2.md).
+Player store releases are handled separately.
+
 ### Version 1.1.0
 
 Studio 1.1.0 is published. Android Player 1.1.0 is also available on Google Play.
 See the [release notes](docs/releases/notes/RELEASE_NOTES_1.1.0.md) and
 [release checklist](docs/releases/checklists/RELEASE_CHECKLIST_1.1.0.md).
-iOS 0.7.0 (build 3) remains under review. Keep that submitted build and prepare iOS 1.1.0 separately.
+Player 1.1.2 is being prepared for Android and iOS. See the
+[1.1.2 draft notes](docs/releases/notes/RELEASE_NOTES_1.1.2.md) and
+[release handoff](docs/releases/checklists/RELEASE_CHECKLIST_1.1.2.md).
+The iOS source still specifies 0.7.0 (build 3); update it to the planned 1.1.2 (13) before archiving.
+The submitted 0.7.0 review materials remain a historical record; publication/review status is not reverified here.
 Android updates use Google Play; debug APKs remain CI artifacts only.
 
 ### CI and preview packages
