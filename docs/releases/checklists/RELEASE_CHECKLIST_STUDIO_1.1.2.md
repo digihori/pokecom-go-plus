@@ -41,7 +41,6 @@ macos-signing環境にv1.1.2タグだけを追加許可。既存のrequired revi
 
 | 資産 | SHA-256 |
 | --- | --- |
-
 | pgp_memory.py | `86225411b56818417932d5fa41aee5f168b77271e9865cc15c75628d44c5a2a5` |
 | pgp_memory_README.md | `cc891b4290b794a56b99a81fc6828c0bba57a067447844771c5cad86dabd5492` |
 | PokecomGOStudio-1.1.2-linux-amd64.deb | `4fd70978df542d719239e9b9245bacfec1f3d4c46f82f0cee43f4912a7eb822a` |
