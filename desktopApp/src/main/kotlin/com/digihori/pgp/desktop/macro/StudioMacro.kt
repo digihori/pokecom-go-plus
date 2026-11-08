@@ -95,7 +95,7 @@ internal class StudioMacroExecutor {
                 when (val command = line.command) {
                     is MacroCommand.Load -> host.load(File(command.path).let { if (it.isAbsolute) it else File(directory, command.path) })
                     is MacroCommand.Mode -> host.mode(command.mode)
-                    is MacroCommand.Cmd -> { host.command(command.text); delay(1000) }
+                    is MacroCommand.Cmd -> host.command(command.text)
                     is MacroCommand.Key -> host.key(command.key)
                     is MacroCommand.Wait -> delay(command.milliseconds)
                     is MacroCommand.Pause -> {
@@ -106,7 +106,9 @@ internal class StudioMacroExecutor {
                     }
                 }
                 host.checkError()
-                delay(1) // Give UI input a turn even for long sequences of zero-duration waits.
+                // Uniform settle interval, including the last command, wait and resumed pause.
+                delay(1000)
+                host.checkError()
             }
         } finally { monitor.cancel(); host.cancelInput() }
     }

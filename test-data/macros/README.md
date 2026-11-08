@@ -14,7 +14,10 @@ PC-1450, PC-1460 or PC-1470U. No ROM is included here.
 7. Hide the console during a long wait. Use the Macro menu to stop it.
    Errors should reveal the console again. Hiding and clearing logs must not stop execution.
 
-The command wait is one second after the complete input sequence, including ENTER.
+Every successful instruction waits one second before proceeding, including the last instruction.
+For cmd this starts after the complete input sequence, including ENTER; for mode, load and key,
+it starts after the operation completes. A wait adds this second to its requested duration;
+pause waits one second after Resume.
 It does not prove program completion. Stop Macro does not stop running machine code;
 use the emulator Pause or Reset for that. Avoid running the samples over unsaved programs.
 

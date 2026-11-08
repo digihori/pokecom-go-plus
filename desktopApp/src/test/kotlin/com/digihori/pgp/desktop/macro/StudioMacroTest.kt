@@ -52,6 +52,36 @@ class StudioMacroTest {
         }
     }
 
+    @Test fun modeWaitsOneSecondBeforeSendingTheNextCommand() = runBlocking {
+        withTimeout(4000) {
+            val host = FakeHost()
+            val times = mutableListOf<Long>()
+            StudioMacroExecutor().execute(StudioMacroParser.parse("mode PRO\ncmd \"NEW\""),
+                File("root"), host, { times += System.nanoTime() }, {})
+            assertTrue((times[1] - times[0]) / 1_000_000 >= 950,
+                "NEW must not be sent until the mode settle delay has elapsed")
+            assertEquals(listOf("mode:PROGRAM", "cmd:NEW", "cleanup"), host.events)
+        }
+    }
+
+    @Test fun everyCommandIncludingWaitKeyLoadAndResumedPauseHasASettleInterval() = runBlocking {
+        withTimeout(7000) {
+            val host = FakeHost()
+            val executor = StudioMacroExecutor()
+            val times = mutableListOf<Long>()
+            val pauseTimes = mutableListOf<Long>()
+            executor.execute(StudioMacroParser.parse("load \"one.bas\"\nwait 50ms\nkey ENTER\npause \"confirm\""),
+                File("root"), host, { times += System.nanoTime() }, { prompt ->
+                    if (prompt != null) { pauseTimes += System.nanoTime(); executor.resume() }
+                })
+            val finished = System.nanoTime()
+            assertEquals(4, times.size)
+            for (index in 0..2) assertTrue((times[index + 1] - times[index]) / 1_000_000 >= 950)
+            assertTrue((times[2] - times[1]) / 1_000_000 >= 1000, "wait adds its duration to the common second")
+            assertTrue((finished - pauseTimes.single()) / 1_000_000 >= 950, "The last resumed pause also waits")
+        }
+    }
+
     @Test fun romErrorDuringWaitOrPauseAbortsBeforeNextLoad() = runBlocking {
         for (waiting in listOf("wait 10s", "pause \"confirm\"")) {
             val host = FakeHost()
@@ -69,7 +99,7 @@ class StudioMacroTest {
     }
 
     @Test fun cancelDuringCommandWaitOrPauseReleasesInputWithoutRunningNextCommand() = runBlocking {
-        for (command in listOf("cmd \"RUN\"", "wait 10s", "pause \"confirm\"")) {
+        for (command in listOf("mode PRO", "cmd \"RUN\"", "wait 10s", "pause \"confirm\"")) {
             val host = FakeHost()
             val entered = CompletableDeferred<Unit>()
             val job = launch {
