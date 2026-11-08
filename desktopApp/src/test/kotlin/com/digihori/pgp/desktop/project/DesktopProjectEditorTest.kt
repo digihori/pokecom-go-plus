@@ -2,8 +2,68 @@ package com.digihori.pgp.desktop.project
 
 import java.nio.file.Files
 import kotlin.test.*
+import kotlinx.serialization.json.*
 
 class DesktopProjectEditorTest {
+    @Test fun trashPreservesContentsAndSourceMetadataAndRemovesOnlySelectedRegistration() {
+        val root = Files.createTempDirectory("pgp-trash-").toFile()
+        try {
+            var current = DesktopProjectEditor.createFile(workspace(root), "one.bas").getOrThrow().workspace
+            current = DesktopProjectEditor.createFile(current, "two.bas").getOrThrow().workspace
+            val original = current.sources.first().definition
+            val trashed = DesktopProjectEditor.trashFile(current, "src/one.bas").getOrThrow()
+            assertFalse(root.resolve("src/one.bas").exists())
+            assertEquals("10 END\n", trashed.destination.readText())
+            assertEquals(listOf("src/two.bas"), reopen(trashed.edit.workspace).sources.map { it.definition.path })
+            val receipt = Json.parseToJsonElement(root.resolve(".trash").listFiles()!!.single().resolve("entry.json").readText()).jsonObject
+            assertEquals("src/one.bas", receipt.getValue("originalPath").jsonPrimitive.content)
+            assertEquals(original.id, receipt.getValue("source").jsonObject.getValue("id").jsonPrimitive.content)
+            val tree = DesktopProjectTreeScanner.scan(trashed.edit.workspace)
+            assertTrue(tree.untracked.isEmpty())
+            assertEquals(listOf("src/two.bas"), tree.tracked.map { it.definition.path })
+            // A later file with the same name must not replace the first trash copy.
+            current = DesktopProjectEditor.createFile(trashed.edit.workspace, "one.bas").getOrThrow().workspace
+            root.resolve("src/one.bas").writeText("20 END\n")
+            val second = DesktopProjectEditor.trashFile(current, "src/one.bas").getOrThrow()
+            assertNotEquals(trashed.destination, second.destination)
+            assertEquals("10 END\n", trashed.destination.readText())
+            assertEquals("20 END\n", second.destination.readText())
+        } finally { root.deleteRecursively() }
+    }
+
+    @Test fun trashOfUnregisteredMacroDoesNotRegisterItAndManifestFailureRestoresFile() {
+        val root = Files.createTempDirectory("pgp-trash-rollback-").toFile()
+        try {
+            val initial = DesktopProjectEditor.createFile(workspace(root), "run.pgmacro").getOrThrow().workspace
+            val blocked = root.resolve("blocked").apply { mkdir(); resolve("keep").writeText("keep") }
+            val before = initial.manifestFile.readBytes()
+            assertTrue(DesktopProjectEditor.trashFile(initial.copy(manifestFile = blocked), "src/run.pgmacro").isFailure)
+            assertEquals("# Studio macro\n", root.resolve("src/run.pgmacro").readText())
+            assertContentEquals(before, initial.manifestFile.readBytes())
+            assertTrue(root.resolve(".trash").listFiles()!!.isEmpty())
+            val result = DesktopProjectEditor.trashFile(initial, "src/run.pgmacro").getOrThrow()
+            assertTrue(reopen(result.edit.workspace).sources.isEmpty())
+            assertTrue(DesktopProjectTreeScanner.scan(result.edit.workspace).untracked.isEmpty())
+            assertTrue(result.destination.isFile)
+        } finally { root.deleteRecursively() }
+    }
+
+    @Test fun trashRejectsManifestOutsidePathsAndTrashEntries() {
+        val root = Files.createTempDirectory("pgp-trash-boundary-").toFile()
+        val outside = Files.createTempDirectory("pgp-trash-outside-").toFile()
+        try {
+            val current = DesktopProjectEditor.createFile(workspace(root), "main.bas").getOrThrow().workspace
+            val before = current.manifestFile.readBytes()
+            val other = outside.resolve("other.bas").apply { writeText("keep") }
+            for (path in listOf("pgp-project.json", other.absolutePath, "../${outside.name}/other.bas")) {
+                assertTrue(DesktopProjectEditor.trashFile(current, path).isFailure)
+            }
+            assertContentEquals(before, current.manifestFile.readBytes())
+            assertEquals("keep", other.readText())
+            assertTrue(root.resolve("src/main.bas").isFile)
+        } finally { root.deleteRecursively(); outside.deleteRecursively() }
+    }
+
     @Test fun createsMultipleBasicAndAuxiliaryMacroWithoutBuildingMacro() {
         val root = Files.createTempDirectory("pgp-create-files-").toFile()
         try {

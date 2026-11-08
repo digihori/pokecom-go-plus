@@ -8,6 +8,7 @@ internal fun StudioStrings.projectOperationError(message: String): String {
         "A file with that name already exists." -> text("project.operation.fileExists")
         "Keep the existing file extension." -> text("project.operation.keepExtension")
         "Select a file inside the project." -> text("project.operation.projectFile")
+        "The project trash must be inside the project." -> text("project.operation.trashOutside")
         "The filesystem root cannot be renamed." -> text("project.operation.rootRename")
         "Select an existing source file." -> text("project.operation.existingSource")
         "Supported source files are .bas, .asm and .dmp." -> text("project.operation.sourceTypes")

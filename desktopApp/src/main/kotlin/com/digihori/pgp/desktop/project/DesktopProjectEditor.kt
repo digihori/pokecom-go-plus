@@ -5,6 +5,7 @@ import com.digihori.pgp.core.project.ProjectSource
 import com.digihori.pgp.core.project.ProjectSourceType
 import java.io.File
 import java.nio.file.Files
+import kotlinx.serialization.json.*
 
 internal object DesktopProjectEditor {
     /** Renames the entire project directory and persists the display name together. */
@@ -138,6 +139,52 @@ internal object DesktopProjectEditor {
         ProjectFileEdit(updated, listOf(newPath))
     }
 
+    /** Moves a file and its recovery metadata together; does not erase emulator memory. */
+    fun trashFile(workspace: DesktopProjectWorkspace, path: String): Result<ProjectTrashEdit> = runCatching {
+        val root = workspace.manifestFile.parentFile.canonicalFile
+        val source = File(root, path).absoluteFile.normalize()
+        require(path == source.relativeTo(root).invariantSeparatorsPath &&
+            source.canonicalFile.toPath().startsWith(root.toPath()) && source.isFile &&
+            !Files.isSymbolicLink(source.toPath()) &&
+            (workspace.sources.any { it.definition.path == path } || source.toPath().startsWith(File(root, "src").toPath())) &&
+            !source.toPath().startsWith(File(root, ".trash").toPath()) &&
+            !source.canonicalFile.toPath().startsWith(File(root, ".trash").toPath()) && source != workspace.manifestFile.canonicalFile) {
+            "Select a file inside the project."
+        }
+        val trash = File(root, ".trash")
+        require(trash.canonicalFile == trash) { "The project trash must be inside the project." }
+        Files.createDirectories(trash.toPath())
+        val prefix = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-"))
+        val entry = Files.createTempDirectory(trash.toPath(), prefix).toFile()
+        val destination = File(entry, path)
+        val remaining = workspace.sources.filterNot { it.definition.path == path }
+        val removed = workspace.definition.sources.filter { it.path == path }
+        val updated = workspace.copy(definition = workspace.definition.copy(sources = remaining.map { it.definition }), sources = remaining)
+        var moved = false
+        try {
+            val original = Json.parseToJsonElement(ProjectManifestWriter.write(workspace.definition.copy(sources = removed)))
+                .jsonObject.getValue("sources").jsonArray.singleOrNull() ?: JsonNull
+            File(entry, "entry.json").writeText(buildJsonObject {
+                put("originalPath", path)
+                put("movedAt", java.time.Instant.now().toString())
+                put("source", original)
+            }.toString(), Charsets.UTF_8)
+            Files.createDirectories(destination.parentFile.toPath())
+            Files.move(source.toPath(), destination.toPath())
+            moved = true
+            DesktopProjectManifestUpdater.writeManifest(workspace, ProjectManifestWriter.write(updated.definition))
+        } catch (error: Exception) {
+            if (moved) {
+                try { Files.move(destination.toPath(), source.toPath()); moved = false }
+                catch (rollback: Exception) { error.addSuppressed(rollback) }
+            }
+            // Preserve the recovery folder if rollback failed: it may hold the only copy.
+            if (!moved) try { entry.deleteRecursively() } catch (rollback: Exception) { error.addSuppressed(rollback) }
+            throw error
+        }
+        ProjectTrashEdit(ProjectFileEdit(updated, emptyList()), destination)
+    }
+
     private fun validName(name: String): String = name.trim().also {
         require(it.isNotEmpty() && !it.startsWith('.') && !it.endsWith('.') && !it.endsWith(' ') &&
             it.none { char -> char.isISOControl() || char in "<>:\"/\\|?*" }) { "Enter a valid file name without folders." }
@@ -174,3 +221,4 @@ internal object DesktopProjectEditor {
 }
 
 internal data class ProjectFileEdit(val workspace: DesktopProjectWorkspace, val paths: List<String>)
+internal data class ProjectTrashEdit(val edit: ProjectFileEdit, val destination: File)

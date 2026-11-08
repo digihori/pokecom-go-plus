@@ -501,6 +501,7 @@ private fun FrameWindowScope.App(
     var renameProjectError by remember { mutableStateOf<String?>(null) }
     var showProjectFileDialog by remember { mutableStateOf(false) }
     var macroBusy by remember { mutableStateOf(false) }
+    var assemblyBusy by remember { mutableStateOf(false) }
     var macroPause by remember { mutableStateOf<String?>(null) }
     var macroJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     val macroExecutor = remember { StudioMacroExecutor() }
@@ -508,6 +509,8 @@ private fun FrameWindowScope.App(
     var projectFileRenamePath by remember { mutableStateOf<String?>(null) }
     var projectFileName by remember { mutableStateOf("") }
     var projectFileError by remember { mutableStateOf<String?>(null) }
+    var pendingTrashPath by remember { mutableStateOf<String?>(null) }
+    var trashFileError by remember { mutableStateOf<String?>(null) }
     var showCreateProjectDialog by remember { mutableStateOf(false) }
     var newProjectName by remember { mutableStateOf("New PGP Project") }
     var newProjectStarters by remember { mutableStateOf(setOf(DesktopProjectStarter.BASIC)) }
@@ -539,7 +542,7 @@ private fun FrameWindowScope.App(
     }
     // Read these states during composition: reads inside SideEffect alone do not
     // subscribe this scope to dialog changes in independently recomposed children.
-    val emulatorInputBlocked = (macroBusy && macroPause == null) || showProjectFileDialog || showCreateProjectDialog || showRenameProjectDialog || showSaveMemoryDumpDialog ||
+    val emulatorInputBlocked = pendingTrashPath != null || (macroBusy && macroPause == null) || showProjectFileDialog || showCreateProjectDialog || showRenameProjectDialog || showSaveMemoryDumpDialog ||
         showSaveDisassemblyDialog || showSaveCheckpointDialog || showDebugContextDialog ||
         showRomManager || pendingRomRemoval != null || errorDialogMessage != null ||
         showSettingsWindow || showCreateRomSetWindow
@@ -872,6 +875,21 @@ private fun FrameWindowScope.App(
         showProjectFileDialog = true
     }
 
+    fun requestTrashFile() {
+        if (macroBusy || assemblyBusy) return
+        pendingTrashPath = selectedProjectSourcePath
+        trashFileError = null
+    }
+
+    fun openProjectTrash() {
+        val workspace = projectWorkspace ?: return
+        runCatching {
+            val directory = File(workspace.manifestFile.parentFile, ".trash")
+            check(directory.isDirectory) { uiText("project.trashEmpty") }
+            Desktop.getDesktop().open(directory)
+        }.onFailure { showError(it.message.orEmpty()) }
+    }
+
     fun updateProject() {
         if (macroBusy) return
         val workspace = projectWorkspace ?: return
@@ -1036,7 +1054,6 @@ private fun FrameWindowScope.App(
     SideEffect { executionLoadCallback.set { workspace, active, artifact -> applyProjectArtifact(workspace, active, artifact) } }
 
     val assemblyScope = androidx.compose.runtime.rememberCoroutineScope()
-    var assemblyBusy by remember { mutableStateOf(false) }
     com.digihori.pgp.desktop.application.development.PublishDevelopmentReadState(developmentStateReference) {
         com.digihori.pgp.desktop.application.development.DevelopmentReadState(
             runner, debugContextService, projectWorkspace, currentAssemblerSettings, assemblyPreview.toList(),
@@ -1453,7 +1470,7 @@ private fun FrameWindowScope.App(
     }
 
     fun startMacro(file: File) {
-        if (macroBusy || assemblyBusy) return
+        if (macroBusy || assemblyBusy || emulatorInputBlocked) return
         macroBusy = true
         console.reveal()
         keyboardInput.setModalInputBlocked(true)
@@ -1772,6 +1789,9 @@ private fun FrameWindowScope.App(
             Item(uiText("project.addSource"), enabled = projectWorkspace != null && !assemblyBusy, onClick = ::addProjectSource)
             Item(uiText("project.renameFile"), enabled = projectWorkspace != null && !assemblyBusy && selectedProjectSourcePath != null,
                 onClick = { openProjectFileDialog(true) })
+            Item(uiText("project.trashFile"), enabled = projectWorkspace != null && !assemblyBusy && selectedProjectSourcePath != null,
+                onClick = ::requestTrashFile)
+            Item(uiText("project.openTrash"), enabled = projectWorkspace != null, onClick = ::openProjectTrash)
             Item(uiText("project.close"), enabled = projectWorkspace != null, onClick = ::closeProject)
             Item(
                 uiText("assembly.open"),
@@ -2767,6 +2787,8 @@ private fun FrameWindowScope.App(
                                 }
                                 TextButton(enabled = !assemblyBusy && selectedProjectSourcePath != null,
                                     onClick = { openProjectFileDialog(true) }) { Text(uiText("project.renameFile")) }
+                                TextButton(enabled = !macroBusy && !assemblyBusy && selectedProjectSourcePath != null,
+                                    onClick = ::requestTrashFile) { Text(uiText("project.trashFile")) }
                                 Button(
                                     enabled = !assemblyBusy && runner != null && runnerState != RunnerState.FAULTED &&
                                         workspace.sources.any { it.definition.path == selectedProjectSourcePath },
@@ -2960,6 +2982,31 @@ private fun FrameWindowScope.App(
                 dismissButton = {
                     TextButton(onClick = { pendingRomRemoval = null }) { Text(uiText("common.cancel")) }
                 },
+            )
+        }
+
+        pendingTrashPath?.let { path ->
+            AlertDialog(
+                onDismissRequest = { pendingTrashPath = null },
+                title = { Text(uiText("project.trashFile")) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(uiText("project.trashConfirm", path))
+                        trashFileError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    }
+                },
+                confirmButton = {
+                    TextButton(enabled = !macroBusy && !assemblyBusy, onClick = {
+                        val workspace = projectWorkspace ?: return@TextButton
+                        DesktopProjectEditor.trashFile(workspace, path).fold(onSuccess = { result ->
+                            applyProjectFileEdit(result.edit)
+                            pendingTrashPath = null
+                            message = uiText("project.trashed", path)
+                            console.append(message + "\n" + result.destination.relativeTo(workspace.manifestFile.parentFile.canonicalFile).invariantSeparatorsPath)
+                        }, onFailure = { trashFileError = StudioStrings.system.projectOperationError(it.message.orEmpty()) })
+                    }) { Text(uiText("project.trashAction")) }
+                },
+                dismissButton = { TextButton(onClick = { pendingTrashPath = null }) { Text(uiText("common.cancel")) } },
             )
         }
 
