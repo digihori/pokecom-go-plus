@@ -13,7 +13,7 @@
 | 対象 | ソース上の値 | 次回の予定／担当者による確認 |
 | --- | --- | --- |
 | Android | versionName `1.1.2`、versionCode `13` | Play Consoleの使用済み番号と最終AAB内の値を確認 |
-| iOS Debug／Release | MARKETING_VERSION `0.7.0`、CURRENT_PROJECT_VERSION `3` | 予定は`1.1.2 (13)`。Xcodeで更新し、Archive内の値も確認 |
+| iOS Debug／Release | MARKETING_VERSION `1.1.2`、CURRENT_PROJECT_VERSION `4`（2026-11-08作業ツリー整理時に確認） | 以前の予定は`1.1.2 (13)`。現在値との差があるため、提出前に使用済み番号と採用するBuild番号を確認し、Archive内の値も確認 |
 | Studio／共有ProjectInfo | `1.1.0` | 今回のPlayer文書整備では変更しない |
 
 Android設定：`androidApp/build.gradle.kts`。
