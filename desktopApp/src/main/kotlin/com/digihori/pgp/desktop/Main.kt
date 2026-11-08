@@ -1,6 +1,8 @@
 package com.digihori.pgp.desktop
 
 import com.digihori.pgp.desktop.project.selectSources
+import com.digihori.pgp.desktop.macro.*
+import com.digihori.pgp.desktop.input.studioCharacterKeys
 import com.digihori.pgp.desktop.console.StudioConsoleState
 import com.digihori.pgp.desktop.console.StudioConsolePanel
 import com.digihori.pgp.desktop.console.ConsoleLevel
@@ -498,6 +500,11 @@ private fun FrameWindowScope.App(
     var renamedProjectName by remember { mutableStateOf("") }
     var renameProjectError by remember { mutableStateOf<String?>(null) }
     var showProjectFileDialog by remember { mutableStateOf(false) }
+    var macroBusy by remember { mutableStateOf(false) }
+    var macroPause by remember { mutableStateOf<String?>(null) }
+    var macroJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    val macroExecutor = remember { StudioMacroExecutor() }
+    fun stopMacro() { macroJob?.cancel(); runner?.cancelGeneratedInput() }
     var projectFileRenamePath by remember { mutableStateOf<String?>(null) }
     var projectFileName by remember { mutableStateOf("") }
     var projectFileError by remember { mutableStateOf<String?>(null) }
@@ -532,7 +539,7 @@ private fun FrameWindowScope.App(
     }
     // Read these states during composition: reads inside SideEffect alone do not
     // subscribe this scope to dialog changes in independently recomposed children.
-    val emulatorInputBlocked = showProjectFileDialog || showCreateProjectDialog || showRenameProjectDialog || showSaveMemoryDumpDialog ||
+    val emulatorInputBlocked = (macroBusy && macroPause == null) || showProjectFileDialog || showCreateProjectDialog || showRenameProjectDialog || showSaveMemoryDumpDialog ||
         showSaveDisassemblyDialog || showSaveCheckpointDialog || showDebugContextDialog ||
         showRomManager || pendingRomRemoval != null || errorDialogMessage != null ||
         showSettingsWindow || showCreateRomSetWindow
@@ -609,6 +616,7 @@ private fun FrameWindowScope.App(
         memoryMode: RamMode? = null,
         machineIdOverride: MachineId? = null,
     ): Boolean {
+        if (macroBusy) return false
         val modes = if (memoryMode == null) familyMemoryModes else familyMemoryModes +
             (MachineCatalog.require(machineIdOverride ?: selectedMachineId).family to memoryMode)
         val configuration = EmulatorConfiguration(ramModes = modes)
@@ -740,6 +748,7 @@ private fun FrameWindowScope.App(
     }
 
     fun switchMachine(machineId: MachineId) {
+        if (macroBusy) return
         if (machineId !in installedRomMachines) return
         selectedMachineId = machineId
         loadRom(romLibrary.packageFile(machineId), startAutomatically = true, machineIdOverride = machineId)
@@ -767,6 +776,7 @@ private fun FrameWindowScope.App(
     }
 
     fun openProject(file: File, resetBasicTracking: Boolean = true) {
+        if (macroBusy) return
         when (val opened = DesktopProjectWorkspaceLoader.open(file)) {
             is DesktopProjectOpenResult.Failure -> showError(opened.errors.joinToString("\n") { it.message() })
             is DesktopProjectOpenResult.Success -> {
@@ -800,6 +810,7 @@ private fun FrameWindowScope.App(
     }
 
     fun closeProject() {
+        if (macroBusy) return
         projectWorkspace = null
         projectChangeTracker = null
         projectTree = null
@@ -840,6 +851,7 @@ private fun FrameWindowScope.App(
     }
 
     fun addProjectSource() {
+        if (macroBusy) return
         val workspace = projectWorkspace ?: return
         val files = try { selectProjectFiles(ownerWindow) } finally { focusRestoreRequest++ }
         if (files.isEmpty()) return
@@ -853,6 +865,7 @@ private fun FrameWindowScope.App(
     }
 
     fun openProjectFileDialog(rename: Boolean) {
+        if (macroBusy) return
         projectFileRenamePath = if (rename) selectedProjectSourcePath else null
         projectFileName = if (rename) File(selectedProjectSourcePath ?: return).name else "new.bas"
         projectFileError = null
@@ -860,6 +873,7 @@ private fun FrameWindowScope.App(
     }
 
     fun updateProject() {
+        if (macroBusy) return
         val workspace = projectWorkspace ?: return
         val tree = DesktopProjectTreeScanner.scan(workspace)
         when (val result = DesktopProjectManifestUpdater.synchronize(workspace, tree)) {
@@ -1027,11 +1041,11 @@ private fun FrameWindowScope.App(
         com.digihori.pgp.desktop.application.development.DevelopmentReadState(
             runner, debugContextService, projectWorkspace, currentAssemblerSettings, assemblyPreview.toList(),
             assemblyDiagnostics.toList(), lastProjectBuildErrors.toList(), projectRuntimeStatus.name,
-            changedProjectSources.toSet(), assemblyBusy, fallbackRamModes = familyMemoryModes)
+            changedProjectSources.toSet(), assemblyBusy || macroBusy, fallbackRamModes = familyMemoryModes)
     }
     var assemblyJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     fun startAssembly(action: suspend () -> Unit) {
-        if (assemblyBusy) return
+        if (assemblyBusy || macroBusy) return
         assemblyBusy = true
         assemblyStatus = uiText("assembly.busy")
         message = assemblyStatus
@@ -1082,7 +1096,7 @@ private fun FrameWindowScope.App(
             projectRuntimeStatus = ProjectRuntimeStatus.SOURCE_CHANGED
         }
         developmentBuildCallback.set { operationId ->
-            if (assemblyBusy) throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("BUSY")
+            if (assemblyBusy || macroBusy) throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("BUSY")
             startAssembly {
                 var succeeded = false
                 try { succeeded = buildProjectOutputsWork() != null }
@@ -1098,6 +1112,7 @@ private fun FrameWindowScope.App(
     }
 
     fun loadBasicFromDisk() {
+        if (macroBusy) return
         val activeRunner = runner ?: return
         val file = selectAndRestoreFocus { selectBasicFile(ownerWindow, uiText("basic.loadTitle")) } ?: return
         val compiled = runCatching {
@@ -1127,6 +1142,7 @@ private fun FrameWindowScope.App(
     }
 
     fun loadMachineCodeFromDisk() {
+        if (macroBusy) return
         val activeRunner = runner ?: return
         val file = selectAndRestoreFocus { selectMemoryDumpFile(ownerWindow) } ?: return
         val parsed = runCatching { DesktopMemoryDumpLoader.parse(file.readBytes()) }.getOrElse {
@@ -1218,7 +1234,7 @@ private fun FrameWindowScope.App(
     }
 
     fun quickAssemble() {
-        if (assemblyBusy) return
+        if (assemblyBusy || macroBusy) return
         val source = selectAndRestoreFocus { selectAssemblyFile(ownerWindow) } ?: return
         startAssembly { quickAssembleWork(source) }
     }
@@ -1287,6 +1303,7 @@ private fun FrameWindowScope.App(
     }
 
     fun pauseEmulator() {
+        stopMacro()
         val wasRunning = runner?.state == RunnerState.RUNNING
         runner?.pause()
         audioPlayer.stop()
@@ -1299,6 +1316,7 @@ private fun FrameWindowScope.App(
     }
 
     fun resetEmulator() {
+        stopMacro()
         loadedProgramLabel = null
         loadedProjectManifest = null
         if (projectWorkspace != null) projectRuntimeStatus = ProjectRuntimeStatus.NOT_LOADED
@@ -1360,12 +1378,14 @@ private fun FrameWindowScope.App(
     }
 
     fun setMode(mode: OperatingMode) {
+        if (macroBusy) return
         runner?.setOperatingMode(mode)
         operatingMode = mode
         display = runner?.displaySnapshot()
     }
 
     fun setMemoryMode(mode: RamMode) {
+        if (macroBusy) return
         val family = MachineCatalog.require(runner?.machineId ?: selectedMachineId).family
         try {
             DesktopUiPreferences.saveRamMode(family, mode)
@@ -1431,6 +1451,162 @@ private fun FrameWindowScope.App(
             importRom(fallback.file, fallback.machineId)
         }
     }
+
+    fun startMacro(file: File) {
+        if (macroBusy || assemblyBusy) return
+        macroBusy = true
+        console.reveal()
+        keyboardInput.setModalInputBlocked(true)
+        gamepad.setContext(runner, false)
+        macroJob = assemblyScope.launch {
+            var lineNumber = 0
+            val active = runner
+            val workspace = projectWorkspace
+            try {
+                check(active != null) { uiText("macro.noSession") }
+                check(active.machineId.value in setOf("pc-1260", "pc-1261", "pc-1401", "pc-1402", "pc-1450", "pc-1460", "pc-1470u")) {
+                    uiText("macro.unsupportedMachine", active.machineId.displayName())
+                }
+                console.append(uiText("macro.started", file.name))
+                val lines = withContext(Dispatchers.IO) {
+                    require(file.length() <= 1_048_576) { uiText("macro.tooLarge") }
+                    StudioMacroParser.parse(file.readBytes().decodeToString(throwOnInvalidSequence = true))
+                }
+                val definition = MachineCatalog.require(active.machineId)
+                fun commandKeys(text: String): List<PocketKey> = text.flatMap { char ->
+                    studioCharacterKeys(active.machineId, char) ?: error(uiText("macro.unsupportedCharacter", char.toString()))
+                } + PocketKey.ENTER
+                // Validate all machine-specific inputs before executing the first operation.
+                lines.forEach { line ->
+                    lineNumber = line.number
+                    when (val command = line.command) {
+                        is MacroCommand.Mode -> check(command.mode in definition.supportedOperatingModes) { uiText("macro.unsupportedMode") }
+                        is MacroCommand.Key -> check(command.key in com.digihori.pgp.input.GamepadKeys.forMachine(active.machineId)) { uiText("macro.unsupportedKey", command.key.name) }
+                        is MacroCommand.Cmd -> commandKeys(command.text)
+                        is MacroCommand.Load -> check(File(command.path).extension.lowercase() in setOf("bas", "dmp")) { uiText("macro.loadTypes") }
+                        else -> Unit
+                    }
+                }
+                lineNumber = 0
+                fun checkMacroError() {
+                    check(runner === active && projectWorkspace === workspace) { uiText("macro.contextChanged") }
+                    check(active.state != RunnerState.FAULTED) { uiText("macro.coreError") }
+                    check(com.digihori.pgp.core.api.DisplaySymbol.ERROR !in active.displaySnapshot().symbols) { uiText("macro.romError") }
+                }
+                suspend fun waitForInput() {
+                    while (!active.generatedInputIdle()) {
+                        checkMacroError()
+                        check(active.state == RunnerState.RUNNING) { uiText("macro.emulatorStopped") }
+                        delay(10)
+                    }
+                }
+                checkMacroError()
+                active.cancelGeneratedInput()
+                keyboardInput.clearActiveInputs()
+                if (lines.isNotEmpty()) active.run()
+                runnerState = active.state
+                macroExecutor.execute(lines, file.absoluteFile.parentFile, object : MacroHost {
+                    override fun checkError() = checkMacroError()
+                    override fun cancelInput() = active.cancelGeneratedInput()
+                    override suspend fun command(value: String) {
+                        waitForInput()
+                        active.enqueueKeySequence(commandKeys(value))
+                        waitForInput()
+                    }
+                    override suspend fun key(value: PocketKey) {
+                        waitForInput()
+                        active.enqueueKeySequence(listOf(value))
+                        waitForInput()
+                    }
+                    override suspend fun mode(value: OperatingMode) {
+                        waitForInput()
+                        active.setOperatingMode(value)
+                        waitForInput()
+                        check(active.currentOperatingMode() == value) { uiText("macro.unsupportedMode") }
+                    }
+                    override suspend fun load(file: File) {
+                        waitForInput()
+                        val source = workspace?.sources?.firstOrNull { it.file.canonicalFile == file.canonicalFile }
+                        if (source != null) {
+                            val layout = projectMemoryLayout(workspace)
+                            val built = withContext(Dispatchers.IO) {
+                                DesktopProjectBuilder.build(workspace.selectSources(setOf(source.definition.path)),
+                                    layout, validateForLoad = true)
+                            }
+                            checkMacroError()
+                            when (built) {
+                                is DesktopProjectBuildResult.Failure -> error(built.errors.joinToString("\n") { it.message(active.machineId.displayName()) })
+                                is DesktopProjectBuildResult.Success -> {
+                                    projectBuildRegistry.begin(workspace)
+                                    check(applyProjectArtifact(workspace, active, built.artifact, source.definition.path) is DesktopProjectApplyResult.Success) {
+                                        uiText("macro.loadFailed")
+                                    }
+                                }
+                            }
+                        } else {
+                            val bytes = withContext(Dispatchers.IO) { file.readBytes() }
+                            checkMacroError()
+                            when (file.extension.lowercase()) {
+                                "bas" -> {
+                                    val compiled = withContext(Dispatchers.IO) { DesktopBasicLoader.compileProgram(bytes, active.machineId) }
+                                    checkMacroError()
+                                    when (compiled) {
+                                        is DesktopBasicProgramCompileResult.Failure -> error(compiled.error.message(active.machineId.displayName()))
+                                        is DesktopBasicProgramCompileResult.Success -> when (val loaded = active.loadBasicProgram(compiled.bytes)) {
+                                            is BasicProgramLoadResult.Failure -> error(loaded.error.message())
+                                            is BasicProgramLoadResult.Success -> markStandalone(file)
+                                        }
+                                    }
+                                }
+                                "dmp" -> when (val parsed = DesktopMemoryDumpLoader.parse(bytes)) {
+                                    is DesktopMemoryDumpLoadResult.Failure -> error(parsed.error.message())
+                                    is DesktopMemoryDumpLoadResult.Success -> when (val loaded = active.loadMemoryImage(parsed.image)) {
+                                        is MemoryImageLoadResult.Failure -> error(loaded.error.message())
+                                        is MemoryImageLoadResult.Success -> markStandalone(file, additional = true)
+                                    }
+                                }
+                            }
+                            display = active.displaySnapshot(); cpu = active.cpuSnapshot(); runnerState = active.state
+                            console.append(uiText("console.loadedTarget", file.name))
+                        }
+                    }
+                }, onLine = { line ->
+                    lineNumber = line.number
+                    console.append("${file.name}:${line.number}  ${line.source}")
+                    message = uiText("macro.runningLine", line.number.toString())
+                }, onPause = { prompt ->
+                    macroPause = prompt
+                    if (prompt != null) {
+                        console.append(uiText("macro.pauseMessage", prompt))
+                        message = uiText("macro.pauseMessage", prompt)
+                    }
+                })
+                message = uiText("macro.completed")
+                console.append(message)
+            } catch (cancelled: CancellationException) {
+                message = uiText("macro.cancelled", lineNumber.toString())
+                console.append(message)
+                throw cancelled
+            } catch (error: Exception) {
+                val number = (error as? MacroSyntaxException)?.line ?: lineNumber
+                val reason = if (error is MacroSyntaxException) uiText("macro.syntaxError") else error.message.orEmpty()
+                message = uiText("macro.failed", file.name, number.toString(), reason)
+                console.append(message, ConsoleLevel.ERROR, reveal = true)
+            } finally {
+                active?.cancelGeneratedInput()
+                macroPause = null
+                macroBusy = false
+            }
+        }
+    }
+
+    fun selectAndRunMacro() {
+        if (macroBusy || assemblyBusy) return
+        val file = selectAndRestoreFocus { selectFile(ownerWindow, uiText("macro.selectFile"), "*.pgmacro") } ?: return
+        startMacro(file)
+    }
+
+    DisposableEffect(Unit) { onDispose { macroJob?.cancel() } }
 
     LaunchedEffect(runner) {
         var cpuRefreshCounter = 0
@@ -1575,12 +1751,12 @@ private fun FrameWindowScope.App(
             Separator()
             Item(uiText("action.quit", ProjectInfo.STUDIO_DISPLAY_NAME), onClick = onQuit)
         }
-        Menu(uiText("menu.file")) {
+        Menu(uiText("menu.file"), enabled = !macroBusy) {
             Item(uiText("rom.register"), onClick = { showRomManager = true })
             Item(uiText("rom.manage"), onClick = { showRomManager = true })
             Item(uiText("rom.create"), enabled = !showCreateRomSetWindow, onClick = { showCreateRomSetWindow = true })
         }
-        Menu(uiText("menu.project")) {
+        Menu(uiText("menu.project"), enabled = !macroBusy) {
             Item(uiText("project.new"), onClick = {
                 newProjectError = null
                 showCreateProjectDialog = true
@@ -1615,7 +1791,7 @@ private fun FrameWindowScope.App(
             )
             Item(uiText("project.update"), enabled = projectWorkspace != null, onClick = ::updateProject)
         }
-        Menu(uiText("menu.program")) {
+        Menu(uiText("menu.program"), enabled = !macroBusy) {
             Item(
                 uiText("basic.load"),
                 enabled = runner != null && runnerState != RunnerState.FAULTED,
@@ -1642,7 +1818,16 @@ private fun FrameWindowScope.App(
             CheckboxItem(uiText("console.title"), checked = console.visible,
                 onCheckedChange = { setConsoleVisible(it) })
         }
-        Menu(uiText("menu.tools")) {
+        Menu(uiText("macro.menu")) {
+            Item(uiText("macro.run"), enabled = !macroBusy && !assemblyBusy, onClick = ::selectAndRunMacro)
+            Item(uiText("macro.resume"), enabled = macroBusy && macroPause != null, onClick = {
+                keyboardInput.clearActiveInputs()
+                console.append(uiText("macro.resumed"))
+                macroExecutor.resume()
+            })
+            Item(uiText("macro.stop"), enabled = macroBusy, onClick = ::stopMacro)
+        }
+        Menu(uiText("menu.tools"), enabled = !macroBusy) {
             Item(
                 uiText("character.title"),
                 enabled = !showCharacterEditor,
@@ -1696,7 +1881,7 @@ private fun FrameWindowScope.App(
                 )
             }
         }
-        Menu(uiText("menu.debug")) {
+        Menu(uiText("menu.debug"), enabled = !macroBusy) {
             Item(uiText("debug.open"), enabled = !showDebuggerWindow, onClick = { showDebuggerWindow = true })
             Item(uiText("debug.saveCheckpoint"), enabled = runner != null && cpu != null, onClick = {
                 checkpointRangeError = null
@@ -2567,6 +2752,11 @@ private fun FrameWindowScope.App(
                                 }
                             }
                             projectWorkspace?.let { workspace ->
+                                if (selectedProjectSourcePath?.endsWith(".pgmacro", ignoreCase = true) == true) {
+                                    Button(enabled = !macroBusy && !assemblyBusy,
+                                        onClick = { selectedProjectSourcePath?.let { startMacro(File(workspace.manifestFile.parentFile, it)) } },
+                                        modifier = Modifier.fillMaxWidth()) { Text(uiText("macro.runSelected")) }
+                                }
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     TextButton(enabled = !assemblyBusy, onClick = { openProjectFileDialog(false) }) {
                                         Text(uiText("project.newFile"))
@@ -2661,7 +2851,7 @@ private fun FrameWindowScope.App(
                     ) {
                         PocketLcdPanel(display, runner?.machineId ?: selectedMachineId)
                         PocketSoftwareKeyboard(
-                            runner,
+                            if (macroBusy && macroPause == null) null else runner,
                             MachineCatalog.require(runner?.machineId ?: selectedMachineId).keyboardLayout,
                         )
                         loadedProgramLabel?.let { label ->
@@ -2691,7 +2881,10 @@ private fun FrameWindowScope.App(
                         onHeightDelta = { delta -> consoleHeight = (effectiveConsoleHeight + delta).coerceIn(96.dp, maximumConsoleHeight) },
                         onHeightFinished = { DesktopUiPreferences.saveConsoleHeight(consoleHeight.value) },
                         onHide = { setConsoleVisible(false) }, onCopy = ::copyToClipboard,
-                        onInputFocusChanged = { keyboardInput.setTextInputFocused(consoleInputOwner, it) })
+                        onInputFocusChanged = { keyboardInput.setTextInputFocused(consoleInputOwner, it) },
+                        macroBusy = macroBusy, pauseMessage = macroPause,
+                        onMacroResume = { keyboardInput.clearActiveInputs(); console.append(uiText("macro.resumed")); macroExecutor.resume() },
+                        onMacroStop = ::stopMacro)
                 }
 
                 Surface(

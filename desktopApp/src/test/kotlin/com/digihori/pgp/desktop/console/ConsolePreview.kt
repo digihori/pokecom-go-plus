@@ -27,7 +27,8 @@ internal fun renderConsolePreviews(directory: File) {
             val scene = ImageComposeScene(width, 320) {
                 PgpStudioTheme { Surface(Modifier.fillMaxSize()) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        StudioConsolePanel(console, 240.dp, {}, {}, {}, {}, strings = strings)
+                        StudioConsolePanel(console, 240.dp, {}, {}, {}, {}, strings = strings,
+                            macroBusy = true, pauseMessage = if (width == 520) strings.text("macro.pauseMessage", "確認して再開") else null)
                         Text(strings.text("console.loadedTarget", "src/basic1.bas"), style = MaterialTheme.typography.bodySmall)
                     }
                 } }

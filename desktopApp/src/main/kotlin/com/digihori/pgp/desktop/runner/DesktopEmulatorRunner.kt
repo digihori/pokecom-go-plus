@@ -590,6 +590,9 @@ internal class DesktopEmulatorRunner(
         keyInputQueue.enqueue(keys)
     }
 
+    fun generatedInputIdle(): Boolean = keyInputQueue.isIdle && !session.isOperatingModeTransitionPending()
+    fun cancelGeneratedInput() { applyTransition(keyInputQueue.cancel()) }
+
     override fun enqueueUserKeySequence(keys: Iterable<PocketKey>) {
         val captured = keys.toList()
         if (operatingMode == OperatingMode.RUN) commandHistory.recordUserSequence(captured)

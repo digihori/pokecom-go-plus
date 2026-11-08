@@ -167,15 +167,7 @@ internal class DesktopKeyboardInput {
     }
 
     private fun DesktopKeyInputSink.keySequence(character: Char): List<PocketKey>? =
-        when (MachineCatalog.find(machineId)?.keyboardLayout) {
-            MachineKeyboardLayout.PC_1450, MachineKeyboardLayout.PC_1460, MachineKeyboardLayout.PC_1470U -> com.digihori.pgp.core.emulator.machine.pc1401.Pc1401CharacterInput.keySequence(character)
-            MachineKeyboardLayout.PC_1401 -> com.digihori.pgp.core.emulator.machine.pc1401.Pc1401CharacterInput.keySequence(character)
-            MachineKeyboardLayout.PC_1251 -> Pc1251CharacterInput.keySequence(character)
-            MachineKeyboardLayout.PC_1261 -> Pc1251CharacterInput.keySequence(character)
-            MachineKeyboardLayout.PC_1245, null -> Pc1245CharacterInput.keySequence(character)
-            MachineKeyboardLayout.PC_1350 -> Pc1350CharacterInput.keySequence(character)
-            MachineKeyboardLayout.PC_1360 -> Pc1360CharacterInput.keySequence(character)
-        }
+        studioCharacterKeys(machineId, character)
 
     private sealed interface ActiveInput {
         data class Direct(val key: PocketKey) : ActiveInput
@@ -191,3 +183,14 @@ internal class DesktopKeyboardInput {
         activeInputs.clear()
     }
 }
+
+internal fun studioCharacterKeys(machineId: MachineId, character: Char): List<PocketKey>? =
+    when (MachineCatalog.find(machineId)?.keyboardLayout) {
+            MachineKeyboardLayout.PC_1450, MachineKeyboardLayout.PC_1460, MachineKeyboardLayout.PC_1470U -> com.digihori.pgp.core.emulator.machine.pc1401.Pc1401CharacterInput.keySequence(character)
+            MachineKeyboardLayout.PC_1401 -> com.digihori.pgp.core.emulator.machine.pc1401.Pc1401CharacterInput.keySequence(character)
+            MachineKeyboardLayout.PC_1251 -> Pc1251CharacterInput.keySequence(character)
+            MachineKeyboardLayout.PC_1261 -> Pc1251CharacterInput.keySequence(character)
+            MachineKeyboardLayout.PC_1245, null -> Pc1245CharacterInput.keySequence(character)
+            MachineKeyboardLayout.PC_1350 -> Pc1350CharacterInput.keySequence(character)
+            MachineKeyboardLayout.PC_1360 -> Pc1360CharacterInput.keySequence(character)
+        }

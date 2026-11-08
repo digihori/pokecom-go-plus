@@ -28,6 +28,10 @@ internal fun StudioConsolePanel(
     onInputFocusChanged: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
     strings: StudioStrings = StudioStrings.system,
+    macroBusy: Boolean = false,
+    pauseMessage: String? = null,
+    onMacroResume: () -> Unit = {},
+    onMacroStop: () -> Unit = {},
 ) {
     val density = LocalDensity.current
     val currentDelta by rememberUpdatedState(onHeightDelta)
@@ -64,6 +68,14 @@ internal fun StudioConsolePanel(
                     Text(strings.text("console.clear"))
                 }
                 TextButton(onClick = onHide) { Text(strings.text("console.hide")) }
+            }
+            if (macroBusy) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(pauseMessage ?: strings.text("macro.running"), modifier = Modifier.weight(1f), maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    TextButton(enabled = pauseMessage != null, onClick = onMacroResume) { Text(strings.text("macro.resume")) }
+                    TextButton(onClick = onMacroStop) { Text(strings.text("macro.stop")) }
+                }
             }
             Box(Modifier.fillMaxWidth().weight(1f).padding(start = 12.dp, end = 4.dp, bottom = 8.dp)) {
                 BasicTextField(value = text, onValueChange = {}, readOnly = true,

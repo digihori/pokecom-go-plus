@@ -1,0 +1,2 @@
+10 PRINT "BASIC 2"
+20 END

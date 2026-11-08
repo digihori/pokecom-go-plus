@@ -38,6 +38,24 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class DesktopEmulatorRunnerTest {
+    @Test fun macroCancellationClearsQueuedKeysWithoutReleasingOtherOwners() {
+        val session = FakeSession()
+        val clock = FakeClock()
+        val runner = runner(session, clock)
+        runner.pressHostKey(PocketKey.A, "keyboard:A")
+        runner.enqueueKeySequence(listOf(PocketKey.A, PocketKey.B))
+        runner.run()
+        clock.advance(1_000_000)
+        runner.tick()
+        runner.cancelGeneratedInput()
+        assertTrue(runner.generatedInputIdle())
+        assertTrue(session.inputEvents.none { it == "press:B" })
+        assertTrue(session.inputEvents.none { it == "release:A" })
+        runner.releaseHostKey(PocketKey.A, "keyboard:A")
+        assertEquals("release:A", session.inputEvents.last())
+        assertEquals(RunnerState.RUNNING, runner.state)
+    }
+
     @Test
     fun disabledRegistrationsKeepFastRunAndDoNotEnableAccessTracing() {
         val session = FakeSession()

@@ -1,0 +1,9 @@
+# Load BASIC 1, run it, then wait for confirmation before replacing it with BASIC 2.
+load "basic1.bas"
+mode RUN
+cmd "RUN"
+pause "Confirm BASIC 1 has finished, then resume."
+mode PRO
+cmd "NEW"
+mode RUN
+load "basic2.bas"
