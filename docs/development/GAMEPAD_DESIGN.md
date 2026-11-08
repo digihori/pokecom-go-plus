@@ -4,6 +4,33 @@
 過去の時制・件数・未確認事項を保持しています。現在の操作は[導入ガイド](../guides/GETTING_STARTED.md)、
 [Androidヘルプ](../guides/PLAYER_HELP.md)、[iPhoneヘルプ](../guides/PLAYER_HELP_IOS.md)または対応する機能ガイドを参照してください。
 
+## 次回リリース対応（2026-11-08）
+
+次のリリースで左アナログスティックを移動、右アナログスティックをボタンとして扱えるようにする。
+方向ごとの割当・しきい値・デッドゾーン・斜め入力の仕様は実装時に具体化する。
+Nintendo SwitchのBluetoothコントローラ2台の併用不良も調査・改善対象とする。
+Joy-Con左右を想定するが、報告対象の機器・OS・接続状態は未確認。旧Pokecom GOでは使えたとの利用者報告あり。
+これらは実装前の計画であり、以下の「アナログ対象外」「1台のみ」は従来仕様の記録。
+
+ローカルソースの比較で確認した事実：
+
+- 現行`AndroidGamepadController.onKey`／`onMotion`は選択中のdeviceId以外を除外する。
+  共通入力も`SingleGamepadSelection`と単一deviceIdを使う。
+- 現行AndroidのMotion処理はHAT_X／HAT_Yのみで、アナログスティックは意図的に対象外。
+- 旧`pokecom/app/src/main/java/tk/horiuchi/pokecom/SubActivityBase.java`の
+  `dispatchKeyEvent`はゲームパッドのキーをdeviceIdで選別せず共通のキー割当へ変換する。
+  BUTTON_A／B／X／Yに加えてBUTTON_1〜4も扱う。
+
+OSが左右を別デバイスとして通知している場合、現行の単一機器制限が併用不良の原因候補となる。
+旧版に専用の左右統合処理がなくても、両方のキーを受け付けることで動いていた可能性がある。
+報告端末で未再現のため原因確定とはしない。
+
+実装時は機器名・deviceId・キーコード・軸情報を確認し、複数機器の選択／入力統合を設計する。
+同じポケコンキーへの重複入力、左右同時操作、片側の切断・再接続、中立復帰時の解放を受入れ対象とする。
+Studio／Android／iOSの適用範囲と確認結果は個別に記録する。
+
+関連：[次のリリース案件](planning/NEXT_DEVELOPMENT_CANDIDATES.md)。
+
 ## iOS PC-1245・手順4（2026-10-17）
 
 今回のユーザー依頼でiOSのGameController・Physical入力・全体コントローラ設定を接続。
