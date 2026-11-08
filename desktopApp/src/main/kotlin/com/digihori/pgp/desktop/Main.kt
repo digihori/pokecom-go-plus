@@ -1846,6 +1846,10 @@ private fun FrameWindowScope.App(
                 macroExecutor.resume()
             })
             Item(uiText("macro.stop"), enabled = macroBusy, onClick = ::stopMacro)
+            Separator()
+            Item(uiText("help.macro"), onClick = {
+                openDocumentationUrl(MACRO_HELP_URL)?.let { message = it }
+            })
         }
         Menu(uiText("menu.tools"), enabled = !macroBusy) {
             Item(
@@ -1933,6 +1937,9 @@ private fun FrameWindowScope.App(
             })
             Item(uiText("help.debugger"), onClick = {
                 openDocumentationUrl(DEBUGGER_HELP_URL)?.let { message = it }
+            })
+            Item(uiText("help.macro"), onClick = {
+                openDocumentationUrl(MACRO_HELP_URL)?.let { message = it }
             })
             Separator()
             Item(uiText("help.github"), onClick = {
@@ -2117,6 +2124,7 @@ private fun FrameWindowScope.App(
                         HelpLink(uiText("help.gettingStarted"), GETTING_STARTED_URL, onMessage = { message = it })
                         HelpLink(uiText("help.keyboard"), PROJECTS_HELP_URL, onMessage = { message = it })
                         HelpLink(uiText("help.debugger"), DEBUGGER_HELP_URL, onMessage = { message = it })
+                        HelpLink(uiText("help.macro"), MACRO_HELP_URL, onMessage = { message = it })
                         HelpLink(uiText("help.repository"), REPOSITORY_URL, onMessage = { message = it })
                     }
                 }
@@ -4767,6 +4775,7 @@ private val SCROLLBAR_CONTENT_GUTTER = 10.dp
 private const val REPOSITORY_URL: String = "https://github.com/digihori/pokecom-go-plus"
 private const val GETTING_STARTED_URL: String = "$REPOSITORY_URL/blob/main/docs/guides/GETTING_STARTED.md"
 private const val PROJECTS_HELP_URL: String = "$REPOSITORY_URL/blob/main/docs/guides/PROJECTS.md#command-history"
+private const val MACRO_HELP_URL: String = "$REPOSITORY_URL/blob/main/docs/guides/PROJECTS.md#マクロ実行"
 private const val DEBUGGER_HELP_URL: String = "$REPOSITORY_URL/blob/main/docs/guides/DEBUGGER.md"
 
 private fun Int.hex(width: Int): String = (this and if (width == 2) 0xff else 0xffff)
