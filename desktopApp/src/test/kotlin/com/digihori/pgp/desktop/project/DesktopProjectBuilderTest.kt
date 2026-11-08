@@ -15,6 +15,31 @@ import com.digihori.pgp.desktop.runner.DesktopEmulatorRunner
 import com.digihori.pgp.desktop.runner.MonotonicClock
 
 class DesktopProjectBuilderTest {
+    @Test fun assemblyWorkspaceBuildsOnlyItsTargetAndWritesTargetNamedOutput() {
+        val root = Files.createTempDirectory("pgp-single-assembly-")
+        try {
+            root.resolve("src").createDirectories()
+            root.resolve("src/good.asm").writeText("ORG 0xC000\nRTN\n")
+            root.resolve("src/bad.asm").writeText("NOT_AN_INSTRUCTION\n")
+            root.resolve("src/one.bas").writeText("10 END\n")
+            root.resolve("src/two.bas").writeText("20 END\n")
+            val workspace = openWorkspace(root, """
+                {"id":"good","type":"assembly","path":"src/good.asm"},
+                {"id":"bad","type":"assembly","path":"src/bad.asm"},
+                {"id":"one","type":"basic","path":"src/one.bas"},
+                {"id":"two","type":"basic","path":"src/two.bas"}
+            """.trimIndent())
+            val target = workspace.selectAssemblySource("src/good.asm")
+            val artifact = assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(target)).artifact
+            assertEquals(listOf("good"), artifact.assemblySources.map { it.source.definition.id })
+            assertEquals(null, artifact.copyBasicProgram())
+            assertEquals("good.dmp", DesktopProjectBuildOutputWriter.write(target, artifact)!!.name)
+            assertTrue(root.resolve("build/good.dmp").toFile().isFile)
+            assertTrue(!root.resolve("build/program.dmp").toFile().exists())
+            kotlin.test.assertFailsWith<IllegalArgumentException> { workspace.selectAssemblySource("src/one.bas") }
+        } finally { root.toFile().deleteRecursively() }
+    }
+
     @Test fun selectedBasicBuildIgnoresOtherBasicAndBrokenAssembly() {
         val root = Files.createTempDirectory("pgp-selected-build-")
         try {

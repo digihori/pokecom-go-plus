@@ -24,6 +24,13 @@ internal fun DesktopProjectWorkspace.selectSources(paths: Set<String>): DesktopP
     return copy(definition = definition.copy(sources = selected.map { it.definition }), sources = selected)
 }
 
+internal fun DesktopProjectWorkspace.selectAssemblySource(path: String): DesktopProjectWorkspace =
+    selectSources(setOf(path)).also {
+        require(it.sources.single().definition.type == com.digihori.pgp.core.project.ProjectSourceType.ASSEMBLY) {
+            "Select an Assembly source."
+        }
+    }
+
 internal data class DesktopProjectSource(
     val definition: ProjectSource,
     val file: File,

@@ -6,9 +6,9 @@ Pokecom GO Studioは内蔵テキストエディタを持たず、任意の外部
 本書はプロジェクト管理の基本仕様を定義する。実装済みの範囲と今後実装する範囲は
 `docs/development/planning/ROADMAP.md`で管理する。
 
-現在はプロジェクト定義の読み込み、検証、ソースファイルの外部変更検知、プロジェクト全体の
-Build & LoadとAssemblyソースのBuild連携を実装している。プロジェクト機能は実行方法を決めず、ロード後の
-`RUN`、`DEF-S`、`CALL &C000`等はユーザーがポケコン上で操作する。従来の
+現在はプロジェクト定義の読み込み、検証、ソースファイルの外部変更検知、選択ファイルの
+Build & LoadとAssemblyソースのBuild連携を実装している。ロード後の
+`RUN`、`DEF-S`、`CALL &C000`等はユーザーがポケコン上で操作するか、マクロで送信する。従来の
 `Load BASIC`、`Load Machine Code`は単発操作として引き続き利用できる。
 
 ## Manifest
@@ -88,24 +88,41 @@ Studioはプロジェクト内のファイルとManifestを比較し、メイン
 
 ```text
 Mogura Game
-├── Tracked
-│   ├── main.bas
-│   └── engine.dmp
-└── Untracked
-    ├── aaa.bas
-    └── bbb.asm
+└── src
+    ├── main.bas       [BASIC]
+    ├── engine.dmp     [DMP]
+    ├── compile.pgmacro [マクロ]
+    └── lib
+        └── routine.asm [ASM]
 ```
 
-- `Tracked`: Manifestの`sources`に登録され、BuildおよびEmulator更新の対象になる
-- `Untracked`: `src/`以下に存在するが、Manifestへ登録されていない
-
-ここでいうTracked／UntrackedはGitの管理状態ではなく、PGP Manifestへの登録状態を意味する。
+登録済み／未登録には分けず、フォルダ構造に沿って表示する。フォルダはクリックで展開・折りたたみできる。
+外部で追加された`.bas`／`.asm`／`.dmp`は「要更新」と表示し、Update ProjectでBuild対象へ取り込む。
+マクロはBuild対象への登録が不要なので、「要更新」は表示しない。
 ファイルシステムの追加、削除、改名はツリーへ自動反映するが、Manifestは自動変更しない。
 
-`Update Project`を実行すると、存在しなくなったTrackedの登録をManifestから削除し、対応形式の
-UntrackedをManifestへ追加する。監視だけではManifestを書き換えないため、外部エディタの一時的な
-保存動作で登録が失われることはない。現在の自動追加対象は`.bas`、`.dmp`、`.asm`とし、ロード
-アドレスが必要なRaw Binary等の未対応形式はUntrackedへ残す。
+`Update Project`は、消えたファイルの登録を削除し、対応形式の新規ファイルを登録する。
+監視だけではManifestを書き換えないため、外部エディタの一時的な保存動作で登録が失われない。
+自動追加対象は`.bas`、`.dmp`、`.asm`。ロードアドレスが必要なRaw Binary等は自動登録しない。
+
+Projectペインの常設ボタンは「新規ファイル」「既存ファイルを追加」「選択ファイルをビルドしてロード」
+「Update Project」の4つ。マクロ選択時は実行ボタンが「選択マクロを実行」に切り替わる。
+選択なし、未対応形式、要更新のソースは個別Build／Loadを実行できない。
+
+ファイルを右クリックすると、そのファイルが選択され、形式に応じて次の操作を表示する。
+
+| 操作 | 対象 |
+| --- | --- |
+| 編集 | BASIC／Assembly／DMP／マクロ |
+| ビルドしてロード | 登録済みソース |
+| マクロ実行 | .pgmacro |
+| WAV作成 | BASIC／DMP／HEX／IHX |
+| アセンブリワークスペースを開く | 登録済みAssembly |
+| 名前変更／ゴミ箱へ移動 | Project内ファイル |
+
+編集・WAV作成・名前変更・ゴミ箱移動・ワークスペースは右クリックへ集約し、常設ボタンを置かない。
+ProjectメニューにはProject全体の管理、新規ファイル、既存追加、選択Build／Load、Update Project、ゴミ箱を開く操作を残す。
+選択マクロの実行はマクロメニューからも利用できる。
 
 存在しない登録ファイルはツリーへ表示せず、`Update Project`前にBuildまたはEmulator更新を行った
 場合だけ具体的なエラーを表示する。
@@ -131,28 +148,29 @@ Source informationの文章は表示幅で折り返し、長い場合は縦ス�
 
 ## Build & Load
 
-現在のStudioは`Build & Load`で全ソースを検証・変換し、すべて成功した場合だけ成果物をEmulatorへ一括ロードする。
-メイン画面のProjectペインと`Project`メニューのどちらからでも実行できる。
+Studioは選択した登録済みファイルだけを検証・変換し、成功した場合にEmulatorへロードする。
+Projectペインのボタン、右クリック、Projectメニューから実行できる。
 
 - BASICをTokenizerで対象機種の中間コードへ変換する
-- Assemblyを内蔵SC61860 Assemblerで変換する
+- Assemblyを選択中のAssemblerで変換する
 - Memory DumpとRaw Binaryを解析する
-- 配置範囲の重複とSessionの書込み規則を検証する
-- 失敗した場合はEmulatorを変更しない
+- Sessionの書込み規則・配置を検証し、失敗時はEmulatorを変更しない
 
-Assemblyソースを含むプロジェクトでは`Project` → `Open Assembly Workspace`から専用ウィンドウを開ける。
-プロジェクト未選択時にもWorkspace自体は開くことができ、そこからプロジェクトを新規作成またはOpenできる。
-`Assemble`はメモリ上のMemory、Disassembly、Listing、Symbol Mapプレビューだけを更新し、失敗時は
-最後に成功したプレビューを保持する。`Build`は同じ変換結果から`build/program.dmp`、
-`build/program.lst`、`build/program.map`を生成する。`Build & Load`も同じビルド処理を経由する。
-現時点の状態表示は`Not built`、`Up to date`、`Source changed`、`Runtime modified`、`Build failed`を使用する。
+Assemblyを右クリックして「アセンブリワークスペースを開く」を選ぶと、その1ファイル専用のウィンドウを開く。
+ウィンドウタイトルに対象パスを表示し、他のAssemblyやBASICは処理に含めない。INCLUDE等による依存ファイルは通常どおり扱う。
+`Assemble`はMemory、Disassembly、Listing、Symbol Mapのプレビューを更新する。
+`Build`は`build/ソース名.dmp`、`.lst`、`.map`を生成し、`Build & Load`はその対象だけをロードする。
+失敗時は最後に成功したプレビューを保持するが、対象ファイルを変更した場合はプレビューを消去する。
+
+「プロジェクト全体をビルドしてロード」は通常UIから除外した。複数ファイルのロード順と起動操作はマクロで記述する。
+全体の変換・配置検査・一括ロードの内部処理と既存MCP経路は維持する。個別のBuild結果を全体BuildとしてMCPへ公開しない。
 
 ## External editing workflow
 
 1. `Project` → `Open Project…`を選び、`pgp-project.json`を含むプロジェクトフォルダを指定する。
 2. BASIC、ダンプ、アセンブリ等を任意の外部エディタで編集する。
 3. Studioは内容のハッシュを定期的に比較し、作成、変更、削除を検知する。
-4. `Build & Load`は全ソースを先に検証・変換し、成功した場合だけロード処理へ進む。
+4. 対象ファイルを選び、`Build & Load`でそのファイルを検証・変換し、成功した場合だけロードする。
 5. ロード後は、ポケコンへ`RUN`、`DEF-S`、`CALL`等を直接入力して実行する。
 
 ファイルシステムのタイムスタンプ精度に依存しないため、同じサイズの上書き保存も検知する。
@@ -170,7 +188,7 @@ PROモード等でEmulator内のBASICプログラムが変更された状態をP
 他のBASICやAssemblyはこの操作の対象にならない。選択ファイルの成果物はメモリ上でロードし、
 全体Buildの成果物ファイルやMCP用の全体Build結果としては保存しない。
 状態は「選択ファイルをロード済み」とし、Project全体が最新とは表示しない。
-「プロジェクト全体をビルドしてロード」は従来の一括操作で、BASICが複数ある場合は対象選択を案内する。
+内部の一括Build／LoadではBASICが複数あると拒否する。通常UIでは個別のBuild／Loadを使う。
 複数の`.dmp`と
 Raw Binaryは登録できるが、配置範囲が重なる場合はEmulatorへロードせずBuildエラーにする。
 Projectを開いても現在の機種・ROMは切り替えない。Buildは現在のEmulator機種・RAM設定を使用し、
@@ -270,22 +288,22 @@ Studio独自のコマンド入力欄は設けず、履歴を呼び出すと過�
 未登録の別ファイルは、この操作では登録しない。追加後は必要に応じてBuild & Loadを実行する。
 複数追加は1回のManifest更新で確定し、失敗時は今回コピーしたファイルを取り除く。
 `.pgmacro`は補助ファイルとしてsrc内に置き、Build対象のManifestには登録しない。
-ツリーではUntrackedに表示され、Update ProjectでもBuild対象へ追加されない。
+ツリーでは他のファイルと同じフォルダに表示され、Update ProjectでもBuild対象へ追加されない。
 マクロの実行方法は上記を参照。
 一括Build／LoadではBASICソースは1つまでとし、複数BASICがある場合は選択ファイルの操作を使う。
 `Project` → `New File…`（新規ファイル）では、拡張子付きの名前を指定してsrc内にファイルを作成できる。
 BASICは`10 END`、Assemblyは機種の開始アドレスと`RTN`、DMPは空、マクロはコメントを初期内容とする。
 編集は従来どおり外部エディタで行う。同名の既存ファイルは上書きしない。
 
-ツリーでファイルを選び、`Project` → `Rename Selected File…`（選択ファイルの名前変更）で改名できる。
+ツリーのファイルを右クリックして「名前変更…」で改名できる。
 同じフォルダ内で拡張子を維持して改名し、登録済みソースはID・種類・ロードアドレスを保ったままManifestのパスも更新する。
 Manifestの更新失敗時はファイル名を元に戻す。未登録ファイルも改名できるが、自動登録はしない。
 マクロのload文やAssemblyのINCLUDE等、ファイル内容中の参照は自動変更しないため、利用者が更新する。
-新規作成・既存追加・名前変更はProjectペインのボタンからも利用できる。
+新規作成・既存追加はProjectペインのボタンからも利用できる。
 
 ## Project内のゴミ箱
 
-ツリーでファイルを選び、「Project」→「選択ファイルをゴミ箱へ移動…」またはProjectペインの同名ボタンから移動する。
+ツリーのファイルを右クリックし、「ゴミ箱へ移動…」を選ぶ。
 確認後、Project直下の`.trash/日時-一意な番号/元の相対パス`へファイルを移し、登録済みソースはManifestから外す。
 同名ファイルを繰り返し移動しても上書きしない。未登録のマクロ等も移動できる。
 Manifest更新に失敗した場合はファイルを元へ戻す。エミュレータのメモリ上のプログラムは消去しない。

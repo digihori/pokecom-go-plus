@@ -1,6 +1,12 @@
 package com.digihori.pgp.desktop
 
 import com.digihori.pgp.desktop.project.selectSources
+import com.digihori.pgp.desktop.project.selectAssemblySource
+import com.digihori.pgp.desktop.project.ProjectFileAction
+import com.digihori.pgp.desktop.project.ProjectFileEntry
+import com.digihori.pgp.desktop.project.ProjectFileTree
+import com.digihori.pgp.desktop.project.projectFileEntries
+import com.digihori.pgp.desktop.project.projectFileNodes
 import com.digihori.pgp.desktop.macro.*
 import com.digihori.pgp.desktop.input.studioCharacterKeys
 import com.digihori.pgp.desktop.console.StudioConsoleState
@@ -487,6 +493,7 @@ private fun FrameWindowScope.App(
     var quickLayout by remember { mutableStateOf(MachineMemoryLayout(selectedMachineId)) }
     var quickSaveStatus by remember { mutableStateOf("") }
     var showAssemblyWorkspace by remember { mutableStateOf(false) }
+    var assemblyTargetPath by remember { mutableStateOf<String?>(null) }
     var showWavTool by remember { mutableStateOf(false) }
     var showCharacterEditor by remember { mutableStateOf(false) }
     var closeWavToolRequested by remember { mutableStateOf(false) }
@@ -788,6 +795,9 @@ private fun FrameWindowScope.App(
                     projectBasicBaseline = null
                     projectBasicModified = false
                 }
+                val keepAssemblyTarget = projectWorkspace?.manifestFile?.absolutePath == opened.workspace.manifestFile.absolutePath &&
+                    opened.workspace.sources.any { it.definition.path == assemblyTargetPath && it.definition.type == ProjectSourceType.ASSEMBLY }
+                if (!keepAssemblyTarget) { assemblyTargetPath = null; showAssemblyWorkspace = false }
                 projectWorkspace = opened.workspace
                 projectChangeTracker = DesktopProjectChangeTracker(opened.workspace)
                 projectTree = DesktopProjectTreeScanner.scan(opened.workspace)
@@ -841,6 +851,10 @@ private fun FrameWindowScope.App(
 
     fun applyProjectFileEdit(edit: com.digihori.pgp.desktop.project.ProjectFileEdit) {
         val updated = edit.workspace
+        if (updated.sources.none { it.definition.path == assemblyTargetPath && it.definition.type == ProjectSourceType.ASSEMBLY }) {
+            assemblyTargetPath = null
+            showAssemblyWorkspace = false
+        }
         projectWorkspace = updated
         projectChangeTracker = DesktopProjectChangeTracker(updated)
         projectTree = DesktopProjectTreeScanner.scan(updated)
@@ -867,17 +881,17 @@ private fun FrameWindowScope.App(
         )
     }
 
-    fun openProjectFileDialog(rename: Boolean) {
+    fun openProjectFileDialog(rename: Boolean, path: String? = selectedProjectSourcePath) {
         if (macroBusy) return
-        projectFileRenamePath = if (rename) selectedProjectSourcePath else null
-        projectFileName = if (rename) File(selectedProjectSourcePath ?: return).name else "new.bas"
+        projectFileRenamePath = if (rename) path else null
+        projectFileName = if (rename) File(path ?: return).name else "new.bas"
         projectFileError = null
         showProjectFileDialog = true
     }
 
-    fun requestTrashFile() {
+    fun requestTrashFile(path: String? = selectedProjectSourcePath) {
         if (macroBusy || assemblyBusy) return
-        pendingTrashPath = selectedProjectSourcePath
+        pendingTrashPath = path
         trashFileError = null
     }
 
@@ -912,10 +926,24 @@ private fun FrameWindowScope.App(
         runner?.memoryLayout
             ?: MachineMemoryLayout(workspace.definition.machineId, ramModeFor(workspace.definition.machineId))
 
+    fun openAssemblySource(path: String) {
+        if (macroBusy || assemblyBusy) return
+        val workspace = projectWorkspace ?: return
+        workspace.selectAssemblySource(path)
+        assemblyTargetPath = path
+        assemblyPreview = emptyList()
+        assemblyDiagnostics = emptyList()
+        lastProjectBuildErrors = emptyList()
+        assemblyStatus = uiText("assembly.notAssembled")
+        showAssemblyWorkspace = true
+    }
+
     suspend fun assembleWorkspaceWork() {
         val workspace = projectWorkspace ?: return
+        val path = assemblyTargetPath ?: return
+        val target = workspace.selectAssemblySource(path)
         lastProjectBuildErrors = emptyList()
-        val result = DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, projectMemoryLayout(workspace), currentAssemblerSettings)
+        val result = DesktopAssemblyWorkspaceCompiler.compileConfigured(target, projectMemoryLayout(workspace), currentAssemblerSettings)
         check(projectWorkspace === workspace) { uiText("assembly.projectChanged") }
         when (result) {
             is DesktopAssemblyWorkspaceResult.Failure -> {
@@ -927,7 +955,7 @@ private fun FrameWindowScope.App(
                 assemblyPreview = result.sources
                 assemblyDiagnostics = emptyList()
                 lastProjectBuildErrors = emptyList()
-                changedAssemblySources = emptySet()
+                changedAssemblySources = changedAssemblySources - target.sources.map { it.definition.id }.toSet()
                 val bytes = result.sources.sumOf { it.image.byteCount }
                 assemblyStatus = uiText("assembly.previewReady" , (bytes).toString(), (result.sources.size).toString())
                 message = assemblyStatus
@@ -944,15 +972,16 @@ private fun FrameWindowScope.App(
         }
     }
 
-    suspend fun buildProjectOutputsWork(): DesktopProjectBuildResult.Success? {
+    suspend fun buildProjectOutputsWork(sourcePath: String? = null): DesktopProjectBuildResult.Success? {
         val workspace = projectWorkspace ?: return null
+        val target = if (sourcePath == null) workspace else workspace.selectAssemblySource(sourcePath)
         console.append(uiText("console.buildProject", workspace.definition.name))
         lastProjectBuildErrors = emptyList()
         val buildRunner = runner
         val buildStamp = projectBuildRegistry.begin(workspace)
         val layout = projectMemoryLayout(workspace)
-        val assembly = DesktopAssemblyWorkspaceCompiler.compileConfigured(workspace, layout, currentAssemblerSettings)
-        val built = withContext(Dispatchers.IO) { DesktopProjectBuilder.build(workspace, layout, compiledAssembly = assembly) }
+        val assembly = DesktopAssemblyWorkspaceCompiler.compileConfigured(target, layout, currentAssemblerSettings)
+        val built = withContext(Dispatchers.IO) { DesktopProjectBuilder.build(target, layout, compiledAssembly = assembly) }
         check(projectWorkspace === workspace && runner === buildRunner &&
             projectMemoryLayout(workspace).ramMode == layout.ramMode) { uiText("assembly.buildProjectChanged") }
         return when (built) {
@@ -973,7 +1002,7 @@ private fun FrameWindowScope.App(
             }
             is DesktopProjectBuildResult.Success -> {
                 assemblyDiagnostics = emptyList()
-                val output = runCatching { withContext(Dispatchers.IO) { DesktopProjectBuildOutputWriter.write(workspace, built.artifact) } }
+                val output = runCatching { withContext(Dispatchers.IO) { DesktopProjectBuildOutputWriter.write(target, built.artifact) } }
                     .getOrElse {
                         if (it is CancellationException) throw it
                         projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
@@ -983,11 +1012,11 @@ private fun FrameWindowScope.App(
                     }
                 check(projectWorkspace === workspace && runner === buildRunner &&
                     projectMemoryLayout(workspace).ramMode == layout.ramMode) { uiText("assembly.changedWhileSaving") }
-                projectBuildRegistry.publish(buildStamp, built.artifact)
+                if (sourcePath == null) projectBuildRegistry.publish(buildStamp, built.artifact)
                 assemblyPreview = built.artifact.assemblySources
                 assemblyDiagnostics = emptyList()
                 lastProjectBuildErrors = emptyList()
-                changedAssemblySources = emptySet()
+                changedAssemblySources = if (sourcePath == null) emptySet() else changedAssemblySources - target.sources.map { it.definition.id }.toSet()
                 assemblyStatus = if (output == null) uiText("assembly.built") else uiText("assembly.builtPath", output.path)
                 projectRuntimeStatus = ProjectRuntimeStatus.BUILT_NOT_LOADED
                 message = assemblyStatus
@@ -1041,12 +1070,12 @@ private fun FrameWindowScope.App(
         return applied
     }
 
-    suspend fun buildProjectWork() {
+    suspend fun buildProjectWork(sourcePath: String? = null) {
         val workspace = projectWorkspace ?: return
         val activeRunner = runner ?: return
-        buildProjectOutputsWork()?.let { built ->
+        buildProjectOutputsWork(sourcePath)?.let { built ->
                 check(runner === activeRunner && projectWorkspace === workspace) { uiText("assembly.changedBeforeLoad") }
-                applyProjectArtifact(workspace, activeRunner, built.artifact)
+                applyProjectArtifact(workspace, activeRunner, built.artifact, sourcePath)
         }
     }
 
@@ -1077,12 +1106,12 @@ private fun FrameWindowScope.App(
         }
     }
     fun assembleWorkspace() = startAssembly { assembleWorkspaceWork() }
-    fun buildProjectOutputs() = startAssembly { buildProjectOutputsWork() }
-    fun buildProject() = startAssembly { buildProjectWork() }
+    fun buildProjectOutputs() = startAssembly { assemblyTargetPath?.let { buildProjectOutputsWork(it) } }
+    fun buildProject() = startAssembly { assemblyTargetPath?.let { buildProjectWork(it) } }
 
-    fun loadSelectedProjectSource() = startAssembly {
+    fun loadSelectedProjectSource(sourcePath: String? = selectedProjectSourcePath) = startAssembly {
         val workspace = projectWorkspace ?: return@startAssembly
-        val path = selectedProjectSourcePath ?: return@startAssembly
+        val path = sourcePath ?: return@startAssembly
         val activeRunner = runner ?: return@startAssembly
         val selected = workspace.selectSources(setOf(path))
         console.append(uiText("console.buildSource", path))
@@ -1787,27 +1816,14 @@ private fun FrameWindowScope.App(
             Item(uiText("project.newFile"), enabled = projectWorkspace != null && !assemblyBusy,
                 onClick = { openProjectFileDialog(false) })
             Item(uiText("project.addSource"), enabled = projectWorkspace != null && !assemblyBusy, onClick = ::addProjectSource)
-            Item(uiText("project.renameFile"), enabled = projectWorkspace != null && !assemblyBusy && selectedProjectSourcePath != null,
-                onClick = { openProjectFileDialog(true) })
-            Item(uiText("project.trashFile"), enabled = projectWorkspace != null && !assemblyBusy && selectedProjectSourcePath != null,
-                onClick = ::requestTrashFile)
             Item(uiText("project.openTrash"), enabled = projectWorkspace != null, onClick = ::openProjectTrash)
             Item(uiText("project.close"), enabled = projectWorkspace != null, onClick = ::closeProject)
-            Item(
-                uiText("assembly.open"),
-                onClick = { showAssemblyWorkspace = true },
-            )
             Separator()
             Item(
                 uiText("project.buildLoadSelected"),
                 enabled = !assemblyBusy && runner != null && runnerState != RunnerState.FAULTED &&
                     projectWorkspace?.sources?.any { it.definition.path == selectedProjectSourcePath } == true,
-                onClick = ::loadSelectedProjectSource,
-            )
-            Item(
-                uiText("project.buildLoad"),
-                enabled = !assemblyBusy && projectWorkspace != null && runner != null && runnerState != RunnerState.FAULTED,
-                onClick = ::buildProject,
+                onClick = { loadSelectedProjectSource() },
             )
             Item(uiText("project.update"), enabled = projectWorkspace != null, onClick = ::updateProject)
         }
@@ -1840,6 +1856,8 @@ private fun FrameWindowScope.App(
         }
         Menu(uiText("macro.menu")) {
             Item(uiText("macro.run"), enabled = !macroBusy && !assemblyBusy, onClick = ::selectAndRunMacro)
+            Item(uiText("macro.runSelected"), enabled = !macroBusy && !assemblyBusy && selectedProjectSourcePath?.endsWith(".pgmacro", true) == true,
+                onClick = { projectWorkspace?.let { workspace -> selectedProjectSourcePath?.let { startMacro(File(workspace.manifestFile.parentFile, it)) } } })
             Item(uiText("macro.resume"), enabled = macroBusy && macroPause != null, onClick = {
                 keyboardInput.clearActiveInputs()
                 console.append(uiText("macro.resumed"))
@@ -2487,7 +2505,7 @@ private fun FrameWindowScope.App(
         StudioWindow(
             id = "assembly-workspace",
             onCloseRequest = { showAssemblyWorkspace = false },
-            title = projectWorkspace?.let { uiText("assembly.windowProject" , (ProjectInfo.STUDIO_DISPLAY_NAME), (it.definition.name)) }
+            title = projectWorkspace?.let { uiText("assembly.windowProject", ProjectInfo.STUDIO_DISPLAY_NAME, assemblyTargetPath ?: it.definition.name) }
                 ?: uiText("assembly.window" , (ProjectInfo.STUDIO_DISPLAY_NAME)),
         ) {
             PgpStudioTheme {
@@ -2498,7 +2516,10 @@ private fun FrameWindowScope.App(
                             contentPadding = 16.dp,
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                        val workspace = projectWorkspace
+                        val workspace = projectWorkspace?.let { project ->
+                            assemblyTargetPath?.takeIf { path -> project.sources.any { it.definition.path == path } }
+                                ?.let { project.selectAssemblySource(it) }
+                        }
                         if (workspace == null) {
                             Text(uiText("project.empty"))
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2509,7 +2530,7 @@ private fun FrameWindowScope.App(
                                 }) { Text(uiText("project.new")) }
                             }
                         } else {
-                            Text(uiText("assembly.title"), style = MaterialTheme.typography.titleLarge)
+                            Text(assemblyTargetPath.orEmpty(), style = MaterialTheme.typography.titleLarge)
                             Text(uiText("assembler.current", currentAssemblerSettings.assemblerLabel()))
                             Text(assemblyStatus)
                             assemblyPreview.filter { it.consoleLog.isNotBlank() }.forEach {
@@ -2528,20 +2549,20 @@ private fun FrameWindowScope.App(
                                 val hasAssemblySources = workspace.sources.any {
                                     it.definition.type == ProjectSourceType.ASSEMBLY
                                 }
-                                Button(enabled = hasAssemblySources && !assemblyBusy, onClick = ::assembleWorkspace) {
+                                Button(enabled = hasAssemblySources && !assemblyBusy && !macroBusy, onClick = ::assembleWorkspace) {
                                     Text(uiText("assembly.assemble"))
                                 }
-                                Button(enabled = hasAssemblySources && !assemblyBusy, onClick = { buildProjectOutputs() }) {
+                                Button(enabled = hasAssemblySources && !assemblyBusy && !macroBusy, onClick = { buildProjectOutputs() }) {
                                     Text(uiText("assembly.build"))
                                 }
                                 Button(
-                                    enabled = hasAssemblySources && !assemblyBusy && runner != null && runnerState != RunnerState.FAULTED,
+                                    enabled = hasAssemblySources && !assemblyBusy && !macroBusy && runner != null && runnerState != RunnerState.FAULTED,
                                     onClick = ::buildProject,
-                                ) { Text(uiText("project.buildLoad")) }
+                                ) { Text(uiText("project.buildLoadSelected")) }
                             }
                             if (assemblyBusy) OutlinedButton(onClick = { assemblyJob?.cancel() }) { Text(uiText("assembly.cancel")) }
                             Text(uiText("assembly.help"))
-                            val projectIsLoaded = loadedProjectManifest == workspace.manifestFile.absolutePath
+                            val projectIsLoaded = loadedProjectManifest == workspace.manifestFile.absolutePath && loadedProgramLabel == assemblyTargetPath
                             val emulatorLoadStatus = when {
                                 !projectIsLoaded -> uiText("assembly.emulatorNotLoaded")
                                 projectRuntimeStatus == ProjectRuntimeStatus.UP_TO_DATE ->
@@ -2565,12 +2586,6 @@ private fun FrameWindowScope.App(
                             val assemblySources = workspace.sources.filter {
                                 it.definition.type == ProjectSourceType.ASSEMBLY
                             }
-                            val untrackedAssemblyFiles = projectTree?.untracked.orEmpty().filter {
-                                it.file.extension.equals("asm", ignoreCase = true)
-                            }
-                            if (assemblySources.isEmpty() && untrackedAssemblyFiles.isEmpty()) {
-                                Text(uiText("assembly.noSources"))
-                            }
                             assemblySources.forEach { source ->
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -2585,19 +2600,6 @@ private fun FrameWindowScope.App(
                                     )
                                     Button(onClick = { openExternalSource(source.file) }) { Text(uiText("common.open")) }
                                 }
-                            }
-                            untrackedAssemblyFiles.forEach { source ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    Text(uiText("assembly.untrackedSource" , (source.relativePath)), fontFamily = FontFamily.Monospace)
-                                    Button(onClick = { openExternalSource(source.file) }) { Text(uiText("common.open")) }
-                                }
-                            }
-                            if (untrackedAssemblyFiles.isNotEmpty()) {
-                                Button(onClick = ::updateProject) { Text(uiText("assembly.addToProject")) }
                             }
                             Text(uiText("assembly.outputs"), style = MaterialTheme.typography.titleMedium)
                             Text(DesktopProjectBuildOutputWriter.outputFiles(workspace).joinToString("\n") {
@@ -2780,42 +2782,22 @@ private fun FrameWindowScope.App(
                                 }
                             }
                             projectWorkspace?.let { workspace ->
-                                if (selectedProjectSourcePath?.endsWith(".pgmacro", ignoreCase = true) == true) {
-                                    Button(enabled = !macroBusy && !assemblyBusy,
-                                        onClick = { selectedProjectSourcePath?.let { startMacro(File(workspace.manifestFile.parentFile, it)) } },
-                                        modifier = Modifier.fillMaxWidth()) { Text(uiText("macro.runSelected")) }
-                                }
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    TextButton(enabled = !assemblyBusy, onClick = { openProjectFileDialog(false) }) {
-                                        Text(uiText("project.newFile"))
-                                    }
-                                    TextButton(enabled = !assemblyBusy, onClick = ::addProjectSource) {
-                                        Text(uiText("project.addSource"))
-                                    }
+                                    TextButton(enabled = !macroBusy && !assemblyBusy, onClick = { openProjectFileDialog(false) }) { Text(uiText("project.newFile")) }
+                                    TextButton(enabled = !macroBusy && !assemblyBusy, onClick = ::addProjectSource) { Text(uiText("project.addSource")) }
                                 }
-                                TextButton(enabled = !assemblyBusy && selectedProjectSourcePath != null,
-                                    onClick = { openProjectFileDialog(true) }) { Text(uiText("project.renameFile")) }
-                                TextButton(enabled = !macroBusy && !assemblyBusy && selectedProjectSourcePath != null,
-                                    onClick = ::requestTrashFile) { Text(uiText("project.trashFile")) }
-                                Button(
-                                    enabled = !assemblyBusy && runner != null && runnerState != RunnerState.FAULTED &&
-                                        workspace.sources.any { it.definition.path == selectedProjectSourcePath },
-                                    onClick = ::loadSelectedProjectSource,
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) { Text(uiText("project.buildLoadSelected")) }
-                                Button(
-                                    enabled = !assemblyBusy && runner != null && runnerState != RunnerState.FAULTED,
-                                    onClick = ::buildProject,
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) { Text(uiText("project.buildLoad")) }
-                                Button(
-                                    onClick = ::updateProject,
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) { Text(uiText("main.updateProject")) }
-                                Button(
-                                    onClick = { showAssemblyWorkspace = true },
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) { Text(uiText("assembly.title")) }
+                                val selectedMacro = selectedProjectSourcePath?.endsWith(".pgmacro", true) == true
+                                Button(enabled = !macroBusy && !assemblyBusy && runner != null && runnerState != RunnerState.FAULTED &&
+                                    (selectedMacro || workspace.sources.any { it.definition.path == selectedProjectSourcePath }),
+                                    onClick = {
+                                        if (selectedMacro) selectedProjectSourcePath?.let { startMacro(File(workspace.manifestFile.parentFile, it)) }
+                                        else loadSelectedProjectSource()
+                                    }, modifier = Modifier.fillMaxWidth()) {
+                                    Text(uiText(if (selectedMacro) "macro.runSelected" else "project.buildLoadSelected"))
+                                }
+                                Button(enabled = !macroBusy && !assemblyBusy, onClick = ::updateProject, modifier = Modifier.fillMaxWidth()) {
+                                    Text(uiText("main.updateProject"))
+                                }
                             }
                             }
                             if (projectWorkspace != null) {
@@ -2830,10 +2812,23 @@ private fun FrameWindowScope.App(
                                         tree = tree,
                                         selectedPath = selectedProjectSourcePath,
                                         onSelected = { selectedProjectSourcePath = it },
-                                        onEdit = { openExternalSource(it) },
-                                        onCreateWav = { file ->
-                                            wavToolInput = WavToolInput(file, uiText("project.programLabel" , (workspace.definition.name)), projectMemoryLayout(workspace).machineId, System.nanoTime(), fromProject = true)
-                                            showWavTool = true
+                                        actionsEnabled = !macroBusy && !assemblyBusy,
+                                        canLoad = runner != null && runnerState != RunnerState.FAULTED,
+                                        onAction = { action, entry ->
+                                            selectedProjectSourcePath = entry.path
+                                            when (action) {
+                                                ProjectFileAction.EDIT -> openExternalSource(entry.file)
+                                                ProjectFileAction.LOAD -> loadSelectedProjectSource(entry.path)
+                                                ProjectFileAction.MACRO -> startMacro(entry.file)
+                                                ProjectFileAction.RENAME -> openProjectFileDialog(true, entry.path)
+                                                ProjectFileAction.TRASH -> requestTrashFile(entry.path)
+                                                ProjectFileAction.ASSEMBLY -> openAssemblySource(entry.path)
+                                                ProjectFileAction.WAV -> {
+                                                    val file = entry.file
+                                                    wavToolInput = WavToolInput(file, uiText("project.programLabel" , (workspace.definition.name)), projectMemoryLayout(workspace).machineId, System.nanoTime(), fromProject = true)
+                                                    showWavTool = true
+                                                }
+                                            }
                                         },
                                         modifier = Modifier.weight(1f),
                                     )
@@ -4429,8 +4424,9 @@ private fun ProjectTreePanel(
     tree: DesktopProjectTreeSnapshot,
     selectedPath: String?,
     onSelected: (String) -> Unit,
-    onEdit: (File) -> Unit,
-    onCreateWav: (File) -> Unit,
+    actionsEnabled: Boolean,
+    canLoad: Boolean,
+    onAction: (ProjectFileAction, ProjectFileEntry) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var sourceInformationHeight by remember {
@@ -4463,19 +4459,7 @@ private fun ProjectTreePanel(
         horizontalAlignment = Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(uiText("project.files"), style = MaterialTheme.typography.titleMedium)
-            OutlinedButton(
-                onClick = { selected?.let { onEdit(it.file) } },
-                enabled = selected?.let { it.supportsDescription && it.file.isFile } == true,
-            ) { Text(uiText("project.edit")) }
-        }
-        OutlinedButton(
-            onClick = { selected?.let { onCreateWav(it.file) } },
-            enabled = selected?.let { it.file.isFile && it.file.extension.lowercase() in setOf("bas", "dmp", "hex", "ihx") } == true,
-            modifier = Modifier.align(Alignment.End),
-        ) { Text(uiText("project.wav")) }
+        Text(uiText("project.files"), style = MaterialTheme.typography.titleMedium)
         val verticalState = rememberScrollState()
         val horizontalState = rememberScrollState()
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
@@ -4486,8 +4470,7 @@ private fun ProjectTreePanel(
                     .horizontalScroll(horizontalState)
                     .padding(end = 12.dp, bottom = 12.dp),
             ) {
-                ProjectTreeGroup(uiText("project.tracked"), tracked, selectedPath, onSelected)
-                ProjectTreeGroup(uiText("project.untracked"), untracked, selectedPath, onSelected)
+                ProjectFileTree(projectFileNodes(projectFileEntries(tree)), selectedPath, actionsEnabled, canLoad, onSelected, onAction)
             }
             VerticalScrollbar(
                 adapter = rememberScrollbarAdapter(verticalState),
@@ -4531,36 +4514,6 @@ private fun ProjectTreePanel(
         }
     }
 }
-}
-
-@Composable
-private fun ProjectTreeGroup(
-    name: String,
-    files: List<ProjectTreeDisplayFile>,
-    selectedPath: String?,
-    onSelected: (String) -> Unit,
-) {
-    Text(uiText("project.groupCount", name, files.size.toString()))
-    files.forEach { source ->
-        Text(
-            "  ${source.path}",
-            modifier = Modifier
-                .background(
-                    if (source.path == selectedPath) MaterialTheme.colorScheme.secondaryContainer
-                    else Color.Transparent,
-                )
-                .semantics {
-                    contentDescription = uiText("project.selectPath", source.path)
-                    selected = source.path == selectedPath
-                }
-                .clickable { onSelected(source.path) }
-                .padding(vertical = 2.dp, horizontal = 3.dp),
-            fontFamily = FontFamily.Monospace,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Clip,
-        )
-    }
 }
 
 @Composable
