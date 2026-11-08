@@ -1,6 +1,9 @@
 package com.digihori.pgp.desktop
 
 import com.digihori.pgp.desktop.project.selectSources
+import com.digihori.pgp.desktop.console.StudioConsoleState
+import com.digihori.pgp.desktop.console.StudioConsolePanel
+import com.digihori.pgp.desktop.console.ConsoleLevel
 import com.digihori.pgp.desktop.debug.DebuggerRegistrationPanel
 import com.digihori.pgp.desktop.window.useMacApplicationMenu
 import com.digihori.pgp.desktop.debug.DebuggerRegistrationError
@@ -568,6 +571,13 @@ private fun FrameWindowScope.App(
         )
     }
     var selectedProjectSourcePath by remember { mutableStateOf<String?>(null) }
+    val console = remember { StudioConsoleState(DesktopUiPreferences.consoleVisible()) }
+    val consoleInputOwner = remember { Any() }
+    var consoleHeight by remember { mutableStateOf(DesktopUiPreferences.consoleHeight().dp) }
+    fun setConsoleVisible(value: Boolean) {
+        console.changeVisibility(value)
+        DesktopUiPreferences.saveConsoleVisible(value)
+    }
     var hostKeyInputMode by remember { mutableStateOf(DesktopUiPreferences.hostKeyInputMode()) }
     SideEffect { keyboardInput.setInputMode(hostKeyInputMode) }
     LaunchedEffect(runner, projectWorkspace?.manifestFile?.absolutePath) { debuggerSettingsNotice = null }
@@ -587,6 +597,7 @@ private fun FrameWindowScope.App(
     }
 
     fun showError(value: String) {
+        console.append(value, ConsoleLevel.ERROR)
         message = value
         errorDialogMessage = value
     }
@@ -903,6 +914,7 @@ private fun FrameWindowScope.App(
 
     suspend fun buildProjectOutputsWork(): DesktopProjectBuildResult.Success? {
         val workspace = projectWorkspace ?: return null
+        console.append(uiText("console.buildProject", workspace.definition.name))
         lastProjectBuildErrors = emptyList()
         val buildRunner = runner
         val buildStamp = projectBuildRegistry.begin(workspace)
@@ -947,6 +959,7 @@ private fun FrameWindowScope.App(
                 assemblyStatus = if (output == null) uiText("assembly.built") else uiText("assembly.builtPath", output.path)
                 projectRuntimeStatus = ProjectRuntimeStatus.BUILT_NOT_LOADED
                 message = assemblyStatus
+                console.append(assemblyStatus)
                 built
             }
         }
@@ -978,6 +991,7 @@ private fun FrameWindowScope.App(
                 val summary = uiText("assembly.loadedSummary" , (applied.basicByteCount).toString(), (applied.memoryByteCount).toString(), (applied.memorySegmentCount).toString())
                 assemblyStatus = uiText("assembly.loaded" , (activeRunner.machineId.displayName()), (summary))
                 message = uiText("assembly.startHelp" , (assemblyStatus))
+                console.append(uiText("console.loadedTarget", selectedPath ?: workspace.definition.name) + "\n" + assemblyStatus)
                 runnerState = activeRunner.state
                 display = activeRunner.displaySnapshot()
                 cpu = activeRunner.cpuSnapshot()
@@ -1040,6 +1054,7 @@ private fun FrameWindowScope.App(
         val path = selectedProjectSourcePath ?: return@startAssembly
         val activeRunner = runner ?: return@startAssembly
         val selected = workspace.selectSources(setOf(path))
+        console.append(uiText("console.buildSource", path))
         val layout = projectMemoryLayout(workspace)
         // A subset must never be published as a successful whole-project Build for MCP.
         projectBuildRegistry.begin(workspace)
@@ -1622,6 +1637,10 @@ private fun FrameWindowScope.App(
                 showSaveMemoryDumpDialog = true
             })
             Item(uiText("assembly.quick"), onClick = ::quickAssemble)
+        }
+        Menu(uiText("menu.view")) {
+            CheckboxItem(uiText("console.title"), checked = console.visible,
+                onCheckedChange = { setConsoleVisible(it) })
         }
         Menu(uiText("menu.tools")) {
             Item(
@@ -2419,6 +2438,9 @@ private fun FrameWindowScope.App(
                 .focusRequester(appFocusRequester)
                 .focusable(),
         ) {
+            BoxWithConstraints {
+            val maximumConsoleHeight = maxOf(96.dp, maxHeight * 0.4f)
+            val effectiveConsoleHeight = consoleHeight.coerceIn(96.dp, maximumConsoleHeight)
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -2664,13 +2686,22 @@ private fun FrameWindowScope.App(
                     }
                 }
 
+                if (console.visible) {
+                    StudioConsolePanel(console, effectiveConsoleHeight,
+                        onHeightDelta = { delta -> consoleHeight = (effectiveConsoleHeight + delta).coerceIn(96.dp, maximumConsoleHeight) },
+                        onHeightFinished = { DesktopUiPreferences.saveConsoleHeight(consoleHeight.value) },
+                        onHide = { setConsoleVisible(false) }, onCopy = ::copyToClipboard,
+                        onInputFocusChanged = { keyboardInput.setTextInputFocused(consoleInputOwner, it) })
+                }
+
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     SelectionContainer {
                         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                            Text(message)
+                            Text(message, modifier = Modifier.fillMaxWidth().clickable { setConsoleVisible(true) },
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(buildString {
                                 append(uiText("main.status", runnerState.uiLabel(), executedCycles.toString()))
                                 append("  •  ").append(uiText("assembler.current", currentAssemblerSettings.assemblerLabel()))
@@ -2685,6 +2716,7 @@ private fun FrameWindowScope.App(
                     }
                 }
 
+            }
             }
         }
 

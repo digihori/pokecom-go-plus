@@ -78,6 +78,11 @@ internal object DesktopUiPreferences {
         preferences.putFloat("sourceInformationHeightDp", value)
     }
 
+    fun consoleVisible(): Boolean = preferences.getBoolean("consoleVisible", false)
+    fun saveConsoleVisible(value: Boolean) { preferences.putBoolean("consoleVisible", value) }
+    fun consoleHeight(): Float = preferences.getFloat("consoleHeightDp", 200f).takeIf { it.isFinite() }?.coerceIn(96f, 800f) ?: 200f
+    fun saveConsoleHeight(value: Float) { if (value.isFinite()) preferences.putFloat("consoleHeightDp", value.coerceIn(96f, 800f)) }
+
     fun hostKeyInputMode(): HostKeyInputMode = runCatching {
         HostKeyInputMode.valueOf(preferences.get("hostKeyInputMode", HostKeyInputMode.LOGICAL.name))
     }.getOrDefault(HostKeyInputMode.LOGICAL)
