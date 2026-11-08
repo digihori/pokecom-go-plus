@@ -16,6 +16,14 @@ internal data class DesktopProjectWorkspace(
     val sources: List<DesktopProjectSource>,
 )
 
+/** Keeps manifest order and rejects stale selections instead of silently building fewer files. */
+internal fun DesktopProjectWorkspace.selectSources(paths: Set<String>): DesktopProjectWorkspace {
+    require(paths.isNotEmpty()) { "Select at least one registered source." }
+    val selected = sources.filter { it.definition.path in paths }
+    require(selected.size == paths.size) { "Selected sources are no longer registered in the project." }
+    return copy(definition = definition.copy(sources = selected.map { it.definition }), sources = selected)
+}
+
 internal data class DesktopProjectSource(
     val definition: ProjectSource,
     val file: File,

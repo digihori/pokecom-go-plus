@@ -15,6 +15,33 @@ import com.digihori.pgp.desktop.runner.DesktopEmulatorRunner
 import com.digihori.pgp.desktop.runner.MonotonicClock
 
 class DesktopProjectBuilderTest {
+    @Test fun selectedBasicBuildIgnoresOtherBasicAndBrokenAssembly() {
+        val root = Files.createTempDirectory("pgp-selected-build-")
+        try {
+            root.resolve("src").createDirectories()
+            root.resolve("src/one.bas").writeText("10 PRINT 1\n20 END\n")
+            root.resolve("src/two.bas").writeText("10 PRINT 2\n20 END\n")
+            root.resolve("src/broken.asm").writeText("NOT_AN_INSTRUCTION\n")
+            val workspace = openWorkspace(root, """
+                {"id":"one","type":"basic","path":"src/one.bas"},
+                {"id":"two","type":"basic","path":"src/two.bas"},
+                {"id":"broken","type":"assembly","path":"src/broken.asm"}
+            """.trimIndent())
+            val failure = assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace))
+            assertTrue(failure.errors.any { it is DesktopProjectBuildError.MultipleBasicSources })
+            val selected = workspace.selectSources(setOf("src/two.bas"))
+            val built = assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(selected))
+            val expected = assertIs<com.digihori.pgp.desktop.basic.DesktopBasicProgramCompileResult.Success>(
+                com.digihori.pgp.desktop.basic.DesktopBasicLoader.compileProgram(
+                    root.resolve("src/two.bas").toFile().readBytes(), workspace.definition.machineId))
+            assertContentEquals(expected.bytes, built.artifact.copyBasicProgram())
+            assertEquals(listOf("two"), selected.definition.sources.map { it.id })
+            assertEquals(3, workspace.sources.size)
+            kotlin.test.assertFailsWith<IllegalArgumentException> { workspace.selectSources(emptySet()) }
+            kotlin.test.assertFailsWith<IllegalArgumentException> { workspace.selectSources(setOf("src/missing.bas")) }
+        } finally { root.toFile().deleteRecursively() }
+    }
+
     @Test fun buildsBasicForSelectedMachineRegardlessOfManifestMachine() {
         val root = Files.createTempDirectory("pgp-cross-machine-")
         try {

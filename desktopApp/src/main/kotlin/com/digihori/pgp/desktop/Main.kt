@@ -1,5 +1,6 @@
 package com.digihori.pgp.desktop
 
+import com.digihori.pgp.desktop.project.selectSources
 import com.digihori.pgp.desktop.debug.DebuggerRegistrationPanel
 import com.digihori.pgp.desktop.window.useMacApplicationMenu
 import com.digihori.pgp.desktop.debug.DebuggerRegistrationError
@@ -930,7 +931,7 @@ private fun FrameWindowScope.App(
         }
     }
 
-    fun applyProjectArtifact(workspace: DesktopProjectWorkspace, activeRunner: DesktopEmulatorRunner, artifact: DesktopProjectArtifact): DesktopProjectApplyResult {
+    fun applyProjectArtifact(workspace: DesktopProjectWorkspace, activeRunner: DesktopEmulatorRunner, artifact: DesktopProjectArtifact, selectedPath: String? = null): DesktopProjectApplyResult {
         check(runner === activeRunner && projectWorkspace === workspace) { uiText("assembly.changedBeforeLoad") }
         check(artifact.targetMachineId == null || artifact.targetMachineId == activeRunner.machineId) { uiText("assembly.changedBeforeLoad") }
         val applied = DesktopProjectArtifactLoader.load(activeRunner, artifact)
@@ -946,11 +947,13 @@ private fun FrameWindowScope.App(
                 showError(applied.error.message())
             }
             is DesktopProjectApplyResult.Success -> {
-                loadedProgramLabel = uiText("project.programLabel" , (workspace.definition.name))
+                loadedProgramLabel = selectedPath ?: uiText("project.programLabel" , (workspace.definition.name))
                 loadedProjectManifest = workspace.manifestFile.absolutePath
-                projectRuntimeStatus = ProjectRuntimeStatus.UP_TO_DATE
-                changedProjectSources = emptySet()
-                projectChangeTracker = DesktopProjectChangeTracker(workspace)
+                projectRuntimeStatus = if (selectedPath == null) ProjectRuntimeStatus.UP_TO_DATE else ProjectRuntimeStatus.PARTIALLY_LOADED
+                if (selectedPath == null) {
+                    changedProjectSources = emptySet()
+                    projectChangeTracker = DesktopProjectChangeTracker(workspace)
+                }
                 val summary = uiText("assembly.loadedSummary" , (applied.basicByteCount).toString(), (applied.memoryByteCount).toString(), (applied.memorySegmentCount).toString())
                 assemblyStatus = uiText("assembly.loaded" , (activeRunner.machineId.displayName()), (summary))
                 message = uiText("assembly.startHelp" , (assemblyStatus))
@@ -1010,6 +1013,31 @@ private fun FrameWindowScope.App(
     fun assembleWorkspace() = startAssembly { assembleWorkspaceWork() }
     fun buildProjectOutputs() = startAssembly { buildProjectOutputsWork() }
     fun buildProject() = startAssembly { buildProjectWork() }
+
+    fun loadSelectedProjectSource() = startAssembly {
+        val workspace = projectWorkspace ?: return@startAssembly
+        val path = selectedProjectSourcePath ?: return@startAssembly
+        val activeRunner = runner ?: return@startAssembly
+        val selected = workspace.selectSources(setOf(path))
+        val layout = projectMemoryLayout(workspace)
+        // A subset must never be published as a successful whole-project Build for MCP.
+        projectBuildRegistry.begin(workspace)
+        lastProjectBuildErrors = emptyList()
+        val assembly = DesktopAssemblyWorkspaceCompiler.compileConfigured(selected, layout, currentAssemblerSettings)
+        val built = withContext(Dispatchers.IO) {
+            DesktopProjectBuilder.build(selected, layout, validateForLoad = true, compiledAssembly = assembly)
+        }
+        check(projectWorkspace === workspace && runner === activeRunner &&
+            projectMemoryLayout(workspace).ramMode == layout.ramMode) { uiText("assembly.changedBeforeLoad") }
+        when (built) {
+            is DesktopProjectBuildResult.Failure -> {
+                lastProjectBuildErrors = built.errors
+                projectRuntimeStatus = ProjectRuntimeStatus.BUILD_FAILED
+                showError(built.errors.joinToString("\n") { it.message(activeRunner.machineId.displayName()) })
+            }
+            is DesktopProjectBuildResult.Success -> applyProjectArtifact(workspace, activeRunner, built.artifact, path)
+        }
+    }
 
     SideEffect {
         developmentAppliedCallback.set { sourceId ->
@@ -1535,8 +1563,14 @@ private fun FrameWindowScope.App(
             )
             Separator()
             Item(
+                uiText("project.buildLoadSelected"),
+                enabled = !assemblyBusy && runner != null && runnerState != RunnerState.FAULTED &&
+                    projectWorkspace?.sources?.any { it.definition.path == selectedProjectSourcePath } == true,
+                onClick = ::loadSelectedProjectSource,
+            )
+            Item(
                 uiText("project.buildLoad"),
-                enabled = projectWorkspace != null && runner != null && runnerState != RunnerState.FAULTED,
+                enabled = !assemblyBusy && projectWorkspace != null && runner != null && runnerState != RunnerState.FAULTED,
                 onClick = ::buildProject,
             )
             Item(uiText("project.update"), enabled = projectWorkspace != null, onClick = ::updateProject)
@@ -2255,6 +2289,8 @@ private fun FrameWindowScope.App(
                                 !projectIsLoaded -> uiText("assembly.emulatorNotLoaded")
                                 projectRuntimeStatus == ProjectRuntimeStatus.UP_TO_DATE ->
                                     uiText("assembly.emulatorLoaded" , (runner?.machineId?.displayName().orEmpty()))
+                                projectRuntimeStatus == ProjectRuntimeStatus.PARTIALLY_LOADED ->
+                                    uiText("project.state.PARTIALLY_LOADED")
                                 projectRuntimeStatus == ProjectRuntimeStatus.SOURCE_CHANGED ->
                                     uiText("assembly.emulatorChanged")
                                 projectRuntimeStatus == ProjectRuntimeStatus.BUILT_NOT_LOADED ->
@@ -2485,7 +2521,13 @@ private fun FrameWindowScope.App(
                             }
                             projectWorkspace?.let { workspace ->
                                 Button(
-                                    enabled = runner != null && runnerState != RunnerState.FAULTED,
+                                    enabled = !assemblyBusy && runner != null && runnerState != RunnerState.FAULTED &&
+                                        workspace.sources.any { it.definition.path == selectedProjectSourcePath },
+                                    onClick = ::loadSelectedProjectSource,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) { Text(uiText("project.buildLoadSelected")) }
+                                Button(
+                                    enabled = !assemblyBusy && runner != null && runnerState != RunnerState.FAULTED,
                                     onClick = ::buildProject,
                                     modifier = Modifier.fillMaxWidth(),
                                 ) { Text(uiText("project.buildLoad")) }
@@ -4398,7 +4440,7 @@ private fun Boolean.bit(): Int = if (this) 1 else 0
 private fun MachineId.displayName(): String = MachineCatalog.find(this)?.displayName ?: value.uppercase()
 
 private enum class ProjectRuntimeStatus {
-    NOT_BUILT, BUILT_NOT_LOADED, NOT_LOADED, UP_TO_DATE, SOURCE_CHANGED, BUILD_FAILED;
+    NOT_BUILT, BUILT_NOT_LOADED, NOT_LOADED, UP_TO_DATE, PARTIALLY_LOADED, SOURCE_CHANGED, BUILD_FAILED;
 
     val displayName: String get() = uiText("project.state.$name")
 }
