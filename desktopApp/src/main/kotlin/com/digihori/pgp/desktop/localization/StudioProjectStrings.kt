@@ -3,6 +3,11 @@ package com.digihori.pgp.desktop.localization
 internal fun StudioStrings.projectOperationError(message: String): String {
     val known = when (message) {
         "Project name must not be blank." -> text("project.blankName")
+        "Supported project files are .bas, .asm, .dmp and .pgmacro." -> text("project.operation.fileTypes")
+        "Enter a valid file name without folders." -> text("project.operation.fileName")
+        "A file with that name already exists." -> text("project.operation.fileExists")
+        "Keep the existing file extension." -> text("project.operation.keepExtension")
+        "Select a file inside the project." -> text("project.operation.projectFile")
         "The filesystem root cannot be renamed." -> text("project.operation.rootRename")
         "Select an existing source file." -> text("project.operation.existingSource")
         "Supported source files are .bas, .asm and .dmp." -> text("project.operation.sourceTypes")

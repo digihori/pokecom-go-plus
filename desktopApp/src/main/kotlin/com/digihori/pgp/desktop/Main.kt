@@ -494,6 +494,10 @@ private fun FrameWindowScope.App(
     var showRenameProjectDialog by remember { mutableStateOf(false) }
     var renamedProjectName by remember { mutableStateOf("") }
     var renameProjectError by remember { mutableStateOf<String?>(null) }
+    var showProjectFileDialog by remember { mutableStateOf(false) }
+    var projectFileRenamePath by remember { mutableStateOf<String?>(null) }
+    var projectFileName by remember { mutableStateOf("") }
+    var projectFileError by remember { mutableStateOf<String?>(null) }
     var showCreateProjectDialog by remember { mutableStateOf(false) }
     var newProjectName by remember { mutableStateOf("New PGP Project") }
     var newProjectStarters by remember { mutableStateOf(setOf(DesktopProjectStarter.BASIC)) }
@@ -525,18 +529,19 @@ private fun FrameWindowScope.App(
     }
     // Read these states during composition: reads inside SideEffect alone do not
     // subscribe this scope to dialog changes in independently recomposed children.
-    val emulatorInputBlocked = showCreateProjectDialog || showRenameProjectDialog || showSaveMemoryDumpDialog ||
+    val emulatorInputBlocked = showProjectFileDialog || showCreateProjectDialog || showRenameProjectDialog || showSaveMemoryDumpDialog ||
         showSaveDisassemblyDialog || showSaveCheckpointDialog || showDebugContextDialog ||
         showRomManager || pendingRomRemoval != null || errorDialogMessage != null ||
         showSettingsWindow || showCreateRomSetWindow
+    val currentEmulatorInputBlocked by androidx.compose.runtime.rememberUpdatedState(emulatorInputBlocked)
     SideEffect {
         keyboardInput.setModalInputBlocked(emulatorInputBlocked)
-        gamepad.setContext(runner, mainWindowFocused && keyboardInput.isEnabled && !showSettingsWindow && !showCreateRomSetWindow && !showCreateProjectDialog && !showRenameProjectDialog)
+        gamepad.setContext(runner, mainWindowFocused && keyboardInput.isEnabled && !emulatorInputBlocked)
     }
     LaunchedEffect(gamepad) {
         try {
             while (isActive) {
-                gamepad.setContext(runner, mainWindowFocused && keyboardInput.isEnabled && !showSettingsWindow && !showCreateRomSetWindow && !showCreateProjectDialog && !showRenameProjectDialog)
+                gamepad.setContext(runner, mainWindowFocused && keyboardInput.isEnabled && !currentEmulatorInputBlocked)
                 try {
                     gamepad.poll()
                 } catch (cancelled: CancellationException) {
@@ -809,22 +814,38 @@ private fun FrameWindowScope.App(
         if (projectWorkspace != null) projectRuntimeStatus = ProjectRuntimeStatus.NOT_LOADED
     }
 
+    fun applyProjectFileEdit(edit: com.digihori.pgp.desktop.project.ProjectFileEdit) {
+        val updated = edit.workspace
+        projectWorkspace = updated
+        projectChangeTracker = DesktopProjectChangeTracker(updated)
+        projectTree = DesktopProjectTreeScanner.scan(updated)
+        selectedProjectSourcePath = edit.paths.lastOrNull()
+        projectBuildRegistry.begin(updated)
+        assemblyPreview = emptyList()
+        assemblyDiagnostics = emptyList()
+        lastProjectBuildErrors = emptyList()
+        assemblyStatus = uiText("assembly.notAssembled")
+        projectRuntimeStatus = ProjectRuntimeStatus.NOT_BUILT
+    }
+
     fun addProjectSource() {
         val workspace = projectWorkspace ?: return
-        val file = selectAndRestoreFocus {
-            selectFile(ownerWindow, uiText("project.addFile"), "*.*")
-        } ?: return
-        DesktopProjectEditor.addSource(workspace, file).fold(
-            onSuccess = { updated ->
-                projectWorkspace = updated
-                projectChangeTracker = DesktopProjectChangeTracker(updated)
-                projectTree = DesktopProjectTreeScanner.scan(updated)
-                selectedProjectSourcePath = updated.sources.last().definition.path
-                projectRuntimeStatus = ProjectRuntimeStatus.NOT_BUILT
-                message = uiText("project.added" , (updated.sources.last().definition.path))
+        val files = try { selectProjectFiles(ownerWindow) } finally { focusRestoreRequest++ }
+        if (files.isEmpty()) return
+        DesktopProjectEditor.addSources(workspace, files).fold(
+            onSuccess = { edit ->
+                applyProjectFileEdit(edit)
+                message = uiText("project.filesAdded", edit.paths.size.toString())
             },
             onFailure = { showError(uiText("project.addFailed" , StudioStrings.system.projectOperationError(it.message.orEmpty()))) },
         )
+    }
+
+    fun openProjectFileDialog(rename: Boolean) {
+        projectFileRenamePath = if (rename) selectedProjectSourcePath else null
+        projectFileName = if (rename) File(selectedProjectSourcePath ?: return).name else "new.bas"
+        projectFileError = null
+        showProjectFileDialog = true
     }
 
     fun updateProject() {
@@ -1555,7 +1576,11 @@ private fun FrameWindowScope.App(
                 renameProjectError = null
                 showRenameProjectDialog = true
             })
-            Item(uiText("project.addSource"), enabled = projectWorkspace != null, onClick = ::addProjectSource)
+            Item(uiText("project.newFile"), enabled = projectWorkspace != null && !assemblyBusy,
+                onClick = { openProjectFileDialog(false) })
+            Item(uiText("project.addSource"), enabled = projectWorkspace != null && !assemblyBusy, onClick = ::addProjectSource)
+            Item(uiText("project.renameFile"), enabled = projectWorkspace != null && !assemblyBusy && selectedProjectSourcePath != null,
+                onClick = { openProjectFileDialog(true) })
             Item(uiText("project.close"), enabled = projectWorkspace != null, onClick = ::closeProject)
             Item(
                 uiText("assembly.open"),
@@ -2520,6 +2545,16 @@ private fun FrameWindowScope.App(
                                 }
                             }
                             projectWorkspace?.let { workspace ->
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    TextButton(enabled = !assemblyBusy, onClick = { openProjectFileDialog(false) }) {
+                                        Text(uiText("project.newFile"))
+                                    }
+                                    TextButton(enabled = !assemblyBusy, onClick = ::addProjectSource) {
+                                        Text(uiText("project.addSource"))
+                                    }
+                                }
+                                TextButton(enabled = !assemblyBusy && selectedProjectSourcePath != null,
+                                    onClick = { openProjectFileDialog(true) }) { Text(uiText("project.renameFile")) }
                                 Button(
                                     enabled = !assemblyBusy && runner != null && runnerState != RunnerState.FAULTED &&
                                         workspace.sources.any { it.definition.path == selectedProjectSourcePath },
@@ -2703,6 +2738,36 @@ private fun FrameWindowScope.App(
             )
         }
 
+        if (showProjectFileDialog) {
+            AlertDialog(
+                onDismissRequest = { showProjectFileDialog = false },
+                title = { Text(uiText(if (projectFileRenamePath == null) "project.newFile" else "project.renameFile")) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(uiText(if (projectFileRenamePath == null) "project.newFileHelp" else "project.renameFileHelp"))
+                        OutlinedTextField(value = projectFileName,
+                            onValueChange = { projectFileName = it; projectFileError = null },
+                            label = { Text(uiText("project.fileName")) }, singleLine = true)
+                        projectFileError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val workspace = projectWorkspace ?: return@TextButton
+                        val path = projectFileRenamePath
+                        val result = if (path == null) DesktopProjectEditor.createFile(workspace, projectFileName)
+                            else DesktopProjectEditor.renameFile(workspace, path, projectFileName)
+                        result.fold(onSuccess = { edit ->
+                            applyProjectFileEdit(edit)
+                            showProjectFileDialog = false
+                            message = uiText("project.fileUpdated", edit.paths.single())
+                        }, onFailure = { projectFileError = StudioStrings.system.projectOperationError(it.message.orEmpty()) })
+                    }) { Text(uiText(if (projectFileRenamePath == null) "project.createFile" else "project.renameAction")) }
+                },
+                dismissButton = { TextButton(onClick = { showProjectFileDialog = false }) { Text(uiText("common.cancel")) } },
+            )
+        }
+
         if (showRenameProjectDialog) {
             AlertDialog(
                 onDismissRequest = { showRenameProjectDialog = false },
@@ -2773,10 +2838,6 @@ private fun FrameWindowScope.App(
                     TextButton(onClick = {
                         if (newProjectName.isBlank()) {
                             newProjectError = uiText("project.blankName")
-                            return@TextButton
-                        }
-                        if (newProjectStarters.isEmpty()) {
-                            newProjectError = uiText("project.noStarters")
                             return@TextButton
                         }
                         newProjectError = null
@@ -3953,6 +4014,18 @@ private fun selectBasicSaveFile(owner: Frame): File? = selectFile(
     mode = FileDialog.SAVE,
 )
 
+private fun selectProjectFiles(owner: Frame): List<File> {
+    val dialog = FileDialog(owner, uiText("project.addFile"), FileDialog.LOAD)
+    return try {
+        dialog.isMultipleMode = true
+        dialog.isVisible = true
+        dialog.files.toList()
+    } finally {
+        dialog.dispose()
+        EventQueue.invokeLater { owner.toFront(); owner.requestFocus(); owner.requestFocusInWindow() }
+    }
+}
+
 private fun selectFile(
     owner: Frame,
     title: String,
@@ -4097,7 +4170,7 @@ private fun ProjectTreePanel(
         ProjectTreeDisplayFile(
             path = it.relativePath,
             file = it.file,
-            supportsDescription = it.file.extension.lowercase() in setOf("bas", "asm", "dmp"),
+            supportsDescription = it.file.extension.lowercase() in setOf("bas", "asm", "dmp", "pgmacro"),
         )
     }
     val selected = (tracked + untracked).firstOrNull { it.path == selectedPath }

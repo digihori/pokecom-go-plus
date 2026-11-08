@@ -18,8 +18,8 @@ internal data class DesktopProjectTreeFile(
 /** Compares the manifest with the current contents of the project's `src` directory. */
 internal object DesktopProjectTreeScanner {
     fun scan(workspace: DesktopProjectWorkspace): DesktopProjectTreeSnapshot {
-        val projectRoot = workspace.manifestFile.parentFile.absoluteFile.normalize()
-        val trackedByPath = workspace.sources.associateBy { it.file.absoluteFile.normalize().path }
+        val projectRoot = workspace.manifestFile.parentFile.canonicalFile
+        val trackedByPath = workspace.sources.associateBy { it.file.canonicalPath }
         val tracked = workspace.sources.filter { it.file.isFile }
         val untracked = mutableListOf<DesktopProjectTreeFile>()
         val sourceRoot = File(projectRoot, "src")
@@ -29,7 +29,7 @@ internal object DesktopProjectTreeScanner {
                 .filter { it.isFile }
                 .forEach { file ->
                     val normalized = file.absoluteFile.normalize()
-                    if (trackedByPath.containsKey(normalized.path)) return@forEach
+                    if (trackedByPath.containsKey(normalized.canonicalPath)) return@forEach
                     val entry = DesktopProjectTreeFile(
                         relativePath = normalized.relativeTo(projectRoot).invariantSeparatorsPath,
                         file = normalized,
@@ -47,7 +47,7 @@ internal object DesktopProjectTreeScanner {
                 tracked.filter { it.definition.type != ProjectSourceType.RAW_BINARY }.forEach {
                     put(it.definition.path, description(it.file))
                 }
-                untracked.filter { it.file.extension.lowercase() in setOf("bas", "asm", "dmp") }.forEach {
+                untracked.filter { it.file.extension.lowercase() in setOf("bas", "asm", "dmp", "pgmacro") }.forEach {
                     put(it.relativePath, description(it.file))
                 }
             },
