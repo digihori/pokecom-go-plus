@@ -23,6 +23,7 @@ final class IosPlayerInput: ObservableObject {
     @Published private(set) var allowedKeys = AppleInputCatalog.shared.keys
     private let defaults: UserDefaults?
     private let selection = AppleGamepadSelection()
+    private let sticks = AppleGamepadAxes()
     private var controllers: [String: GCController] = [:]
     private var keyboard: GCKeyboard?
     private var observers: [NSObjectProtocol] = []
@@ -65,7 +66,7 @@ final class IosPlayerInput: ObservableObject {
 
     private func baseline() {
         downCodes.formUnion(currentKeyboardCodes())
-        let current = selectedId.flatMap { controllers[$0] }.map(Self.buttonsDown) ?? []
+        let current = selectedId.flatMap { controllers[$0] }.map { buttonsDown($0) } ?? []
         if current != pressed { pressed = current }
     }
     private func apply() {
@@ -90,8 +91,9 @@ final class IosPlayerInput: ObservableObject {
     func select(_ id: String) {
         guard devices.contains(where: { $0.id == id }), selectedId != id else { return }
         selectedId = selection.update(ids: devices.map(\.id), requestedId: id)
+        sticks.reset()
         player?.releaseAllKeys()
-        pressed = selectedId.flatMap { controllers[$0] }.map(Self.buttonsDown) ?? []
+        pressed = selectedId.flatMap { controllers[$0] }.map { buttonsDown($0) } ?? []
         apply(); onInput?()
     }
     var selectedDevice: IosControllerDevice? { devices.first { $0.id == selectedId } }
@@ -128,8 +130,11 @@ final class IosPlayerInput: ObservableObject {
         let previous = selectedId
         devices = list
         selectedId = selection.update(ids: list.map(\.id), requestedId: nil)
-        if previous != selectedId { player?.releaseAllKeys() }
-        pressed = selectedId.flatMap { next[$0] }.map(Self.buttonsDown) ?? []
+        if previous != selectedId {
+            sticks.reset()
+            player?.releaseAllKeys()
+        }
+        pressed = selectedId.flatMap { next[$0] }.map { buttonsDown($0) } ?? []
         for controller in values {
             controller.handlerQueue = .main
             controller.extendedGamepad?.valueChangedHandler = { [weak self, weak controller] _, _ in
@@ -140,17 +145,21 @@ final class IosPlayerInput: ObservableObject {
         apply(); onInput?()
     }
     private static func id(_ controller: GCController) -> String { String(describing: ObjectIdentifier(controller)) }
-    private static func buttonsDown(_ controller: GCController) -> Set<String> {
+    private func buttonsDown(_ controller: GCController) -> Set<String> {
         guard let pad = controller.extendedGamepad else { return [] }
         let values: [(String, GCControllerButtonInput)] = [
             ("UP", pad.dpad.up), ("DOWN", pad.dpad.down), ("LEFT", pad.dpad.left), ("RIGHT", pad.dpad.right),
             ("SOUTH", pad.buttonA), ("EAST", pad.buttonB), ("WEST", pad.buttonX), ("NORTH", pad.buttonY),
             ("L1", pad.leftShoulder), ("R1", pad.rightShoulder)]
-        return Set(values.filter { $0.1.isPressed }.map { $0.0 })
+        let directions = sticks.update(
+            leftX: pad.leftThumbstick.xAxis.value, leftY: -pad.leftThumbstick.yAxis.value,
+            rightX: pad.rightThumbstick.xAxis.value, rightY: -pad.rightThumbstick.yAxis.value,
+            leftTrigger: pad.leftTrigger.value, rightTrigger: pad.rightTrigger.value)
+        return Set(values.filter { $0.1.isPressed }.map { $0.0 }).union(directions)
     }
     func controllerChanged(_ controller: GCController) {
         guard Self.id(controller) == selectedId else { return }
-        let next = Self.buttonsDown(controller)
+        let next = buttonsDown(controller)
         if next != pressed { pressed = next; apply(); onInput?() }
     }
     private func currentKeyboardCodes() -> Set<Int> {
@@ -304,9 +313,9 @@ struct ControllerSettingsPanel: View {
                             }.buttonStyle(.plain).position(x: point.x, y: point.y)
                                 .accessibilityIdentifier("binding_" + button)
                         }
-                    }.frame(width: 360, height: 260)
+                    }.frame(width: 360, height: 322, alignment: .top)
                 }
-                Text("十字キー・フェイス4位置・L1/R1のみ。スティック・トリガーは使いません。設定中は点灯テストだけで、Playerへ送信しません。")
+                Text("左スティックは十字キーと同じ割当を使います。右スティックの4方向（R↑など）は個別に割り当てられます。設定中は点灯を確認できます。")
                 Text(input.keyboardConnected ? "Physicalキーボード接続中" : "Physicalキーボード未接続")
                 Text("文字変換・IMEは使いません。SHIFT単独、左Control/F1→DEF、Esc→BREAK、Backspace→CLEAR。英数字・矢印・テンキーは物理位置で入力します。")
             }.navigationTitle("コントローラ設定").navigationBarTitleDisplayMode(.inline)
@@ -335,8 +344,14 @@ struct ControllerSettingsPanel: View {
         case "SOUTH": return CGPoint(x: 265, y: 206)
         case "WEST": return CGPoint(x: 214, y: 153)
         case "EAST": return CGPoint(x: 316, y: 153)
-        case "L1": return CGPoint(x: 80, y: 36)
-        default: return CGPoint(x: 280, y: 36)
+        case "L2": return CGPoint(x: 45, y: 36)
+        case "L1": return CGPoint(x: 135, y: 36)
+        case "R1": return CGPoint(x: 225, y: 36)
+        case "RIGHT_STICK_UP": return CGPoint(x: 45, y: 282)
+        case "RIGHT_STICK_DOWN": return CGPoint(x: 135, y: 282)
+        case "RIGHT_STICK_LEFT": return CGPoint(x: 225, y: 282)
+        case "RIGHT_STICK_RIGHT": return CGPoint(x: 315, y: 282)
+        default: return CGPoint(x: 315, y: 36)
         }
     }
 }

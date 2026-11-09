@@ -1861,7 +1861,32 @@ final class PlayerExternalInputTests: XCTestCase {
         XCTAssertTrue(host.pressedKeys.isEmpty)
     }
 
-    func testSingleSelectionNoSilentHandoffUnsupportedAndAnalogIgnored() {
+    func testAxesShareDpadBindingsAndReleaseOnDisconnect() {
+        let input = IosPlayerInput()
+        let controller = GCController.withExtendedGamepad()
+        input.attachControllers([controller])
+        input.bind("UP", to: "A")
+        input.bind("RIGHT_STICK_RIGHT", to: "B")
+        input.bind("L2", to: "C")
+        input.bind("R2", to: "D")
+        input.setEnabled(true)
+        let (host, _) = running(input)
+        let pad = controller.extendedGamepad!
+        pad.leftThumbstick.setValueForXAxis(0, yAxis: 1)
+        pad.rightThumbstick.setValueForXAxis(1, yAxis: 0.75)
+        pad.leftTrigger.setValue(0.8)
+        pad.rightTrigger.setValue(0.8)
+        input.controllerChanged(controller)
+        XCTAssertEqual(host.pressedKeys, ["A", "B", "C", "D"])
+        pad.dpad.setValueForXAxis(0, yAxis: 1)
+        pad.leftThumbstick.setValueForXAxis(0, yAxis: 0)
+        input.controllerChanged(controller)
+        XCTAssertEqual(host.pressedKeys, ["A", "B", "C", "D"])
+        input.attachControllers([])
+        XCTAssertTrue(host.pressedKeys.isEmpty)
+    }
+
+    func testSingleSelectionNoSilentHandoffAndUnsupportedBindings() {
         let input = IosPlayerInput(); let first = GCController.withExtendedGamepad(); let second = GCController.withExtendedGamepad()
         input.attachControllers([first, second])
         XCTAssertNil(input.selectedId)

@@ -90,3 +90,13 @@ internal fun applePhysicalKeyForMachine(code: Int, machineId: String): PocketKey
         183 -> PocketKey.RIGHT_PAREN
         else -> applePhysicalKey(code)
     } else applePhysicalKey(code)
+
+public class AppleGamepadAxes {
+    private val sticks = GamepadAxes()
+
+    public fun reset() = sticks.reset()
+
+    public fun update(leftX: Float, leftY: Float, rightX: Float, rightY: Float,
+        leftTrigger: Float, rightTrigger: Float): List<String> =
+        sticks.update(leftX, leftY, rightX, rightY, leftTrigger, rightTrigger).map { it.name }
+}

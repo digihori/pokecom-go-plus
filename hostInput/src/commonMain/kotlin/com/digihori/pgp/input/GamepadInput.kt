@@ -12,7 +12,8 @@ import com.digihori.pgp.core.rom.MachineId
 enum class GamepadButton(val label: String) {
     UP("↑"), DOWN("↓"), LEFT("←"), RIGHT("→"),
     SOUTH("A / 下"), EAST("B / 右"), WEST("X / 左"), NORTH("Y / 上"),
-    L1("L1"), R1("R1"),
+    L1("L1"), R1("R1"), L2("L2"), R2("R2"),
+    RIGHT_STICK_UP("R↑"), RIGHT_STICK_DOWN("R↓"), RIGHT_STICK_LEFT("R←"), RIGHT_STICK_RIGHT("R→"),
 }
 
 data class GamepadDevice(val id: String, val name: String)
