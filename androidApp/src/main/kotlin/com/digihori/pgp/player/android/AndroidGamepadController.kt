@@ -22,23 +22,25 @@ internal class AndroidGamepadController(
     private val preferences = context.getSharedPreferences("gamepad", Context.MODE_PRIVATE)
     private val manager = context.getSystemService(InputManager::class.java)
     private val input = GamepadInput(press, release)
-    private val selection = SingleGamepadSelection()
     var settings by mutableStateOf(GamepadSettings.fromPreferences { preferences.getString(it, null) })
         private set
     var devices by mutableStateOf(emptyList<GamepadDevice>())
         private set
-    var selectedId by mutableStateOf<String?>(null)
-        private set
+    private var inputGroupId: String? = null
     var pressed by mutableStateOf(emptySet<GamepadButton>())
         private set
     var available by mutableStateOf(GamepadButton.entries.toSet())
         private set
     var status by mutableStateOf<String?>(null)
         private set
-    private val keyButtons = mutableSetOf<GamepadButton>()
-    private var hatButtons = emptySet<GamepadButton>()
-    private var stickButtons = emptySet<GamepadButton>()
-    private val sticks = GamepadAxes()
+    private class DeviceInput {
+        val keys = mutableSetOf<Int>()
+        var hatButtons = emptySet<GamepadButton>()
+        var stickButtons = emptySet<GamepadButton>()
+        val sticks = GamepadAxes()
+    }
+
+    private val deviceInputs = mutableMapOf<Int, DeviceInput>()
     private var machineId: MachineId? = null
     private var receiving = false
     private var testing = false
@@ -57,24 +59,11 @@ internal class AndroidGamepadController(
         this.machineId = machineId
         this.receiving = receiving
         this.testing = testing
-        input.configure(settings, selectedId, machineId?.let(GamepadKeys::forMachine).orEmpty(), receiving && !testing)
-        input.update(selectedId, pressed)
+        input.configure(settings, inputGroupId, machineId?.let(GamepadKeys::forMachine).orEmpty(), receiving && !testing)
+        input.update(inputGroupId, pressed)
     }
 
-    fun reset() { input.reset(); input.update(selectedId, pressed) }
-
-    fun select(id: String) {
-        if (devices.none { it.id == id } || id == selectedId) return
-        input.reset()
-        selectedId = selection.update(devices, id)
-        keyButtons.clear()
-        hatButtons = emptySet()
-        stickButtons = emptySet()
-        sticks.reset()
-        publishButtons()
-        updateAvailable()
-        configure(machineId, receiving, testing)
-    }
+    fun reset() { input.reset(); input.update(inputGroupId, pressed) }
 
     fun save(value: GamepadSettings) {
         // One complete editor transaction; disk persistence is asynchronous.
@@ -87,13 +76,13 @@ internal class AndroidGamepadController(
     }
 
     fun onKey(event: KeyEvent): Boolean {
-        val button = keyCodes[event.keyCode] ?: return false
+        if (event.keyCode !in keyCodes) return false
         val device = event.device ?: return false
         if (!isController(device)) return false
-        if (event.deviceId.toString() != selectedId) return true
+        val state = deviceInputs.getOrPut(event.deviceId, ::DeviceInput)
         when (event.action) {
-            KeyEvent.ACTION_DOWN -> keyButtons.add(button)
-            KeyEvent.ACTION_UP -> keyButtons.remove(button)
+            KeyEvent.ACTION_DOWN -> state.keys.add(event.keyCode)
+            KeyEvent.ACTION_UP -> state.keys.remove(event.keyCode)
             else -> return false
         }
         publishButtons()
@@ -106,7 +95,7 @@ internal class AndroidGamepadController(
         val joystick = event.isFromSource(InputDevice.SOURCE_JOYSTICK)
         if (!joystick && device.getMotionRange(MotionEvent.AXIS_HAT_X) == null &&
             device.getMotionRange(MotionEvent.AXIS_HAT_Y) == null) return false
-        if (event.deviceId.toString() != selectedId) return true
+        val state = deviceInputs.getOrPut(event.deviceId, ::DeviceInput)
         val (rightX, rightY) = rightAxes(device)
         val hasHat = device.getMotionRange(MotionEvent.AXIS_HAT_X, event.source) != null ||
             device.getMotionRange(MotionEvent.AXIS_HAT_Y, event.source) != null
@@ -118,7 +107,7 @@ internal class AndroidGamepadController(
             if (hasHat) {
                 val x = read(MotionEvent.AXIS_HAT_X)
                 val y = read(MotionEvent.AXIS_HAT_Y)
-                hatButtons = buildSet {
+                state.hatButtons = buildSet {
                     if (x < -.5f) add(GamepadButton.LEFT)
                     if (x > .5f) add(GamepadButton.RIGHT)
                     if (y < -.5f) add(GamepadButton.UP)
@@ -133,7 +122,7 @@ internal class AndroidGamepadController(
                 }
                 fun trigger(range: InputDevice.MotionRange?): Float =
                     if (range == null) 0f else (read(range.axis) - range.min) / (range.max - range.min)
-                stickButtons = sticks.update(normalized(0), normalized(1), normalized(2), normalized(3),
+                state.stickButtons = state.sticks.update(normalized(0), normalized(1), normalized(2), normalized(3),
                     trigger(leftTrigger), trigger(rightTrigger))
             }
             publishButtons()
@@ -159,57 +148,58 @@ internal class AndroidGamepadController(
         else MotionEvent.AXIS_RX to MotionEvent.AXIS_RY
 
     private fun publishButtons() {
-        pressed = keyButtons + hatButtons + stickButtons
-        input.update(selectedId, pressed)
+        pressed = buildSet {
+            deviceInputs.values.forEach { state ->
+                state.keys.forEach { add(keyCodes.getValue(it)) }
+                addAll(state.hatButtons)
+                addAll(state.stickButtons)
+            }
+        }
+        input.update(inputGroupId, pressed)
     }
 
     private fun refreshDevices() {
-        val wasSelected = selectedId
-        devices = manager.inputDeviceIds.map { manager.getInputDevice(it) }.filterNotNull()
-            .filter(::isController).map { GamepadDevice(it.id.toString(), it.name) }
-        selectedId = selection.update(devices)
-        if (wasSelected != selectedId) {
-            input.reset()
-            keyButtons.clear()
-            hatButtons = emptySet()
-            stickButtons = emptySet()
-            sticks.reset()
-            publishButtons()
+        val controllers = manager.inputDeviceIds.map(manager::getInputDevice).filterNotNull().filter(::isController)
+        deviceInputs.keys.retainAll(controllers.map { it.id }.toSet())
+        inputGroupId = "android-controllers".takeIf { controllers.isNotEmpty() }
+        devices = controllers.map { GamepadDevice(it.id.toString(), it.name) }
+        available = if (controllers.isEmpty()) GamepadButton.entries.toSet() else buildSet {
+            controllers.forEach { addAll(supportedButtons(it)) }
         }
-        updateAvailable()
+        publishButtons()
         configure(machineId, receiving, testing)
     }
 
-    private fun updateAvailable() {
-        val device = selectedId?.toIntOrNull()?.let(manager::getInputDevice)
-        available = if (device == null) GamepadButton.entries.toSet() else {
-            val codes = keyCodes.keys.toIntArray()
-            val supported = device.hasKeys(*codes)
-            buildSet {
-                codes.forEachIndexed { index, code -> if (supported[index]) add(keyCodes.getValue(code)) }
-                if (device.getMotionRange(MotionEvent.AXIS_HAT_X) != null || stickRange(device, MotionEvent.AXIS_X) != null) {
-                    add(GamepadButton.LEFT); add(GamepadButton.RIGHT)
-                }
-                if (device.getMotionRange(MotionEvent.AXIS_HAT_Y) != null || stickRange(device, MotionEvent.AXIS_Y) != null) {
-                    add(GamepadButton.UP); add(GamepadButton.DOWN)
-                }
-                if (triggerRange(device, MotionEvent.AXIS_LTRIGGER, MotionEvent.AXIS_BRAKE) != null) add(GamepadButton.L2)
-                if (triggerRange(device, MotionEvent.AXIS_RTRIGGER, MotionEvent.AXIS_GAS) != null) add(GamepadButton.R2)
-                val (rightX, rightY) = rightAxes(device)
-                if (stickRange(device, rightX) != null) {
-                    add(GamepadButton.RIGHT_STICK_LEFT)
-                    add(GamepadButton.RIGHT_STICK_RIGHT)
-                }
-                if (stickRange(device, rightY) != null) {
-                    add(GamepadButton.RIGHT_STICK_UP)
-                    add(GamepadButton.RIGHT_STICK_DOWN)
-                }
+    private fun supportedButtons(device: InputDevice): Set<GamepadButton> {
+        val codes = keyCodes.keys.toIntArray()
+        val supported = device.hasKeys(*codes)
+        return buildSet {
+            codes.forEachIndexed { index, code -> if (supported[index]) add(keyCodes.getValue(code)) }
+            if (device.getMotionRange(MotionEvent.AXIS_HAT_X) != null || stickRange(device, MotionEvent.AXIS_X) != null) {
+                add(GamepadButton.LEFT); add(GamepadButton.RIGHT)
+            }
+            if (device.getMotionRange(MotionEvent.AXIS_HAT_Y) != null || stickRange(device, MotionEvent.AXIS_Y) != null) {
+                add(GamepadButton.UP); add(GamepadButton.DOWN)
+            }
+            if (triggerRange(device, MotionEvent.AXIS_LTRIGGER, MotionEvent.AXIS_BRAKE) != null) add(GamepadButton.L2)
+            if (triggerRange(device, MotionEvent.AXIS_RTRIGGER, MotionEvent.AXIS_GAS) != null) add(GamepadButton.R2)
+            val (rightX, rightY) = rightAxes(device)
+            if (stickRange(device, rightX) != null) {
+                add(GamepadButton.RIGHT_STICK_LEFT)
+                add(GamepadButton.RIGHT_STICK_RIGHT)
+            }
+            if (stickRange(device, rightY) != null) {
+                add(GamepadButton.RIGHT_STICK_UP)
+                add(GamepadButton.RIGHT_STICK_DOWN)
             }
         }
     }
 
     override fun onInputDeviceAdded(deviceId: Int) = refreshDevices()
-    override fun onInputDeviceChanged(deviceId: Int) = refreshDevices()
+    override fun onInputDeviceChanged(deviceId: Int) {
+        deviceInputs.remove(deviceId)
+        refreshDevices()
+    }
     override fun onInputDeviceRemoved(deviceId: Int) = refreshDevices()
 
     private companion object {

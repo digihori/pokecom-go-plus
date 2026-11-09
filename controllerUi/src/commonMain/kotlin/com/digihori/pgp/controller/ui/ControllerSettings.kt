@@ -30,7 +30,7 @@ fun ControllerSettings(
     selectedId: String?,
     pressed: Set<GamepadButton>,
     allowedKeys: Set<PocketKey>,
-    onSelectDevice: (String) -> Unit,
+    onSelectDevice: ((String) -> Unit)? = null,
     onSettingsChange: (GamepadSettings) -> Unit,
     availableButtons: Set<GamepadButton> = GamepadButton.entries.toSet(),
     status: String? = null,
@@ -45,7 +45,9 @@ fun ControllerSettings(
             Spacer(Modifier.width(12.dp))
             Text(strings.enable)
         }
-        Box {
+        if (onSelectDevice == null) {
+            Text(devices.joinToString(" + ") { it.name }.ifEmpty { strings.disconnected })
+        } else Box {
             OutlinedButton(onClick = { deviceMenu = true }, enabled = devices.isNotEmpty()) {
                 Text(devices.find { it.id == selectedId }?.let { "${it.name} (${it.id})" }
                     ?: if (devices.isEmpty()) strings.disconnected else strings.selectDevice)

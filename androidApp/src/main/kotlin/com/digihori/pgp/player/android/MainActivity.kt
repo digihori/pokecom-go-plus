@@ -260,13 +260,12 @@ open class MainActivity : ComponentActivity() {
                                 ControllerSettings(
                                     settings = gamepad.settings,
                                     devices = gamepad.devices,
-                                    selectedId = gamepad.selectedId,
+                                    selectedId = null,
                                     pressed = gamepad.pressed,
                                     allowedKeys = GamepadKeys.forMachine(playerSession?.machineId
                                         ?: MachineCatalog.defaultDefinition.id),
                                     availableButtons = gamepad.available,
                                     status = gamepad.status,
-                                    onSelectDevice = gamepad::select,
                                     onSettingsChange = gamepad::save,
                                 )
                             }
