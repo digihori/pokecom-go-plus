@@ -75,16 +75,29 @@ internal object DesktopProjectEditor {
     fun addSource(workspace: DesktopProjectWorkspace, source: File): Result<DesktopProjectWorkspace> =
         addSources(workspace, listOf(source)).map { it.workspace }
 
-    fun createFile(workspace: DesktopProjectWorkspace, name: String): Result<ProjectFileEdit> = runCatching {
+    fun availableFileName(workspace: DesktopProjectWorkspace, extension: String): String {
+        val directory = File(workspace.manifestFile.parentFile, "src")
+        var name = "new.$extension"
+        var suffix = 2
+        while (fileNameTaken(workspace, File(directory, name))) {
+            name = "new-${suffix++}.$extension"
+        }
+        return name
+    }
+
+    private fun fileNameTaken(workspace: DesktopProjectWorkspace, file: File): Boolean =
+        file.exists() || workspace.sources.any { it.file.canonicalFile == file.canonicalFile }
+
+    fun createFile(workspace: DesktopProjectWorkspace, name: String, other: Boolean = false): Result<ProjectFileEdit> = runCatching {
         val filename = validName(name)
-        fileType(filename)
+        if (!other) fileType(filename)
         val destination = File(sourceDirectory(workspace), filename)
-        require(!destination.exists() && workspace.sources.none { it.file.canonicalFile == destination.canonicalFile }) {
+        require(!fileNameTaken(workspace, destination)) {
             "A file with that name already exists."
         }
         val path = "src/$filename"
-        val updated = register(workspace, destination, path)
-        val content = when (destination.extension.lowercase()) {
+        val updated = register(workspace, destination, path, allowUnknown = other)
+        val content = if (other) "" else when (destination.extension.lowercase()) {
             "bas" -> "10 END\n"
             "asm" -> {
                 val address = com.digihori.pgp.core.api.MachineMemoryLayout(workspace.definition.machineId).assemblyStartAddress
@@ -190,12 +203,12 @@ internal object DesktopProjectEditor {
             it.none { char -> char.isISOControl() || char in "<>:\"/\\|?*" }) { "Enter a valid file name without folders." }
     }
 
-    private fun fileType(name: String): ProjectSourceType? = when (File(name).extension.lowercase()) {
+    private fun fileType(name: String, allowUnknown: Boolean = false): ProjectSourceType? = when (File(name).extension.lowercase()) {
         "bas" -> ProjectSourceType.BASIC
         "asm" -> ProjectSourceType.ASSEMBLY
         "dmp" -> ProjectSourceType.MEMORY_DUMP
         "pgmacro" -> null // Auxiliary file: visible in the tree, never part of a Build.
-        else -> error("Supported project files are .bas, .asm, .dmp and .pgmacro.")
+        else -> if (allowUnknown) null else error("Supported project files are .bas, .asm, .dmp and .pgmacro.")
     }
 
     private fun sourceDirectory(workspace: DesktopProjectWorkspace): File {
@@ -206,8 +219,8 @@ internal object DesktopProjectEditor {
         return directory
     }
 
-    private fun register(workspace: DesktopProjectWorkspace, file: File, path: String): DesktopProjectWorkspace {
-        val type = fileType(file.name) ?: return workspace
+    private fun register(workspace: DesktopProjectWorkspace, file: File, path: String, allowUnknown: Boolean = false): DesktopProjectWorkspace {
+        val type = fileType(file.name, allowUnknown) ?: return workspace
         val base = file.nameWithoutExtension.replace(Regex("[^a-zA-Z0-9_-]"), "-")
             .trim('-', '_').let { if (it.firstOrNull()?.isLetter() == true) it else "source-$it" }
         val ids = workspace.sources.map { it.definition.id }.toSet()

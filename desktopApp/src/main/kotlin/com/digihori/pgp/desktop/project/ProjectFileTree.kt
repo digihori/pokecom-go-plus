@@ -1,5 +1,8 @@
 package com.digihori.pgp.desktop.project
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.TooltipArea
+import androidx.compose.material3.Surface
 import androidx.compose.foundation.ContextMenuArea
 import androidx.compose.foundation.ContextMenuItem
 import androidx.compose.foundation.ContextMenuState
@@ -26,7 +29,7 @@ internal data class ProjectFileEntry(val path: String, val file: File, val type:
     val macro get() = file.extension.equals("pgmacro", true)
     val needsUpdate get() = !registered && file.extension.lowercase() in setOf("bas", "asm", "dmp")
     fun actions(): List<ProjectFileAction> = buildList {
-        if (file.extension.lowercase() in setOf("bas", "asm", "dmp", "pgmacro")) add(ProjectFileAction.EDIT)
+        if (type != ProjectSourceType.RAW_BINARY) add(ProjectFileAction.EDIT)
         if (registered && type != null) add(ProjectFileAction.LOAD)
         if (macro) add(ProjectFileAction.MACRO)
         if (file.extension.lowercase() in setOf("bas", "dmp", "hex", "ihx")) add(ProjectFileAction.WAV)
@@ -45,8 +48,9 @@ internal fun projectFileNodes(entries: List<ProjectFileEntry>, prefix: String = 
         val path = prefix + name
         val file = group.firstOrNull { it.path == path }
         ProjectFileNode(name, path, file, if (file == null) projectFileNodes(group, "$path/") else emptyList())
-    }.sortedWith(compareBy<ProjectFileNode> { it.entry != null }.thenBy { it.name.lowercase() }.thenBy { it.name })
+    }.sortedWith(compareBy<ProjectFileNode> { it.entry != null }.thenBy { it.entry?.needsUpdate == true }.thenBy { it.name.lowercase() }.thenBy { it.name })
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ProjectFileTree(
     nodes: List<ProjectFileNode>, selectedPath: String?, enabled: Boolean,
@@ -80,12 +84,24 @@ internal fun ProjectFileTree(
                         ProjectSourceType.MEMORY_DUMP -> "DMP"
                         ProjectSourceType.RAW_BINARY -> "BIN"
                     }
-                } ?: entry.file.extension.uppercase()
-                Text("${node.name}  [$kind]" + if (entry.needsUpdate) "  ${strings.text("project.needsUpdate")}" else "",
-                    Modifier.fillMaxWidth().background(if (entry.path == selectedPath) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
-                        .semantics { contentDescription = strings.text("project.selectPath", entry.path); selected = entry.path == selectedPath }
-                        .clickable { onSelected(entry.path) }.padding(start = (depth * 16 + 4).dp, top = 3.dp, bottom = 3.dp, end = 8.dp),
-                    fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false)
+                } ?: when (entry.file.extension.lowercase()) {
+                    "bas" -> "BASIC"
+                    else -> entry.file.extension.uppercase().ifEmpty { strings.text("project.kind.other") }
+                }
+                val row: @Composable () -> Unit = {
+                    Text("${node.name}  [$kind]" + if (entry.needsUpdate) "  ?" else "",
+                        Modifier.fillMaxWidth().background(if (entry.path == selectedPath) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+                            .semantics { contentDescription = strings.text("project.selectPath", entry.path); selected = entry.path == selectedPath }
+                            .clickable { onSelected(entry.path) }.padding(start = (depth * 16 + 4).dp, top = 3.dp, bottom = 3.dp, end = 8.dp),
+                        fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false)
+                }
+                if (entry.needsUpdate) {
+                    TooltipArea(tooltip = {
+                        Surface { Text(strings.text("project.needsUpdate"), Modifier.padding(8.dp)) }
+                    }, content = row)
+                } else {
+                    row()
+                }
             }
         }
     }

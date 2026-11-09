@@ -110,6 +110,9 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.FilterChip
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import com.digihori.pgp.desktop.input.emulatorTextInput
@@ -134,6 +137,7 @@ import com.digihori.pgp.core.api.BasicProgramSnapshotResult
 import com.digihori.pgp.core.api.MemoryImageLoadError
 import com.digihori.pgp.core.api.MemoryImageLoadResult
 import com.digihori.pgp.core.api.MemoryAccessKind
+import com.digihori.pgp.core.api.DisplaySymbol
 import com.digihori.pgp.core.api.MachineFamily
 import com.digihori.pgp.core.api.CpuSnapshot
 import com.digihori.pgp.core.api.DisplaySnapshot
@@ -514,7 +518,9 @@ private fun FrameWindowScope.App(
     val macroExecutor = remember { StudioMacroExecutor() }
     fun stopMacro() { macroJob?.cancel(); runner?.cancelGeneratedInput() }
     var projectFileRenamePath by remember { mutableStateOf<String?>(null) }
-    var projectFileName by remember { mutableStateOf("") }
+    var projectFileName by remember { mutableStateOf(TextFieldValue("")) }
+    var projectFileExtension by remember { mutableStateOf("bas") }
+    var projectFileNameEdited by remember { mutableStateOf(false) }
     var projectFileError by remember { mutableStateOf<String?>(null) }
     var pendingTrashPath by remember { mutableStateOf<String?>(null) }
     var trashFileError by remember { mutableStateOf<String?>(null) }
@@ -884,7 +890,11 @@ private fun FrameWindowScope.App(
     fun openProjectFileDialog(rename: Boolean, path: String? = selectedProjectSourcePath) {
         if (macroBusy) return
         projectFileRenamePath = if (rename) path else null
-        projectFileName = if (rename) File(path ?: return).name else "new.bas"
+        val workspace = projectWorkspace ?: return
+        val name = if (rename) File(path ?: return).name
+            else DesktopProjectEditor.availableFileName(workspace, projectFileExtension.ifEmpty { "txt" })
+        projectFileName = TextFieldValue(name, TextRange(0, name.substringBeforeLast('.').length))
+        projectFileNameEdited = false
         projectFileError = null
         showProjectFileDialog = true
     }
@@ -1510,15 +1520,18 @@ private fun FrameWindowScope.App(
             val workspace = projectWorkspace
             try {
                 check(active != null) { uiText("macro.noSession") }
-                check(active.machineId.value in setOf("pc-1260", "pc-1261", "pc-1401", "pc-1402", "pc-1450", "pc-1460", "pc-1470u")) {
-                    uiText("macro.unsupportedMachine", active.machineId.displayName())
-                }
+                val detectsRomErrors = active.machineId.value in setOf(
+                    "pc-1260", "pc-1261", "pc-1401", "pc-1402", "pc-1450", "pc-1460", "pc-1470u",
+                )
                 console.append(uiText("macro.started", file.name))
+                console.append(uiText(if (detectsRomErrors) "macro.romDetectionOn" else "macro.romDetectionOff",
+                    active.machineId.displayName()))
                 val lines = withContext(Dispatchers.IO) {
                     require(file.length() <= 1_048_576) { uiText("macro.tooLarge") }
                     StudioMacroParser.parse(file.readBytes().decodeToString(throwOnInvalidSequence = true))
                 }
                 val definition = MachineCatalog.require(active.machineId)
+                val usesModeKey = definition.family == MachineFamily.PC_1350 || definition.family == MachineFamily.PC_1360
                 fun commandKeys(text: String): List<PocketKey> = text.flatMap { char ->
                     studioCharacterKeys(active.machineId, char) ?: error(uiText("macro.unsupportedCharacter", char.toString()))
                 } + PocketKey.ENTER
@@ -1526,7 +1539,9 @@ private fun FrameWindowScope.App(
                 lines.forEach { line ->
                     lineNumber = line.number
                     when (val command = line.command) {
-                        is MacroCommand.Mode -> check(command.mode in definition.supportedOperatingModes) { uiText("macro.unsupportedMode") }
+                        is MacroCommand.Mode -> {
+                            check(command.mode in definition.supportedOperatingModes) { uiText("macro.unsupportedMode") }
+                        }
                         is MacroCommand.Key -> check(command.key in com.digihori.pgp.input.GamepadKeys.forMachine(active.machineId)) { uiText("macro.unsupportedKey", command.key.name) }
                         is MacroCommand.Cmd -> commandKeys(command.text)
                         is MacroCommand.Load -> check(File(command.path).extension.lowercase() in setOf("bas", "dmp")) { uiText("macro.loadTypes") }
@@ -1537,7 +1552,7 @@ private fun FrameWindowScope.App(
                 fun checkMacroError() {
                     check(runner === active && projectWorkspace === workspace) { uiText("macro.contextChanged") }
                     check(active.state != RunnerState.FAULTED) { uiText("macro.coreError") }
-                    check(com.digihori.pgp.core.api.DisplaySymbol.ERROR !in active.displaySnapshot().symbols) { uiText("macro.romError") }
+                    check(!detectsRomErrors || com.digihori.pgp.core.api.DisplaySymbol.ERROR !in active.displaySnapshot().symbols) { uiText("macro.romError") }
                 }
                 suspend fun waitForInput() {
                     while (!active.generatedInputIdle()) {
@@ -1566,6 +1581,19 @@ private fun FrameWindowScope.App(
                     }
                     override suspend fun mode(value: OperatingMode) {
                         waitForInput()
+                        if (usesModeKey) {
+                            val target = if (value == OperatingMode.PROGRAM) DisplaySymbol.PRO else DisplaySymbol.RUN
+                            repeat(3) {
+                                checkMacroError()
+                                if (target in active.displaySnapshot().symbols) return
+                                check(active.state == RunnerState.RUNNING) { uiText("macro.emulatorStopped") }
+                                active.enqueueKeySequence(listOf(PocketKey.MODE))
+                                waitForInput()
+                                delay(1000)
+                            }
+                            check(target in active.displaySnapshot().symbols) { uiText("macro.unsupportedMode") }
+                            return
+                        }
                         active.setOperatingMode(value)
                         waitForInput()
                         check(active.currentOperatingMode() == value) { uiText("macro.unsupportedMode") }
@@ -3020,8 +3048,34 @@ private fun FrameWindowScope.App(
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(uiText(if (projectFileRenamePath == null) "project.newFileHelp" else "project.renameFileHelp"))
+                        val nameFocus = remember { FocusRequester() }
+                        LaunchedEffect(Unit) { nameFocus.requestFocus() }
+                        if (projectFileRenamePath == null) {
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                for ((extension, label) in listOf("bas" to "BASIC", "asm" to "Assembly",
+                                    "dmp" to "DMP", "pgmacro" to uiText("macro.menu"), "" to uiText("project.kind.other"))) {
+                                    FilterChip(selected = projectFileExtension == extension, onClick = {
+                                        val workspace = projectWorkspace ?: return@FilterChip
+                                        if (projectFileExtension == extension) return@FilterChip
+                                        val suffix = extension.ifEmpty { "txt" }
+                                        val name = if (projectFileNameEdited)
+                                            projectFileName.text.substringBeforeLast('.') + "." + suffix
+                                        else DesktopProjectEditor.availableFileName(workspace, suffix)
+                                        projectFileExtension = extension
+                                        projectFileName = TextFieldValue(name, TextRange(0, name.substringBeforeLast('.').length))
+                                        projectFileError = null
+                                        nameFocus.requestFocus()
+                                    }, label = { Text(label) })
+                                }
+                            }
+                        }
                         OutlinedTextField(value = projectFileName,
-                            onValueChange = { projectFileName = it; projectFileError = null },
+                            onValueChange = {
+                                if (it.text != projectFileName.text) projectFileNameEdited = true
+                                projectFileName = it
+                                projectFileError = null
+                            },
+                            modifier = Modifier.focusRequester(nameFocus),
                             label = { Text(uiText("project.fileName")) }, singleLine = true)
                         projectFileError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     }
@@ -3030,8 +3084,13 @@ private fun FrameWindowScope.App(
                     TextButton(onClick = {
                         val workspace = projectWorkspace ?: return@TextButton
                         val path = projectFileRenamePath
-                        val result = if (path == null) DesktopProjectEditor.createFile(workspace, projectFileName)
-                            else DesktopProjectEditor.renameFile(workspace, path, projectFileName)
+                        val enteredName = projectFileName.text.trim()
+                        val extension = projectFileExtension
+                        val filename = if (path == null && extension.isNotEmpty() && enteredName.isNotEmpty() &&
+                            !enteredName.endsWith(".$extension", ignoreCase = true))
+                            "$enteredName.$extension" else enteredName
+                        val result = if (path == null) DesktopProjectEditor.createFile(workspace, filename, other = extension.isEmpty())
+                            else DesktopProjectEditor.renameFile(workspace, path, filename)
                         result.fold(onSuccess = { edit ->
                             applyProjectFileEdit(edit)
                             showProjectFileDialog = false

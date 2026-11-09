@@ -5,6 +5,18 @@ import kotlin.test.*
 import kotlinx.serialization.json.*
 
 class DesktopProjectEditorTest {
+    @Test fun createsOtherFilesWithoutRegisteringUnknownExtensions() {
+        val root = Files.createTempDirectory("pgp-other-file-").toFile()
+        try {
+            val initial = workspace(root)
+            val first = DesktopProjectEditor.createFile(initial, "new.txt", other = true).getOrThrow()
+            assertEquals("new-2.txt", DesktopProjectEditor.availableFileName(first.workspace, "txt"))
+            assertTrue(first.workspace.sources.isEmpty())
+            assertEquals("", root.resolve("src/new.txt").readText())
+            assertEquals(listOf("src/new.txt"), DesktopProjectTreeScanner.scan(first.workspace).untracked.map { it.relativePath })
+        } finally { root.deleteRecursively() }
+    }
+
     @Test fun trashPreservesContentsAndSourceMetadataAndRemovesOnlySelectedRegistration() {
         val root = Files.createTempDirectory("pgp-trash-").toFile()
         try {
