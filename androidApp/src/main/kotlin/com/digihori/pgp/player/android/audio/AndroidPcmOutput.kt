@@ -3,11 +3,14 @@ package com.digihori.pgp.player.android.audio
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
+import android.util.Log
 import com.digihori.pgp.core.api.AudioPcmSnapshot
 
 /** Dedicated output thread receives only copied PCM. UI never waits for device writes. */
 internal class AndroidPcmOutput(onFailure: (Long) -> Unit) : AutoCloseable {
-    private val pump = AudioPump(::TrackSink, onFailure)
+    private val pump = AudioPump(::TrackSink, onFailure) { rate, error ->
+        Log.w("PokecomPlayerAudio", "PCM output failed at ${rate} Hz", error)
+    }
     @Volatile private var closed = false
     @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
     private val wake = Object()
@@ -40,9 +43,8 @@ private class TrackSink(rate: Int) : PcmSink {
     private var wraps = 0L
     init {
         val minimum = AudioTrack.getMinBufferSize(rate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)
-        check(minimum > 0) { "Unsupported audio rate" }
-        // Request 50 ms or the device minimum. Refuse an unbounded device latency.
-        check(minimum <= rate * 2 / 10) { "Audio buffer exceeds 100 ms" }
+        check(minimum > 0) { "AudioTrack.getMinBufferSize returned $minimum" }
+        // Request 50 ms or the platform minimum, which can be larger on Bluetooth routes.
         track = AudioTrack.Builder()
             .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())

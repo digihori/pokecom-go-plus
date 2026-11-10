@@ -14,6 +14,7 @@ internal interface PcmSink {
 internal class AudioPump(
     private val openSink: (Int) -> PcmSink,
     private val onFailure: (Long) -> Unit,
+    private val logFailure: (Int, Exception) -> Unit = { _, _ -> },
 ) {
     private data class Packet(val pcm: AudioPcmSnapshot, val rate: Int)
     // This lock protects commands and counts only. Never hold it while calling the device.
@@ -102,12 +103,13 @@ internal class AudioPump(
             val samples = checkNotNull(current)
             val requested = minOf(256, samples.size - offset)
             val written = checkNotNull(sink).write(samples, offset, requested)
-            check(written in 0..requested) { "PCM output failed" }
+            check(written in 0..requested) { "PCM write returned $written for $requested frames" }
             if (silent) silenceWritten += written
             offset += written
             publishRemaining(samples.size - offset)
             if (offset == samples.size) current = null
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            logFailure(rate, error)
             runCatching { closeSink() }
             current = null
             synchronized(lock) {

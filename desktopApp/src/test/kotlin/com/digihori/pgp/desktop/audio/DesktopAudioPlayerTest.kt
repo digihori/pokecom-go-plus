@@ -46,20 +46,20 @@ class DesktopAudioPlayerTest {
     }
 
     @Test
-    fun silenceFinishesPlaybackClosesTheLineAndNextToneReopensIt() {
+    fun silenceDrainsOnceAndKeepsTheLineForTheNextTone() {
         val factory = FakeSinkFactory()
         val player = DesktopAudioPlayer(factory)
         player.write(AudioPcmSnapshot(22_050, shortArrayOf(123))).getOrThrow()
         player.write(AudioPcmSnapshot(22_050, shortArrayOf())).getOrThrow()
-        assertTrue(factory.sinks.single().finished)
-        assertTrue(factory.sinks.single().closed)
+        assertEquals(1, factory.sinks.single().drains)
+        assertTrue(!factory.sinks.single().closed)
         repeat(3) { player.write(AudioPcmSnapshot(22_050, shortArrayOf(0, 0))).getOrThrow() }
         assertEquals(1, factory.sinks.size)
         player.write(AudioPcmSnapshot(22_050, shortArrayOf(456))).getOrThrow()
-        assertEquals(2, factory.sinks.size)
+        assertEquals(2, factory.sinks.single().writes.size)
+        assertEquals(1, factory.sinks.single().drains)
         player.stop()
-        assertTrue(factory.sinks.last().closed)
-        assertTrue(!factory.sinks.last().finished)
+        assertTrue(factory.sinks.single().closed)
     }
 
     @Test
@@ -87,8 +87,8 @@ class DesktopAudioPlayerTest {
     private class FakeSink : PcmSink {
         val writes = mutableListOf<ByteArray>()
         var closed = false
-        var finished = false
-        override fun finish() { finished = true }
+        var drains = 0
+        override fun finish() { drains++ }
         override fun write(bytes: ByteArray) { writes += bytes.copyOf() }
         override fun close() { closed = true }
     }
