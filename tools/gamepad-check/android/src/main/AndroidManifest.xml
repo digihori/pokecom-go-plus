@@ -1,0 +1,11 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:label="Gamepad Check" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:allowBackup="false">
+        <activity android:name=".CheckActivity" android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <provider android:name=".LogProvider" android:authorities="org.pokecom.gamepadcheck.logs" android:exported="false" android:grantUriPermissions="true"/>
+    </application>
+</manifest>
