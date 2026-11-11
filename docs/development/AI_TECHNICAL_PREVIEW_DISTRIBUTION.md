@@ -29,3 +29,14 @@ PC-1251は試験対応。[検証範囲と制限](AI_TECHNICAL_PREVIEW_READINESS.
 結果は、Actionsの実行番号・コミット・DMGのSHA-256・署名検査・PreviewとStableの
 起動パスの区別・Project操作の結果を受入れ記録へ追記する。
 署名済みDMGでの確認を終えるまでは公開保留とする。
+
+## 実行記録
+
+- [検証実行 43015483175](https://github.com/digihori/pokecom-go-plus/actions/runs/43015483175)（b2d9d95）：
+  手動実行の受付とmacOS以外のジョブのスキップを確認した。
+  `macos-signing` のブランチ制限により署名前に停止。署名済みPreview DMGは未生成。
+- 復帰試験用の公式Stable 1.2.0 arm64 DMG：公開SHA-256と一致、staple検証成功、
+  GatekeeperがDMGおよび抽出したアプリをNotarized Developer IDとして受理。
+  インストール済みアプリを上書きせず、復帰確認用のコピーを準備した。
+- 再開条件：署名環境の既存のレビュー要件を維持し、管理者が検証対象ブランチのみを許可。
+  同じ実行を再実行し、署名・公証完了後に手順3〜6を行う。
