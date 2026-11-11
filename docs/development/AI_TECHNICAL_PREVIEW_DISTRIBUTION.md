@@ -40,3 +40,24 @@ PC-1251は試験対応。[検証範囲と制限](AI_TECHNICAL_PREVIEW_READINESS.
   インストール済みアプリを上書きせず、復帰確認用のコピーを準備した。
 - 再開条件：署名環境の既存のレビュー要件を維持し、管理者が検証対象ブランチのみを許可。
   同じ実行を再実行し、署名・公証完了後に手順3〜6を行う。
+
+### 署名・公証済み候補の受入れ結果
+
+- [Actions実行 43015483175](https://github.com/digihori/pokecom-go-plus/actions/runs/43015483175)
+  の再実行が成功。対象コミットは b2d9d95。既存レビュー要件は変更せず、一時追加したブランチ許可は削除済み。
+- `PokecomGOStudio-1.2.0-ai-preview.1-macos-arm64.dmg` のSHA-256：
+  `24aa74c9c93f0350ff275c1f2f6c2143464ef3ef2c7e121bc0fc558fd77df0bc`。
+  ActionsのSHA-256一覧と一致し、staple検証とGatekeeperのDMG検査に合格。
+  コピーしたアプリも厳密な署名検証とGatekeeper検査に合格。
+- 署名済みPreviewを単独起動し、PC-1245 Numeric LabelsのProjectを開いた。
+  内蔵アセンブラの「選択ファイルをビルドしてロード」でBASIC 95バイトをロード。
+  ローカルMCP待受プロセスの実行パスをDMGからのコピー先と照合し、同梱stdioで
+  `pgp_get_source` が `10 INPUT A` から始まるBASICを返すことを確認した。
+- PreviewとMCPを終了し、一時認証の削除を確認してから、公式Stable 1.2.0のDMGから
+  抽出・検証したコピーを単独起動した。実行パスを照合し、同じProjectを開いて
+  BASIC 95バイトのBuild・Loadを確認。ProjectのmanifestとBASICソースは試験前の内容と一致した。
+- 同一Bundle IDの別インスタンスが選ばれた試行は除外した。
+  合格試行は別インスタンスを終了し、使用しない試験コピーを一時退避してから行った。
+  既存インストールの上書き、タグ作成、GitHub Release作成・公開は行っていない。
+
+この範囲でmacOS arm64の配布候補は合格。公開は別途判断する。

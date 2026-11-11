@@ -94,10 +94,10 @@ DMGからコピーしたアプリの起動・PC-1245 ROM自動起動は確認し
 
 ## 配布判断
 
-**PC-1245のmacOS向けPreview候補として機能受入れは合格。公開は保留。**
+**PC-1245のmacOS arm64向けPreview候補として、機能受入れと署名済みDMG・Stable復帰試験は合格。公開は未実施。**
 初回はPC-1245のBASIC解析・生成、VS CodeのCopilotローカル実行先を検証済み範囲とする。
 PC-1251は試験対応で、CALLの途中停止直後に期待したRAM書込みが確認できない制限を明記する。
-次の区切りはPreview用配布手順、署名・公証、DMGコピーからの既存Project操作とStableへの復帰確認。
+別試行で署名・公証済みDMGのコピーを単独起動し、既存ProjectのBuild・LoadとMCP読取り、公式Stableへの復帰を確認した。
 タグ作成、GitHub Release公開、Stableへのマージは行っていない。
 
 一時MCPサーバーを停止し認証ファイルがないことを確認。Studioのアセンブラ設定は元のSC61に戻した。
