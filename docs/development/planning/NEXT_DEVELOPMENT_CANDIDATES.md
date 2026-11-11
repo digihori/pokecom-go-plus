@@ -55,6 +55,8 @@
   Studioの `.pgmacro` 形式との互換性、マクロファイルの選択・実行方法、
   Playerで使える命令の範囲、実行結果の表示と強制停止の操作を検討する。実装時期は未定。
 
+- [ ] **Android版Playerのネイティブデバッグシンボル**（次回リリースの提出前）：Play Consoleで1.2.0のAABに対しシンボル未アップロードの警告が出た。AABに含まれていたネイティブライブラリはAndroidXの `libandroidx.graphics.path.so`。次回は依存元が提供するシンボルの有無を確認し、利用可能なら `ndk.debugSymbolLevel = "SYMBOL_TABLE"` 等でリリースAABに含め、Play Consoleで反映を確認する。依存元で除去済みの場合は、設定だけでは復元できないため、入手可否と確認結果を記録する。
+
 ## 次のリリースの4分野
 
 Debugger強化は[作業計画と受入れ項目](DEBUGGER_NEXT_RELEASE.md)に沿って開始します。
