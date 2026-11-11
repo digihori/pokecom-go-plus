@@ -168,3 +168,7 @@ CodexのstdioプローブとStudio承認で、新規作成からG01の1／2／3�
 この環境でのG01機能要件は確認済み。Copilotはmetadata→LCD取得のみ確認し、全工程は未実施。
 共通課題の新規チャット・他AI独立受入れまで一括してPASSとは扱わない。
 作例と画像・停止根拠は[生成検証記録](AI_PROGRAM_GENERATION_VERIFICATION.md)に記録した。
+
+2026-11-11：統合後のmacOS配布アプリとVS Code 1.143.1のCopilot「ローカル」で、
+PC-1245のA01（BASIC解析）・G01（生成からLCD・終了確認）に合格。詳細と配布判断は
+[Technical Preview受入れ記録](AI_TECHNICAL_PREVIEW_READINESS.md)を参照。
