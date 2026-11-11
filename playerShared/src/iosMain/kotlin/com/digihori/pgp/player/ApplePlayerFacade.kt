@@ -11,6 +11,7 @@ import com.digihori.pgp.core.rom.RomRole
 import com.digihori.pgp.core.rom.RomSet
 import com.digihori.pgp.input.HostKeyState
 import com.digihori.pgp.player.skin.PlayerSkinCatalog
+import com.digihori.pgp.player.skin.withUpdatedKeyLayout
 import com.digihori.pgp.player.skin.withFixedModeIndicators
 import com.digihori.pgp.player.skin.SkinDefinition
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245FlatRomImporter
@@ -62,7 +63,8 @@ private fun appleModeName(mode: OperatingMode): String = when (mode) {
 /** Swift-facing boundary. The iOS host serializes every call on its main thread. */
 public class ApplePlayerFacade internal constructor(private val session: PlayerSession) {
     public val machine: AppleMachineInfo = requireNotNull(AppleMachineCatalog.find(session.machineId.value))
-    public val skin: SkinDefinition = requireNotNull(PlayerSkinCatalog.forMachine(session.machineId)).withFixedModeIndicators()
+    public val ramUnlocked: Boolean = session.ramMode == com.digihori.pgp.core.api.RamMode.UNRESTRICTED
+    public val skin: SkinDefinition = requireNotNull(PlayerSkinCatalog.forMachine(session.machineId)).withUpdatedKeyLayout().withFixedModeIndicators()
     private val keys = HostKeyState(session::pressKey, session::releaseKey)
     private var executedCycles = 0L
     private val gamepad = com.digihori.pgp.input.GamepadInput(
@@ -145,6 +147,9 @@ public class ApplePlayerFacade internal constructor(private val session: PlayerS
     public fun exportBasic(): AppleProgramExport = AppleProgramExport.from(session.exportBasic())
     public fun exportDump(start: Int, end: Int): AppleProgramExport =
         AppleProgramExport.from(session.exportMemoryDump(start, end))
+
+    public fun exportAddressSpaceDump(start: Int, end: Int): AppleProgramExport =
+        AppleProgramExport.from(session.exportAddressSpaceDump(start, end))
 
     public fun setOperatingMode(name: String): Boolean {
         if (name !in machine.operatingModes) return false
@@ -281,6 +286,14 @@ public class AppleRomArchiveEntry(public val path: String, public val sha256: St
 public class AppleRomPreparation internal constructor(
     public val player: ApplePlayerFacade?, private val rom: RomSet?, public val errorMessage: String?,
 ) {
+    public fun playerWithRamUnlock(enabled: Boolean): ApplePlayerFacade? {
+        val current = player ?: return null
+        val id = MachineId(current.machine.id)
+        if (!enabled || id.value !in setOf("pc-1250", "pc-1251", "pc-1255", "pc-1260", "pc-1261", "pc-1401", "pc-1402")) return current
+        val target = rom?.let { PlayerMachineCatalog.forModel(it, id) } ?: return null
+        val created = PlayerSessionFactory.create(target, com.digihori.pgp.core.api.RamMode.UNRESTRICTED)
+        return (created as? PlayerSessionCreationResult.Success)?.session?.let(::ApplePlayerFacade)
+    }
     public val machineId: String? get() = rom?.machineId?.value
     public val components: List<AppleRomComponent> get() = rom?.components?.map { AppleRomComponent(it) } ?: emptyList()
     public fun internalBytes(): ByteArray? = rom?.component(Pc1245RomDefinition.INTERNAL_ID)?.copyBytes()

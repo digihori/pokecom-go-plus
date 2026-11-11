@@ -41,7 +41,6 @@ internal object DesktopProjectWorkspaceCreator {
                 DesktopProjectCreateError.DestinationExists(projectDirectory.path),
             )
         }
-        require(starters.isNotEmpty()) { "At least one starter source is required" }
         val sourceFiles = starters.files(projectDirectory, machineId)
 
         val definition = ProjectDefinition(
@@ -57,6 +56,7 @@ internal object DesktopProjectWorkspaceCreator {
 
         return runCatching {
             check(projectDirectory.mkdirs()) { "Could not create project folder: ${projectDirectory.path}" }
+            check(File(projectDirectory, "src").mkdir()) { "Could not create source folder" }
             val buildDirectory = File(projectDirectory, "build")
             check(buildDirectory.mkdir()) { "Could not create build folder: ${buildDirectory.path}" }
             sourceFiles.forEach { source ->

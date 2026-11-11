@@ -71,7 +71,7 @@ class BoundedExecutionServiceTest {
         val root = Files.createTempDirectory("pgp-pc1251-hardware-")
         try {
             val runner = boundedTestRunner(machineId = "pc-1251", configuration = EmulatorConfiguration(
-                pc1251FamilyMemoryMode = com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode.HARDWARE))
+                ramMode = RamMode.HARDWARE))
             val project = GeneratedProjectFiles.create(root, "project", "PC1251", listOf(GeneratedSource("main", ProjectSourceType.BASIC, "10 END\n")), "pc-1251")
             val state = DevelopmentReadState(runner = runner, debugService = DesktopDebugContextService(runner, "hardware-session"), project = project)
             val changes = DevelopmentChangeService({ state })

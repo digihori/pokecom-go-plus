@@ -23,6 +23,21 @@ class PlayerSeriesTest {
         return assertIs<RomImportResult.Success>(imported).romSet
     }
 
+    @Test fun ramUnlockIsOptInForEverySupportedModel() {
+        for (group in groups) {
+            val source = rom(PlayerMachineCatalog.romId(MachineId("pc-${group.first()}")).value.removePrefix("pc-"))
+            for (name in group) {
+                val targeted = assertNotNull(PlayerMachineCatalog.forModel(source, MachineId("pc-$name")))
+                val standard = assertIs<PlayerSessionCreationResult.Success>(PlayerSessionFactory.create(targeted)).session
+                val unlocked = assertIs<PlayerSessionCreationResult.Success>(PlayerSessionFactory.create(targeted, RamMode.UNRESTRICTED)).session
+                assertEquals(RamMode.HARDWARE, standard.ramMode)
+                assertEquals(RamMode.UNRESTRICTED, unlocked.ramMode)
+                unlocked.reset()
+                assertEquals(RamMode.UNRESTRICTED, unlocked.ramMode)
+            }
+        }
+    }
+
     @Test fun explicitGroupsSharePresentationButRetainRuntimeIdentityAndIndependentRam() {
         for (group in groups) {
             val representative = PlayerMachineCatalog.romId(MachineId("pc-${group.first()}"))

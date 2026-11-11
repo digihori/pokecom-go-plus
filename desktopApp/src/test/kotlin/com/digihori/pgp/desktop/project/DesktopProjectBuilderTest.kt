@@ -15,6 +15,58 @@ import com.digihori.pgp.desktop.runner.DesktopEmulatorRunner
 import com.digihori.pgp.desktop.runner.MonotonicClock
 
 class DesktopProjectBuilderTest {
+    @Test fun assemblyWorkspaceBuildsOnlyItsTargetAndWritesTargetNamedOutput() {
+        val root = Files.createTempDirectory("pgp-single-assembly-")
+        try {
+            root.resolve("src").createDirectories()
+            root.resolve("src/good.asm").writeText("ORG 0xC000\nRTN\n")
+            root.resolve("src/bad.asm").writeText("NOT_AN_INSTRUCTION\n")
+            root.resolve("src/one.bas").writeText("10 END\n")
+            root.resolve("src/two.bas").writeText("20 END\n")
+            val workspace = openWorkspace(root, """
+                {"id":"good","type":"assembly","path":"src/good.asm"},
+                {"id":"bad","type":"assembly","path":"src/bad.asm"},
+                {"id":"one","type":"basic","path":"src/one.bas"},
+                {"id":"two","type":"basic","path":"src/two.bas"}
+            """.trimIndent())
+            val target = workspace.selectAssemblySource("src/good.asm")
+            val artifact = assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(target)).artifact
+            assertEquals(listOf("good"), artifact.assemblySources.map { it.source.definition.id })
+            assertEquals(null, artifact.copyBasicProgram())
+            assertEquals("good.dmp", DesktopProjectBuildOutputWriter.write(target, artifact)!!.name)
+            assertTrue(root.resolve("build/good.dmp").toFile().isFile)
+            assertTrue(!root.resolve("build/program.dmp").toFile().exists())
+            kotlin.test.assertFailsWith<IllegalArgumentException> { workspace.selectAssemblySource("src/one.bas") }
+        } finally { root.toFile().deleteRecursively() }
+    }
+
+    @Test fun selectedBasicBuildIgnoresOtherBasicAndBrokenAssembly() {
+        val root = Files.createTempDirectory("pgp-selected-build-")
+        try {
+            root.resolve("src").createDirectories()
+            root.resolve("src/one.bas").writeText("10 PRINT 1\n20 END\n")
+            root.resolve("src/two.bas").writeText("10 PRINT 2\n20 END\n")
+            root.resolve("src/broken.asm").writeText("NOT_AN_INSTRUCTION\n")
+            val workspace = openWorkspace(root, """
+                {"id":"one","type":"basic","path":"src/one.bas"},
+                {"id":"two","type":"basic","path":"src/two.bas"},
+                {"id":"broken","type":"assembly","path":"src/broken.asm"}
+            """.trimIndent())
+            val failure = assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace))
+            assertTrue(failure.errors.any { it is DesktopProjectBuildError.MultipleBasicSources })
+            val selected = workspace.selectSources(setOf("src/two.bas"))
+            val built = assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(selected))
+            val expected = assertIs<com.digihori.pgp.desktop.basic.DesktopBasicProgramCompileResult.Success>(
+                com.digihori.pgp.desktop.basic.DesktopBasicLoader.compileProgram(
+                    root.resolve("src/two.bas").toFile().readBytes(), workspace.definition.machineId))
+            assertContentEquals(expected.bytes, built.artifact.copyBasicProgram())
+            assertEquals(listOf("two"), selected.definition.sources.map { it.id })
+            assertEquals(3, workspace.sources.size)
+            kotlin.test.assertFailsWith<IllegalArgumentException> { workspace.selectSources(emptySet()) }
+            kotlin.test.assertFailsWith<IllegalArgumentException> { workspace.selectSources(setOf("src/missing.bas")) }
+        } finally { root.toFile().deleteRecursively() }
+    }
+
     @Test fun buildsBasicForSelectedMachineRegardlessOfManifestMachine() {
         val root = Files.createTempDirectory("pgp-cross-machine-")
         try {
@@ -28,6 +80,21 @@ class DesktopProjectBuilderTest {
                 com.digihori.pgp.desktop.basic.DesktopBasicLoader.compileProgram(workspace.sources.single().file.readBytes(), target))
             assertContentEquals(expected.bytes, built.artifact.copyBasicProgram())
         } finally { root.toFile().deleteRecursively() }
+    }
+
+    @Test fun addedRamPlacementsFollowTheSelectedModeForEverySeries() {
+        for ((id, address) in listOf("pc-1250" to 0x8000, "pc-1260" to 0x7000, "pc-1401" to 0x5000)) {
+            val root = Files.createTempDirectory("pgp-unrestricted-placement-")
+            try {
+                root.resolve("src").createDirectories()
+                root.resolve("src/main.asm").writeText("ORG 0x${address.toString(16)}\nRTN\n")
+                val workspace = openWorkspace(root, """{ "id": "main", "type": "assembly", "path": "src/main.asm" }""", id)
+                assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(workspace,
+                    MachineMemoryLayout(MachineId(id), com.digihori.pgp.core.api.RamMode.UNRESTRICTED), validateForLoad = true))
+                assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace,
+                    MachineMemoryLayout(MachineId(id), com.digihori.pgp.core.api.RamMode.HARDWARE), validateForLoad = true))
+            } finally { root.toFile().deleteRecursively() }
+        }
     }
 
     @Test fun crossMachineAssemblyStillChecksTargetRamBeforeLoad() {
@@ -376,7 +443,7 @@ class DesktopProjectBuilderTest {
         val workspace = openWorkspace(root, """{ "id": "asm", "type": "assembly", "path": "src/main.asm" }""", "pc-1250")
         assertIs<DesktopProjectBuildResult.Success>(DesktopProjectBuilder.build(workspace))
         assertIs<DesktopProjectBuildResult.Failure>(DesktopProjectBuilder.build(workspace,
-            com.digihori.pgp.core.api.MachineMemoryLayout(workspace.definition.machineId, com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode.HARDWARE),
+            com.digihori.pgp.core.api.MachineMemoryLayout(workspace.definition.machineId, com.digihori.pgp.core.api.RamMode.HARDWARE),
             validateForLoad = true,
         ))
     }

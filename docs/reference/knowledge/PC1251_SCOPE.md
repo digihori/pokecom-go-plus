@@ -14,8 +14,8 @@ PC-1245と同じキー列で入力できるという意味ではない。
 ## RAMと配置
 
 `pc1251.memory`はCoreのカタログ領域と既定配置を返す。
-PC-1251の物理RAM開始は0xB800、EXPANDED設定ではPC-1255相当の0xA000まで
-拡張する。HARDWARE／EXPANDEDで利用可能なRAMとミラーが変わる。
+HARDWARE設定のPC-1251では物理RAMは0xB800〜0xC7FF。UNRESTRICTED設定では
+0x8000〜0xCFFFをRAMとして扱う。設定により利用可能なRAMとミラーが変わる。
 カタログのmemoryRegionsは説明用であり、現在のSessionの書込み可否を保証しない。
 
 知識APIのmemoryLayout.scopeはcatalogDefaultsで、実行中Sessionは参照しない。

@@ -44,13 +44,13 @@ public object ProgramImageLoader {
             val write: (Int, Int) -> Unit = { address, value -> writes[address] = value and 0xff }
             val result = when (layout.machineId.value) {
                 "pc-1245" -> Pc1245BasicProgramMemory.load(program, read, write)
-                "pc-1250", "pc-1251", "pc-1255" -> Pc1251BasicProgramMemory.load(program, read, write)
-                "pc-1260", "pc-1261" -> Pc1261BasicProgramMemory.load(program, read, write, checkNotNull(Pc1261FamilyModel.fromMachineId(layout.machineId)))
+                "pc-1250", "pc-1251", "pc-1255" -> Pc1251BasicProgramMemory.load(program, read, write, layout.minimumBasicStartAddress)
+                "pc-1260", "pc-1261" -> Pc1261BasicProgramMemory.load(program, read, write, checkNotNull(Pc1261FamilyModel.fromMachineId(layout.machineId)), layout.minimumBasicStartAddress)
                 "pc-1350" -> Pc1350BasicProgramMemory.load(program, read, write)
                 "pc-1360", "pc-1360k" -> Pc1360BasicProgramMemory.load(program, read, write)
                 "pc-1450", "pc-1460", "pc-1470u" -> Pc14xxBasicProgramMemory.load(
                     checkNotNull(Pc14xxModel.fromMachineId(layout.machineId)), program, read, write)
-                else -> Pc1401BasicProgramMemory.load(program, read, write, checkNotNull(Pc1401FamilyModel.fromMachineId(layout.machineId)))
+                else -> Pc1401BasicProgramMemory.load(program, read, write, checkNotNull(Pc1401FamilyModel.fromMachineId(layout.machineId)), layout.minimumBasicStartAddress)
             }
             when (result) {
                 is Pc1245BasicMemoryResult.InvalidPointers -> return ProgramImagePlanResult.BasicFailure(BasicProgramMemoryError.InvalidPointer(result.start, result.end))

@@ -24,7 +24,7 @@ internal data class DevelopmentReadState(
     val buildStatus: String = "NOT_BUILT",
     val changedSourceIds: Set<String> = emptySet(),
     val busy: Boolean = false,
-    val fallbackRamMode: com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode = com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode.EXPANDED,
+    val fallbackRamModes: Map<com.digihori.pgp.core.api.MachineFamily, com.digihori.pgp.core.api.RamMode> = emptyMap(),
 )
 internal class DevelopmentReadError(val code: String) : Exception(code)
 internal interface DevelopmentReadService {
@@ -43,7 +43,7 @@ internal class DesktopDevelopmentReadService(private val stateProvider: () -> De
             else state.runner?.machineId ?: throw DevelopmentReadError("NO_ACTIVE_SESSION")
         val definition = MachineCatalog.find(id) ?: throw DevelopmentReadError("UNSUPPORTED_MACHINE")
         val active = state.runner?.takeIf { it.machineId == id }
-        val layout = active?.memoryLayout ?: MachineMemoryLayout(id)
+        val layout = active?.memoryLayout ?: MachineMemoryLayout(id, state.fallbackRamModes[definition.family] ?: com.digihori.pgp.core.api.RamMode.HARDWARE)
         return bounded(buildJsonObject {
             put("format", "pgp-machine-spec"); put("schemaVersion", 1)
             put("machineId", id.value); put("displayName", definition.displayName)
@@ -77,8 +77,9 @@ internal class DesktopDevelopmentReadService(private val stateProvider: () -> De
                 put("endAddressInclusive", region.endAddressInclusive); put("mirrorsRegionId", region.mirrorsRegionId?.let(::JsonPrimitive) ?: JsonNull)
             }) } })
             put("memoryLayout", buildJsonObject {
-                put("scope", if (active != null) "activeSession" else "catalogDefaults")
-                put("ramConfiguration", layout.pc1251MemoryMode.name)
+                put("scope", if (active != null) "activeSession" else if (definition.family in state.fallbackRamModes) "configuredDefaults" else "catalogDefaults")
+                put("ramConfiguration", layout.ramMode.name)
+                put("ramRanges", ramRanges(layout))
                 put("assemblyStartAddress", layout.assemblyStartAddress); put("defaultBasicStartAddress", layout.defaultBasicStartAddress)
                 put("catalogRegionsAreDescriptive", true)
             })
@@ -94,6 +95,25 @@ internal class DesktopDevelopmentReadService(private val stateProvider: () -> De
             }) } })
             put("notProvided", buildJsonArray { listOf("ROM routine calling conventions", "LCD pixel encoding except PC-1245 directDrawing", "key read ABI", "independent real-hardware timing validation").forEach { add(JsonPrimitive(it)) } })
         })
+    }
+
+    private fun ramRanges(layout: MachineMemoryLayout): JsonArray = buildJsonArray {
+        var address = 0
+        while (address <= 0xffff) {
+            val first = layout.locate(address)
+            if (first.kind != MachineMemoryKind.RAM) { address++; continue }
+            val start = address
+            while (address < 0xffff) {
+                val next = layout.locate(address + 1)
+                if (next.kind != MachineMemoryKind.RAM || next.physicalAddress != first.physicalAddress + address + 1 - start) break
+                address++
+            }
+            add(buildJsonObject {
+                put("startAddress", start); put("endAddressInclusive", address)
+                put("physicalStartAddress", first.physicalAddress); put("mirror", first.physicalAddress != start)
+            })
+            address++
+        }
     }
 
     override fun context(section: String, sourceId: String?, offset: Int, limit: Int): JsonObject {

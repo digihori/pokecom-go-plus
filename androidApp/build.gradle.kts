@@ -24,8 +24,16 @@ android {
         applicationId = "com.digihori.pgp.player"
         minSdk = 26
         targetSdk = 36
-        versionCode = 11
-        versionName = "1.1.0"
+        versionCode = 14
+        versionName = "1.2.0"
+    }
+
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+        }
     }
 
     compileOptions {

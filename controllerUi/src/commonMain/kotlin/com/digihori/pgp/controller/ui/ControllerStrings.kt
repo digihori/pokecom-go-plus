@@ -10,7 +10,7 @@ data class ControllerStrings(
     val selectDevice: String = "使用する1台を選択",
     val instructions: String = "図のボタンを選び、ポケコンのキーを割り当てます。設定中の操作はテスト表示のみです。",
     val positions: String = "ABXYは標準位置を表示しています。機器の印字が異なる場合は上下左右の位置で選んでください。",
-    val saveHelp: String = "スティックは対象外です。変更は自動保存され、以前の設定を上書きします。",
+    val saveHelp: String = "左スティックは十字キーと同じ割当を使い、右スティックの4方向（R↑など）は個別に割り当てられます。変更は自動保存され、以前の設定を上書きします。",
     val assignment: (String) -> String = { "$it の割当" },
     val close: String = "閉じる",
     val unavailable: String = "利用不可",

@@ -30,7 +30,7 @@ fun ControllerSettings(
     selectedId: String?,
     pressed: Set<GamepadButton>,
     allowedKeys: Set<PocketKey>,
-    onSelectDevice: (String) -> Unit,
+    onSelectDevice: ((String) -> Unit)? = null,
     onSettingsChange: (GamepadSettings) -> Unit,
     availableButtons: Set<GamepadButton> = GamepadButton.entries.toSet(),
     status: String? = null,
@@ -45,7 +45,9 @@ fun ControllerSettings(
             Spacer(Modifier.width(12.dp))
             Text(strings.enable)
         }
-        Box {
+        if (onSelectDevice == null) {
+            Text(devices.joinToString(" + ") { it.name }.ifEmpty { strings.disconnected })
+        } else Box {
             OutlinedButton(onClick = { deviceMenu = true }, enabled = devices.isNotEmpty()) {
                 Text(devices.find { it.id == selectedId }?.let { "${it.name} (${it.id})" }
                     ?: if (devices.isEmpty()) strings.disconnected else strings.selectDevice)
@@ -110,8 +112,8 @@ private fun ControllerDiagram(
     // Keep the artwork and button positions fixed; narrow screens can scroll it.
     val diagramWidth = 360.dp
     Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-        Box(Modifier.width(diagramWidth).height(260.dp)) {
-            Canvas(Modifier.fillMaxSize()) {
+        Box(Modifier.width(diagramWidth).height(322.dp)) {
+            Canvas(Modifier.fillMaxWidth().height(260.dp)) {
                 val w = size.width
                 val h = size.height
                 val path = Path().apply {
@@ -128,11 +130,16 @@ private fun ControllerDiagram(
                     Size(w * .1f, h * .12f), CornerRadius(8.dp.toPx()))
             }
             val positions = mapOf(
-                GamepadButton.L1 to (.12f to .0f), GamepadButton.R1 to (.88f to .0f),
+                GamepadButton.L2 to (0f to 0f), GamepadButton.L1 to (1f / 3 to 0f),
+                GamepadButton.R1 to (2f / 3 to 0f), GamepadButton.R2 to (1f to 0f),
                 GamepadButton.UP to (.15f to .30f), GamepadButton.LEFT to (.0f to .60f),
                 GamepadButton.RIGHT to (.30f to .60f), GamepadButton.DOWN to (.15f to .90f),
                 GamepadButton.NORTH to (.85f to .30f), GamepadButton.WEST to (.70f to .60f),
                 GamepadButton.EAST to (1f to .60f), GamepadButton.SOUTH to (.85f to .90f),
+                GamepadButton.RIGHT_STICK_UP to (0f to 1.32f),
+                GamepadButton.RIGHT_STICK_DOWN to (1f / 3 to 1.32f),
+                GamepadButton.RIGHT_STICK_LEFT to (2f / 3 to 1.32f),
+                GamepadButton.RIGHT_STICK_RIGHT to (1f to 1.32f),
             )
             val buttonWidth = 72.dp
             positions.forEach { (button, position) ->

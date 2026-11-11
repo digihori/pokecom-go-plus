@@ -66,8 +66,8 @@ class RealPc1251RomPackageSmokeTest {
         )
         val basicSnapshot = assertIs<BasicProgramSnapshotResult.Success>(loaded.session.basicProgramSnapshot())
 
-        // Default expanded mode has the PC-1255 RAM range.
-        assertEquals(0xa030, basicLoaded.startAddress)
+        // Default sessions now use the selected model's physical RAM.
+        assertEquals(0xb830, basicLoaded.startAddress)
         assertTrue(compiled.bytes.contentEquals(basicSnapshot.copyBytes()))
     }
 

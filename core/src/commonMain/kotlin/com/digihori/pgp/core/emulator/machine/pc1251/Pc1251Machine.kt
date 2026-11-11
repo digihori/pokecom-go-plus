@@ -1,5 +1,7 @@
 package com.digihori.pgp.core.emulator.machine.pc1251
 
+import com.digihori.pgp.core.api.RamMode
+
 import com.digihori.pgp.core.emulator.cpu.Sc61860Cpu
 import com.digihori.pgp.core.emulator.cpu.Sc61860Io
 import com.digihori.pgp.core.emulator.cpu.Sc61860RunResult
@@ -14,8 +16,9 @@ import com.digihori.pgp.core.source.machine.AddressedMemoryImage
 internal class Pc1251Machine(
     romSet: RomSet,
     model: Pc1251FamilyModel = Pc1251FamilyModel.PC_1251,
-    memoryMode: Pc1251FamilyMemoryMode = Pc1251FamilyMemoryMode.EXPANDED,
+    memoryMode: RamMode = RamMode.HARDWARE,
 ) {
+    private val minimumBasicStart = if (memoryMode == RamMode.UNRESTRICTED) 0x8000 else model.physicalRamStart
     private val display = Pc1251Display()
     private val keyboard = Pc1251Keyboard()
     private val buzzer = Pc1245Buzzer()
@@ -57,10 +60,10 @@ internal class Pc1251Machine(
     fun writeMemory(address: Int, value: Int) = bus.write(address, value)
 
     fun loadBasicProgram(program: ByteArray): Pc1245BasicMemoryResult =
-        Pc1251BasicProgramMemory.load(program, ::readMemory, ::writeMemory)
+        Pc1251BasicProgramMemory.load(program, ::readMemory, ::writeMemory, minimumBasicStart)
 
     fun basicProgram(): Pc1245BasicMemoryResult =
-        Pc1251BasicProgramMemory.extract(::readMemory)
+        Pc1251BasicProgramMemory.extract(::readMemory, minimumBasicStart)
 
     fun loadMemoryImage(image: AddressedMemoryImage): Pc1251MemoryImageLoadResult {
         val invalid = image.segments.firstNotNullOfOrNull { segment ->

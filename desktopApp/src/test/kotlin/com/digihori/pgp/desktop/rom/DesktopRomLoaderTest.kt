@@ -4,7 +4,7 @@ import com.digihori.pgp.core.api.EmulatorConfiguration
 import com.digihori.pgp.core.api.MemoryImageLoadResult
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1245.RomImportError
-import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
+import com.digihori.pgp.core.api.RamMode
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350RomDefinition
@@ -81,14 +81,14 @@ class DesktopRomLoaderTest {
             DesktopRomLoader.loadLegacyImage(
                 Pc1251FamilyModel.PC_1250.machineId,
                 image,
-                EmulatorConfiguration(Pc1251FamilyMemoryMode.HARDWARE),
+                EmulatorConfiguration(RamMode.HARDWARE),
             ),
         ).session
         val expandedSession = assertIs<DesktopRomLoadResult.Success>(
             DesktopRomLoader.loadLegacyImage(
                 Pc1251FamilyModel.PC_1250.machineId,
                 image,
-                EmulatorConfiguration(Pc1251FamilyMemoryMode.EXPANDED),
+                EmulatorConfiguration(RamMode.UNRESTRICTED),
             ),
         ).session
         val memoryImage = assertIs<PgpMemoryDumpParseResult.Success>(

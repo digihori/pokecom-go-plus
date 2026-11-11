@@ -3296,3 +3296,52 @@ ROMや参照実装のコピーは行わず、動作観測に基づくPGP独自�
 回帰テストはNEW後にキー入力したshort.basを期待値とし、4行LCD全体を
 カーソルを除外せず複数の点滅位相で比較する。旧領域を読まないこともaccess traceで確認する。
 失敗・BASICなしの操作では状態を保持し、他の内部RAMやPC、旧プログラム本文をクリアしない。
+
+
+## 2026-11-02：StudioのRAM制限解除
+
+利用者の指定した3系列の領域を仕様の出典として、既存PGPのモデル・バス・メモリ配置定義を拡張。
+外部エミュレータから書込み窓やBASIC容量を転記せず、既存ROM・LCD・実機ミラーを維持した。
+[仕様とAPI移行](../reference/machines/STUDIO_RAM_CONFIGURATION.md)。
+BASICはROMの管理ポインタを尊重し、PGPから開始位置・容量を強制しない。
+追加RAMを認識して従来より低い開始位置を選んだ場合の入出力検証のみ、構成に追従させた。
+
+### PC-1261 panel and unlabelled LCD segment
+
+The owner-supplied revised skin and layout reference place KANA/SML/SHIFT/DEF
+left of the two-line dot area, with six rectangular segments below it. BUSY,
+PRINT, DEG, RAD and ERROR are captions printed on the panel image; their LCD
+segments use the shared rectangle style on Android and iOS. No RUN/PRO/RSV
+labels are drawn inside this revised LCD layout. Per owner input, the unlabelled
+segment to the right of ERROR is 0x207C bit 6, independent of ERROR at bit 5.
+Character memory wiring and the previously approved key positions are retained.
+
+### Player RAM controls and shared skin updates (2026-11-06)
+
+Android and iOS now expose an opt-in RAM-unlock checkbox for each model in
+the PC-1251, PC-1261 and PC-1401 families, reusing the existing core RAM modes.
+Changes apply on Play, with confirmation before discarding a running session.
+The default remains hardware RAM and settings are independent for each model.
+
+Owner-supplied PC-1245, PC-1251 and PC-1261 artwork is bundled on both hosts.
+The seven keys below the LCD share updated hit/highlight geometry through
+`withUpdatedKeyLayout()`. The approved PC-1261 text region is
+`(125, 59.75, 1015.3, 106.5)`, leaving equal 18.75-unit gaps between the panel
+top, text region and lower segment row. The debug-only PC-1261 skin probe's
+`allLcdOn` option lights every dot and status segment for layout review.
+
+Validation: the final Android debug APK build and shared desktop tests passed;
+the LCD all-on emulator screenshot was approved by the owner. The earlier full
+build passed before the final vertical adjustment. The last full-build attempt
+reported Kotlin metadata-version diagnostics during lint and a debug packaging
+failure; a subsequent targeted debug build succeeded. The Swift unit run had
+58 passing tests and one old-layout expectation; after updating that expectation,
+the two related Swift tests passed. Physical-device checks belong to the owner.
+
+### Studio 1.1.2 release preparation (2026-11-06)
+
+Public Gradle/ProjectInfo version and release workflow advance to 1.1.2.
+Native packages advance from 1.7.0 to 1.8.0, preserving MSI UpgradeCode and
+bundle identity; MSI validation and the notarization DMG path follow that version.
+Studio release notes are separate from Player store drafts. iOS version/signing
+and Player store distribution remain outside this Studio release operation.

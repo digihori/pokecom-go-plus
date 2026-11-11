@@ -2,7 +2,7 @@ package com.digihori.pgp.core.api
 
 import com.digihori.pgp.core.emulator.machine.pc1261.Pc1261FamilyModel
 import com.digihori.pgp.core.emulator.machine.pc1401.Pc1401FamilyModel
-import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
+import com.digihori.pgp.core.api.RamMode
 import com.digihori.pgp.core.emulator.machine.pc1350.Pc1350Display
 import com.digihori.pgp.core.emulator.machine.pc1360.Pc1360Display
 import com.digihori.pgp.core.emulator.machine.pc1251.pc1251RamAddress
@@ -22,8 +22,10 @@ public data class MachineMemoryLocation(
 /** Pure description of PGP's current bus mapping, including compatibility write windows. */
 public class MachineMemoryLayout(
     public val machineId: MachineId,
-    public val pc1251MemoryMode: Pc1251FamilyMemoryMode = Pc1251FamilyMemoryMode.EXPANDED,
+    ramMode: RamMode = RamMode.HARDWARE,
 ) {
+    public val ramMode: RamMode = if (MachineCatalog.find(machineId)?.supportsConfigurableRam == true) ramMode else RamMode.HARDWARE
+
     init { require(MachineCatalog.find(machineId) != null) }
 
     /** A starter location away from the initial BASIC text and its pointer words. */
@@ -45,6 +47,14 @@ public class MachineMemoryLayout(
         "pc-1470u", "pc-1460", "pc-1360", "pc-1360k" -> 0x8030
         else -> 0x3800
     }
+
+    /** Accept ROM-selected BASIC pointers without assigning the added RAM to BASIC ourselves. */
+    public val minimumBasicStartAddress: Int get() = if (ramMode == RamMode.UNRESTRICTED) when (machineId.value) {
+        "pc-1250", "pc-1251", "pc-1255" -> 0x8000
+        "pc-1260", "pc-1261" -> 0x4080
+        "pc-1401", "pc-1402" -> 0x2000
+        else -> defaultBasicStartAddress
+    } else defaultBasicStartAddress
 
     public val basicStartPointerAddress: Int get() = when (machineId.value) {
         "pc-1260", "pc-1261" -> 0x66e1
@@ -74,22 +84,22 @@ public class MachineMemoryLayout(
             }
             "pc-1250", "pc-1251", "pc-1255" -> {
                 val model = checkNotNull(Pc1251FamilyModel.fromMachineId(machineId))
-                val start = if (pc1251MemoryMode == Pc1251FamilyMemoryMode.EXPANDED) 0xa000 else model.physicalRamStart
+                val ram = if (ramMode == RamMode.UNRESTRICTED) 0x8000..0xcfff else model.physicalRamStart..0xc7ff
                 val mapped = when (address) {
                     in 0xe800..0xefff -> 0xf800 or (address and 0xff)
                     in 0xf900..0xffff -> address and 0xf8ff
-                    else -> pc1251RamAddress(address, model, pc1251MemoryMode)
+                    else -> pc1251RamAddress(address, model, ramMode)
                 }
                 when {
                     address in 0x2000..0x7fff -> location(MachineMemoryKind.ROM, false, address)
                     mapped in 0xf800..0xf8ff -> location(MachineMemoryKind.LCD, true, mapped)
-                    mapped in start..0xc7ff -> location(MachineMemoryKind.RAM, true, mapped)
+                    mapped in ram -> location(MachineMemoryKind.RAM, true, mapped)
                     else -> location(MachineMemoryKind.UNMAPPED, false, mapped)
                 }
             }
             "pc-1260", "pc-1261" -> when (address) {
                 in 0x2000..0x3fff -> location(MachineMemoryKind.LCD, true, address and 0x28ff)
-                in checkNotNull(Pc1261FamilyModel.fromMachineId(machineId)).physicalRamStart..0x67ff -> location(MachineMemoryKind.RAM, true, address)
+                in (if (ramMode == RamMode.UNRESTRICTED) 0x4000..0x7fff else checkNotNull(Pc1261FamilyModel.fromMachineId(machineId)).physicalRamStart..0x67ff) -> location(MachineMemoryKind.RAM, true, address)
                 in 0x8000..0xffff -> location(MachineMemoryKind.ROM, false, address)
                 else -> location(MachineMemoryKind.UNMAPPED, false, address)
             }
@@ -124,7 +134,7 @@ public class MachineMemoryLayout(
                 else -> location(MachineMemoryKind.ROM, false, address)
             }
             else -> when (address) {
-                in checkNotNull(Pc1401FamilyModel.fromMachineId(machineId)).physicalRamStart..0x47ff -> location(MachineMemoryKind.RAM, true, address)
+                in (if (ramMode == RamMode.UNRESTRICTED) 0x2000..0x5fff else checkNotNull(Pc1401FamilyModel.fromMachineId(machineId)).physicalRamStart..0x47ff) -> location(MachineMemoryKind.RAM, true, address)
                 in 0x6000..0x67ff, in 0x7000..0x77ff -> location(MachineMemoryKind.LCD, true, 0x6000 or (address and 0xff))
                 in 0x8000..0xffff -> location(MachineMemoryKind.ROM, false, address)
                 else -> location(MachineMemoryKind.UNMAPPED, false, address)

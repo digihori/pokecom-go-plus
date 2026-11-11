@@ -25,6 +25,26 @@ class PlayerProgramIoTest {
     private fun input(text: String, format: PlayerProgramFormat = PlayerProgramFormat.BASIC): PlayerProgramInput =
         assertIs<PlayerProgramParseResult.Success>(PlayerProgramParser.parse(text.encodeToByteArray(), format, id)).input
 
+    @Test fun addressSpaceDumpIncludesRomAliasesAndEndWithoutMutation() {
+        val (player, core) = session()
+        val before = core.memorySnapshot(0, 65536).copyBytes()
+        val result = assertIs<PlayerProgramExportResult.Success>(player.exportAddressSpaceDump(0, 0xffff))
+        val image = assertIs<PgpMemoryDumpParseResult.Success>(PgpMemoryDumpParser.parse(result.copyBytes().decodeToString())).image
+        assertContentEquals(before, image.segments.flatMap { it.copyBytes().toList() }.toByteArray())
+        assertContentEquals(before, core.memorySnapshot(0, 65536).copyBytes())
+        val last = assertIs<PlayerProgramExportResult.Success>(player.exportAddressSpaceDump(0xffff, 0xffff))
+        val single = assertIs<PgpMemoryDumpParseResult.Success>(PgpMemoryDumpParser.parse(last.copyBytes().decodeToString())).image.segments.single()
+        assertEquals(0xffff, single.startAddress)
+        assertContentEquals(byteArrayOf(before.last()), single.copyBytes())
+        for ((start, end) in listOf(-1 to 0, 0 to 65536, 2 to 1)) {
+            assertEquals(PlayerProgramError.InvalidRange,
+                assertIs<PlayerProgramExportResult.Failure>(player.exportAddressSpaceDump(start, end)).error)
+        }
+        player.runner.run(0)
+        assertEquals(PlayerProgramError.NotPaused,
+            assertIs<PlayerProgramExportResult.Failure>(player.exportAddressSpaceDump(0, 0)).error)
+    }
+
     @Test fun basicRoundTripAndCheckDoesNotMutate() {
         val (player, core) = session()
         val before = core.memorySnapshot(0, 65536).copyBytes()

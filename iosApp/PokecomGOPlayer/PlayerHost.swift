@@ -115,6 +115,9 @@ final class PlayerHost: ObservableObject {
         return false
     }
     @Published private(set) var programSaving = false
+    @Published private(set) var programSaveBasic = true
+    @Published var dumpStart = ""
+    @Published var dumpEnd = ""
     @Published private(set) var programBusy = false
     @Published private(set) var programMessage = ""
     @Published private(set) var programIssue: ProgramIssue?
@@ -122,6 +125,12 @@ final class PlayerHost: ObservableObject {
     private var pendingProgramLoadMessage: String?
     private var programModalOpen: Bool {
         programPanelOpen || programLoadMessage != nil || pendingProgramLoadMessage != nil
+    }
+    var programExportName: String {
+        exportURL?.lastPathComponent ?? programFileName(basic: programSaveBasic)
+    }
+    private func programFileName(basic: Bool) -> String {
+        machine.id + "-program." + (basic ? "bas" : "dmp")
     }
     @Published private(set) var exportURL: URL?
     private var programSource: ApplePlayerFacade?
@@ -187,6 +196,15 @@ final class PlayerHost: ObservableObject {
     var selectedRomSourceName: String? {
         guard hasSavedRom else { return nil }
         return player?.machine.romId == selectedMachine.romId ? romSourceName : "登録済み"
+    }
+    func supportsRamUnlock(_ id: String) -> Bool {
+        ["pc-1250", "pc-1251", "pc-1255", "pc-1260", "pc-1261", "pc-1401", "pc-1402"].contains(id)
+    }
+    func ramUnlocked(_ id: String) -> Bool { supportsRamUnlock(id) && machinePreferences.ramUnlocked(id) }
+    func setRamUnlocked(_ id: String, _ enabled: Bool) {
+        guard !isBusy, preparedRom == nil, supportsRamUnlock(id) else { return }
+        objectWillChange.send()
+        machinePreferences.setRamUnlocked(id, enabled)
     }
     func selectedModel(_ seriesId: String) -> String { modelSelections[seriesId] ?? seriesId }
     func hasRom(_ id: String) -> Bool {
@@ -560,7 +578,7 @@ final class PlayerHost: ObservableObject {
                 self.isBusy = false
                 self.canCancelRomRead = false
                 do {
-                    self.preparedRom = try IosRomCodec.prepare(result.get(), machineId: self.selectedMachineId)
+                    self.preparedRom = try IosRomCodec.prepare(result.get(), machineId: self.selectedMachineId, ramUnlocked: self.ramUnlocked(self.selectedMachineId))
                     if self.hasSession || FileManager.default.fileExists(atPath: self.romStore.recordURL.path) {
                         self.awaitingReplacement = true
                         self.romMessage = "ROMを置換します。現在のRAMとロード済みプログラムは失われます。"
@@ -597,6 +615,8 @@ final class PlayerHost: ObservableObject {
                 case .success:
                     self.pause()
                     self.lcd = nil
+                    self.dumpStart = ""
+                    self.dumpEnd = ""
                     self.player = prepared.player
                     self.machinePreferences.runningMachineId = prepared.player.machine.id
                     self.applyPlaybackSettings()
@@ -683,8 +703,10 @@ final class PlayerHost: ObservableObject {
                 self.isBusy = false
                 do {
                     if let input = try result.get() {
-                        let restored = try IosRomCodec.prepare(input, machineId: id)
+                        let restored = try IosRomCodec.prepare(input, machineId: id, ramUnlocked: self.ramUnlocked(id))
                         self.lcd = nil
+                        self.dumpStart = ""
+                        self.dumpEnd = ""
                         self.player = restored.player
                         self.machinePreferences.runningMachineId = id
                         self.applyPlaybackSettings()
@@ -721,7 +743,7 @@ final class PlayerHost: ObservableObject {
 
     func enterPlayer() {
         guard !isBusy else { return }
-        if player?.machine.id == selectedMachineId { enterPlayerNow() }
+        if player?.machine.id == selectedMachineId && player?.ramUnlocked == ramUnlocked(selectedMachineId) { enterPlayerNow() }
         else if !hasSavedRom { openRomPicker() }
         else if hasSession { pendingMachineId = selectedMachineId }
         else { restoreRom(modelId: selectedMachineId, enter: true) }
@@ -761,14 +783,15 @@ final class PlayerHost: ObservableObject {
         else if status.runState == "PAUSED" { run() }
     }
 
-    func openProgram(save: Bool) {
+    func openProgram(save: Bool, basic: Bool = true) {
         guard !showHome, let player, !isBusy else { return }
         invalidateProgramOperation()
         programSource = player
         saveShouldResume = save && (status.runState == "RUNNING" || startRequested || pendingAutomaticStart)
         pause()
+        programSaveBasic = basic
         programSaving = save
-        programMessage = save ? "BASIC全体またはRAM範囲をセーブします。" : "bas／dmpを選択してください。"
+        programMessage = save ? (basic ? "現在のBASICを保存します。" : "現在のメモリをDMP形式で保存します。") : "bas／dmpを選択してください。"
         programIssue = nil
         programPanelOpen = true
         if !save { awaitingProgramSelection = true }
@@ -840,13 +863,13 @@ final class PlayerHost: ObservableObject {
             guard let first = IosProgramFiles.address(start), let last = IosProgramFiles.address(end), first <= last else {
                 programIssue = .file(.invalidAddress); return
             }
-            result = source.exportDump(start: first, end: last)
+            result = source.exportAddressSpaceDump(start: first, end: last)
         }
         if let error = result.error { programIssue = .shared(error); return }
         guard let content = result.doCopyBytes() else { return }
         let bytes = Data(kotlin: content)
         let write = writeProgram
-        let machineId = source.machine.id
+        let fileName = programFileName(basic: basic)
         programGeneration += 1
         let ticket = programGeneration
         programBusy = true
@@ -855,7 +878,7 @@ final class PlayerHost: ObservableObject {
             let output = Result { () -> URL in
                 let folder = FileManager.default.temporaryDirectory.appendingPathComponent("program-export-" + UUID().uuidString)
                 try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-                let url = folder.appendingPathComponent(machineId + "-program." + (basic ? "bas" : "dmp"))
+                let url = folder.appendingPathComponent(fileName)
                 do { try write(bytes, url) }
                 catch { try? FileManager.default.removeItem(at: folder); throw error }
                 return url
@@ -881,7 +904,8 @@ final class PlayerHost: ObservableObject {
         programDocument = nil
         programMessage = saved ? "ファイルへセーブしました。クラウド同期の完了を示すものではありません。" : "セーブをキャンセルしました。"
         cleanupProgramExport()
-        restoreSaveIntent()
+        if saved { closeProgram() }
+        else { restoreSaveIntent() }
     }
 
     func programDocumentDidDismiss() {
@@ -985,6 +1009,8 @@ final class IosMachinePreferences {
               AppleMachineCatalog.shared.models(id: seriesId).contains(where: { $0.id == id }) else { return seriesId }
         return id
     }
+    func ramUnlocked(_ id: String) -> Bool { defaults?.bool(forKey: "machine.ramUnlocked." + id) ?? false }
+    func setRamUnlocked(_ id: String, _ enabled: Bool) { defaults?.set(enabled, forKey: "machine.ramUnlocked." + id) }
     func select(_ id: String) {
         guard let machine = AppleMachineCatalog.shared.find(id: id) else { return }
         defaults?.set(id, forKey: "machine.selected")

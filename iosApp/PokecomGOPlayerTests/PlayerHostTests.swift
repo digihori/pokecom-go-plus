@@ -15,6 +15,47 @@ private final class ManualFrames: PlayerFrameDriver {
 
 @MainActor
 final class PlayerHostTests: XCTestCase {
+    func testRamUnlockPersistsPerModelAndRequiresRestartConfirmation() throws {
+        let domain = "pgp-ram-test-" + UUID().uuidString
+        let defaults = UserDefaults(suiteName: domain)!
+        defer { defaults.removePersistentDomain(forName: domain) }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let preferences = IosMachinePreferences(defaults: defaults)
+        preferences.select("pc-1250")
+        let input = try IosRomCodec.read(bytes: Data(repeating: 0x4d, count: 0x8000), name: "synthetic.bin")
+        let prepared = try IosRomCodec.prepare(input, machineId: "pc-1250")
+        let store = IosRomStore(root: root, machineId: "pc-1250")
+        try store.install(archive: prepared.archive, sourceName: "synthetic.bin")
+        let host = PlayerHost(player: prepared.player, frames: ManualFrames(), romStore: store,
+                              startsAtHome: true, machinePreferences: preferences)
+        XCTAssertFalse(host.ramUnlocked("pc-1250"))
+        host.setRamUnlocked("pc-1250", true)
+        XCTAssertTrue(IosMachinePreferences(defaults: defaults).ramUnlocked("pc-1250"))
+        XCTAssertFalse(host.ramUnlocked("pc-1251"))
+        host.setRamUnlocked("pc-1245", true)
+        XCTAssertFalse(host.ramUnlocked("pc-1245"))
+        XCTAssertFalse(prepared.player.ramUnlocked)
+        host.enterPlayer()
+        XCTAssertEqual(host.pendingMachineId, "pc-1250")
+        host.cancelMachineSelection()
+        XCTAssertTrue(host.showHome)
+        XCTAssertFalse(prepared.player.ramUnlocked)
+        host.enterPlayer(); host.confirmMachineSelection()
+        waitUntil { !host.isBusy }
+        XCTAssertFalse(host.showHome)
+        let unlocked = try IosRomCodec.prepare(input, machineId: "pc-1250", ramUnlocked: true).player
+        XCTAssertTrue(unlocked.ramUnlocked)
+        XCTAssertEqual(unlocked.machine.id, "pc-1250")
+        host.returnHome()
+        host.enterPlayer()
+        XCTAssertNil(host.pendingMachineId)
+        host.returnHome()
+        host.setRamUnlocked("pc-1250", false)
+        host.enterPlayer()
+        XCTAssertEqual(host.pendingMachineId, "pc-1250")
+    }
+
     func testHomeLayoutDefaultsPersistsAndKeepsModelSelectionIndependent() {
         let domain = "pgp-home-test-" + UUID().uuidString
         let defaults = UserDefaults(suiteName: domain)!
@@ -510,7 +551,7 @@ final class PlayerHostTests: XCTestCase {
                 view.update(lcd: player.snapshot().display, mode: .fullDevice, operatingMode: mode, pressedKeys: [], inputEpoch: 0, active: true)
                 view.layoutIfNeeded()
                 let elements = try XCTUnwrap(view.accessibilityElements as? [UIAccessibilityElement])
-                let names = id == "pc-1245" ? ["RUN", "PRO"] : ["RUN", "PRO", "RESERVE"]
+                let names = id.hasPrefix("pc-126") ? [] : (id == "pc-1245" ? ["RUN", "PRO"] : ["RUN", "PRO", "RESERVE"])
                 let regions = try names.map { name in try XCTUnwrap(elements.first { $0.accessibilityIdentifier == "symbol_" + name }) }
                 for (index, element) in regions.enumerated() {
                     XCTAssertEqual(element.accessibilityValue, names[index] == (mode == "RSV" ? "RESERVE" : mode) ? "点灯" : "消灯")
@@ -796,7 +837,8 @@ final class PlayerHostTests: XCTestCase {
         let display = try XCTUnwrap(elements.first { $0.accessibilityIdentifier == "lcd" })
         XCTAssertTrue(display.accessibilityLabel?.contains("24桁×2行") == true)
         XCTAssertTrue(view.bounds.contains(display.accessibilityFrameInContainerSpace))
-        XCTAssertEqual(elements.first { $0.accessibilityIdentifier == "symbol_RESERVE" }?.accessibilityLabel, "RSV")
+        XCTAssertNil(elements.first { $0.accessibilityIdentifier == "symbol_RESERVE" })
+        XCTAssertEqual(elements.first { $0.accessibilityIdentifier == "symbol_UNLABELLED" }?.accessibilityLabel, "無名シンボル")
         XCTAssertEqual(elements.first { $0.accessibilityIdentifier == "symbol_SMALL" }?.accessibilityLabel, "SML")
         XCTAssertEqual(elements.filter { $0.accessibilityTraits.contains(.button) }.count, 52)
         view.update(lcd: lcd, mode: .controllerDisplay, operatingMode: "RUN", pressedKeys: [], inputEpoch: 1, active: true)
@@ -1185,6 +1227,29 @@ final class PlayerHostTests: XCTestCase {
         return PlayerHost(player: player, frames: frames, romStore: IosRomStore(root: root))
     }
 
+    func testMemorySaveAllowsROMAndRetainsAddressesOnClose() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let host = try programHost(root, frames: ManualFrames())
+        host.setActive(true)
+        host.openProgram(save: true, basic: false)
+        XCTAssertFalse(host.programSaveBasic)
+        XCTAssertEqual(host.programExportName, "pc-1245-program.dmp")
+        host.dumpStart = "0000"
+        host.dumpEnd = "000F"
+        host.prepareProgramExport(basic: false, start: host.dumpStart, end: host.dumpEnd)
+        waitUntil { !host.programBusy }
+        XCTAssertNil(host.programIssue)
+        let url = try XCTUnwrap(host.exportURL)
+        XCTAssertTrue(try String(contentsOf: url, encoding: .utf8).contains("0000"))
+        host.finishProgramExport(saved: false)
+        host.closeProgram()
+        host.openProgram(save: true, basic: false)
+        XCTAssertEqual(host.dumpStart, "0000")
+        XCTAssertEqual(host.dumpEnd, "000F")
+        host.closeProgram()
+    }
+
     func testProgramRoundTripFailuresAndSaveResumeIntent() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -1210,6 +1275,9 @@ final class PlayerHostTests: XCTestCase {
         let saved = root.appendingPathComponent("saved.bas")
         try FileManager.default.copyItem(at: output, to: saved)
         host.finishProgramExport(saved: true)
+        XCTAssertFalse(host.programPanelOpen)
+        host.programDocumentDidDismiss()
+        XCTAssertFalse(host.programPanelOpen)
         XCTAssertFalse(FileManager.default.fileExists(atPath: output.path))
         frames.send(10_000_000)
         XCTAssertEqual(host.status.runState, "RUNNING")
@@ -1328,6 +1396,8 @@ final class PlayerHostTests: XCTestCase {
         XCTAssertNotEqual(next, url)
         host.finishProgramExport(saved: true)
         host.programDocumentDidDismiss()
+        XCTAssertFalse(host.programPanelOpen)
+        XCTAssertNil(host.exportURL)
         XCTAssertTrue(host.programMessage.contains("ファイルへセーブしました"))
         host.closeProgram()
     }
@@ -1791,7 +1861,32 @@ final class PlayerExternalInputTests: XCTestCase {
         XCTAssertTrue(host.pressedKeys.isEmpty)
     }
 
-    func testSingleSelectionNoSilentHandoffUnsupportedAndAnalogIgnored() {
+    func testAxesShareDpadBindingsAndReleaseOnDisconnect() {
+        let input = IosPlayerInput()
+        let controller = GCController.withExtendedGamepad()
+        input.attachControllers([controller])
+        input.bind("UP", to: "A")
+        input.bind("RIGHT_STICK_RIGHT", to: "B")
+        input.bind("L2", to: "C")
+        input.bind("R2", to: "D")
+        input.setEnabled(true)
+        let (host, _) = running(input)
+        let pad = controller.extendedGamepad!
+        pad.leftThumbstick.setValueForXAxis(0, yAxis: 1)
+        pad.rightThumbstick.setValueForXAxis(1, yAxis: 0.75)
+        pad.leftTrigger.setValue(0.8)
+        pad.rightTrigger.setValue(0.8)
+        input.controllerChanged(controller)
+        XCTAssertEqual(host.pressedKeys, ["A", "B", "C", "D"])
+        pad.dpad.setValueForXAxis(0, yAxis: 1)
+        pad.leftThumbstick.setValueForXAxis(0, yAxis: 0)
+        input.controllerChanged(controller)
+        XCTAssertEqual(host.pressedKeys, ["A", "B", "C", "D"])
+        input.attachControllers([])
+        XCTAssertTrue(host.pressedKeys.isEmpty)
+    }
+
+    func testSingleSelectionNoSilentHandoffAndUnsupportedBindings() {
         let input = IosPlayerInput(); let first = GCController.withExtendedGamepad(); let second = GCController.withExtendedGamepad()
         input.attachControllers([first, second])
         XCTAssertNil(input.selectedId)

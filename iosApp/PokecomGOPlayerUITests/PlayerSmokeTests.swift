@@ -6,6 +6,53 @@ final class PlayerSmokeTests: XCTestCase {
         continueAfterFailure = false
     }
 
+    func testMemorySaveShowsNameAndClosesAfterSuccessfulExport() {
+        let app = launchProbe("--picker-probe")
+        playerAction(app, "プログラム", "マシン語を保存")
+        expectLabel(app.staticTexts["programFileName"], contains: "pc-1245-program.dmp")
+        for key in ["C", "5", "0", "0", "C", "5", "0", "F"] { app.buttons["hex-" + key].tap() }
+        app.buttons["exportProgram"].tap()
+        saveLocalExport(app)
+        XCTAssertTrue(app.buttons["runState"].waitForExistence(timeout: 10))
+        let closed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.buttons["exportProgram"])
+        XCTAssertEqual(XCTWaiter.wait(for: [closed], timeout: 10), .completed)
+        playerAction(app, "プログラム", "マシン語を保存")
+        XCTAssertTrue(app.buttons["dumpStart"].label.contains("C500"))
+        XCTAssertTrue(app.buttons["dumpEnd"].label.contains("C50F"))
+        app.buttons["キャンセル"].tap()
+    }
+
+    func testMemorySaveHexPadRetainsRangeAndKeepsLandscape() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--series-probe"]
+        app.launchEnvironment["PGP_SERIES_PROBE_ID"] = UUID().uuidString
+        XCUIDevice.shared.orientation = .landscapeLeft
+        app.launch()
+        app.buttons["playPC1245"].tap()
+        playerAction(app, "プログラム", "マシン語を保存")
+        XCTAssertTrue(app.buttons["dumpStart"].waitForExistence(timeout: 10))
+        expectOrientation(app, portrait: false)
+        XCTAssertEqual(app.keyboards.count, 0)
+        for key in ["C", "5", "0", "0", "C", "5", "F", "F"] { app.buttons["hex-" + key].tap() }
+        XCTAssertTrue(app.buttons["dumpStart"].label.contains("C500"))
+        XCTAssertTrue(app.buttons["dumpEnd"].label.contains("C5FF"))
+        XCTAssertTrue(app.buttons["exportProgram"].isEnabled)
+        attachScreen("Memory save landscape with fixed actions")
+        app.buttons["キャンセル"].tap()
+        playerAction(app, "プログラム", "マシン語を保存")
+        XCTAssertTrue(app.buttons["dumpStart"].label.contains("C500"))
+        XCTAssertTrue(app.buttons["dumpEnd"].label.contains("C5FF"))
+        app.buttons["dumpStart"].tap()
+        app.buttons["クリア"].tap()
+        app.buttons["dumpEnd"].tap()
+        app.buttons["クリア"].tap()
+        for key in ["C", "6", "F", "F", "C", "6", "0", "0"] { app.buttons["hex-" + key].tap() }
+        XCTAssertTrue(app.buttons["dumpStart"].label.contains("C600"))
+        XCTAssertTrue(app.buttons["dumpEnd"].label.contains("C6FF"))
+        XCTAssertTrue(app.buttons["exportProgram"].isHittable)
+        app.buttons["キャンセル"].tap()
+    }
+
     func testHomePortraitTilesListPersistenceAndLandscapeOnlyPlayer() {
         let app = XCUIApplication()
         app.launchArguments = ["--series-probe"]
@@ -42,7 +89,7 @@ final class PlayerSmokeTests: XCTestCase {
         expectOrientation(app, portrait: false)
         rotateAndSettle(.landscapeRight); expectOrientation(app, portrait: false)
         rotateAndSettle(.portrait); expectOrientation(app, portrait: false)
-        playerAction(app, "プログラム", "セーブ")
+        playerAction(app, "プログラム", "BASICを保存")
         expectOrientation(app, portrait: true)
         attachScreen("Program panel portrait from landscape player")
         app.buttons["閉じる"].tap(); expectOrientation(app, portrait: false)
@@ -200,17 +247,17 @@ final class PlayerSmokeTests: XCTestCase {
         XCTAssertFalse(app.buttons["ファイルを選択"].exists)
         attachScreen("Compact program load completion")
         app.alerts["ロード完了"].buttons["閉じる"].tap(); waitFor("RUNNING", in: app)
-        playerAction(app, "プログラム", "セーブ")
+        playerAction(app, "プログラム", "BASICを保存")
         app.buttons["exportProgram"].tap()
         cancelPicker(app)
         expectLabel(app.staticTexts["programMessage"], contains: "セーブをキャンセル")
         app.buttons["閉じる"].tap(); waitFor("RUNNING", in: app)
         app.buttons["runState"].tap(); waitFor("PAUSED", in: app)
-        playerAction(app, "プログラム", "セーブ")
+        playerAction(app, "プログラム", "BASICを保存")
         app.buttons["exportProgram"].tap()
         saveLocalExport(app)
-        expectLabel(app.staticTexts["programMessage"], contains: "セーブしました")
-        app.buttons["閉じる"].tap(); waitFor("PAUSED", in: app)
+        waitFor("PAUSED", in: app)
+        XCTAssertFalse(app.buttons["exportProgram"].exists)
         playerAction(app, "プログラム", "ロード")
         localFile(app, "pc-1245-program.bas").tap()
         XCTAssertTrue(app.alerts["ロード完了"].waitForExistence(timeout: 10))
@@ -224,13 +271,13 @@ final class PlayerSmokeTests: XCTestCase {
         XCTAssertFalse(app.buttons["ファイルを選択"].exists)
         app.alerts["ロード完了"].buttons["閉じる"].tap(); waitFor("RUNNING", in: app)
         app.buttons["runState"].tap(); waitFor("PAUSED", in: app)
-        playerAction(app, "プログラム", "セーブ")
-        app.buttons["ダンプ"].tap()
-        XCTAssertTrue(app.textFields["dumpStart"].exists)
+        playerAction(app, "プログラム", "マシン語を保存")
+        XCTAssertTrue(app.buttons["dumpStart"].exists)
+        for key in ["C", "5", "0", "0", "C", "5", "F", "F"] { app.buttons["hex-" + key].tap() }
         app.buttons["exportProgram"].tap()
         saveLocalExport(app)
-        expectLabel(app.staticTexts["programMessage"], contains: "セーブしました")
-        app.buttons["閉じる"].tap(); waitFor("PAUSED", in: app)
+        waitFor("PAUSED", in: app)
+        XCTAssertFalse(app.buttons["exportProgram"].exists)
         playerAction(app, "プログラム", "ロード")
         localFile(app, "pc-1245-program.dmp").tap()
         XCTAssertTrue(app.alerts["ロード完了"].waitForExistence(timeout: 10))
@@ -663,7 +710,7 @@ final class PlayerSmokeTests: XCTestCase {
         XCTAssertTrue(app.buttons["romImportManager"].waitForExistence(timeout: 5))
     }
     private func saveLocalExport(_ app: XCUIApplication) {
-        let save = app.buttons.matching(NSPredicate(format: "label IN %@", ["Export", "Save", "書き出す", "保存"])).firstMatch
+        let save = app.buttons.matching(NSPredicate(format: "label IN %@ AND identifier != %@", ["Export", "Save", "書き出す", "保存"], "exportProgram")).firstMatch
         XCTAssertTrue(save.waitForExistence(timeout: 10), app.debugDescription)
         let fixture = app.cells.matching(NSPredicate(format: "label CONTAINS %@", "picker-test.bas")).firstMatch
         // iOS 18.5 may show Documents while Save remains disabled until a

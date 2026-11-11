@@ -102,7 +102,7 @@ class GamepadProbeActivity : Activity() {
     override fun dump(prefix: String, fd: FileDescriptor?, writer: PrintWriter, args: Array<out String>?) {
         if (args?.contains("--gamepad-probe") == true) {
             writer.println("${prefix}machine=${player.machineId.value} resumed=$resumed focus=$focused modal=$modal enabled=${pad.settings.enabled}")
-            writer.println("${prefix}devices=${pad.devices.map { it.id }} selected=${pad.selectedId} available=${pad.available.joinToString { it.name }}")
+            writer.println("${prefix}devices=${pad.devices.map { it.id }} available=${pad.available.joinToString { it.name }}")
             writer.println("${prefix}pressed=${pad.pressed.joinToString { it.name }} held=${PocketKey.entries.filter(owners::isHeld).joinToString { it.name }} downs=$downs ups=$ups accepted=$accepted")
             writer.println("${prefix}keyEvents=$keyEvents lastKey=$lastKey")
             return

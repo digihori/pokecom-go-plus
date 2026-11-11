@@ -3,7 +3,7 @@ package com.digihori.pgp.player.skin
 import com.digihori.pgp.core.api.DisplaySymbol
 import com.digihori.pgp.core.rom.MachineId
 
-/** Bundled image key geometry matches PC-1251; the two-line LCD/status placement awaits review. */
+/** Two-line LCD layout follows the supplied PC-1261 panel illustration. */
 internal object Pc1261Skin {
     val definition = Pc1251Skin.definition.copy(
         id = PlayerSkinCatalog.PC1261_SKIN_ID,
@@ -12,23 +12,26 @@ internal object Pc1261Skin {
         fullDeviceRegion = SkinRect(0f, 0f, 1206f, 600f),
         playableRegion = SkinRect(0f, 0f, 1206f, 600f),
         landscapeRegion = SkinRect(0f, 0f, 1206f, 600f),
-        lcdPanelRegion = SkinRect(49f, 46f, 1106f, 164f),
+        controllerDisplayRegion = SkinRect(30f, 26f, 1146f, 204f),
+        lcdPanelRegion = SkinRect(49f, 41f, 1106f, 163f),
         // 143 columns and 15 rows include one dot of spacing between cells/lines.
-        lcdContentRegion = SkinRect(70f, 73.5f, 1072.5f, 112.5f),
+        // Equal gaps above the dot area and below it, up to the segment top (185).
+        lcdContentRegion = SkinRect(125f, 59.75f, 1015.3f, 106.5f),
         statusRegions = listOf(
-            DisplaySymbol.BUSY to SkinRect(70f, 49f, 70f, 24f),
-            DisplaySymbol.DEF to SkinRect(147f, 49f, 56f, 24f),
-            DisplaySymbol.SHIFT to SkinRect(209f, 49f, 90f, 24f),
-            DisplaySymbol.SMALL to SkinRect(352f, 49f, 56f, 24f),
-            DisplaySymbol.KANA to SkinRect(414f, 49f, 66f, 24f),
-            DisplaySymbol.RUN to SkinRect(70f, 186f, 60f, 24f),
-            DisplaySymbol.PRO to SkinRect(135f, 186f, 60f, 24f),
-            DisplaySymbol.RESERVE to SkinRect(200f, 186f, 60f, 24f),
-            DisplaySymbol.PRINT to SkinRect(352f, 186f, 90f, 24f),
-            DisplaySymbol.DEG to SkinRect(453f, 186f, 48f, 24f),
-            DisplaySymbol.RAD to SkinRect(501f, 186f, 48f, 24f),
-            DisplaySymbol.ERROR to SkinRect(577f, 186f, 105f, 24f),
-        ).map { (symbol, bounds) -> SkinStatusRegion(symbol, bounds) },
+            SkinStatusRegion(DisplaySymbol.KANA, SkinRect(57f, 48f, 60f, 22f)),
+            SkinStatusRegion(DisplaySymbol.SMALL, SkinRect(57f, 82f, 60f, 22f)),
+            SkinStatusRegion(DisplaySymbol.SHIFT, SkinRect(57f, 116f, 60f, 22f)),
+            SkinStatusRegion(DisplaySymbol.DEF, SkinRect(57f, 150f, 60f, 22f)),
+        ) + listOf(
+            DisplaySymbol.BUSY to 135f,
+            DisplaySymbol.PRINT to 248f,
+            DisplaySymbol.DEG to 338f,
+            DisplaySymbol.RAD to 425f,
+            DisplaySymbol.ERROR to 642f,
+            DisplaySymbol.UNLABELLED to 725f,
+        ).map { (symbol, x) ->
+            SkinStatusRegion(symbol, SkinRect(x, 185f, 28f, 10f), SkinStatusStyle.RECTANGLE)
+        },
         operatingModeRegion = null,
 
     )

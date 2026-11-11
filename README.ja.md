@@ -68,7 +68,7 @@ WindowsではROM起動・キー・BASIC・音声、Linux x86_64ではROM起動�
 - `.dmp`形式によるマシン語データの読み書き
 - 外部エディタ向け複数ソースプロジェクトの作成、変更検知、Build & Load
 - LCD表示、CPU状態表示、サウンド出力
-- 実機RAM容量と拡張RAMモードの切り替え
+- 開発版：125x／126x／1401系のRAM構成を実機準拠／制限解除で切り替え
 - File／Project／Program／Emulator／Debugに分けたメニューバー
 - 機種別ROM Library、メイン画面のProjectツリー、独立Debuggerウィンドウ
 
@@ -261,12 +261,24 @@ PC-1261／1350／1401が32 KiB、PC-1360／1360Kが128 KiB（bank 0〜7の順に
 初回ビルドではGradle、Kotlin/Native、Compose等をダウンロードするため、回線環境によっては
 数分かかり、数百MB以上のディスク領域を使用する。2回目以降はローカルキャッシュを再利用する。
 
+### Studio 1.1.2
+
+PC-1251・1261・1401系の系列別RAM設定を改善したStudio 1.1.2を正式公開しました（Latest）。
+[Studio 1.1.2のダウンロード](https://github.com/digihori/pokecom-go-plus/releases/tag/v1.1.2)。
+[リリースノート](docs/releases/notes/RELEASE_NOTES_STUDIO_1.1.2.md) ·
+[公開チェックリスト](docs/releases/checklists/RELEASE_CHECKLIST_STUDIO_1.1.2.md)。
+Playerのストア公開は別途実施します。
+
 ### 1.1.0の公開状況
 
 Studio 1.1.0を公開しました。Android Player 1.1.0もGoogle Playで公開しました。
 [リリースノート](docs/releases/notes/RELEASE_NOTES_1.1.0.md)と
 [公開チェックリスト](docs/releases/checklists/RELEASE_CHECKLIST_1.1.0.md)で対象と残作業を管理します。
-iOSは0.7.0（build 3）が審査中のため提出済みビルドを維持し、次回1.1.0は別途準備します。
+Playerの次回1.1.2はAndroid／iOS向けに準備中です。
+[1.1.2リリースノート原稿](docs/releases/notes/RELEASE_NOTES_1.1.2.md)と
+[リリース引継ぎ](docs/releases/checklists/RELEASE_CHECKLIST_1.1.2.md)を参照してください。
+iOSのソース上の版数はまだ0.7.0（build 3）で、Archive前に予定の1.1.2 (13)へ更新します。
+提出済み0.7.0の審査資料は過去の記録として保持し、現在の審査・公開状態はここでは再確認していません。
 AndroidはGoogle Playで更新し、debug署名APKはCI成果物のみにします。
 
 ### Technical Preview配布物
@@ -348,7 +360,7 @@ Desktopアプリを起動する場合：
 
 RAM初期値・設定保存、入力欄からのキー入力漏れ、MCP承認ボタン、矢印刻印、Linux分類、
 特殊文字・円記号、Projectの機種制約を改善した。BASICの`>=`・`<=`・`<>`が欠落する不具合も修正済み。
-StudioのRAM設定は1250／1251／1255共通で、未設定なら実機RAMを使い、選択を次回起動時に復元する。
+開発版のStudioは125x／126x／1401系ごとにRAM構成を保存し、未設定なら実機準拠を使う。[制限解除の範囲](docs/reference/machines/STUDIO_RAM_CONFIGURATION.md)は公開済み1.1.0の拡張RAMと異なる。
 Projectを開いても機種・ROMは切り替えず、Buildは現在の機種を使用する。SessionがなければManifest機種を使う。
 [修正・検証記録](docs/development/planning/NEXT_RELEASE_FIXES.md)を参照。公開済み1.0.0へ自動反映されるものではない。
 
@@ -363,7 +375,7 @@ Projectを開いても機種・ROMは切り替えず、Buildは現在の機種�
   ARM64 Linuxの配布物はまだ用意していない。公開済み1.0.0のメニュー分類は「その他」だが、次回更新向けの検証用DEBではDevelopment分類を確認済み。
 - ROM Importerの操作ガイドと、バンクROMを持つ機種の一括選択UIは暫定実装である。
 - サウンドには実機との波形差が残る可能性がある。Studio／Androidは現状を正式版の基準とし、iOSの音声改善は別途進める。
-- [1245／125x／126xのRAM仕様](docs/reference/machines/RAM_1245_1261.md)とRAM設定別のMEM値を確認済み。1250／1251／1255の実機RAMでは機種別の容量、拡張RAMでは1255相当の容量・ミラー構成になる。
+- [1245／125x／126xのRAM仕様](docs/reference/machines/RAM_1245_1261.md)とRAM設定別のMEM値を確認済み。旧拡張RAMのMEM値は過去の検証記録として保持し、開発版の制限解除と区別する。
 - PlayerはAndroid／iPhoneとも上記14モデルに対応する。機種・端末・ROM版別の確認範囲は[Android受入れ](docs/development/ANDROID_SERIES_PROGRESS.md)・[iOS受入れ](docs/development/IOS_MACHINE_SUPPORT_STEP8.md)を参照。セーブステートは未実装。情報画面は静的同梱。Androidのプライバシーポリシーは適用済み。iPhone用は[日本語原稿](docs/guides/PLAYER_PRIVACY_POLICY_IOS.md)・[英語原稿](docs/guides/PLAYER_PRIVACY_POLICY_IOS.en.md)を用意し、[公開用HTML](docs/player/README.md#ios-privacy-policy)は2026-10-25にPages公開・本文一致を確認済み。
 
 公開済み各版の説明と過去の確認記録は[ドキュメント目次](docs/README.md#リリース情報)を参照する。

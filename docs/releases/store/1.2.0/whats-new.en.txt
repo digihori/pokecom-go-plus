@@ -1,0 +1,2 @@
+Map both analog sticks and L1, L2, R1, and R2 on your gamepad.
+On Android, use multiple gamepads at once. This update also fixes sound output with some Bluetooth headphones.

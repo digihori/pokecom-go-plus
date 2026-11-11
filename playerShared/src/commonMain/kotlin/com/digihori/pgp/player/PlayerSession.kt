@@ -3,7 +3,7 @@ package com.digihori.pgp.player
 import com.digihori.pgp.core.api.CreateSessionError
 import com.digihori.pgp.core.api.CreateSessionResult
 import com.digihori.pgp.core.api.EmulatorConfiguration
-import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
+import com.digihori.pgp.core.api.RamMode
 import com.digihori.pgp.core.api.EmulatorFactory
 import com.digihori.pgp.core.api.EmulatorSession
 import com.digihori.pgp.core.api.InputResult
@@ -22,6 +22,7 @@ import com.digihori.pgp.core.rom.RomSet
 public class PlayerSession internal constructor(
     private val coreSession: EmulatorSession,
 ) {
+    public val ramMode: RamMode = coreSession.memoryLayout.ramMode
     public val runner: PlayerRunner = PlayerRunner(coreSession)
     private val programIo = PlayerProgramIo(coreSession, runner)
 
@@ -30,6 +31,10 @@ public class PlayerSession internal constructor(
     public fun exportBasic(): PlayerProgramExportResult = programIo.exportBasic()
     public fun exportMemoryDump(startAddress: Int, endAddress: Int): PlayerProgramExportResult =
         programIo.exportDump(startAddress, endAddress)
+
+    /** Saves the visible address space, including ROM, I/O, aliases and the current bank. */
+    public fun exportAddressSpaceDump(startAddress: Int, endAddress: Int): PlayerProgramExportResult =
+        programIo.exportDump(startAddress, endAddress, includeAllMemory = true)
 
     public val machineId: MachineId get() = coreSession.machineId
     public val supportedOperatingModes: Set<OperatingMode> =
@@ -72,10 +77,9 @@ public class PlayerSession internal constructor(
 }
 
 public object PlayerSessionFactory {
-    public fun create(romSet: RomSet): PlayerSessionCreationResult =
+    public fun create(romSet: RomSet, ramMode: RamMode = RamMode.HARDWARE): PlayerSessionCreationResult =
         when (val created = EmulatorFactory.create(romSet.machineId, romSet, EmulatorConfiguration(
-            // Player always uses the selected model's standard RAM capacity.
-            pc1251FamilyMemoryMode = Pc1251FamilyMemoryMode.HARDWARE,
+            ramMode = ramMode,
         ))) {
             is CreateSessionResult.Success -> PlayerSessionCreationResult.Success(
                 PlayerSession(created.session),

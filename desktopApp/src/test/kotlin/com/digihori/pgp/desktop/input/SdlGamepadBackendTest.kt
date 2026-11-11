@@ -50,7 +50,13 @@ class SdlGamepadBackendTest {
                     SdlGamepadBackend.onNativeThread {
                         for (axis in 0 until 6) assertTrue(SDL_SetJoystickVirtualAxis(joystick, axis, Short.MAX_VALUE))
                     }
-                    assertTrue(backend.poll(id.toString()).buttons.isEmpty(), "Analog axes must not type keys")
+                    assertEquals(setOf(GamepadButton.RIGHT, GamepadButton.DOWN, GamepadButton.RIGHT_STICK_RIGHT, GamepadButton.L2, GamepadButton.R2),
+                        backend.poll(id.toString()).buttons)
+                    SdlGamepadBackend.onNativeThread {
+                        for (axis in 0 until 4) assertTrue(SDL_SetJoystickVirtualAxis(joystick, axis, 0))
+                        for (axis in 4 until 6) assertTrue(SDL_SetJoystickVirtualAxis(joystick, axis, Short.MIN_VALUE))
+                    }
+                    assertTrue(backend.poll(id.toString()).buttons.isEmpty(), "Neutral axes must release the directions and triggers")
                     SdlGamepadBackend.onNativeThread {
                         assertTrue(SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_DPAD_LEFT, true))
                         assertTrue(SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, true))
@@ -64,7 +70,7 @@ class SdlGamepadBackendTest {
                     SdlGamepadBackend.onNativeThread {
                         SdlGamepadBackend.buttonCodes.values.forEach { SDL_SetJoystickVirtualButton(joystick, it, true) }
                     }
-                    assertEquals(GamepadButton.entries.toSet(), backend.poll(id.toString()).buttons)
+                    assertEquals(SdlGamepadBackend.buttonCodes.keys, backend.poll(id.toString()).buttons)
                     SdlGamepadBackend.onNativeThread {
                         SDL_CloseJoystick(joystick)
                         joystick = 0L

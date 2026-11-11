@@ -10,6 +10,17 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class DesktopProjectWorkspaceCreatorTest {
+    @Test fun createsEmptyProjectWithSourceDirectory() {
+        val root = Files.createTempDirectory("pgp-empty-project-").toFile()
+        try {
+            val created = assertIs<DesktopProjectCreateResult.Success>(DesktopProjectWorkspaceCreator.create(
+                root, "Empty", MachineId("pc-1245"), emptySet()))
+            val opened = assertIs<DesktopProjectOpenResult.Success>(DesktopProjectWorkspaceLoader.open(created.manifestFile))
+            assertTrue(opened.workspace.sources.isEmpty())
+            assertTrue(java.io.File(created.manifestFile.parentFile, "src").isDirectory)
+        } finally { root.deleteRecursively() }
+    }
+
     @Test
     fun createsCombinedTemplateThatCanBeOpenedAndBuilt() {
         val root = Files.createTempDirectory("pgp-project-create-test")

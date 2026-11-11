@@ -7,7 +7,7 @@ import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245Display
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245Buzzer
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251Machine
-import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode
+import com.digihori.pgp.core.api.RamMode
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyModel
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251MemoryImageLoadResult
 import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251Display
@@ -54,15 +54,15 @@ public object EmulatorFactory {
                         val model = requireNotNull(Pc1251FamilyModel.fromMachineId(machineId))
                         Pc1251EmulatorSession(
                             machineId,
-                            Pc1251Machine(romSet, model, configuration.pc1251FamilyMemoryMode),
-                            MachineMemoryLayout(machineId, configuration.pc1251FamilyMemoryMode),
+                            Pc1251Machine(romSet, model, configuration.modeFor(machineId)),
+                            MachineMemoryLayout(machineId, configuration.modeFor(machineId)),
                         )
                     }
                     MachineFamily.PC_1470U -> Pc14xxEmulatorSession(Pc14xxMachine(romSet, Pc14xxModel.PC_1470U))
                     MachineFamily.PC_1460 -> Pc14xxEmulatorSession(Pc14xxMachine(romSet, Pc14xxModel.PC_1460))
                     MachineFamily.PC_1450 -> Pc14xxEmulatorSession(Pc14xxMachine(romSet, Pc14xxModel.PC_1450))
-                    MachineFamily.PC_1401 -> Pc1401EmulatorSession(Pc1401Machine(romSet, checkNotNull(Pc1401FamilyModel.fromMachineId(machineId))))
-                    MachineFamily.PC_1261 -> Pc1261EmulatorSession(Pc1261Machine(romSet, checkNotNull(Pc1261FamilyModel.fromMachineId(machineId))))
+                    MachineFamily.PC_1401 -> Pc1401EmulatorSession(Pc1401Machine(romSet, checkNotNull(Pc1401FamilyModel.fromMachineId(machineId)), configuration.modeFor(machineId)))
+                    MachineFamily.PC_1261 -> Pc1261EmulatorSession(Pc1261Machine(romSet, checkNotNull(Pc1261FamilyModel.fromMachineId(machineId)), configuration.modeFor(machineId)))
                     MachineFamily.PC_1350 -> Pc1350EmulatorSession(Pc1350Machine(romSet))
                     MachineFamily.PC_1360 -> Pc1360EmulatorSession(Pc1360Machine(romSet))
                 },
@@ -76,6 +76,7 @@ public object EmulatorFactory {
 }
 
 private class Pc1261EmulatorSession(private val machine: Pc1261Machine) : EmulatorSession {
+    override val memoryLayout = MachineMemoryLayout(machine.model.machineId, machine.ramMode)
     override val machineId: MachineId = machine.model.machineId
     private var status: ExecutionStatus = ExecutionStatus.Ready
     override fun reset() { machine.coldReset(); status = ExecutionStatus.Ready }
@@ -131,6 +132,7 @@ private class Pc1261EmulatorSession(private val machine: Pc1261Machine) : Emulat
                 if (state1 and 0x01 != 0) add(DisplaySymbol.DEG)
                 if (state1 and 0x02 != 0) add(DisplaySymbol.RAD)
                 if (state1 and 0x20 != 0) add(DisplaySymbol.ERROR)
+                if (state1 and 0x40 != 0) add(DisplaySymbol.UNLABELLED)
                 add(when (machine.keyboardState.operatingMode) {
                     OperatingMode.RUN -> DisplaySymbol.RUN
                     OperatingMode.PROGRAM -> DisplaySymbol.PRO
@@ -163,6 +165,7 @@ private class Pc1261EmulatorSession(private val machine: Pc1261Machine) : Emulat
 }
 
 private class Pc1401EmulatorSession(private val machine: Pc1401Machine) : EmulatorSession {
+    override val memoryLayout = MachineMemoryLayout(machine.model.machineId, machine.ramMode)
     override val machineId: MachineId = machine.model.machineId
     private var status: ExecutionStatus = ExecutionStatus.Ready
     override fun loadProgramImage(program: ByteArray?, image: AddressedMemoryImage?): ProgramImageLoadResult =
@@ -431,8 +434,12 @@ private class Pc1350EmulatorSession(
 }
 
 public data class EmulatorConfiguration(
-    public val pc1251FamilyMemoryMode: Pc1251FamilyMemoryMode = Pc1251FamilyMemoryMode.EXPANDED,
-)
+    public val ramMode: RamMode = RamMode.HARDWARE,
+    public val ramModes: Map<MachineFamily, RamMode> = emptyMap(),
+) {
+    public fun modeFor(machineId: MachineId): RamMode =
+        ramModes[MachineCatalog.require(machineId).family] ?: ramMode
+}
 
 private class Pc1251EmulatorSession(
     override val machineId: MachineId,

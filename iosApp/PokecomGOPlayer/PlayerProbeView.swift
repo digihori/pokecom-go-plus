@@ -46,8 +46,8 @@ struct PlayerProbeView: View {
             }
         }
         .sheet(isPresented: $controllerPanel) { ControllerSettingsPanel(input: host.input) }
-        .alert("機種を切り替えますか？", isPresented: Binding(get: { host.pendingMachineId != nil }, set: { if !$0 { host.cancelMachineSelection() } })) {
-            Button("切替", role: .destructive, action: host.confirmMachineSelection)
+        .alert(host.pendingMachineId == host.machine.id ? "RAM設定を適用して起動し直しますか？" : "機種を切り替えますか？", isPresented: Binding(get: { host.pendingMachineId != nil }, set: { if !$0 { host.cancelMachineSelection() } })) {
+            Button(host.pendingMachineId == host.machine.id ? "再起動" : "切替", role: .destructive, action: host.confirmMachineSelection)
             Button("キャンセル", role: .cancel, action: host.cancelMachineSelection)
         } message: { Text("現在のRAMとロード済みプログラムは失われます。登録ROMは保持します。") }
         .onChange(of: information) { _ in host.releaseAllKeys() }
@@ -105,7 +105,7 @@ struct PlayerProbeView: View {
     }
 
     private var machineScreenVisible: Bool {
-        !host.showHome && !host.romPanelOpen && !host.programPanelOpen &&
+        !host.showHome && !host.romPanelOpen && (!host.programPanelOpen || (host.programSaving && !host.programSaveBasic)) &&
             information == nil && playbackPanel == nil && !controllerPanel
     }
 
@@ -138,6 +138,18 @@ struct PlayerProbeView: View {
                     }
                 }.labelsHidden().accessibilityIdentifier("model-" + series.id)
             } else { Text(series.displayName).font(.headline) }
+            let model = host.selectedModel(series.id)
+            if host.supportsRamUnlock(model) {
+                Button {
+                    host.setRamUnlocked(model, !host.ramUnlocked(model))
+                } label: {
+                    Label("RAM制限解除", systemImage: host.ramUnlocked(model) ? "checkmark.square" : "square")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .padding(.vertical, 6)
+                }.buttonStyle(.plain)
+                    .accessibilityValue(host.ramUnlocked(model) ? "オン" : "オフ")
+                    .accessibilityIdentifier("ramUnlock-" + model)
+            }
             Text(host.hasRom(series.id) ? "登録済み" : "ROM未登録").font(.subheadline)
             if host.isRunningSeries(series.id) { Text("起動中：" + host.machine.displayName).font(.caption) }
         }
@@ -252,6 +264,7 @@ struct PlayerDocumentPicker: UIViewControllerRepresentable {
         let picker: UIDocumentPickerViewController
         if let exportURL {
             picker = UIDocumentPickerViewController(forExporting: [exportURL], asCopy: true)
+            picker.title = exportURL.lastPathComponent
         }
         else {
             picker = UIDocumentPickerViewController(forOpeningContentTypes: [.data], asCopy: true)
@@ -280,33 +293,63 @@ struct PlayerDocumentPicker: UIViewControllerRepresentable {
 
 private struct ProgramPanel: View {
     @ObservedObject var host: PlayerHost
-    @State private var basic = true
-    @State private var start = "C500"
-    @State private var end = "C5FF"
+    @State private var editingStart = true
     var body: some View {
         NavigationStack {
-            Form {
-                if let issue = host.programIssue { Text(issue.userMessage).foregroundStyle(.red).accessibilityIdentifier("programError") }
-                else { Text(host.programMessage).accessibilityIdentifier("programMessage") }
-                if host.programBusy { ProgressView() }
-                if host.programSaving {
-                    Picker("形式", selection: $basic) {
-                        Text("BASIC").tag(true)
-                        Text("ダンプ").tag(false)
-                    }.pickerStyle(.segmented)
-                    if !basic {
-                        TextField("開始（16進数）", text: $start).accessibilityIdentifier("dumpStart")
-                        TextField("終了（16進数）", text: $end).accessibilityIdentifier("dumpEnd")
-                        Text("終了アドレスを含むRAM範囲を保存します。")
+            VStack(spacing: 8) {
+                if host.programSaving && !host.programSaveBasic {
+                    ScrollView([.horizontal, .vertical]) {
+                        HStack(alignment: .top, spacing: 12) {
+                            VStack(spacing: 8) {
+                                addressButton("開始", value: host.dumpStart, active: editingStart, id: "dumpStart") { editingStart = true }
+                                addressButton("終了", value: host.dumpEnd, active: !editingStart, id: "dumpEnd") { editingStart = false }
+                                Text(rangeMessage).font(.caption)
+                                statusMessage.font(.caption)
+                            }.frame(width: 180)
+                            VStack(spacing: 4) {
+                                ForEach(["CDEF", "89AB", "4567", "0123"], id: \.self) { row in
+                                    HStack(spacing: 4) {
+                                        ForEach(Array(row), id: \.self) { key in
+                                            Button(String(key)) { append(key) }
+                                                .font(.system(.title3, design: .monospaced))
+                                                .frame(width: 44, height: 44)
+                                                .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                                                .accessibilityIdentifier("hex-" + String(key))
+                                        }
+                                    }
+                                }
+                            }
+                            VStack(spacing: 4) {
+                                Button("⌫") {
+                                    if editingStart { host.dumpStart = String(host.dumpStart.dropLast()) }
+                                    else { host.dumpEnd = String(host.dumpEnd.dropLast()) }
+                                }.accessibilityLabel("1文字削除")
+                                Button("クリア") { if editingStart { host.dumpStart = "" } else { host.dumpEnd = "" } }
+                            }.font(.caption).lineLimit(1).buttonStyle(.bordered).frame(width: 70)
+                        }.padding(8)
                     }
-                    Button("ファイルへセーブ") { host.prepareProgramExport(basic: basic, start: start, end: end) }
-                        .disabled(host.programBusy).accessibilityIdentifier("exportProgram")
-                } else if !host.programBusy {
-                    Button("ファイルを選択", action: host.chooseProgramFile)
+                } else {
+                    Form {
+                        statusMessage
+                        if !host.programSaving && !host.programBusy { Button("ファイルを選択", action: host.chooseProgramFile) }
+                    }
                 }
-            }.textInputAutocapitalization(.never).autocorrectionDisabled()
-                .navigationTitle(host.programSaving ? "セーブ" : "ロード").navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる", action: host.closeProgram) } }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if host.programSaving {
+                    HStack {
+                        Spacer()
+                        Button("キャンセル", action: host.closeProgram)
+                        Button("保存") { host.prepareProgramExport(basic: host.programSaveBasic, start: host.dumpStart, end: host.dumpEnd) }
+                            .disabled(host.programBusy || (!host.programSaveBasic && !validRange))
+                            .accessibilityIdentifier("exportProgram")
+                    }.padding(12).background(.bar)
+                }
+            }
+            .navigationTitle(host.programSaving ? (host.programSaveBasic ? "BASICを保存" : "マシン語を保存") : "ロード")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる", action: host.closeProgram) } }
+
         }
         .background(PanelAppearance { host.programPanelDidAppear() }.frame(width: 0, height: 0))
         .sheet(item: $host.programDocument, onDismiss: host.programDocumentDidDismiss) { document in
@@ -319,6 +362,40 @@ private struct ProgramPanel: View {
             }
         }
     }
+    private var validRange: Bool {
+        guard let start = IosProgramFiles.address(host.dumpStart), let end = IosProgramFiles.address(host.dumpEnd) else { return false }
+        return start <= end
+    }
+    private var rangeMessage: String {
+        guard validRange, let start = IosProgramFiles.address(host.dumpStart), let end = IosProgramFiles.address(host.dumpEnd) else { return "0000〜FFFF・開始≦終了" }
+        return "\(end - start + 1) bytes（終了を含む）"
+    }
+    @ViewBuilder private var statusMessage: some View {
+        if host.programSaving {
+            Text("ファイル名：" + host.programExportName)
+                .font(.caption).textSelection(.enabled).accessibilityIdentifier("programFileName")
+        }
+        if let issue = host.programIssue { Text(issue.userMessage).foregroundStyle(.red).accessibilityIdentifier("programError") }
+        else { Text(host.programMessage).accessibilityIdentifier("programMessage") }
+        if host.programBusy { ProgressView() }
+    }
+    private func addressButton(_ title: String, value: String, active: Bool, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Text(title)
+                Text(value + String(repeating: "_", count: max(0, 4 - value.count))).monospaced()
+            }.frame(maxWidth: .infinity, minHeight: 44)
+        }.buttonStyle(.bordered).tint(active ? .accentColor : .secondary)
+            .accessibilityIdentifier(id).accessibilityValue(active ? "入力中" : "")
+    }
+    private func append(_ key: Character) {
+        let current = editingStart ? host.dumpStart : host.dumpEnd
+        guard current.count < 4 else { return }
+        let next = current + String(key)
+        if editingStart { host.dumpStart = next } else { host.dumpEnd = next }
+        if next.count == 4 { editingStart.toggle() }
+    }
+
 }
 
 private extension ProgramIssue {
@@ -655,9 +732,13 @@ final class PlayerSkinView: UIView {
                                width: cellW * 0.8, height: cellH * 0.8))
             }
         }
-        let angleNames = ["DE", "G", "RAD"]
+        let angleNames = skin.id == "pc1261-default" ? [] : ["DE", "G", "RAD"]
         for region in skin.statusRegions where !angleNames.contains(region.symbol.name) {
             let on = lcd.enabled && lcd.symbols.contains(region.symbol)
+            if region.style == .rectangle {
+                if on { activeColor.setFill(); cg.fill(region.bounds.cgRect) }
+                continue
+            }
             if region.symbol == .s {
                 let rect = region.bounds.cgRect
                 let side = min(rect.width, rect.height)
@@ -669,7 +750,7 @@ final class PlayerSkinView: UIView {
                     .foregroundColor: panelColor]), in: square.insetBy(dx: side * 0.04, dy: side * 0.04), centered: true)
                 continue
             }
-            drawLabel(Self.symbolLabel(region.symbol), in: region.bounds.cgRect, on: on, alignEnd: region.symbol == .shift)
+            drawLabel(region.symbol == .kana ? "カナ" : Self.symbolLabel(region.symbol), in: region.bounds.cgRect, on: on, alignEnd: region.symbol == .shift && skin.id != "pc1261-default")
         }
         let angleRegions = angleNames.compactMap { name in skin.statusRegions.first { $0.symbol.name == name } }
         if let first = angleRegions.first {
@@ -702,6 +783,7 @@ final class PlayerSkinView: UIView {
         case .parentheses: return "( )"
         case .error: return "E"
         case .battery: return "BATT"
+        case .unlabelled: return "無名シンボル"
         default: return symbol.name
         }
     }
@@ -760,7 +842,7 @@ final class PlayerSkinView: UIView {
         for region in skin.statusRegions {
             let element = UIAccessibilityElement(accessibilityContainer: self)
             element.accessibilityTraits = .staticText
-            element.accessibilityLabel = Self.symbolLabel(region.symbol)
+            element.accessibilityLabel = region.symbol == .error && region.style == .rectangle ? "ERROR" : Self.symbolLabel(region.symbol)
             element.accessibilityIdentifier = "symbol_\(region.symbol.name)"
             element.accessibilityFrameInContainerSpace = screenRect(region.bounds)
             symbolElements[region.symbol.name] = element

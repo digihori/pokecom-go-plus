@@ -171,6 +171,8 @@ public enum class DisplaySymbol {
     HIRAGANA, KATAKANA,
     /** PC-1360K indicator printed as [S]. */
     S,
+    /** Unlabelled PC-1261 segment to the right of ERROR (0x207C bit 6). */
+    UNLABELLED,
 }
 
 public class DisplaySnapshot internal constructor(

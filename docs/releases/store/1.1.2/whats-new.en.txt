@@ -1,0 +1,6 @@
+• Added per-model RAM unlock settings for the PC-1251, PC-1261 and PC-1401 families.
+• Improved key placement for the PC-1245, PC-1251 and PC-1261 families.
+• Updated PC-1261 LCD text and symbol placement to better match the hardware.
+• Separated BASIC and machine-code saving, with a hexadecimal pad for selecting memory ranges.
+
+Save your programs to files before updating or changing RAM settings.

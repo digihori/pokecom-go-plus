@@ -2,6 +2,7 @@ package com.digihori.pgp.desktop.input
 
 import com.digihori.pgp.input.GamepadButton
 import com.digihori.pgp.input.GamepadDevice
+import com.digihori.pgp.input.GamepadAxes
 import com.digihori.pgp.input.SingleGamepadSelection
 import org.lwjgl.sdl.SDLGamepad.*
 import org.lwjgl.sdl.SDLInit.*
@@ -30,6 +31,7 @@ internal class SdlGamepadBackend(private val unnamedDeviceName: String = "Gamepa
     private var initialized = false
     private var handle = 0L
     private var openedId: String? = null
+    private val sticks = GamepadAxes()
     private val selection = SingleGamepadSelection()
 
     suspend fun poll(requestedId: String?): DesktopGamepadSnapshot = onNativeThread {
@@ -59,13 +61,22 @@ internal class SdlGamepadBackend(private val unnamedDeviceName: String = "Gamepa
                 openedId = selectedId
             }
         }
-        val available = if (handle == 0L) emptySet() else buttonCodes.filterValues {
-            SDL_GamepadHasButton(handle, it)
-        }.keys
+        val available = if (handle == 0L) emptySet() else buildSet {
+            addAll(buttonCodes.filterValues { SDL_GamepadHasButton(handle, it) }.keys)
+            for ((axis, directions) in axisButtons) {
+                if (SDL_GamepadHasAxis(handle, axis)) addAll(directions)
+            }
+        }
         val buttons = if (handle == 0L) emptySet() else buttonCodes.filterValues {
             SDL_GetGamepadButton(handle, it)
         }.keys
-        DesktopGamepadSnapshot(devices, selectedId, buttons, available)
+        fun axis(code: Int): Float = SDL_GetGamepadAxis(handle, code) / 32768f
+        val stickButtons = if (handle == 0L) emptySet() else sticks.update(
+            axis(SDL_GAMEPAD_AXIS_LEFTX), axis(SDL_GAMEPAD_AXIS_LEFTY),
+            axis(SDL_GAMEPAD_AXIS_RIGHTX), axis(SDL_GAMEPAD_AXIS_RIGHTY),
+            axis(SDL_GAMEPAD_AXIS_LEFT_TRIGGER), axis(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER),
+        )
+        DesktopGamepadSnapshot(devices, selectedId, buttons + stickButtons, available)
     }
 
     suspend fun close() = onNativeThread {
@@ -78,9 +89,19 @@ internal class SdlGamepadBackend(private val unnamedDeviceName: String = "Gamepa
         if (handle != 0L) SDL_CloseGamepad(handle)
         handle = 0L
         openedId = null
+        sticks.reset()
     }
 
     internal companion object {
+        private val axisButtons = mapOf(
+            SDL_GAMEPAD_AXIS_LEFT_TRIGGER to listOf(GamepadButton.L2),
+            SDL_GAMEPAD_AXIS_RIGHT_TRIGGER to listOf(GamepadButton.R2),
+            SDL_GAMEPAD_AXIS_LEFTX to listOf(GamepadButton.LEFT, GamepadButton.RIGHT),
+            SDL_GAMEPAD_AXIS_LEFTY to listOf(GamepadButton.UP, GamepadButton.DOWN),
+            SDL_GAMEPAD_AXIS_RIGHTX to listOf(GamepadButton.RIGHT_STICK_LEFT, GamepadButton.RIGHT_STICK_RIGHT),
+            SDL_GAMEPAD_AXIS_RIGHTY to listOf(GamepadButton.RIGHT_STICK_UP, GamepadButton.RIGHT_STICK_DOWN),
+        )
+
         val buttonCodes = mapOf(
             GamepadButton.UP to SDL_GAMEPAD_BUTTON_DPAD_UP,
             GamepadButton.DOWN to SDL_GAMEPAD_BUTTON_DPAD_DOWN,

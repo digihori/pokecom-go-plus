@@ -9,10 +9,10 @@ import com.digihori.pgp.desktop.runner.DesktopExecutionSpeed
 internal object DesktopUiPreferences {
     private val preferences = Preferences.userRoot().node("com/digihori/pgp/desktop/ui")
 
-    fun ramMode() = DesktopRamPreferences(preferences).load()
+    fun ramModes() = DesktopRamPreferences.FAMILIES.associateWith { DesktopRamPreferences(preferences).load(it) }
 
-    fun saveRamMode(value: com.digihori.pgp.core.emulator.machine.pc1251.Pc1251FamilyMemoryMode) {
-        DesktopRamPreferences(preferences).save(value)
+    fun saveRamMode(family: com.digihori.pgp.core.api.MachineFamily, value: com.digihori.pgp.core.api.RamMode) {
+        DesktopRamPreferences(preferences).save(value, family)
     }
 
     fun languagePreference(): StudioLanguagePreference = runCatching {
@@ -77,6 +77,11 @@ internal object DesktopUiPreferences {
     fun saveSourceInformationHeight(value: Float) {
         preferences.putFloat("sourceInformationHeightDp", value)
     }
+
+    fun consoleVisible(): Boolean = preferences.getBoolean("consoleVisible", false)
+    fun saveConsoleVisible(value: Boolean) { preferences.putBoolean("consoleVisible", value) }
+    fun consoleHeight(): Float = preferences.getFloat("consoleHeightDp", 200f).takeIf { it.isFinite() }?.coerceIn(96f, 800f) ?: 200f
+    fun saveConsoleHeight(value: Float) { if (value.isFinite()) preferences.putFloat("consoleHeightDp", value.coerceIn(96f, 800f)) }
 
     fun hostKeyInputMode(): HostKeyInputMode = runCatching {
         HostKeyInputMode.valueOf(preferences.get("hostKeyInputMode", HostKeyInputMode.LOGICAL.name))

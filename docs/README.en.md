@@ -80,8 +80,11 @@ Read the verification limits and distinguish current specifications from impleme
 [Downloads and published releases](https://github.com/digihori/pokecom-go-plus/releases).
 Each note describes its tag rather than the current development tree.
 
+Player 1.1.2 preparation (not published): [Draft release notes](releases/notes/RELEASE_NOTES_1.1.2.md) · [Handoff checklist](releases/checklists/RELEASE_CHECKLIST_1.1.2.md).
+
 | Tag | Notes |
 | --- | --- |
+| v1.1.2 (Studio) | [Release notes](releases/notes/RELEASE_NOTES_STUDIO_1.1.2.md) · [Checklist](releases/checklists/RELEASE_CHECKLIST_STUDIO_1.1.2.md) |
 | v1.1.0 (Studio / Android) | [Release notes](releases/notes/RELEASE_NOTES_1.1.0.md) · [Checklist](releases/checklists/RELEASE_CHECKLIST_1.1.0.md) |
 | v1.0.0 | [Release notes](releases/notes/RELEASE_NOTES_1.0.0.md) · [Checklist](releases/checklists/RELEASE_CHECKLIST_1.0.0.md) |
 | v0.7.0-alpha.1 | [Release notes](releases/notes/RELEASE_NOTES_0.7.0-alpha.1.md) · [Checklist](releases/checklists/RELEASE_CHECKLIST_0.7.0-alpha.1.md) |

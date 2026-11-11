@@ -51,9 +51,12 @@ public data class SkinKeyRegion(
     public val id: String = key.name,
 )
 
+public enum class SkinStatusStyle { LABEL, RECTANGLE }
+
 public data class SkinStatusRegion(
     public val symbol: DisplaySymbol,
     public val bounds: SkinRect,
+    public val style: SkinStatusStyle = SkinStatusStyle.LABEL,
 )
 
 /** Geometry only. Image loading and rendering remain platform responsibilities. */

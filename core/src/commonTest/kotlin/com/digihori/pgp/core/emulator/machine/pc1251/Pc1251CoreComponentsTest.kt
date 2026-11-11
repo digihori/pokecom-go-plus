@@ -1,5 +1,7 @@
 package com.digihori.pgp.core.emulator.machine.pc1251
 
+import com.digihori.pgp.core.api.RamMode
+
 import com.digihori.pgp.core.emulator.machine.pc1245.RomImportResult
 import com.digihori.pgp.core.rom.RomComponent
 import com.digihori.pgp.core.rom.RomRole
@@ -15,7 +17,7 @@ class Pc1251CoreComponentsTest {
     @Test
     fun loaderLayoutAgreesWithBusMapping() {
         for (model in Pc1251FamilyModel.entries) {
-            for (mode in Pc1251FamilyMemoryMode.entries) {
+            for (mode in RamMode.entries) {
                 val bus = Pc1251MemoryBus(romSet(machineId = model.machineId), model = model, memoryMode = mode)
                 val layout = MachineMemoryLayout(model.machineId, mode)
                 for (address in 0x8000..0xffff) {
@@ -77,7 +79,7 @@ class Pc1251CoreComponentsTest {
             val bus = Pc1251MemoryBus(
                 romSet(machineId = model.machineId),
                 model = model,
-                memoryMode = Pc1251FamilyMemoryMode.HARDWARE,
+                memoryMode = RamMode.HARDWARE,
             )
             unavailable?.let { bus.write(it, 0x55) }
             bus.write(start, 0x66)
@@ -88,11 +90,11 @@ class Pc1251CoreComponentsTest {
     }
 
     @Test
-    fun expandedMemoryModeGivesEveryFamilyModelThePc1255Range() {
+    fun unrestrictedMemoryModeMakesAdditionalRamWritable() {
         val bus = Pc1251MemoryBus(
             romSet(machineId = Pc1251FamilyModel.PC_1250.machineId),
             model = Pc1251FamilyModel.PC_1250,
-            memoryMode = Pc1251FamilyMemoryMode.EXPANDED,
+            memoryMode = RamMode.UNRESTRICTED,
         )
 
         bus.write(0xa000, 0x55)
@@ -122,7 +124,7 @@ class Pc1251CoreComponentsTest {
 
     @Test
     fun keepsTheB000PartialMirrorOnPc1251ButNotPc1255() {
-        val pc1251 = Pc1251MemoryBus(romSet(), memoryMode = Pc1251FamilyMemoryMode.HARDWARE)
+        val pc1251 = Pc1251MemoryBus(romSet(), memoryMode = RamMode.HARDWARE)
         pc1251.write(0xb000, 0x12)
         assertEquals(0x12, pc1251.read(0xb800))
 
@@ -141,7 +143,7 @@ class Pc1251CoreComponentsTest {
         val pc1250 = Pc1251MemoryBus(
             romSet(machineId = Pc1251FamilyModel.PC_1250.machineId),
             model = Pc1251FamilyModel.PC_1250,
-            memoryMode = Pc1251FamilyMemoryMode.HARDWARE,
+            memoryMode = RamMode.HARDWARE,
         )
 
         pc1250.write(0xc000, 0x12)
@@ -155,7 +157,7 @@ class Pc1251CoreComponentsTest {
 
     @Test
     fun hardwarePc1251HasThreeAliasesOfTheLowerTwoKiB() {
-        val bus = Pc1251MemoryBus(romSet(), memoryMode = Pc1251FamilyMemoryMode.HARDWARE)
+        val bus = Pc1251MemoryBus(romSet(), memoryMode = RamMode.HARDWARE)
         for (offset in 0..0x7ff) {
             bus.write(0xb800 + offset, offset and 0xff)
             for (base in listOf(0x9000, 0x9800, 0xb000)) {

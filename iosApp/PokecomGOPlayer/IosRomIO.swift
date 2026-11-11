@@ -190,7 +190,7 @@ enum IosRomCodec {
         return ReadRom(sourceName: name, legacy: nil, manifest: manifest, files: listed,
                        unlistedCount: files.keys.filter { $0 != "manifest.json" && !keys.contains($0) }.count)
     }
-    @MainActor static func prepare(_ input: ReadRom, machineId: String = AppleMachineCatalog.shared.defaultMachine.id) throws -> PreparedRom {
+    @MainActor static func prepare(_ input: ReadRom, machineId: String = AppleMachineCatalog.shared.defaultMachine.id, ramUnlocked: Bool = false) throws -> PreparedRom {
         let prepared: AppleRomPreparation
         if let legacy = input.legacy { prepared = ApplePlayerFactory.shared.prepareLegacyForMachine(bytes: legacy.kotlinBytes, machineId: machineId) }
         else if let manifest = input.manifest {
@@ -201,7 +201,7 @@ enum IosRomCodec {
             let entries = input.files.map { AppleRomArchiveEntry(path: $0.key, sha256: $0.value.sha256, bytes: $0.value.kotlinBytes) }
             prepared = ApplePlayerFactory.shared.preparePackageForMachine(manifest: native, entries: entries, machineId: machineId)
         } else { throw RomFailure(message: "ROMを読み込めませんでした。") }
-        guard let player = prepared.player, let machineId = prepared.machineId else {
+        guard let player = prepared.playerWithRamUnlock(enabled: ramUnlocked), let machineId = prepared.machineId else {
             throw RomFailure(message: prepared.errorMessage ?? "Sessionを生成できませんでした。")
         }
         let components = prepared.components.map { ($0.id, $0.role, Data(kotlin: $0.doCopyBytes())) }

@@ -207,7 +207,7 @@ internal fun DesktopAssemblySourceResult.renderMemorySummary(layout: MachineMemo
 
 internal fun MachineMemoryLayout.renderMemoryLayout(strings: StudioStrings? = null): String = buildString {
     append(machineId.value)
-    if (com.digihori.pgp.core.api.MachineCatalog.require(machineId).supportsConfigurableRam) append(" — ").append(pc1251MemoryMode)
+    if (com.digihori.pgp.core.api.MachineCatalog.require(machineId).supportsConfigurableRam) append(" — ").append(ramMode)
     append('\n')
     var start = 0
     while (start <= 0xffff) {
