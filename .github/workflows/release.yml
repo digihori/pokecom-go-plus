@@ -2,6 +2,11 @@ name: Build Release Packages
 
 on:
   workflow_dispatch:
+    inputs:
+      ai_preview:
+        description: Build a signed macOS AI Preview artifact without a release
+        type: boolean
+        default: false
   push:
     tags:
       - "v*"
@@ -11,6 +16,7 @@ env:
 
 jobs:
   package:
+    if: inputs.ai_preview != true
     name: Package (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -110,6 +116,14 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v5
 
+      - name: Select macOS preview artifact version
+        if: inputs.ai_preview == true
+        shell: bash
+        run: |
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF" = refs/heads/codex/ai-mcp-expansion
+          echo "RELEASE_VERSION=${RELEASE_VERSION}-ai-preview.1" >> "$GITHUB_ENV"
+
       - name: Verify release tag
         if: startsWith(github.ref, 'refs/tags/')
         shell: bash
@@ -186,7 +200,7 @@ jobs:
       - name: Upload signed macOS packages
         uses: actions/upload-artifact@v4
         with:
-          name: pokecom-go-studio-macos
+          name: ${{ inputs.ai_preview == true && 'pokecom-go-studio-ai-preview-macos' || 'pokecom-go-studio-macos' }}
           path: release-assets/*
           if-no-files-found: error
           retention-days: 14
@@ -199,6 +213,7 @@ jobs:
           rm -f "$RUNNER_TEMP/pgp-signing.p12"
 
   android-player:
+    if: inputs.ai_preview != true
     name: Package (Android Player)
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -250,7 +265,7 @@ jobs:
 
   publish:
     name: Prepare draft GitHub Release
-    if: startsWith(github.ref, 'refs/tags/')
+    if: inputs.ai_preview != true && startsWith(github.ref, 'refs/tags/')
     needs: [package, macos-signing, android-player]
     runs-on: ubuntu-latest
     timeout-minutes: 10

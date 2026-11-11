@@ -101,3 +101,5 @@ PC-1251は試験対応で、CALLの途中停止直後に期待したRAM書込み
 タグ作成、GitHub Release公開、Stableへのマージは行っていない。
 
 一時MCPサーバーを停止し認証ファイルがないことを確認。Studioのアセンブラ設定は元のSC61に戻した。
+
+署名済み候補の作成とStableへの復帰試験は[Preview配布手順](AI_TECHNICAL_PREVIEW_DISTRIBUTION.md)を参照。
