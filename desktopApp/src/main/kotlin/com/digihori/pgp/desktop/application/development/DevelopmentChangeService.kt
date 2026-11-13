@@ -47,8 +47,8 @@ internal class DevelopmentChangeService(
         if (pending?.kind != "CREATE_PROJECT") fail("NO_CREATION_REVIEW")
         val path = parent.toPath().toRealPath()
         if (!Files.isDirectory(path, NOFOLLOW_LINKS)) fail("INVALID_DESTINATION")
+        creationParentKey = creationDirectoryKey(path)
         creationParent = path
-        creationParentKey = Files.readAttributes(path, java.nio.file.attribute.BasicFileAttributes::class.java, NOFOLLOW_LINKS).fileKey()
         onChange()
     }
 
@@ -220,7 +220,7 @@ internal class DevelopmentChangeService(
                 checkNoProject()
                 val parent = creationParent ?: fail("DESTINATION_REQUIRED")
                 if (Files.isSymbolicLink(parent) || !Files.isDirectory(parent, NOFOLLOW_LINKS) ||
-                    Files.readAttributes(parent, java.nio.file.attribute.BasicFileAttributes::class.java, NOFOLLOW_LINKS).fileKey() != creationParentKey) fail("DESTINATION_CHANGED")
+                    creationDirectoryKey(parent) != creationParentKey) fail("DESTINATION_CHANGED")
                 val created = GeneratedProjectFiles.create(parent, "pgp-generated-${review.id.take(8)}", review.projectName, review.generatedSources, review.machineId)
                 pending = null
                 operations[review.id] = DevelopmentOperation(review.id, review.kind, "APPLIED")

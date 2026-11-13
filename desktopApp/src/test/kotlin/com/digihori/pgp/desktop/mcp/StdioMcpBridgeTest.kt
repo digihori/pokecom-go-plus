@@ -5,6 +5,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.net.InetSocketAddress
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermissions
 import kotlinx.serialization.json.*
 import kotlin.test.*
@@ -136,7 +137,7 @@ class StdioMcpBridgeTest {
     }
 
     @Test fun clientConfigurationsPreservePathsAndNeverContainTokens() {
-        val launcher = "/Applications/日本語 Studio.app/Contents/MacOS/PokecomGOStudio"
+        val launcher = Path.of("日本語 Studio", "PokecomGOStudio").toAbsolutePath().toString()
         for (client in StdioMcpClient.entries) {
             val text = stdioMcpConfiguration(client, launcher, 9123)
             val root = Json.parseToJsonElement(text).jsonObject

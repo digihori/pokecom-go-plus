@@ -34,6 +34,7 @@ dependencies {
     runtimeOnly("org.lwjgl:lwjgl::$lwjglNatives")
     runtimeOnly("org.lwjgl:lwjgl-sdl::$lwjglNatives")
     implementation(libs.kotlinx.serialization.json)
+    implementation("net.java.dev.jna:jna-platform:5.6.0")
     implementation(compose.desktop.currentOs)
     implementation("org.jetbrains.compose.material3:material3:1.9.0")
     testImplementation(kotlin("test"))
