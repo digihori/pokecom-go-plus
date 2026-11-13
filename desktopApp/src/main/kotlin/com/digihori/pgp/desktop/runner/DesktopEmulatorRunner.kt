@@ -1,5 +1,7 @@
 package com.digihori.pgp.desktop.runner
 
+import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
+import com.digihori.pgp.core.emulator.machine.pc1251.Pc1251RomDefinition
 import com.digihori.pgp.core.api.EmulatorSession
 import com.digihori.pgp.core.api.DisplaySnapshot
 import com.digihori.pgp.core.api.CpuSnapshot
@@ -120,6 +122,7 @@ internal class DesktopEmulatorRunner(
         var instructions: Long = 0, var cycles: Long = 0)
     private var stepPlan: StepPlan? = null
     private var boundedPlan: BoundedExecutionPlan? = null
+    private var boundedInputRecoveryCycles = 0L
     private var lastBoundedResult: BoundedExecutionResult? = null
     val boundedExecutionActive: Boolean get() = boundedPlan != null
 
@@ -144,6 +147,10 @@ internal class DesktopEmulatorRunner(
         lastBoundedResult = BoundedExecutionResult(plan.id, plan.instructions, plan.cycles,
             inputComplete, reason, cpuSnapshot().programCounter, sessionRevision)
         boundedPlan = null
+        if (!inputComplete && plan.keysStarted && machineId == Pc1251RomDefinition.MACHINE_ID) {
+            // The ROM needs to observe the release before accepting a new key.
+            boundedInputRecoveryCycles = MachineCatalog.require(machineId).automaticKeyGapCycles
+        }
     }
     var debugStepStatus: DebuggerStepStatus = DebuggerStepStatus.IDLE
         private set
@@ -241,6 +248,7 @@ internal class DesktopEmulatorRunner(
         hostKeys.releaseAll()
         inputEpoch++
         session.reset()
+        boundedInputRecoveryCycles = 0
         registrations.resetHitCounts()
         logpoints.clearHistory()
         planner.reset()
@@ -730,14 +738,19 @@ internal class DesktopEmulatorRunner(
         val budget = if (boundedExecutionActive || unlimited) CycleBudget(4_096L, 0L, 0L) else planner.plan(now - previous, speed)
         if (budget.cycles == 0L) return RunnerTick(budget, null)
 
-        if (!session.isOperatingModeTransitionPending()) applyTransition(keyInputQueue.start())
         var cyclesRemaining = budget.cycles
         var executedCycles = 0L
         var executedInstructions = 0L
         var status: ExecutionStatus = ExecutionStatus.Ready
         while (cyclesRemaining > 0 && status !is ExecutionStatus.Faulted) {
-            if (!session.isOperatingModeTransitionPending()) applyTransition(keyInputQueue.start())
-            val requestedCycles = if (session.isOperatingModeTransitionPending()) minOf(4_096L, cyclesRemaining) else keyInputQueue.limitCycles(cyclesRemaining)
+            val modeTransition = session.isOperatingModeTransitionPending()
+            val recoveryCycles = if (boundedExecutionActive) boundedInputRecoveryCycles else 0L
+            if (!modeTransition && recoveryCycles == 0L) applyTransition(keyInputQueue.start())
+            val requestedCycles = when {
+                recoveryCycles > 0 -> minOf(recoveryCycles, cyclesRemaining)
+                modeTransition -> minOf(4_096L, cyclesRemaining)
+                else -> keyInputQueue.limitCycles(cyclesRemaining)
+            }
             val partial = runUntilBreakpoint(requestedCycles)
             val partialResult = partial.result
             executedCycles += partialResult.executedCycles
@@ -745,7 +758,12 @@ internal class DesktopEmulatorRunner(
             cyclesRemaining = (cyclesRemaining - partialResult.executedCycles).coerceAtLeast(0)
             status = partialResult.status
             if (partialResult.executedCycles > 0) {
-                applyTransition(keyInputQueue.advance(partialResult.executedCycles))
+                val transition = if (boundedExecutionActive && machineId == Pc1245RomDefinition.MACHINE_ID) {
+                    keyInputQueue.advance(partialResult.executedCycles, PC1245_BOUNDED_ENTER_GAP_CYCLES)
+                } else {
+                    keyInputQueue.advance(partialResult.executedCycles)
+                }
+                applyTransition(transition)
             }
             if (partial.stopReason != null) {
                 finishBoundedExecution(when (val reason = partial.stopReason) {
@@ -788,6 +806,7 @@ internal class DesktopEmulatorRunner(
         ) {
             callTracker.clear()
             val result = session.runCycles(cycleBudget)
+            advanceBoundedInputRecovery(result.executedCycles)
             collectBankEvents()
             if (result.executedInstructions > 0) sessionRevision += result.executedInstructions
             return BreakpointRunResult(result)
@@ -858,6 +877,7 @@ internal class DesktopEmulatorRunner(
         if (!instructionTraceEnabled && !debugObservationEnabled && !logpoints.hasEnabled) {
             callTracker.clear()
             val result = session.runCycles(cycleBudget)
+            advanceBoundedInputRecovery(result.executedCycles)
             collectBankEvents()
             if (result.executedInstructions > 0) sessionRevision += result.executedInstructions
             return result
@@ -921,6 +941,7 @@ internal class DesktopEmulatorRunner(
             nextTraceSequence++
         }
         val result = session.step()
+        advanceBoundedInputRecovery(result.cycles.toLong())
         boundedPlan?.let { it.instructions++; it.cycles += result.cycles }
         lastCallEvent = if (result.status is ExecutionStatus.Faulted) {
             callTracker.clear()
@@ -987,9 +1008,18 @@ internal class DesktopEmulatorRunner(
         history.addLast(entry)
     }
 
+    private fun advanceBoundedInputRecovery(cycles: Long) {
+        if (boundedInputRecoveryCycles > 0) {
+            boundedInputRecoveryCycles = (boundedInputRecoveryCycles - cycles).coerceAtLeast(0)
+        }
+    }
+
     private fun applyTransition(transition: KeyTransition?) {
         when (transition) {
-            is KeyTransition.Press -> hostKeys.press("queue", transition.key)
+            is KeyTransition.Press -> {
+                boundedPlan?.keysStarted = true
+                hostKeys.press("queue", transition.key)
+            }
             is KeyTransition.Release -> hostKeys.release("queue")
             null -> Unit
         }
@@ -1012,6 +1042,8 @@ internal class DesktopEmulatorRunner(
             )
         }
 
+        // Give the PC-1245 ROM time to enter the next BASIC INPUT after ENTER.
+        private const val PC1245_BOUNDED_ENTER_GAP_CYCLES = 28_800L // 150 ms
         const val BASIC_LINE_SETTLE_CYCLES: Long = 57_600 // 200 ms after ENTER.
         const val DEFAULT_INSTRUCTION_TRACE_CAPACITY: Int = 256
         const val MIN_INSTRUCTION_TRACE_CAPACITY: Int = 16

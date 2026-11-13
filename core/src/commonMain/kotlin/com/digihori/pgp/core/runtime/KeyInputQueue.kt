@@ -40,8 +40,12 @@ public class KeyInputQueue(
      * Accounts for cycles actually executed. A CPU instruction may cross the requested
      * boundary, so excess cycles delay the transition rather than advancing the next phase.
      */
-    public fun advance(executedCycles: Long): KeyTransition? {
+    public fun advance(executedCycles: Long): KeyTransition? = advance(executedCycles, gapCycles)
+
+    /** Uses a longer gap after ENTER if another key is pending. */
+    public fun advance(executedCycles: Long, enterGapCycles: Long): KeyTransition? {
         require(executedCycles >= 0) { "executedCycles must not be negative" }
+        require(enterGapCycles > 0) { "enterGapCycles must be positive" }
         val currentPhase = phase ?: return null
         remainingCycles -= executedCycles
         if (remainingCycles > 0) return null
@@ -55,7 +59,7 @@ public class KeyInputQueue(
                     remainingCycles = 0
                 } else {
                     phase = Phase.GAP
-                    remainingCycles = gapCycles
+                    remainingCycles = if (key == PocketKey.ENTER) maxOf(enterGapCycles, gapCycles) else gapCycles
                 }
                 KeyTransition.Release(key)
             }

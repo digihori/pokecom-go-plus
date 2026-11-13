@@ -19,7 +19,7 @@ internal class AnalysisSegment(val start: Int, bytes: ByteArray) {
 
 internal class AnalysisProgram internal constructor(
     val id: String, val revision: String, val name: String, val kind: AnalysisProgramKind,
-    val inputSha256: String, val inputBytes: Int, val entryAddress: Int?, val notes: String,
+    val machineId: String, val inputSha256: String, val inputBytes: Int, val entryAddress: Int?, val notes: String,
     val source: String?, segments: List<AnalysisSegment>, val imageSha256: String?,
 ) {
     val segments = segments.toList()
@@ -31,7 +31,13 @@ internal class ProgramAnalysisService {
 
     fun prepare(name: String, bytes: ByteArray, kind: AnalysisProgramKind, machineId: String,
                 loadAddress: Int?, entryAddress: Int?, notes: String): AnalysisProgram {
-        if (machineId != "pc-1245") fail("UNSUPPORTED_ANALYSIS_MACHINE")
+        when (machineId) {
+            "pc-1245" -> Unit
+            "pc-1251" -> if (kind != AnalysisProgramKind.BASIC || !name.endsWith(".bas", ignoreCase = true)) {
+                fail("ANALYSIS_PC1251_BASIC_ONLY")
+            }
+            else -> fail("UNSUPPORTED_ANALYSIS_MACHINE")
+        }
         if (bytes.isEmpty() || bytes.size > MAX_INPUT_BYTES) fail("ANALYSIS_INPUT_SIZE")
         if (notes.length > 2048 || notes.any { it.code < 32 && it !in "\n\r\t" }) fail("INVALID_ARGUMENTS")
         if (kind != AnalysisProgramKind.RAW && loadAddress != null) fail("INVALID_ARGUMENTS")
@@ -73,7 +79,7 @@ internal class ProgramAnalysisService {
             put("machineId", machineId); put("loadAddress", loadAddress?.let(::JsonPrimitive) ?: JsonNull)
             put("entryAddress", entryAddress?.let(::JsonPrimitive) ?: JsonNull); put("notes", notes)
         }.toString().encodeToByteArray())
-        return AnalysisProgram(UUID.randomUUID().toString(), revision, safeName, kind, inputHash, bytes.size,
+        return AnalysisProgram(UUID.randomUUID().toString(), revision, safeName, kind, machineId, inputHash, bytes.size,
             entryAddress, notes, source, segments, imageHash)
     }
 
@@ -87,7 +93,7 @@ internal class ProgramAnalysisService {
     }
 
     fun describe(program: AnalysisProgram): JsonObject = buildJsonObject {
-        put("targetId", program.id); put("revision", program.revision); put("machineId", "pc-1245")
+        put("targetId", program.id); put("revision", program.revision); put("machineId", program.machineId)
         put("name", program.name); put("kind", program.kind.name); put("inputBytes", program.inputBytes)
         put("inputSha256", program.inputSha256); put("imageSha256", program.imageSha256?.let(::JsonPrimitive) ?: JsonNull)
         put("imageHashEncoding", "SHA-256 over sorted segments: big-endian int32 start, int32 size, then bytes")

@@ -40,6 +40,41 @@ class BoundedExecutionTest {
         runner.startBoundedExecution("next", emptyList(), 1, 100)
         runner.tick(); assertTrue(runner.boundedExecution("next")!!.inputComplete)
     }
+    @Test fun pc1245DiscardsNextKeyWhenStoppedInTheExtendedEnterGap() {
+        val runner = boundedTestRunner()
+        val keys = listOf(PocketKey.ENTER, PocketKey.NUM_1)
+        runner.startBoundedExecution("test", keys, 100_000, 35_000)
+        val stopped = finish(runner)
+        assertEquals("cycleLimit", stopped.reason)
+        assertFalse(stopped.inputComplete)
+        assertTrue(runner.canStartBoundedInput())
+
+        runner.startBoundedExecution("test", emptyList(), 100_000, 60_000)
+        assertTrue(finish(runner).inputComplete)
+
+        runner.startBoundedExecution("test", keys, 100_000, 45_000)
+        assertFalse(finish(runner).inputComplete)
+        runner.startBoundedExecution("test", keys, 100_000, 60_000)
+        assertTrue(finish(runner).inputComplete)
+    }
+    @Test fun pc1251RecoveryCountsAgainstTheNewBudgetAndDiscardsUnsentKeys() {
+        val runner = boundedTestRunner(machineId = "pc-1251")
+        val keys = listOf(PocketKey.NUM_4)
+        runner.startBoundedExecution("test", keys, 100_000, 1)
+        assertFalse(finish(runner).inputComplete)
+
+        // Without a recovery gap this budget suffices to send one complete tap.
+        runner.startBoundedExecution("test", keys, 100_000, 45_000)
+        val retry = finish(runner)
+        assertEquals("cycleLimit", retry.reason)
+        assertFalse(retry.inputComplete)
+        assertTrue(runner.canStartBoundedInput())
+
+        runner.startBoundedExecution("test", emptyList(), 100_000, 19_200)
+        assertTrue(finish(runner).inputComplete)
+        runner.startBoundedExecution("test", keys, 100_000, 45_000)
+        assertTrue(finish(runner).inputComplete)
+    }
     @Test fun completedKeyEmissionIsRecordedWithoutClaimingThatFirmwareHandledIt() {
         val runner = boundedTestRunner()
         runner.startBoundedExecution("test", listOf(PocketKey.NUM_1, PocketKey.ENTER), 100000, 100000)

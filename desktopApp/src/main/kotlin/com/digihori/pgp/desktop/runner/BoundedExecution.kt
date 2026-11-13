@@ -8,4 +8,5 @@ internal data class BoundedExecutionResult(
 internal data class BoundedExecutionPlan(
     val id: String, val maxInstructions: Long, val maxCycles: Long,
     var instructions: Long = 0, var cycles: Long = 0,
+    var keysStarted: Boolean = false,
 )

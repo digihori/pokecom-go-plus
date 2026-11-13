@@ -25,6 +25,7 @@ internal fun ProgramAnalysisPanel(
     onClear: () -> Unit,
     strings: StudioStrings = StudioStrings.system,
 ) {
+    var machineId by remember { mutableStateOf("pc-1245") }
     var kind by remember { mutableStateOf(AnalysisProgramKind.BASIC) }
     var selected by remember { mutableStateOf<Pair<String, ByteArray>?>(null) }
     var loadAddress by remember { mutableStateOf("0xC000") }
@@ -42,8 +43,18 @@ internal fun ProgramAnalysisPanel(
         Text(strings.text("analysis.scope"))
         Text(strings.text("analysis.machine"))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("pc-1245", "pc-1251").forEach { value ->
+                FilterChip(selected = machineId == value, onClick = {
+                    machineId = value
+                    if (value == "pc-1251") kind = AnalysisProgramKind.BASIC
+                    preview = null
+                    error = null
+                }, label = { Text(value.uppercase()) })
+            }
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AnalysisProgramKind.entries.forEach { value ->
-                FilterChip(selected = kind == value, onClick = { kind = value; preview = null; error = null }, label = { Text(value.name) })
+                FilterChip(selected = kind == value, enabled = machineId == "pc-1245" || value == AnalysisProgramKind.BASIC, onClick = { kind = value; preview = null; error = null }, label = { Text(value.name) })
             }
         }
         TextButton(onClick = {
@@ -60,7 +71,7 @@ internal fun ProgramAnalysisPanel(
             error = null; preview = null
             try {
                 val file = checkNotNull(selected)
-                preview = service.prepare(file.first, file.second, kind, "pc-1245",
+                preview = service.prepare(file.first, file.second, kind, machineId,
                     if (kind == AnalysisProgramKind.RAW) address(loadAddress, false) else null,
                     if (kind in setOf(AnalysisProgramKind.DMP, AnalysisProgramKind.RAW)) address(entryAddress, true) else null, notes)
             } catch (e: DevelopmentReadError) { error = e.code }
@@ -69,6 +80,7 @@ internal fun ProgramAnalysisPanel(
         error?.let { Text(strings.text("analysis.error", it), color = MaterialTheme.colorScheme.error) }
         preview?.let { program ->
             Text(strings.text("analysis.review"), style = MaterialTheme.typography.titleMedium)
+            Text(program.machineId.uppercase())
             Text(strings.text("analysis.summary", program.name, program.kind.name, program.inputBytes))
             Text(strings.text("analysis.entry", program.entryAddress?.let { "0x${it.toString(16).uppercase().padStart(4, '0')}" } ?: strings.text("analysis.unknown")))
             SelectionContainer { Text("SHA-256: ${program.inputSha256}", fontFamily = FontFamily.Monospace) }
@@ -93,6 +105,7 @@ internal fun ProgramAnalysisPanel(
         Text(strings.text("analysis.current"), style = MaterialTheme.typography.titleMedium)
         val target = metadata["target"]?.takeIf { it != JsonNull }?.jsonObject
         if (target == null) Text(strings.text("analysis.none")) else {
+            Text(target.getValue("machineId").jsonPrimitive.content.uppercase())
             Text(strings.text("analysis.summary", target.getValue("name").jsonPrimitive.content,
                 target.getValue("kind").jsonPrimitive.content, target.getValue("inputBytes").jsonPrimitive.content))
             SelectionContainer { Text(strings.text("analysis.targetId", target.getValue("targetId").jsonPrimitive.content), fontFamily = FontFamily.Monospace) }

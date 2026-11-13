@@ -124,6 +124,14 @@ class ProgramAnalysisTest {
         }
         invalid("LOAD_ADDRESS_REQUIRED") { service.prepare("raw.bin", byteArrayOf(1), AnalysisProgramKind.RAW, "pc-1245", null, null, "") }
         invalid("ENTRY_OUTSIDE_IMAGE") { service.prepare("raw.bin", byteArrayOf(1), AnalysisProgramKind.RAW, "pc-1245", 0xc000, 0xc100, "") }
+        for (kind in listOf(AnalysisProgramKind.RAW, AnalysisProgramKind.DMP, AnalysisProgramKind.ASSEMBLY)) {
+            invalid("ANALYSIS_PC1251_BASIC_ONLY") {
+                service.prepare("other.bas", byteArrayOf(1), kind, "pc-1251", null, null, "")
+            }
+        }
+        invalid("ANALYSIS_PC1251_BASIC_ONLY") {
+            service.prepare("other.txt", "10 END".encodeToByteArray(), AnalysisProgramKind.BASIC, "pc-1251", null, null, "")
+        }
         invalid("UNSUPPORTED_ANALYSIS_MACHINE") { service.prepare("other.bas", "10 END".encodeToByteArray(), AnalysisProgramKind.BASIC, "pc-1350", null, null, "") }
     }
 
