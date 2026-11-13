@@ -124,15 +124,37 @@ class ProgramAnalysisTest {
         }
         invalid("LOAD_ADDRESS_REQUIRED") { service.prepare("raw.bin", byteArrayOf(1), AnalysisProgramKind.RAW, "pc-1245", null, null, "") }
         invalid("ENTRY_OUTSIDE_IMAGE") { service.prepare("raw.bin", byteArrayOf(1), AnalysisProgramKind.RAW, "pc-1245", 0xc000, 0xc100, "") }
-        for (kind in listOf(AnalysisProgramKind.RAW, AnalysisProgramKind.DMP, AnalysisProgramKind.ASSEMBLY)) {
-            invalid("ANALYSIS_PC1251_BASIC_ONLY") {
-                service.prepare("other.bas", byteArrayOf(1), kind, "pc-1251", null, null, "")
+        for (address in listOf(0x4000, 0x8000, 0x97ff, 0xc7ff, 0xf800)) {
+            invalid("ANALYSIS_RAM_ONLY") {
+                service.prepare("outside.bin", byteArrayOf(2, 3), AnalysisProgramKind.RAW, "pc-1251", address, null, "")
             }
         }
-        invalid("ANALYSIS_PC1251_BASIC_ONLY") {
-            service.prepare("other.txt", "10 END".encodeToByteArray(), AnalysisProgramKind.BASIC, "pc-1251", null, null, "")
-        }
         invalid("UNSUPPORTED_ANALYSIS_MACHINE") { service.prepare("other.bas", "10 END".encodeToByteArray(), AnalysisProgramKind.BASIC, "pc-1350", null, null, "") }
+    }
+
+    @Test fun pc1251AssemblyAndMachineCodeCanBeReadAtImportedAddresses() {
+        val assembly = "ORG 0xB800\nLIA 0x5A\nRTN"
+        val source = service.prepare("routine.asm", assembly.encodeToByteArray(),
+            AnalysisProgramKind.ASSEMBLY, "pc-1251", null, null, "")
+        service.publish(source)
+        assertEquals(assembly.lines(), ok(request("source", source)).getValue("lines").jsonArray.map {
+            it.jsonObject.getValue("text").jsonPrimitive.content
+        })
+        val image = assertIs<Sc61860AssemblyResult.Success>(Sc61860Assembler.assemble(assembly)).image
+        val inputs = listOf(
+            Triple(AnalysisProgramKind.DMP, DesktopMemoryDumpWriter.write(image), null),
+            Triple(AnalysisProgramKind.RAW, image.segments.single().copyBytes(), 0x9000),
+        )
+        for ((kind, bytes, loadAddress) in inputs) {
+            val address = loadAddress ?: 0xb800
+            val program = service.prepare("routine", bytes, kind, "pc-1251", loadAddress, address, "")
+            service.publish(program)
+            val target = ok(request("metadata")).getValue("target").jsonObject
+            assertEquals(JsonPrimitive("pc-1251"), target["machineId"])
+            val rows = ok(request("disassembly", program)).getValue("instructions").jsonArray.map { it.jsonObject }
+            assertEquals(listOf("LIA 0x5A", "RTN"), rows.map { it.getValue("text").jsonPrimitive.content })
+            assertEquals(address, rows.first().getValue("address").jsonPrimitive.int)
+        }
     }
 
     @Test fun strictReadSchemaAndBoundedPages() {

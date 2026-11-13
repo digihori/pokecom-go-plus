@@ -46,7 +46,6 @@ internal fun ProgramAnalysisPanel(
             listOf("pc-1245", "pc-1251").forEach { value ->
                 FilterChip(selected = machineId == value, onClick = {
                     machineId = value
-                    if (value == "pc-1251") kind = AnalysisProgramKind.BASIC
                     preview = null
                     error = null
                 }, label = { Text(value.uppercase()) })
@@ -54,7 +53,7 @@ internal fun ProgramAnalysisPanel(
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AnalysisProgramKind.entries.forEach { value ->
-                FilterChip(selected = kind == value, enabled = machineId == "pc-1245" || value == AnalysisProgramKind.BASIC, onClick = { kind = value; preview = null; error = null }, label = { Text(value.name) })
+                FilterChip(selected = kind == value, onClick = { kind = value; preview = null; error = null }, label = { Text(value.name) })
             }
         }
         TextButton(onClick = {

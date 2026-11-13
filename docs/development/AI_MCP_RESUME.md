@@ -22,7 +22,7 @@ PC-1245の解析・生成の基本経路を実装し、PC-1251にも知識・生
 
 - 同梱stdioブリッジ、設定コピー、短期認証、Studioでの承認を実装。
 - PC-1245：知識、選択した解析ファイルの公開、Project／Source生成、Build、Load、上限付きRUN／CALL・入力、LCD取得。
-- PC-1251：知識、Project／Source生成、Build、Load、上限付きRUN／CALL・入力、120列LCD取得。解析ファイル公開はUTF-8のBASIC（.bas）に対応。
+- PC-1251：知識、Project／Source生成、Build、Load、上限付きRUN／CALL・入力、120列LCD取得。解析ファイル公開はUTF-8のBASIC・アセンブリ、標準RAM範囲のDMP・生の機械語に対応。
 - 両機種のnumeric-labels作例を同梱。PC-1251知識catalogVersionはpc1251-v3。
 - 実ROMを通常起動し、両機種で1→ONE、2→TWO、3→OTHER、0→通常プロンプト、その後の数値応答を確認。
 - Copilotでは接続・解析情報・LCD取得等を確認済み。新規チャットでの生成全工程の独立受入れは未完了。

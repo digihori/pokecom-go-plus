@@ -114,3 +114,12 @@ Claude Desktop、Gemini CLIでのstdio実接続は未確認。Codexネイティ�
 
 検証用VS Code設定には実行ファイルと引数だけを設定し、トークンを保存しなかった。
 検証後はStudioのサーバーを停止してトークンを失効させ、検証用VS Code設定も空に戻した。
+
+### macOSのClaude Desktop Freeでの実接続
+
+Studioの同梱stdioブリッジをClaude DesktopのローカルMCPに登録した。
+公開したPC-1251 BASICの機種と先頭行 `10 INPUT A` を取得できた。
+PC-1245の見積もりサンプルの一時コピーで、Claudeから `510 R=5` を `510 R=10` にする差分が届いた。
+Studioで承認して適用を確認し、Claudeも `pgp_get_operation` で `APPLIED` を取得した。
+承認直後のチャットでは応答が途中で止まり、新しいチャットで操作状態だけを問い合わせると取得できた。
+検証後にStudioのMCPサーバーを停止した。

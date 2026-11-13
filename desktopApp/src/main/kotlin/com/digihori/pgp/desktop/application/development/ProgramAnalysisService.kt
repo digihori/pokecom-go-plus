@@ -1,6 +1,9 @@
 package com.digihori.pgp.desktop.application.development
 
+import com.digihori.pgp.core.api.MachineMemoryKind
+import com.digihori.pgp.core.api.MachineMemoryLayout
 import com.digihori.pgp.core.debug.*
+import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoader
 import com.digihori.pgp.desktop.machine.DesktopMemoryDumpLoadResult
 import java.security.MessageDigest
@@ -31,13 +34,7 @@ internal class ProgramAnalysisService {
 
     fun prepare(name: String, bytes: ByteArray, kind: AnalysisProgramKind, machineId: String,
                 loadAddress: Int?, entryAddress: Int?, notes: String): AnalysisProgram {
-        when (machineId) {
-            "pc-1245" -> Unit
-            "pc-1251" -> if (kind != AnalysisProgramKind.BASIC || !name.endsWith(".bas", ignoreCase = true)) {
-                fail("ANALYSIS_PC1251_BASIC_ONLY")
-            }
-            else -> fail("UNSUPPORTED_ANALYSIS_MACHINE")
-        }
+        if (machineId != "pc-1245" && machineId != "pc-1251") fail("UNSUPPORTED_ANALYSIS_MACHINE")
         if (bytes.isEmpty() || bytes.size > MAX_INPUT_BYTES) fail("ANALYSIS_INPUT_SIZE")
         if (notes.length > 2048 || notes.any { it.code < 32 && it !in "\n\r\t" }) fail("INVALID_ARGUMENTS")
         if (kind != AnalysisProgramKind.RAW && loadAddress != null) fail("INVALID_ARGUMENTS")
@@ -57,10 +54,19 @@ internal class ProgramAnalysisService {
             }
             else -> emptyList()
         }
-        // First version deliberately excludes ROM and LCD images, even though it never loads the emulator.
-        if (segments.any { it.size <= 0 || it.start !in 0..0xffff || it.end < it.start ||
-                !((it.start in 0xc000..0xc7ff && it.end <= 0xc7ff) || (it.start in 0xd000..0xd7ff && it.end <= 0xd7ff)) })
-            fail("ANALYSIS_RAM_ONLY")
+        val layout = MachineMemoryLayout(MachineId(machineId))
+        for (segment in segments) {
+            if (segment.size <= 0 || segment.start !in 0..0xffff || segment.end !in segment.start..0xffff) {
+                fail("ANALYSIS_RAM_ONLY")
+            }
+            val firstPhysicalAddress = layout.locate(segment.start).physicalAddress
+            // Keep the imported addresses while rejecting segments that cross a mirror boundary.
+            if ((segment.start..segment.end).any { address ->
+                val location = layout.locate(address)
+                location.kind != MachineMemoryKind.RAM ||
+                    location.physicalAddress != firstPhysicalAddress + (address - segment.start)
+            }) fail("ANALYSIS_RAM_ONLY")
+        }
         if (segments.sumOf { it.size } > 4096) fail("ANALYSIS_INPUT_SIZE")
         if (entryAddress != null && segments.none { entryAddress in it.start..it.end }) fail("ENTRY_OUTSIDE_IMAGE")
         val safeName = name.substringAfterLast('/').substringAfterLast('\\')
