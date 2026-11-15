@@ -2,17 +2,12 @@ name: Build Release Packages
 
 on:
   workflow_dispatch:
-    inputs:
-      ai_preview:
-        description: Build AI Technical Preview 2 installers without publishing
-        type: boolean
-        default: false
   push:
     tags:
       - "v*"
 
 env:
-  RELEASE_VERSION: 1.2.0
+  RELEASE_VERSION: 1.2.1
 
 jobs:
   package:
@@ -24,20 +19,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(inputs.ai_preview == true && '["windows-latest"]' || '["windows-latest","ubuntu-latest"]') }}
+        include:
+          - os: windows-latest
+            artifact: pokecom-go-studio-windows
+          - os: ubuntu-latest
+            artifact: pokecom-go-studio-linux
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
-
-      - name: Select preview package version
-        if: inputs.ai_preview == true
-        shell: bash
-        run: |
-          test "$GITHUB_REF" = refs/heads/codex/ai-mcp-expansion
-          echo "RELEASE_VERSION=1.2.1-ai-preview.2" >> "$GITHUB_ENV"
-          echo "ORG_GRADLE_PROJECT_pgpNativeVersion=1.9.1" >> "$GITHUB_ENV"
-          echo "PGP_MSI_EXPECTED_VERSION=1.9.1" >> "$GITHUB_ENV"
 
       - name: Verify release tag
         if: startsWith(github.ref, 'refs/tags/')
@@ -67,11 +57,7 @@ jobs:
         shell: pwsh
         run: |
           $msi = Get-ChildItem desktopApp/build/compose/binaries/main/msi/*.msi | Select-Object -First 1
-          if ($env:PGP_MSI_EXPECTED_VERSION) {
-            ./scripts/inspect-msi.ps1 -Path $msi.FullName -VerifyCurrent -ExpectedVersion $env:PGP_MSI_EXPECTED_VERSION
-          } else {
-            ./scripts/inspect-msi.ps1 -Path $msi.FullName -VerifyCurrent
-          }
+          ./scripts/inspect-msi.ps1 -Path $msi.FullName -VerifyCurrent
 
       - name: Collect Windows packages
         if: runner.os == 'Windows'
@@ -80,9 +66,7 @@ jobs:
           New-Item -ItemType Directory -Force release-assets | Out-Null
           $msi = Get-ChildItem desktopApp/build/compose/binaries/main/msi/*.msi | Select-Object -First 1
           Copy-Item $msi.FullName "release-assets/PokecomGOStudio-$env:RELEASE_VERSION-windows-x64.msi"
-          if (-not $env:PGP_MSI_EXPECTED_VERSION) {
-            Compress-Archive -Path desktopApp/build/compose/binaries/main/app/PokecomGOStudio -DestinationPath "release-assets/PokecomGOStudio-$env:RELEASE_VERSION-windows-x64.zip"
-          }
+          Compress-Archive -Path desktopApp/build/compose/binaries/main/app/PokecomGOStudio -DestinationPath "release-assets/PokecomGOStudio-$env:RELEASE_VERSION-windows-x64.zip"
           Get-ChildItem release-assets -File |
             Where-Object Name -NotLike 'SHA256SUMS-*' |
             ForEach-Object {
@@ -110,7 +94,7 @@ jobs:
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.ai_preview == true && 'pokecom-go-studio-ai-preview-windows' || (runner.os == 'Windows' && 'pokecom-go-studio-windows' || 'pokecom-go-studio-linux') }}
+          name: ${{ matrix.artifact }}
           path: release-assets/*
           if-no-files-found: error
           retention-days: 14
@@ -125,15 +109,6 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
-
-      - name: Select macOS preview artifact version
-        if: inputs.ai_preview == true
-        shell: bash
-        run: |
-          test "$GITHUB_EVENT_NAME" = workflow_dispatch
-          test "$GITHUB_REF" = refs/heads/codex/ai-mcp-expansion
-          echo "RELEASE_VERSION=1.2.1-ai-preview.2" >> "$GITHUB_ENV"
-          echo "ORG_GRADLE_PROJECT_pgpNativeVersion=1.9.1" >> "$GITHUB_ENV"
 
       - name: Verify release tag
         if: startsWith(github.ref, 'refs/tags/')
@@ -189,16 +164,13 @@ jobs:
         run: python3 scripts/notarize-macos.py desktopApp/build/compose/binaries/main/app/PokecomGOStudio.app --keychain "$PGP_MAC_SIGNING_KEYCHAIN"
 
       - name: Package signed macOS DMG
-        if: inputs.ai_preview != true
         # The app was already signed, runtime-verified and stapled. Do not regenerate it.
         run: ./gradlew :desktopApp:packageDmg -x :desktopApp:createDistributable --no-daemon
 
       - name: Notarize macOS DMG
-        if: inputs.ai_preview != true
-        run: python3 scripts/notarize-macos.py desktopApp/build/compose/binaries/main/dmg/PokecomGOStudio-1.9.0.dmg --keychain "$PGP_MAC_SIGNING_KEYCHAIN"
+        run: python3 scripts/notarize-macos.py desktopApp/build/compose/binaries/main/dmg/PokecomGOStudio-1.9.1.dmg --keychain "$PGP_MAC_SIGNING_KEYCHAIN"
 
       - name: Collect macOS packages
-        if: inputs.ai_preview != true
         shell: bash
         run: |
           mkdir -p release-assets
@@ -211,32 +183,10 @@ jobs:
           cd release-assets
           shasum -a 256 ./* > SHA256SUMS-macos.txt
 
-      - name: Build and notarize Preview macOS installer
-        if: inputs.ai_preview == true
-        shell: bash
-        env:
-          PGP_INSTALLER_CERTIFICATE_BASE64: ${{ secrets.MACOS_INSTALLER_CERTIFICATE_P12_BASE64 }}
-          PGP_INSTALLER_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_INSTALLER_CERTIFICATE_PASSWORD }}
-        run: |
-          set -eu
-          test -n "$PGP_INSTALLER_CERTIFICATE_BASE64" || { echo "Missing MACOS_INSTALLER_CERTIFICATE_P12_BASE64"; exit 1; }
-          export PGP_INSTALLER_CERTIFICATE_FILE="$RUNNER_TEMP/pgp-installer.p12"
-          trap 'rm -f "$PGP_INSTALLER_CERTIFICATE_FILE"' EXIT
-          python3 -c 'import base64, os; from pathlib import Path; p=Path(os.environ["PGP_INSTALLER_CERTIFICATE_FILE"]); p.touch(mode=0o600); p.write_bytes(base64.b64decode(os.environ["PGP_INSTALLER_CERTIFICATE_BASE64"], validate=True))'
-          security import "$PGP_INSTALLER_CERTIFICATE_FILE" -P "$PGP_INSTALLER_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$PGP_MAC_SIGNING_KEYCHAIN"
-          mkdir -p release-assets
-          installer="release-assets/PokecomGOStudio-${RELEASE_VERSION}-macos-$(uname -m).pkg"
-          app=desktopApp/build/compose/binaries/main/app/PokecomGOStudio.app
-          bash scripts/package-macos-installer.sh "$app" "$ORG_GRADLE_PROJECT_pgpNativeVersion" "$installer" \
-            --sign "Developer ID Installer" --keychain "$PGP_MAC_SIGNING_KEYCHAIN"
-          python3 scripts/notarize-macos.py "$installer" --keychain "$PGP_MAC_SIGNING_KEYCHAIN"
-          cd release-assets
-          shasum -a 256 ./*.pkg > SHA256SUMS-macos.txt
-
       - name: Upload signed macOS packages
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.ai_preview == true && 'pokecom-go-studio-ai-preview-macos' || 'pokecom-go-studio-macos' }}
+          name: pokecom-go-studio-macos
           path: release-assets/*
           if-no-files-found: error
           retention-days: 14
@@ -249,7 +199,6 @@ jobs:
           rm -f "$RUNNER_TEMP/pgp-signing.p12"
 
   android-player:
-    if: inputs.ai_preview != true
     name: Package (Android Player)
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -301,7 +250,7 @@ jobs:
 
   publish:
     name: Prepare draft GitHub Release
-    if: inputs.ai_preview != true && startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/')
     needs: [package, macos-signing, android-player]
     runs-on: ubuntu-latest
     timeout-minutes: 10

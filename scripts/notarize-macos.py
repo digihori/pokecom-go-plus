@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Notarize and staple one signed app, DMG, or PKG; never publishes a release."""
+"""Notarize and staple one signed app or DMG; never publishes a release."""
 import argparse
 import json
 from pathlib import Path
@@ -21,20 +21,15 @@ def main():
     parser.add_argument("--logs", type=Path, default=Path("desktopApp/build/notarization"))
     args = parser.parse_args()
     target = args.target.resolve(strict=True)
-    if target.suffix not in (".app", ".dmg", ".pkg"):
-        parser.error("target must be a signed .app, .dmg, or .pkg")
+    if target.suffix not in (".app", ".dmg"):
+        parser.error("target must be a signed .app or .dmg")
     args.logs.mkdir(parents=True, exist_ok=True)
-    if target.suffix == ".pkg":
-        details = subprocess.check_output(["pkgutil", "--check-signature", str(target)], text=True)
-        if "Developer ID Installer:" not in details or "trusted timestamp" not in details:
-            raise SystemExit("Developer ID Installer signature and secure timestamp are required")
-    else:
-        run("codesign", "--verify", "--deep", "--strict", str(target))
-        # Unlike signature verification alone, this rejects an ad-hoc-signed input.
-        details = subprocess.run(["codesign", "-d", "--verbose=4", str(target)],
-                                 check=True, capture_output=True, text=True).stderr
-        if "Authority=Developer ID Application:" not in details or "Timestamp=" not in details:
-            raise SystemExit("Developer ID Application signature and secure timestamp are required")
+    run("codesign", "--verify", "--deep", "--strict", str(target))
+    # Unlike signature verification alone, this rejects an ad-hoc-signed input.
+    details = subprocess.run(["codesign", "-d", "--verbose=4", str(target)],
+                             check=True, capture_output=True, text=True).stderr
+    if "Authority=Developer ID Application:" not in details or "Timestamp=" not in details:
+        raise SystemExit("Developer ID Application signature and secure timestamp are required")
     auth = ["--keychain-profile", args.profile]
     if args.keychain:
         auth += ["--keychain", args.keychain]
@@ -65,10 +60,6 @@ def main():
             raise SystemExit("Notarization was not Accepted; submission: " + str(status.get("id")))
     run("xcrun", "stapler", "staple", str(target))
     run("xcrun", "stapler", "validate", str(target))
-    if target.suffix == ".pkg":
-        run("pkgutil", "--check-signature", str(target))
-        run("spctl", "--assess", "--type", "install", "--verbose=2", str(target))
-        return
     run("codesign", "--verify", "--deep", "--strict", str(target))
     if target.suffix == ".app":
         run("spctl", "--assess", "--type", "execute", "--verbose=2", str(target))
