@@ -86,7 +86,7 @@ compose.desktop {
             packageName = "PokecomGOStudio"
             // jpackage requires 1-3 numeric components and macOS rejects a zero major version.
             // The public project/Git version is 1.2.0; native versions increase independently.
-            packageVersion = "1.9.0"
+            packageVersion = providers.gradleProperty("pgpNativeVersion").getOrElse("1.9.0")
             description = "A multiplatform pocket-computer development environment"
             vendor = "Y Horiuchi"
             copyright = "Copyright (c) 2026 Y Horiuchi"
