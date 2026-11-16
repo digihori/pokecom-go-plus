@@ -1,6 +1,7 @@
 package com.digihori.pgp.desktop.mcp
 
 import com.digihori.pgp.core.api.DisplaySymbol
+import com.digihori.pgp.core.api.MachineCatalog
 import com.digihori.pgp.core.api.PocketKey
 import com.digihori.pgp.core.api.OperatingMode
 import com.digihori.pgp.core.project.ProjectSourceType
@@ -17,16 +18,31 @@ import java.util.Base64
 import kotlinx.serialization.json.*
 import kotlin.test.*
 
-class S1MachineWorkflowTest {
+class BasicMachineWorkflowTest {
     @Test fun pc1261CatalogGenerationAndAnalysis() = catalogGenerationAndAnalysis("pc-1261", 0x4000, 0x67ff)
     @Test fun pc1350CatalogGenerationAndAnalysis() = catalogGenerationAndAnalysis("pc-1350", 0x6000, 0x6fff)
 
     @Test fun pc1401CatalogGenerationAndAnalysis() = catalogGenerationAndAnalysis("pc-1401", 0x4400, 0x47ff)
 
-    @Test fun pc1261LocallySuppliedRomRunsGeneratedBasic() = runBasic("pc-1261", 24, 2)
-    @Test fun pc1350LocallySuppliedRomRunsGeneratedBasic() = runBasic("pc-1350", 25, 4)
+    @Test fun pc1261LocallySuppliedRomRunsGeneratedBasic() = runBasicAndCall("pc-1261", 24, 2, 0x6000)
+    @Test fun pc1350LocallySuppliedRomRunsGeneratedBasic() = runBasicAndCall("pc-1350", 25, 4, 0x6000)
 
-    @Test fun pc1401LocallySuppliedRomRunsGeneratedBasic() = runBasic("pc-1401", 16, 1)
+    @Test fun pc1401LocallySuppliedRomRunsGeneratedBasic() = runBasicAndCall("pc-1401", 16, 1, 0x4400)
+
+    @Test fun pc1450CatalogGenerationAndAnalysis() = catalogGenerationAndAnalysis("pc-1450", 0x5000, 0x5fff)
+    @Test fun pc1450LocallySuppliedRomRunsGeneratedBasic() = runBasicAndCall("pc-1450", 16, 1, 0x5000)
+
+    @Test fun pc1360CatalogGenerationAndAnalysis() = catalogGenerationAndAnalysis("pc-1360", 0xc000, 0x7fff)
+    @Test fun pc1360LocallySuppliedRomRunsGeneratedBasic() = runBasicAndCall("pc-1360", 25, 4, 0xc000)
+
+    @Test fun pc1360kCatalogGenerationAndAnalysis() = catalogGenerationAndAnalysis("pc-1360k", 0xc000, 0x7fff)
+    @Test fun pc1360kLocallySuppliedRomRunsGeneratedBasic() = runBasicAndCall("pc-1360k", 25, 4, 0xc000)
+
+    @Test fun pc1460CatalogGenerationAndAnalysis() = catalogGenerationAndAnalysis("pc-1460", 0xc000, 0x7fff)
+    @Test fun pc1460LocallySuppliedRomRunsGeneratedBasic() = runBasicAndCall("pc-1460", 24, 1, 0xc000)
+
+    @Test fun pc1470uCatalogGenerationAndAnalysis() = catalogGenerationAndAnalysis("pc-1470u", 0xc000, 0x7fff)
+    @Test fun pc1470uLocallySuppliedRomRunsGeneratedBasic() = runBasicAndCall("pc-1470u", 24, 2, 0xc000)
 
     private fun catalogGenerationAndAnalysis(machine: String, address: Int, invalidAddress: Int) {
         val knowledge = PocketKnowledgeService()
@@ -51,12 +67,26 @@ class S1MachineWorkflowTest {
         }
     }
 
-    private fun runBasic(machine: String, columns: Int, rows: Int) {
+    private fun runBasicAndCall(machine: String, columns: Int, rows: Int, callAddress: Int) {
         val rom = System.getenv("PGP_${machine.replace("-", "").uppercase()}_TEST_ROM") ?: return
         val session = assertIs<DesktopRomLoadResult.Success>(
-            DesktopRomLoader.loadLegacyImage(MachineId(machine), File(rom).readBytes()),
+            if (rom.endsWith(".pgrom")) DesktopRomLoader.loadPackageForMachine(File(rom).readBytes(), MachineId(machine))
+            else DesktopRomLoader.loadLegacyImage(MachineId(machine), File(rom).readBytes()),
         ).session
-        session.setOperatingMode(OperatingMode.RUN)
+        val loadMode = if (machine in setOf("pc-1450", "pc-1460", "pc-1470u")) OperatingMode.PROGRAM else OperatingMode.RUN
+        val requiresInitialization = machine in setOf("pc-1360", "pc-1360k", "pc-1460", "pc-1470u")
+        if (requiresInitialization || loadMode == OperatingMode.PROGRAM) session.runCycles(1_000_000)
+        if (requiresInitialization) {
+            val definition = MachineCatalog.require(session.machineId)
+            for (key in listOf(PocketKey.Y, PocketKey.ENTER, PocketKey.CLEAR)) {
+                session.pressKey(key)
+                session.runCycles(definition.automaticKeyHoldCycles)
+                session.releaseKey(key)
+                session.runCycles(definition.automaticKeyGapCycles)
+            }
+            session.runCycles(500_000)
+        }
+        session.setOperatingMode(loadMode)
         session.runCycles(1_000_000)
         if (machine == "pc-1350" && DisplaySymbol.RUN !in session.displaySnapshot().symbols) {
             session.pressKey(PocketKey.MODE)
@@ -64,8 +94,19 @@ class S1MachineWorkflowTest {
             session.releaseKey(PocketKey.MODE)
             session.runCycles(256_000)
         }
+        if (loadMode == OperatingMode.PROGRAM) assertEquals(loadMode, session.currentOperatingMode())
         val runner = DesktopEmulatorRunner(session)
-        withProject(machine, runner) { state, changes ->
+        val resultAddress = callAddress + 0x10
+        val routine = GeneratedSource("call", ProjectSourceType.ASSEMBLY, """
+            ORG $callAddress
+            LIDP $resultAddress
+            LIA 0x5A
+            STD
+            RTN
+            ORG $resultAddress
+            DB 0
+        """.trimIndent() + "\n")
+        withProject(machine, runner, listOf(routine)) { state, changes ->
             val workspace = checkNotNull(state().project)
             val registry = ProjectBuildRegistry(state, { changes.projectRevision(ignoreBusy = true) })
             val stamp = registry.begin(workspace)
@@ -78,14 +119,20 @@ class S1MachineWorkflowTest {
             execution.approve()
             assertEquals(JsonPrimitive("SUCCEEDED"),
                 execution.operation(load.getValue("operationId").jsonPrimitive.content)["status"])
+            if (loadMode == OperatingMode.PROGRAM) {
+                session.setOperatingMode(OperatingMode.RUN)
+                session.runCycles(1_000_000)
+                assertEquals(OperatingMode.RUN, session.currentOperatingMode())
+            }
             val bounded = BoundedExecutionService(state, { changes.projectRevision() })
             val display = DisplayReadService(state)
             val adapter = PgpMcpToolAdapter({ state().debugService }, boundedProvider = { bounded }, displayProvider = { display })
-            fun run(action: String, keys: List<String> = emptyList()) {
+            fun run(action: String, keys: List<String> = emptyList(), address: Int? = null) {
                 val proposal = adapter.call(BoundedExecutionMcp.PROPOSE, buildJsonObject {
                     put("sessionId", SESSION); put("sessionRevision", runner.sessionRevision)
                     put("projectRevision", changes.projectRevision())
                     put("action", action); put("maxCycles", 2_000_000); put("maxInstructions", 1_000_000)
+                    address?.let { put("callAddress", it) }
                     if (keys.isNotEmpty()) putJsonArray("keys") { keys.forEach { add(it) } }
                 })
                 assertEquals(JsonPrimitive(false), proposal["isError"], proposal.toString())
@@ -116,23 +163,42 @@ class S1MachineWorkflowTest {
             assertEquals(4, (outputs + listOf(prompt)).distinct().size)
             run("keys", listOf("NUM_0", "ENTER"))
             val finalDisplay = capture("end")
-            if (machine == "pc-1350") {
+            if (rows == 4) {
                 val populatedRows = finalDisplay.chunked(finalDisplay.size / rows).count { row ->
                     row.any { '1' in it.jsonPrimitive.content }
                 }
                 assertEquals(rows, populatedRows)
             }
+            assertContentEquals(byteArrayOf(0), runner.memorySnapshot(resultAddress, 1).copyBytes())
+            run("call", address = callAddress)
+            capture("after-call")
+            assertContentEquals(byteArrayOf(0x5a), runner.memorySnapshot(resultAddress, 1).copyBytes(), machine)
+            assertTrue(runner.cpuSnapshot().programCounter !in callAddress until resultAddress)
+
+            // Execute a second BASIC command to confirm the interpreter accepts input again after RTN.
+            run("run")
+            val restarted = capture("after-call-run")
+            if (rows > 1) {
+                // A multiline display retains earlier commands above the current prompt.
+                fun lastVisibleRow(pixels: JsonArray) = pixels.chunked(pixels.size / rows)
+                    .last { row -> row.any { '1' in it.jsonPrimitive.content } }
+                assertEquals(lastVisibleRow(prompt), lastVisibleRow(restarted), machine)
+            } else {
+                assertEquals(prompt, restarted, machine)
+            }
+
         }
     }
 
     private fun withProject(machine: String, runner: DesktopEmulatorRunner? = null,
+        extraSources: List<GeneratedSource> = emptyList(),
         action: (() -> DevelopmentReadState, DevelopmentChangeService) -> Unit) {
         val root = Files.createTempDirectory("pgp-$machine-workflow").toFile()
         try {
             var state = DevelopmentReadState(runner = runner, debugService = runner?.let { DesktopDebugContextService(it, SESSION) })
             val changes = DevelopmentChangeService({ state }, onWorkspaceChanged = { state = state.copy(project = it) })
             val proposal = changes.proposeProject("${machine.uppercase()} Numeric Labels", machine,
-                listOf(GeneratedSource("main", ProjectSourceType.BASIC, source(machine))))
+                listOf(GeneratedSource("main", ProjectSourceType.BASIC, source(machine))) + extraSources)
             val id = proposal.getValue("operationId").jsonPrimitive.content
             changes.selectCreationParent(root)
             changes.approve()

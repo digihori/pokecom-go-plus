@@ -43,9 +43,14 @@ public class KeyInputQueue(
     public fun advance(executedCycles: Long): KeyTransition? = advance(executedCycles, gapCycles)
 
     /** Uses a longer gap after ENTER if another key is pending. */
-    public fun advance(executedCycles: Long, enterGapCycles: Long): KeyTransition? {
+    public fun advance(executedCycles: Long, enterGapCycles: Long): KeyTransition? =
+        advance(executedCycles, enterGapCycles, gapCycles)
+
+    /** Uses machine-specific settling gaps after ENTER or CLEAR when input is still queued. */
+    public fun advance(executedCycles: Long, enterGapCycles: Long, clearGapCycles: Long): KeyTransition? {
         require(executedCycles >= 0) { "executedCycles must not be negative" }
         require(enterGapCycles > 0) { "enterGapCycles must be positive" }
+        require(clearGapCycles > 0) { "clearGapCycles must be positive" }
         val currentPhase = phase ?: return null
         remainingCycles -= executedCycles
         if (remainingCycles > 0) return null
@@ -59,7 +64,11 @@ public class KeyInputQueue(
                     remainingCycles = 0
                 } else {
                     phase = Phase.GAP
-                    remainingCycles = if (key == PocketKey.ENTER) maxOf(enterGapCycles, gapCycles) else gapCycles
+                    remainingCycles = when (key) {
+                        PocketKey.ENTER -> maxOf(enterGapCycles, gapCycles)
+                        PocketKey.CLEAR -> maxOf(clearGapCycles, gapCycles)
+                        else -> gapCycles
+                    }
                 }
                 KeyTransition.Release(key)
             }

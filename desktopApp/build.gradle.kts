@@ -78,6 +78,20 @@ val prepareKnowledgeResources by tasks.registering(Sync::class) {
         include("pgp-project.json", "src/main.bas")
         into("knowledge/examples/pc1401-numeric-labels")
     }
+    from(rootProject.file("test-data/basic/ai/pc1450-numeric-labels")) {
+        include("pgp-project.json", "src/main.bas")
+        into("knowledge/examples/pc1450-numeric-labels")
+    }
+    from(rootProject.file("test-data/basic/ai/pc1360-numeric-labels")) {
+        include("pgp-project.json", "src/main.bas")
+        into("knowledge/examples/pc1360-numeric-labels")
+    }
+    for (machine in listOf("pc1360k", "pc1460", "pc1470u")) {
+        from(rootProject.file("test-data/basic/ai/$machine-numeric-labels")) {
+            include("pgp-project.json", "src/main.bas")
+            into("knowledge/examples/$machine-numeric-labels")
+        }
+    }
     into(layout.buildDirectory.dir("generated/knowledge-resources"))
 }
 sourceSets.main { resources.srcDir(prepareKnowledgeResources) }

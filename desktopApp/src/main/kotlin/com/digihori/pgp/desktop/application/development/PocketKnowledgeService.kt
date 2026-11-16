@@ -134,6 +134,86 @@ internal class PocketKnowledgeService {
             "Numeric branching and LCD prompts on PC-1401, observed on one local ROM.", listOf("INPUT", "IF", "LCD", "作例"), "PC1401_SCOPE.md",
             listOf("test-data/basic/ai/pc1401-numeric-labels/README.md"),
             basis = "emulatorObservedExample", exampleId = "pc1401-numeric-labels", machineIds = listOf("pc-1401")),
+        Entry("pc1450.basic", "basic", "PC-1450 BASIC",
+            "PC-1450 S1 BASIC and text escapes.", listOf("BASIC", "S1", "PRINT", "INPUT", "文字"), "PC1450_SCOPE.md",
+            listOf("docs/reference/machines/PC-1450.md"), machineIds = listOf("pc-1450")),
+        Entry("pc1450.memory", "memory", "PC-1450 memory / RAMと解析範囲",
+            "RAM 0x2000–0x5FFF; the higher control window is not RAM.", listOf("RAM", "メモリ", "2000", "解析"), "PC1450_SCOPE.md",
+            listOf("docs/reference/machines/PC-1450.md"), machineIds = listOf("pc-1450")),
+        Entry("pc1450.display", "display", "PC-1450 LCD / LCD表示",
+            "16 characters on one row; 80 by 7 logical pixels.", listOf("LCD", "表示", "画面"), "PC1450_SCOPE.md",
+            listOf("docs/reference/machines/PC-1450.md"), machineIds = listOf("pc-1450")),
+        Entry("pc1450.execution", "execution", "PC-1450 execution / 実行",
+            "RUN mode, approval-backed execution and stopped LCD.", listOf("RUN", "CALL", "MODE", "実行"), "PC1450_SCOPE.md",
+            listOf("docs/reference/machines/PC-1450.md"), machineIds = listOf("pc-1450")),
+        Entry("pc1450.example.numeric-labels", "example", "PC-1450 numeric labels / 数値入力と分岐の作例",
+            "Numeric branching and LCD prompts on PC-1450, observed on one local ROM.", listOf("INPUT", "IF", "LCD", "作例"), "PC1450_SCOPE.md",
+            listOf("test-data/basic/ai/pc1450-numeric-labels/README.md"),
+            basis = "emulatorObservedExample", exampleId = "pc1450-numeric-labels", machineIds = listOf("pc-1450")),
+        Entry("pc1360.basic", "basic", "PC-1360 BASIC",
+            "PC-1360 S2 BASIC and text escapes.", listOf("BASIC", "S2", "PRINT", "INPUT", "文字"), "PC1360_SCOPE.md",
+            listOf("docs/reference/machines/PC-1360.md"), machineIds = listOf("pc-1360")),
+        Entry("pc1360.memory", "memory", "PC-1360 memory / RAMと解析範囲",
+            "RAM 0x8000–0xFFFF; 0x4000–0x7FFF is the banked ROM window.", listOf("RAM", "メモリ", "8000", "バンク", "解析"), "PC1360_SCOPE.md",
+            listOf("docs/reference/machines/PC-1360.md"), machineIds = listOf("pc-1360")),
+        Entry("pc1360.display", "display", "PC-1360 LCD / LCD表示",
+            "25 characters by four rows; 150 by 32 pixels.", listOf("LCD", "表示", "画面"), "PC1360_SCOPE.md",
+            listOf("docs/reference/machines/PC-1360.md"), machineIds = listOf("pc-1360")),
+        Entry("pc1360.execution", "execution", "PC-1360 execution / 実行",
+            "Firmware MODE key, RUN indicator and bounded execution.", listOf("RUN", "CALL", "MODE", "実行"), "PC1360_SCOPE.md",
+            listOf("docs/reference/machines/PC-1360.md"), machineIds = listOf("pc-1360")),
+        Entry("pc1360.example.numeric-labels", "example", "PC-1360 numeric labels / 数値入力と分岐の作例",
+            "Numeric branching and LCD prompts on PC-1360, observed on one local ROM.", listOf("INPUT", "IF", "LCD", "作例"), "PC1360_SCOPE.md",
+            listOf("test-data/basic/ai/pc1360-numeric-labels/README.md"),
+            basis = "emulatorObservedExample", exampleId = "pc1360-numeric-labels", machineIds = listOf("pc-1360")),
+        Entry("pc1360k.basic", "basic", "PC-1360K BASIC",
+            "PC-1360K S2 BASIC and text escapes.", listOf("BASIC", "S2", "PRINT", "INPUT", "文字"), "PC1360K_SCOPE.md",
+            listOf("docs/reference/machines/PC-1360K.md"), machineIds = listOf("pc-1360k")),
+        Entry("pc1360k.memory", "memory", "PC-1360K memory / RAMと解析範囲",
+            "Main RAM 0x8000–0xFFFF and Kanji work RAM 0x2000–0x27FF.", listOf("RAM", "メモリ", "8000", "バンク", "解析"), "PC1360K_SCOPE.md",
+            listOf("docs/reference/machines/PC-1360K.md"), machineIds = listOf("pc-1360k")),
+        Entry("pc1360k.display", "display", "PC-1360K LCD / LCD表示",
+            "25 characters by four rows; 150 by 32 pixels.", listOf("LCD", "表示", "画面"), "PC1360K_SCOPE.md",
+            listOf("docs/reference/machines/PC-1360K.md"), machineIds = listOf("pc-1360k")),
+        Entry("pc1360k.execution", "execution", "PC-1360K execution / 実行",
+            "Firmware MODE key, RUN indicator and bounded execution.", listOf("RUN", "CALL", "MODE", "実行"), "PC1360K_SCOPE.md",
+            listOf("docs/reference/machines/PC-1360K.md"), machineIds = listOf("pc-1360k")),
+        Entry("pc1360k.example.numeric-labels", "example", "PC-1360K numeric labels / 数値入力と分岐の作例",
+            "Numeric branching and LCD prompts on PC-1360K, observed on one local ROM.", listOf("INPUT", "IF", "LCD", "作例"), "PC1360K_SCOPE.md",
+            listOf("test-data/basic/ai/pc1360k-numeric-labels/README.md"),
+            basis = "emulatorObservedExample", exampleId = "pc1360k-numeric-labels", machineIds = listOf("pc-1360k")),
+        Entry("pc1460.basic", "basic", "PC-1460 BASIC",
+            "PC-1460 S1 BASIC and text escapes.", listOf("BASIC", "S1", "PRINT", "INPUT", "文字"), "PC1460_SCOPE.md",
+            listOf("docs/reference/machines/PC-1460.md"), machineIds = listOf("pc-1460")),
+        Entry("pc1460.memory", "memory", "PC-1460 memory / RAMと解析範囲",
+            "RAM 0x8000–0xFFFF and four ROM banks.", listOf("RAM", "メモリ", "8000", "バンク", "解析"), "PC1460_SCOPE.md",
+            listOf("docs/reference/machines/PC-1460.md"), machineIds = listOf("pc-1460")),
+        Entry("pc1460.display", "display", "PC-1460 LCD / LCD表示",
+            "24 characters on one row; 120 by 7 pixels.", listOf("LCD", "表示", "画面"), "PC1460_SCOPE.md",
+            listOf("docs/reference/machines/PC-1460.md"), machineIds = listOf("pc-1460")),
+        Entry("pc1460.execution", "execution", "PC-1460 execution / 実行",
+            "Firmware MODE key, RUN indicator and bounded execution.", listOf("RUN", "CALL", "MODE", "実行"), "PC1460_SCOPE.md",
+            listOf("docs/reference/machines/PC-1460.md"), machineIds = listOf("pc-1460")),
+        Entry("pc1460.example.numeric-labels", "example", "PC-1460 numeric labels / 数値入力と分岐の作例",
+            "Numeric branching and LCD prompts on PC-1460, observed on one local ROM.", listOf("INPUT", "IF", "LCD", "作例"), "PC1460_SCOPE.md",
+            listOf("test-data/basic/ai/pc1460-numeric-labels/README.md"),
+            basis = "emulatorObservedExample", exampleId = "pc1460-numeric-labels", machineIds = listOf("pc-1460")),
+        Entry("pc1470u.basic", "basic", "PC-1470U BASIC",
+            "PC-1470U S2 BASIC and text escapes.", listOf("BASIC", "S2", "PRINT", "INPUT", "文字"), "PC1470U_SCOPE.md",
+            listOf("docs/reference/machines/PC-1470U.md"), machineIds = listOf("pc-1470u")),
+        Entry("pc1470u.memory", "memory", "PC-1470U memory / RAMと解析範囲",
+            "Studio RAM window 0x8000–0xFFFF and eight ROM banks.", listOf("RAM", "メモリ", "8000", "バンク", "解析"), "PC1470U_SCOPE.md",
+            listOf("docs/reference/machines/PC-1470U.md"), machineIds = listOf("pc-1470u")),
+        Entry("pc1470u.display", "display", "PC-1470U LCD / LCD表示",
+            "24 characters by two rows; 120 by 14 pixels.", listOf("LCD", "表示", "画面"), "PC1470U_SCOPE.md",
+            listOf("docs/reference/machines/PC-1470U.md"), machineIds = listOf("pc-1470u")),
+        Entry("pc1470u.execution", "execution", "PC-1470U execution / 実行",
+            "Firmware MODE key, RUN indicator and bounded execution.", listOf("RUN", "CALL", "MODE", "実行"), "PC1470U_SCOPE.md",
+            listOf("docs/reference/machines/PC-1470U.md"), machineIds = listOf("pc-1470u")),
+        Entry("pc1470u.example.numeric-labels", "example", "PC-1470U numeric labels / 数値入力と分岐の作例",
+            "Numeric branching and LCD prompts on PC-1470U, observed on one local ROM.", listOf("INPUT", "IF", "LCD", "作例"), "PC1470U_SCOPE.md",
+            listOf("test-data/basic/ai/pc1470u-numeric-labels/README.md"),
+            basis = "emulatorObservedExample", exampleId = "pc1470u-numeric-labels", machineIds = listOf("pc-1470u")),
     )
     private val instructions = Sc61860InstructionSet.allDefined().groupBy { it.mnemonic }.toSortedMap()
     private val entries = articles + instructions.map { (mnemonic, _) ->
@@ -206,7 +286,7 @@ internal class PocketKnowledgeService {
                     }
                 }) } } })
             }
-            "pc1261.basic", "pc1350.basic", "pc1401.basic" -> put("dialectId", catalogSpec(machineId).getValue("basicDialect"))
+            "pc1261.basic", "pc1350.basic", "pc1401.basic", "pc1450.basic", "pc1360.basic", "pc1360k.basic", "pc1460.basic", "pc1470u.basic" -> put("dialectId", catalogSpec(machineId).getValue("basicDialect"))
             "pc1245.memory" -> {
                 val spec = catalogSpec()
                 put("memoryRegions", spec.getValue("memoryRegions")); put("memoryLayout", spec.getValue("memoryLayout"))
@@ -215,12 +295,12 @@ internal class PocketKnowledgeService {
                 put("basicEndPointerLow", Pc1245BasicDialect.PROGRAM_END_POINTER_LOW)
                 put("basicStorageEndExclusive", Pc1245BasicDialect.PROGRAM_STORAGE_END_EXCLUSIVE)
             }
-            "pc1245.display", "pc1251.display", "pc1261.display", "pc1350.display", "pc1401.display" -> put("display", catalogSpec(machineId).getValue("display"))
-            "pc1251.memory", "pc1261.memory", "pc1350.memory", "pc1401.memory" -> {
+            "pc1245.display", "pc1251.display", "pc1261.display", "pc1350.display", "pc1401.display", "pc1450.display", "pc1360.display", "pc1360k.display", "pc1460.display", "pc1470u.display" -> put("display", catalogSpec(machineId).getValue("display"))
+            "pc1251.memory", "pc1261.memory", "pc1350.memory", "pc1401.memory", "pc1450.memory", "pc1360.memory", "pc1360k.memory", "pc1460.memory", "pc1470u.memory" -> {
                 val spec = catalogSpec(machineId)
                 put("memoryRegions", spec.getValue("memoryRegions")); put("memoryLayout", spec.getValue("memoryLayout"))
             }
-            "pc1251.execution", "pc1261.execution", "pc1350.execution", "pc1401.execution" -> {
+            "pc1251.execution", "pc1261.execution", "pc1350.execution", "pc1401.execution", "pc1450.execution", "pc1360.execution", "pc1360k.execution", "pc1460.execution", "pc1470u.execution" -> {
                 put("keyboard", catalogSpec(machineId).getValue("keyboard"))
                 put("boundedExecutionSupported", true); put("displayCaptureSupported", true); put("projectCreationSupported", true)
             }
@@ -267,7 +347,9 @@ internal class PocketKnowledgeService {
             "pc-1251" -> "pc1251-v3"
             "pc-1261" -> "pc1261-v1"
             "pc-1350" -> "pc1350-v1"
-            else -> "pc1401-v1"
+            "pc-1401" -> "pc1401-v1"
+            "pc-1450" -> "pc1450-v1"
+            else -> "${machineId.replace("-", "")}-v1"
         }); body()
     }.also { if (it.toString().toByteArray(Charsets.UTF_8).size > MAX_BYTES) throw DevelopmentReadError("RESPONSE_TOO_LARGE") }
 

@@ -1,6 +1,6 @@
 # AIからProject・Sourceを新規作成する
 
-更新日：2026-11-02。PC-1245／PC-1251／PC-1261／PC-1350／PC-1401のテキストProjectを作成し、Build・Load・上限付きの起動／入力・LCD確認へ進めます。
+更新日：2026-11-02。PC-1245／PC-1251／PC-1261／PC-1350／PC-1401／PC-1450／PC-1360／PC-1360K／PC-1460／PC-1470UのテキストProjectを作成し、Build・Load・上限付きの起動／入力・LCD確認へ進めます。
 Studio側の承認、利用者が用意するROMとRUNモード、各操作のSession／revisionの照合が必要です。
 
 ## 新しいProjectを作る
@@ -20,7 +20,7 @@ AIは保存先パスや任意のmanifestを指定できません。Source IDか�
 既存フォルダー・ファイルへの上書きは行わず、作成先が既にある場合は失敗します。
 承認前に別のProjectを開いた場合や処理中の場合も作成しません。
 
-作成時にmachineId（pc-1245／pc-1251／pc-1261／pc-1350／pc-1401）を指定し、実行中の機種・ROM・RAM・PCは変更しません。
+作成時にmachineId（pc-1245／pc-1251／pc-1261／pc-1350／pc-1401／pc-1450／pc-1360／pc-1360k／pc-1460／pc-1470u）を指定し、実行中の機種・ROM・RAM・PCは変更しません。
 Projectを開いた状態では新規作成を拒否するため、既存Projectへ追加したい場合は次の操作を使います。
 Build前にはmetadataの`buildMachineId`も確認します。既存のBuildは実行中Sessionの機種を使うため、
 別機種を開いている場合は利用者がProjectと同じ機種へ切り替えるか、Sessionなしの状態でBuildしてください。
@@ -45,7 +45,7 @@ AIが現在の登録済みSourceを`pgp_get_source`で読み、そのprojectRevi
 
 初版の入力は1〜8個のBASIC／Assembly、本文合計32 KiB（UTF-8）以内。
 Source IDは英小文字で始まる英小文字・数字・`_`・`-`の32文字以内で、予約名は使えません。
-追加は1個ずつ。PC-1245／PC-1251／PC-1261／PC-1350／PC-1401・内蔵assemblerのテキストProjectが対象です。
+追加は1個ずつ。PC-1245／PC-1251／PC-1261／PC-1350／PC-1401／PC-1450／PC-1360／PC-1360K／PC-1460／PC-1470U・内蔵assemblerのテキストProjectが対象です。
 構文不正や重複配置等は作成時に意味検証せず、Build診断で確認・修正します。
 たとえばBASICを複数追加できても、現行Buildは複数BASICを拒否します。
 
@@ -156,7 +156,8 @@ inputComplete=trueでも実行成功とは限らないため、RAM・停止理�
 
 `pc1261-numeric-labels` は、入力が1／2／3のときにLCDで ONE／TWO／OTHER を表示し、0で終了する作例です。
 生成を承認してビルドし、PC-1261のROMを起動したエミュレーターにロードして、MCPの上限付きRUNとキー入力、LCD取得を確認しました。
-CALL先は実行中のRAM構成で書き込み可能な物理RAMに限定されます。PC-1261の実ROMでのCALLは今後の検証項目です。
+CALL先は実行中のRAM構成で書き込み可能な物理RAMに限定されます。PC-1261・PC-1350・PC-1401のローカルROMで、短い機械語ルーチンへのCALLとBASICへの復帰を確認しました。
+[検証条件と結果](../development/AI_MACHINE_ROLLOUT_VERIFICATION.md#pc-1261pc-1350pc-1401のcall実行2026-11-16)を参照してください。
 
 
 ## PC-1350の確認範囲
@@ -164,3 +165,20 @@ CALL先は実行中のRAM構成で書き込み可能な物理RAMに限定され�
 本体のMODEキーでRUNに切り替え、LCDにRUNが表示された状態で上限付き実行を提案します。
 同梱作例 `pc1350-numeric-labels` は、入力に応じてラベルを表示します。
 LCD取得には25文字×4行の表示内容が含まれ、直前の入力と表示結果を複数行で確認できます。
+
+## PC-1450の確認範囲
+
+登録済みROMの起動を待ち、PROモードでロードしてからRUNモードに切り替えます。
+同梱作例 `pc1450-numeric-labels` のBASIC実行と、RAMへ目印を書き込む短い機械語ルーチンのCALLを確認しました。
+
+## PC-1360の確認範囲
+
+PC-1360の登録済みROMで初回の初期化を済ませ、LCDのRUN表示とコマンド待ちを確認します。
+同梱作例 `pc1360-numeric-labels` のS2 BASIC実行、4行LCD取得、物理RAM内の機械語へのCALLを確認しました。
+
+## PC-1360K・PC-1460・PC-1470Uの確認範囲
+
+初回のRAM初期化が必要な場合は、検証用の新規セッションで済ませます。
+PC-1360KではLCDのRUN表示を確認してロードします。
+PC-1460とPC-1470UではPROでロードしてからRUNに切り替えます。
+3機種とも、同梱の数値分岐作例と短い機械語ルーチンへのCALLをローカルROMで確認しました。

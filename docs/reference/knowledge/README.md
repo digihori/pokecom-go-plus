@@ -1,6 +1,6 @@
 # MCP機種知識カタログ
 
-更新日：2026-11-16。PC-1245・PC-1251・PC-1261・PC-1350・PC-1401の機種知識を提供する。
+更新日：2026-11-17。PC-1245・PC-1251・PC-1261・PC-1350・PC-1401・PC-1450・PC-1360・PC-1360K・PC-1460・PC-1470Uの機種知識を提供する。
 Studioのインストールだけで取得できるよう、このフォルダーの解説と既存HELLO WORLD作例を
 ビルド時にアプリのresourceへ同梱する。実行時に開発リポジトリや任意のファイルを読む機能ではない。
 
@@ -80,3 +80,27 @@ PC-1251の数値入力作例は1つのROMでエミュレーター観測済み。
 `pc1401.basic`、`pc1401.memory`、`pc1401.display`、`pc1401.execution` から取得できる。
 数値入力と分岐の作例IDは `pc1401-numeric-labels`。
 [PC-1401の対応範囲](PC1401_SCOPE.md)を参照。
+
+## PC-1450
+
+カタログ版は `pc1450-v1`。BASIC、RAM、LCD、実行を
+`pc1450.basic`、`pc1450.memory`、`pc1450.display`、`pc1450.execution` から取得できる。
+数値入力と分岐の作例IDは `pc1450-numeric-labels`。
+[PC-1450の対応範囲](PC1450_SCOPE.md)を参照。
+
+## PC-1360
+
+カタログ版は `pc1360-v1`。S2 BASIC、RAMとバンク窓、4行LCD、実行を
+`pc1360.basic`、`pc1360.memory`、`pc1360.display`、`pc1360.execution` から取得できる。
+数値入力と分岐の作例IDは `pc1360-numeric-labels`。
+[PC-1360の対応範囲](PC1360_SCOPE.md)を参照。
+
+## PC-1360K・PC-1460・PC-1470U
+
+各機種のBASIC、RAMとバンク窓、LCD、実行の解説と数値分岐作例を提供する。
+
+| 機種 | カタログ版 | 数値分岐の作例ID |
+| --- | --- | --- |
+| [PC-1360K](PC1360K_SCOPE.md) | `pc1360k-v1` | `pc1360k-numeric-labels` |
+| [PC-1460](PC1460_SCOPE.md) | `pc1460-v1` | `pc1460-numeric-labels` |
+| [PC-1470U](PC1470U_SCOPE.md) | `pc1470u-v1` | `pc1470u-numeric-labels` |

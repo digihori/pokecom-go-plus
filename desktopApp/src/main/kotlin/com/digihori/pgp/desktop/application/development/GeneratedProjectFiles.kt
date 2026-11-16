@@ -16,7 +16,7 @@ internal data class GeneratedSource(val id: String, val type: ProjectSourceType,
 
 /** Writes only reviewed, server-named files. No input path or recursive directory deletion. */
 internal object GeneratedProjectFiles {
-    val MACHINES = listOf("pc-1245", "pc-1251", "pc-1261", "pc-1350", "pc-1401")
+    val MACHINES = listOf("pc-1245", "pc-1251", "pc-1261", "pc-1350", "pc-1401", "pc-1450", "pc-1360", "pc-1360k", "pc-1460", "pc-1470u")
     fun validate(sources: List<GeneratedSource>) {
         if (sources.size !in 1..8 || sources.map { it.id }.distinct().size != sources.size) fail("INVALID_SOURCES")
         if (sources.sumOf { it.text.toByteArray(Charsets.UTF_8).size } > 32768) fail("LIMIT_EXCEEDED")

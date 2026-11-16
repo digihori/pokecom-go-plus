@@ -758,10 +758,13 @@ internal class DesktopEmulatorRunner(
             cyclesRemaining = (cyclesRemaining - partialResult.executedCycles).coerceAtLeast(0)
             status = partialResult.status
             if (partialResult.executedCycles > 0) {
-                val transition = if (boundedExecutionActive && machineId == Pc1245RomDefinition.MACHINE_ID) {
-                    keyInputQueue.advance(partialResult.executedCycles, PC1245_BOUNDED_ENTER_GAP_CYCLES)
-                } else {
-                    keyInputQueue.advance(partialResult.executedCycles)
+                val transition = when {
+                    boundedExecutionActive && machineId == Pc1245RomDefinition.MACHINE_ID ->
+                        keyInputQueue.advance(partialResult.executedCycles, PC1245_BOUNDED_ENTER_GAP_CYCLES)
+                    boundedExecutionActive && machineId.value in setOf("pc-1360", "pc-1360k") ->
+                        keyInputQueue.advance(partialResult.executedCycles,
+                            MachineCatalog.require(machineId).automaticKeyGapCycles, PC1360_BOUNDED_CLEAR_GAP_CYCLES)
+                    else -> keyInputQueue.advance(partialResult.executedCycles)
                 }
                 applyTransition(transition)
             }
@@ -1044,6 +1047,7 @@ internal class DesktopEmulatorRunner(
 
         // Give the PC-1245 ROM time to enter the next BASIC INPUT after ENTER.
         private const val PC1245_BOUNDED_ENTER_GAP_CYCLES = 28_800L // 150 ms
+        private const val PC1360_BOUNDED_CLEAR_GAP_CYCLES = 102_400L
         const val BASIC_LINE_SETTLE_CYCLES: Long = 57_600 // 200 ms after ENTER.
         const val DEFAULT_INSTRUCTION_TRACE_CAPACITY: Int = 256
         const val MIN_INSTRUCTION_TRACE_CAPACITY: Int = 16

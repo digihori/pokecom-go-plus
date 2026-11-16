@@ -13,7 +13,7 @@ internal object KnowledgeMcp {
     fun tools(): List<JsonObject> = names.map { name -> buildJsonObject {
         put("name", name)
         put("description", when (name) {
-            SEARCH -> "Search installed PC-1245/PC-1251/PC-1261/PC-1350/PC-1401 knowledge by keyword/topic. Start here for BASIC, memory, LCD, assembler, instruction metadata, examples and known gaps. No session, ROM or project required. All query words must match; page with offset/limit."
+            SEARCH -> "Search the bundled knowledge for supported machines by keyword/topic. Start here for BASIC, memory, LCD, assembler, instruction metadata, examples and known gaps. No session, ROM or project required. All query words must match; page with offset/limit."
             GET -> "Read one knowledge ID returned by pgp_search_knowledge, including provenance, verification limits, article and Core-derived data. Instruction items do not provide full semantics, flags or cycle counts. No file paths accepted."
             else -> "Read a bundled example by exampleId from knowledge search. Returns manifest and BASIC/assembly text with applicability and verification guidance; does not create files, build, load or run."
         })
