@@ -1,6 +1,6 @@
 # AIからProject・Sourceを新規作成する
 
-更新日：2026-11-02。PC-1245／PC-1251のテキストProjectを作成し、Build・Load・上限付きの起動／入力・LCD確認へ進めます。
+更新日：2026-11-02。PC-1245／PC-1251／PC-1261／PC-1350／PC-1401のテキストProjectを作成し、Build・Load・上限付きの起動／入力・LCD確認へ進めます。
 Studio側の承認、利用者が用意するROMとRUNモード、各操作のSession／revisionの照合が必要です。
 
 ## 新しいProjectを作る
@@ -20,7 +20,7 @@ AIは保存先パスや任意のmanifestを指定できません。Source IDか�
 既存フォルダー・ファイルへの上書きは行わず、作成先が既にある場合は失敗します。
 承認前に別のProjectを開いた場合や処理中の場合も作成しません。
 
-作成時にmachineId（pc-1245／pc-1251）を指定し、実行中の機種・ROM・RAM・PCは変更しません。
+作成時にmachineId（pc-1245／pc-1251／pc-1261／pc-1350／pc-1401）を指定し、実行中の機種・ROM・RAM・PCは変更しません。
 Projectを開いた状態では新規作成を拒否するため、既存Projectへ追加したい場合は次の操作を使います。
 Build前にはmetadataの`buildMachineId`も確認します。既存のBuildは実行中Sessionの機種を使うため、
 別機種を開いている場合は利用者がProjectと同じ機種へ切り替えるか、Sessionなしの状態でBuildしてください。
@@ -45,7 +45,7 @@ AIが現在の登録済みSourceを`pgp_get_source`で読み、そのprojectRevi
 
 初版の入力は1〜8個のBASIC／Assembly、本文合計32 KiB（UTF-8）以内。
 Source IDは英小文字で始まる英小文字・数字・`_`・`-`の32文字以内で、予約名は使えません。
-追加は1個ずつ。PC-1245／PC-1251・内蔵assemblerのテキストProjectが対象です。
+追加は1個ずつ。PC-1245／PC-1251／PC-1261／PC-1350／PC-1401・内蔵assemblerのテキストProjectが対象です。
 構文不正や重複配置等は作成時に意味検証せず、Build診断で確認・修正します。
 たとえばBASICを複数追加できても、現行Buildは複数BASICを拒否します。
 
@@ -150,3 +150,17 @@ PC-1251の数値入力作例は`pgp_get_example(machineId="pc-1251", exampleId="
 長いCALLキー列はPC-1251では50万サイクルで途中停止した観測があります。
 inputComplete=trueでも実行成功とは限らないため、RAM・停止理由・表示を照合します。
 実機・任意ROM・外部AIの全工程受入れは未検証です。
+
+
+## PC-1261の確認範囲
+
+`pc1261-numeric-labels` は、入力が1／2／3のときにLCDで ONE／TWO／OTHER を表示し、0で終了する作例です。
+生成を承認してビルドし、PC-1261のROMを起動したエミュレーターにロードして、MCPの上限付きRUNとキー入力、LCD取得を確認しました。
+CALL先は実行中のRAM構成で書き込み可能な物理RAMに限定されます。PC-1261の実ROMでのCALLは今後の検証項目です。
+
+
+## PC-1350の確認範囲
+
+本体のMODEキーでRUNに切り替え、LCDにRUNが表示された状態で上限付き実行を提案します。
+同梱作例 `pc1350-numeric-labels` は、入力に応じてラベルを表示します。
+LCD取得には25文字×4行の表示内容が含まれ、直前の入力と表示結果を複数行で確認できます。

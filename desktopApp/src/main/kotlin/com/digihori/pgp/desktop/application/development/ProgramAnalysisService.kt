@@ -34,7 +34,7 @@ internal class ProgramAnalysisService {
 
     fun prepare(name: String, bytes: ByteArray, kind: AnalysisProgramKind, machineId: String,
                 loadAddress: Int?, entryAddress: Int?, notes: String): AnalysisProgram {
-        if (machineId != "pc-1245" && machineId != "pc-1251") fail("UNSUPPORTED_ANALYSIS_MACHINE")
+        if (machineId !in GeneratedProjectFiles.MACHINES) fail("UNSUPPORTED_ANALYSIS_MACHINE")
         if (bytes.isEmpty() || bytes.size > MAX_INPUT_BYTES) fail("ANALYSIS_INPUT_SIZE")
         if (notes.length > 2048 || notes.any { it.code < 32 && it !in "\n\r\t" }) fail("INVALID_ARGUMENTS")
         if (kind != AnalysisProgramKind.RAW && loadAddress != null) fail("INVALID_ARGUMENTS")

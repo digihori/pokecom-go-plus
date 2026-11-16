@@ -159,7 +159,7 @@ class ProjectGenerationTest {
         expect("INVALID_SOURCES") { service.proposeProject("Example", "pc-1245", listOf(basic, basic)) }
         expect("LIMIT_EXCEEDED") { service.proposeProject("Example", "pc-1245", listOf(basic.copy(text = "あ".repeat(11000)))) }
         expect("INVALID_TEXT") { service.proposeProject("Example", "pc-1245", listOf(basic.copy(text = "10 REM\u0000"))) }
-        expect("UNSUPPORTED_GENERATION_MACHINE") { service.proposeProject("Example", "pc-1350", listOf(basic)) }
+        expect("UNSUPPORTED_GENERATION_MACHINE") { service.proposeProject("Example", "pc-1360", listOf(basic)) }
         val response = adapter.call(ProjectGenerationMcp.PROJECT, valid)
         val id = response.getValue("structuredContent").jsonObject.string("operationId")
         assertTrue(response.getValue("content").jsonArray.single().jsonObject.string("text").contains(id))

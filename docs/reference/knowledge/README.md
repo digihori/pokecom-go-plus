@@ -1,6 +1,6 @@
 # MCP機種知識カタログ
 
-更新日：2026-11-02。PC-1245に加え、PC-1251の実装由来の知識を提供する。
+更新日：2026-11-16。PC-1245・PC-1251・PC-1261・PC-1350・PC-1401の機種知識を提供する。
 Studioのインストールだけで取得できるよう、このフォルダーの解説と既存HELLO WORLD作例を
 ビルド時にアプリのresourceへ同梱する。実行時に開発リポジトリや任意のファイルを読む機能ではない。
 
@@ -57,3 +57,26 @@ PC-1251のProject／Source生成・上限実行・停止中LCD取得にも対応
 Coreから取得するmemoryLayoutはcatalogDefaultsで、SessionのRAM設定を読み取らない。
 PC-1251の数値入力作例は1つのROMでエミュレーター観測済み。
 実機・任意ROM・外部AIでの用途受入れは未実施。
+
+
+## PC-1261
+
+カタログ版は `pc1261-v1`。BASIC、標準RAM、LCD、実行を
+`pc1261.basic`、`pc1261.memory`、`pc1261.display`、`pc1261.execution` から取得できる。
+数値入力と分岐の作例IDは `pc1261-numeric-labels`。
+[PC-1261の対応範囲](PC1261_SCOPE.md)を参照。
+
+
+## PC-1350
+
+カタログ版は `pc1350-v1`。BASIC、RAM、4行LCD、実行を
+`pc1350.basic`、`pc1350.memory`、`pc1350.display`、`pc1350.execution` から取得できる。
+数値入力と分岐の作例IDは `pc1350-numeric-labels`。
+[PC-1350の対応範囲](PC1350_SCOPE.md)を参照。
+
+## PC-1401
+
+カタログ版は `pc1401-v1`。BASIC、RAM、LCD、実行を
+`pc1401.basic`、`pc1401.memory`、`pc1401.display`、`pc1401.execution` から取得できる。
+数値入力と分岐の作例IDは `pc1401-numeric-labels`。
+[PC-1401の対応範囲](PC1401_SCOPE.md)を参照。

@@ -129,7 +129,7 @@ class ProgramAnalysisTest {
                 service.prepare("outside.bin", byteArrayOf(2, 3), AnalysisProgramKind.RAW, "pc-1251", address, null, "")
             }
         }
-        invalid("UNSUPPORTED_ANALYSIS_MACHINE") { service.prepare("other.bas", "10 END".encodeToByteArray(), AnalysisProgramKind.BASIC, "pc-1350", null, null, "") }
+        invalid("UNSUPPORTED_ANALYSIS_MACHINE") { service.prepare("other.bas", "10 END".encodeToByteArray(), AnalysisProgramKind.BASIC, "pc-1360", null, null, "") }
     }
 
     @Test fun pc1251AssemblyAndMachineCodeCanBeReadAtImportedAddresses() {

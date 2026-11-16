@@ -79,6 +79,61 @@ internal class PocketKnowledgeService {
             listOf("G01", "INPUT", "IF", "数値", "入力", "ONE", "TWO", "OTHER", "作例"), "PC1251_NUMERIC_LABELS.md",
             listOf("test-data/basic/ai/pc1251-numeric-labels/README.md", "docs/development/AI_MACHINE_ROLLOUT_VERIFICATION.md"),
             basis = "emulatorObservedExample", exampleId = "pc1251-numeric-labels", machineIds = listOf("pc-1251")),
+        Entry("pc1261.basic", "basic", "PC-1261 BASIC / BASIC・文字コード",
+            "S1 BASIC, decimal line numbers, character escapes and Studio build/load workflow.",
+            listOf("BASIC", "S1", "INPUT", "PRINT", "CALL", "文字", "行番号"), "PC1261_SCOPE.md",
+            listOf("core/src/commonMain/kotlin/com/digihori/pgp/core/emulator/machine/pc1261/Pc1261BasicTokenizer.kt",
+                "docs/reference/BASIC_TEXT_FORMAT.md"), machineIds = listOf("pc-1261")),
+        Entry("pc1261.memory", "memory", "PC-1261 memory / RAMと解析範囲",
+            "Hardware RAM 0x4000–0x67FF and the Studio unrestricted configuration.",
+            listOf("RAM", "メモリ", "4000", "67FF", "解析"), "PC1261_SCOPE.md",
+            listOf("docs/reference/machines/RAM_1245_1261.md"), machineIds = listOf("pc-1261")),
+        Entry("pc1261.display", "display", "PC-1261 LCD / LCD表示",
+            "Stopped screen pixels and PNG; direct drawing conventions are not included.",
+            listOf("LCD", "表示", "画面"), "PC1261_SCOPE.md",
+            listOf("core/src/commonMain/kotlin/com/digihori/pgp/core/emulator/machine/pc1261/Pc1261Display.kt"),
+            machineIds = listOf("pc-1261")),
+        Entry("pc1261.execution", "execution", "PC-1261 execution / 実行",
+            "Approval-backed execution and LCD observations with a matching PC-1261 project.",
+            listOf("RUN", "CALL", "起動", "実行", "キー"), "PC1261_SCOPE.md",
+            listOf("docs/guides/AI_PROGRAM_GENERATION.md"), machineIds = listOf("pc-1261")),
+        Entry("pc1261.example.numeric-labels", "example", "PC-1261 numeric labels / 数値入力と分岐の作例",
+            "1→ONE, 2→TWO, other→OTHER, 0→END. Observed with bounded input and LCD on one local ROM.",
+            listOf("INPUT", "IF", "THEN", "数値", "ONE", "TWO", "OTHER", "作例"), "PC1261_SCOPE.md",
+            listOf("test-data/basic/ai/pc1261-numeric-labels/README.md"),
+            basis = "emulatorObservedExample", exampleId = "pc1261-numeric-labels", machineIds = listOf("pc-1261")),
+        Entry("pc1350.basic", "basic", "PC-1350 BASIC",
+            "PC-1350 S1 BASIC and text escapes.", listOf("BASIC", "S1", "PRINT", "INPUT", "文字"), "PC1350_SCOPE.md",
+            listOf("docs/reference/machines/PC-1350.md"), machineIds = listOf("pc-1350")),
+        Entry("pc1350.memory", "memory", "PC-1350 memory / RAMと解析範囲",
+            "RAM 0x2000–0x7FFF excluding LCD addresses.", listOf("RAM", "メモリ", "2000", "解析"), "PC1350_SCOPE.md",
+            listOf("docs/reference/machines/PC-1350.md"), machineIds = listOf("pc-1350")),
+        Entry("pc1350.display", "display", "PC-1350 LCD / LCD表示",
+            "25 characters by four rows; 150 by 32 pixels.", listOf("LCD", "表示", "画面"), "PC1350_SCOPE.md",
+            listOf("docs/reference/machines/PC-1350.md"), machineIds = listOf("pc-1350")),
+        Entry("pc1350.execution", "execution", "PC-1350 execution / 実行",
+            "Firmware MODE key, RUN indicator and bounded execution.", listOf("RUN", "CALL", "MODE", "実行"), "PC1350_SCOPE.md",
+            listOf("docs/reference/machines/PC-1350.md"), machineIds = listOf("pc-1350")),
+        Entry("pc1350.example.numeric-labels", "example", "PC-1350 numeric labels / 数値入力と分岐の作例",
+            "Numeric branching and LCD prompts on PC-1350.", listOf("INPUT", "IF", "LCD", "作例"), "PC1350_SCOPE.md",
+            listOf("test-data/basic/ai/pc1350-numeric-labels/README.md"),
+            basis = "emulatorObservedExample", exampleId = "pc1350-numeric-labels", machineIds = listOf("pc-1350")),
+        Entry("pc1401.basic", "basic", "PC-1401 BASIC",
+            "PC-1401 S1 BASIC and text escapes.", listOf("BASIC", "S1", "PRINT", "INPUT", "文字"), "PC1401_SCOPE.md",
+            listOf("docs/reference/machines/PC-1401.md"), machineIds = listOf("pc-1401")),
+        Entry("pc1401.memory", "memory", "PC-1401 memory / RAMと解析範囲",
+            "Hardware RAM 0x3800–0x47FF and the Studio unrestricted configuration.", listOf("RAM", "メモリ", "3800", "解析"), "PC1401_SCOPE.md",
+            listOf("docs/reference/machines/PC-1401.md"), machineIds = listOf("pc-1401")),
+        Entry("pc1401.display", "display", "PC-1401 LCD / LCD表示",
+            "16 characters on one row; 80 by 7 logical pixels.", listOf("LCD", "表示", "画面"), "PC1401_SCOPE.md",
+            listOf("docs/reference/machines/PC-1401.md"), machineIds = listOf("pc-1401")),
+        Entry("pc1401.execution", "execution", "PC-1401 execution / 実行",
+            "RUN mode, approval-backed execution and stopped LCD.", listOf("RUN", "CALL", "MODE", "実行"), "PC1401_SCOPE.md",
+            listOf("docs/reference/machines/PC-1401.md"), machineIds = listOf("pc-1401")),
+        Entry("pc1401.example.numeric-labels", "example", "PC-1401 numeric labels / 数値入力と分岐の作例",
+            "Numeric branching and LCD prompts on PC-1401, observed on one local ROM.", listOf("INPUT", "IF", "LCD", "作例"), "PC1401_SCOPE.md",
+            listOf("test-data/basic/ai/pc1401-numeric-labels/README.md"),
+            basis = "emulatorObservedExample", exampleId = "pc1401-numeric-labels", machineIds = listOf("pc-1401")),
     )
     private val instructions = Sc61860InstructionSet.allDefined().groupBy { it.mnemonic }.toSortedMap()
     private val entries = articles + instructions.map { (mnemonic, _) ->
@@ -127,8 +182,8 @@ internal class PocketKnowledgeService {
             put("machineId", machineId); put("exampleId", exampleId); put("item", metadata(entry))
             put("guidance", bodies.getValue(entry.id)); put("createsFiles", false)
             put("files", buildJsonArray {
-                (if (exampleId in setOf("pc1245-numeric-labels", "pc1251-numeric-labels")) listOf("pgp-project.json", "src/main.bas")
-                    else listOf("pgp-project.json", "src/main.bas", "src/hello.asm")).forEach { path ->
+                (if (exampleId == "pc1245-hello-world") listOf("pgp-project.json", "src/main.bas", "src/hello.asm")
+                    else listOf("pgp-project.json", "src/main.bas")).forEach { path ->
                     add(buildJsonObject { put("path", path); put("text", resource("examples/$exampleId/$path")); put("encoding", "UTF-8") })
                 }
             })
@@ -151,6 +206,7 @@ internal class PocketKnowledgeService {
                     }
                 }) } } })
             }
+            "pc1261.basic", "pc1350.basic", "pc1401.basic" -> put("dialectId", catalogSpec(machineId).getValue("basicDialect"))
             "pc1245.memory" -> {
                 val spec = catalogSpec()
                 put("memoryRegions", spec.getValue("memoryRegions")); put("memoryLayout", spec.getValue("memoryLayout"))
@@ -159,12 +215,12 @@ internal class PocketKnowledgeService {
                 put("basicEndPointerLow", Pc1245BasicDialect.PROGRAM_END_POINTER_LOW)
                 put("basicStorageEndExclusive", Pc1245BasicDialect.PROGRAM_STORAGE_END_EXCLUSIVE)
             }
-            "pc1245.display", "pc1251.display" -> put("display", catalogSpec(machineId).getValue("display"))
-            "pc1251.memory" -> {
+            "pc1245.display", "pc1251.display", "pc1261.display", "pc1350.display", "pc1401.display" -> put("display", catalogSpec(machineId).getValue("display"))
+            "pc1251.memory", "pc1261.memory", "pc1350.memory", "pc1401.memory" -> {
                 val spec = catalogSpec(machineId)
                 put("memoryRegions", spec.getValue("memoryRegions")); put("memoryLayout", spec.getValue("memoryLayout"))
             }
-            "pc1251.execution" -> {
+            "pc1251.execution", "pc1261.execution", "pc1350.execution", "pc1401.execution" -> {
                 put("keyboard", catalogSpec(machineId).getValue("keyboard"))
                 put("boundedExecutionSupported", true); put("displayCaptureSupported", true); put("projectCreationSupported", true)
             }
@@ -206,11 +262,17 @@ internal class PocketKnowledgeService {
             bytes.decodeToString(throwOnInvalidSequence = true)
         }
     private fun response(machineId: String, format: String, body: JsonObjectBuilder.() -> Unit): JsonObject = buildJsonObject {
-        put("format", format); put("schemaVersion", 1); put("catalogVersion", if (machineId == "pc-1245") "pc1245-v2" else "pc1251-v3"); body()
+        put("format", format); put("schemaVersion", 1); put("catalogVersion", when (machineId) {
+            "pc-1245" -> "pc1245-v2"
+            "pc-1251" -> "pc1251-v3"
+            "pc-1261" -> "pc1261-v1"
+            "pc-1350" -> "pc1350-v1"
+            else -> "pc1401-v1"
+        }); body()
     }.also { if (it.toString().toByteArray(Charsets.UTF_8).size > MAX_BYTES) throw DevelopmentReadError("RESPONSE_TOO_LARGE") }
 
     companion object {
-        val MACHINES = listOf("pc-1245", "pc-1251")
+        val MACHINES = GeneratedProjectFiles.MACHINES
         val TOPICS = listOf("basic", "memory", "display", "assembler", "execution", "example", "instruction")
         const val MAX_BYTES = 64 * 1024
     }

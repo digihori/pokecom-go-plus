@@ -110,7 +110,7 @@ class PocketKnowledgeTest {
             """{"machineId":"pc-1245","limit":"8"}""", """{"machineId":"pc-1245","offset":-1}""",
             """{"machineId":"pc-1245","limit":17}""", """{"machineId":"pc-1245","path":"/etc/passwd"}""")
         for (args in invalidSearches) assertError("INVALID_ARGUMENTS", KnowledgeMcp.SEARCH, args)
-        assertError("UNSUPPORTED_KNOWLEDGE_MACHINE", KnowledgeMcp.SEARCH, """{"machineId":"pc-1350"}""")
+        assertError("UNSUPPORTED_KNOWLEDGE_MACHINE", KnowledgeMcp.SEARCH, """{"machineId":"pc-1360"}""")
         assertError("KNOWLEDGE_NOT_FOUND", KnowledgeMcp.GET, """{"machineId":"pc-1245","id":"../../etc/passwd"}""")
         assertError("EXAMPLE_NOT_FOUND", KnowledgeMcp.EXAMPLE, """{"machineId":"pc-1245","exampleId":"/etc/passwd"}""")
     }

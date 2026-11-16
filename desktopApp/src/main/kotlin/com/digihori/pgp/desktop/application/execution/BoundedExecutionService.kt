@@ -42,11 +42,21 @@ internal class BoundedExecutionService(
         if (state.busy) fail("BUSY")
         if (runner.machineId.value !in GeneratedProjectFiles.MACHINES || state.project?.definition?.machineId != runner.machineId) fail("MATCHING_SUPPORTED_PROJECT_REQUIRED")
         if (callAddress != null) {
+            val allowedRange = when (runner.machineId.value) {
+                "pc-1261" -> 0x4000L..0x7fffL
+                "pc-1350" -> 0x2000L..0x7fffL
+                "pc-1401" -> 0x2000L..0x5fffL
+                else -> 0xa000L..0xc7ffL
+            }
+            if (callAddress !in allowedRange) fail("INVALID_ARGUMENTS")
             val location = runner.memoryLayout.locate(callAddress.toInt())
             if (location.kind != MachineMemoryKind.RAM || !location.writable || location.physicalAddress != callAddress.toInt()) fail("CALL_ADDRESS_NOT_RAM")
         }
         if (contentRevision() != projectRevision) fail("STALE_PROJECT")
-        if (runner.currentOperatingMode() != OperatingMode.RUN) fail("RUN_MODE_REQUIRED")
+        if (runner.machineId.value == "pc-1350") {
+            // This ROM switches modes with MODE. Read the firmware's LCD annunciator.
+            if (DisplaySymbol.RUN !in runner.displaySnapshot().symbols) fail("RUN_MODE_REQUIRED")
+        } else if (runner.currentOperatingMode() != OperatingMode.RUN) fail("RUN_MODE_REQUIRED")
         if (!runner.canStartBoundedInput()) fail("INPUT_BUSY")
         return state
     }

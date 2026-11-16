@@ -19,14 +19,15 @@ internal class DisplayReadService(private val stateProvider: () -> DevelopmentRe
         val display = runner.displaySnapshot()
         val scale = 6
         val image = BufferedImage((display.dotColumns + (display.characterColumns - 1) * display.interCharacterColumnGap + 4) * scale,
-            (display.dotRows + 4) * scale, BufferedImage.TYPE_INT_RGB)
+            (display.dotRows + (display.characterRows - 1) * display.interCharacterRowGap + 4) * scale, BufferedImage.TYPE_INT_RGB)
         val graphics = image.createGraphics()
         try {
             graphics.color = java.awt.Color(0xd5debd); graphics.fillRect(0, 0, image.width, image.height)
             graphics.color = java.awt.Color(0x293423)
             for (row in 0 until display.dotRows) for (column in 0 until display.dotColumns) if (display.isDotOn(column, row)) {
                 val x = column + column / display.characterWidth * display.interCharacterColumnGap
-                graphics.fillRect((x + 2) * scale, (row + 2) * scale, scale, scale)
+                val y = row + row / display.characterHeight * display.interCharacterRowGap
+                graphics.fillRect((x + 2) * scale, (y + 2) * scale, scale, scale)
             }
         } finally { graphics.dispose() }
         val png = ByteArrayOutputStream().also { ImageIO.write(image, "png", it) }.toByteArray()
@@ -35,12 +36,14 @@ internal class DisplayReadService(private val stateProvider: () -> DevelopmentRe
             put("machineId", runner.machineId.value); put("pc", runner.cpuSnapshot().programCounter)
             put("runState", runner.state.name.lowercase()); put("operatingMode", runner.currentOperatingMode().name)
             put("displayRevision", display.revision); put("enabled", display.enabled)
+            put("characterRows", display.characterRows); put("characterHeight", display.characterHeight)
             put("characterColumns", display.characterColumns); put("characterWidth", display.characterWidth)
             put("dotColumns", display.dotColumns); put("dotRows", display.dotRows)
             put("interCharacterColumnGap", display.interCharacterColumnGap)
+            put("interCharacterRowGap", display.interCharacterRowGap)
             putJsonArray("symbols") { display.symbols.forEach { add(it.name) } }
             putJsonArray("pixels") { for (row in 0 until display.dotRows) add((0 until display.dotColumns).joinToString("") { if (display.isDotOn(it, row)) "1" else "0" }) }
-            put("encoding", "pixels[row][column], 1=visible dot; PNG inserts character gaps; no OCR text")
+            put("encoding", "pixels[row][column], 1=visible dot; PNG inserts character column and row gaps; no OCR text")
         }
         return buildJsonObject {
             put("structuredContent", value); put("isError", false)

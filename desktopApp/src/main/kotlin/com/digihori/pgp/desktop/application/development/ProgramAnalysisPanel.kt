@@ -43,7 +43,7 @@ internal fun ProgramAnalysisPanel(
         Text(strings.text("analysis.scope"))
         Text(strings.text("analysis.machine"))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("pc-1245", "pc-1251").forEach { value ->
+            GeneratedProjectFiles.MACHINES.forEach { value ->
                 FilterChip(selected = machineId == value, onClick = {
                     machineId = value
                     preview = null
