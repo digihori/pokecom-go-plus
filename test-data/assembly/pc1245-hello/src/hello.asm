@@ -1,5 +1,5 @@
 ; PC-1245 / Studio built-in SC61860 assembler.
-; Independent 5x7 glyphs; bit 0 is the top pixel. BASIC CALL 50432.
+; Independent 5x7 glyphs; bit 0 is the top pixel. BASIC CALL &C500.
 ; Keep code/data below C600: BASIC uses the upper RAM as workspace.
 ; A, P, Q, DP and flags are scratch. Preserve X/Y and leave I/J intact.
 ORG 0xC500

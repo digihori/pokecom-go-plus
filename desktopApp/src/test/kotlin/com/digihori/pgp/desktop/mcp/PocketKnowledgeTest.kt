@@ -126,6 +126,31 @@ class PocketKnowledgeTest {
         }
     }
 
+    @Test fun pc1350DrawingKnowledgePublishesVramInBandOrder() {
+        val display = ok(KnowledgeMcp.GET, """{"machineId":"pc-1350","id":"pc1350.display"}""")
+            .getValue("data").jsonObject.getValue("display").jsonObject.getValue("directDrawing").jsonObject
+        assertEquals(150, display.getValue("dotColumns").jsonPrimitive.int)
+        assertEquals(32, display.getValue("dotRows").jsonPrimitive.int)
+        val blocks = display.getValue("columnAddressBlocks").jsonArray
+        assertEquals(20, blocks.size)
+        assertEquals(
+            listOf(0x7000, 0x7200, 0x7400, 0x7600, 0x7800, 0x7040, 0x7240, 0x7440, 0x7640, 0x7840,
+                0x701e, 0x721e, 0x741e, 0x761e, 0x781e, 0x705e, 0x725e, 0x745e, 0x765e, 0x785e),
+            blocks.map { it.jsonObject.getValue("firstAddress").jsonPrimitive.int },
+        )
+        assertEquals(listOf(0x783c), display.getValue("symbolAddressesExcluded").jsonArray.map { it.jsonPrimitive.int })
+    }
+
+    @Test fun buzzerKnowledgeIsSearchableAndReturnsTheTargetClock() {
+        for ((machine, clock) in listOf("pc-1245" to 192_000, "pc-1350" to 256_000)) {
+            val page = ok(KnowledgeMcp.SEARCH, """{"machineId":"$machine","query":"音階","topic":"audio"}""")
+            assertEquals(JsonPrimitive("sc61860.buzzer"), page.getValue("items").jsonArray.single().jsonObject["id"])
+            val item = ok(KnowledgeMcp.GET, """{"machineId":"$machine","id":"sc61860.buzzer"}""")
+            assertEquals(JsonPrimitive(clock), item.getValue("data").jsonObject["cyclesPerSecond"])
+            assertTrue(item.getValue("body").jsonPrimitive.content.contains("OUTC"))
+        }
+    }
+
     @Test fun pc1251KnowledgeIsIsolatedAndUsesItsOwnCatalogLayout() {
         val page = ok(KnowledgeMcp.SEARCH, """{"machineId":"pc-1251","topic":"memory"}""")
         assertEquals("pc1251-v3", page.getValue("catalogVersion").jsonPrimitive.content)
@@ -137,7 +162,7 @@ class PocketKnowledgeTest {
         val display = ok(KnowledgeMcp.GET, """{"machineId":"pc-1251","id":"pc1251.display"}""")
             .getValue("data").jsonObject.getValue("display").jsonObject
         assertEquals(24, display.getValue("characterColumns").jsonPrimitive.int)
-        assertEquals(JsonNull, display.getValue("directDrawing"))
+        assertEquals(120, display.getValue("directDrawing").jsonObject.getValue("dotColumns").jsonPrimitive.int)
         val basic = ok(KnowledgeMcp.GET, """{"machineId":"pc-1251","id":"pc1251.basic"}""")
         assertEquals(Pc1245BasicDialect.definition.id.value, basic.getValue("data").jsonObject.getValue("dialectId").jsonPrimitive.content)
         assertEquals(JsonArray(listOf(JsonPrimitive("pc-1251"))), basic.getValue("item").jsonObject.getValue("machineIds"))

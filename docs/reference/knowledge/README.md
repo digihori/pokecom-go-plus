@@ -9,6 +9,7 @@ Studioのインストールだけで取得できるよう、このフォルダ�
 | BASIC・文字 | `pc1245.basic` | [解説](PC1245_BASIC.md)＋Core方言定義のコード表。完全な実行時言語仕様ではない |
 | メモリ | `pc1245.memory` | [解説](PC1245_MEMORY.md)＋Core既定配置・管理ポインター。Session固有配置は既存機種仕様API |
 | LCD | `pc1245.display` | [解説](PC1245_DISPLAY.md)＋既存機種仕様APIと同じdirectDrawing |
+| ブザー・旋律 | `sc61860.buzzer` | [ポートCと演奏タイミング](SC61860_BUZZER.md)。対応機種ごとのクロックを返す |
 | assembler | `sc61860.assembler` | [内蔵構文](SC61860_ASSEMBLER.md)。外部assemblerとは区別 |
 | 起動・観測 | `pc1245.execution` | [RUN／CALLと未提供情報](PC1245_EXECUTION.md) |
 | 作例 | `pc1245.example.hello-world` | [適用条件・確認手順](PC1245_HELLO_EXAMPLE.md)。exampleIdは`pc1245-hello-world` |

@@ -9,8 +9,8 @@ Tokenizerは文字列・REM内のキーワードを通常の命令トークン�
 Build成功も、実ROMで実行可能・要求仕様どおりという意味ではありません。
 
 最小の表示例は`10 PRINT "HELLO"`と`20 END`です。実行結果は利用するROMで確認してください。
-既存の混在ProjectのBASICは`10 CALL 50432`と`20 END`で、機械語入口`0xC500`を呼び出します。
-説明は16進でも、BASIC入力には作例で確認した10進`CALL 50432`を使います。
+既存の混在ProjectのBASICは`10 CALL &C500`と`20 END`で、機械語入口`0xC500`を呼び出します。
+BASICのCALL先は機種が対応する16進表記を優先します。
 assemblerの`0x`・`$`・`&`接頭辞がBASICでも同じ意味で使えるとは推定しません。
 
 表示文字のπとBASIC関数PIは別のコードです。codeTableのkind（character／special／keyword）を区別してください。

@@ -1,5 +1,5 @@
 ; PC-1350 / built-in SC61860 assembler / original intermission-style art.
-; BASIC CALL 24576 (0x6000). One pass, approximately 23 seconds, then RTN.
+; BASIC CALL &6000 (0x6000). One pass, approximately 23 seconds, then RTN.
 ; Reserve 0x5000..0x6895 for this demo. No ROM calls or keyboard hooks; software square-wave sound.
 ; 150x32 LCD: five 30-byte blocks per 8-pixel row.
 ; Preserve I/J, X/Y and internal registers 8/9/10 and port C. A/P/Q/DP/flags are scratch.

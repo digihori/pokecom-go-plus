@@ -27,7 +27,7 @@ PC-1245作例の0xC500や0xC600制限を、PC-1251の安全な配置の根拠に
 
 Core定義では24文字×1行。実装は120列×7ドットを保持する。
 今回の知識APIは文字寸法と既存machine specの情報を返す。
-PC-1251のdirectDrawingはnullで、PC-1245の80列アドレス式を流用しない。
+PC-1251のdirectDrawingには120列のVRAM配置を掲載する。
 停止中LCDの`pgp_get_display`はPC-1251にも対応し、120列×7行のピクセルとPNGを返す。
 メモリ直接描画の仕様公開と、Sessionの表示取得は別の機能。
 

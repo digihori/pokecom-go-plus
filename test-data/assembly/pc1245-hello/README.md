@@ -34,14 +34,14 @@ ROM、外部assembler、生成済みバイナリは同梱しない。
    ContinueだけではRUN / CALLを入力しない。
 6. 表示と復帰を確認する。厳密な停止確認にはAIに `DONE` のBreakpoint設定を依頼して承認する。
 
-アドレス案内は原則16進（開始 `0xC500`）。同梱BASICの `CALL 50432` はその10進表記。
+アドレス案内は原則16進（開始 `0xC500`）。同梱BASICでは `CALL &C500` と指定する。
 言語や機種に合う実行構文を使い、説明上の `0x` をそのままBASICへ入力するとは限らない。
 ユーザーによるHELLO WORLD表示確認済み。Load／Continue／Pauseの実接続結果は
 [AI連携記録](../../../docs/reference/AI_INTEGRATION.md)を参照。
 
 ## メモリと制約
 
-- BASIC: `10 CALL 50432` / `20 END`。Assembly: code `0xC500..0xC556` / data `0xC580..0xC5BB`、計147 bytes。
+- BASIC: `10 CALL &C500` / `20 END`。Assembly: code `0xC500..0xC556` / data `0xC580..0xC5BB`、計147 bytes。
 - コードと字形は `0xC600` 未満に収める。上位RAMはROMが作業用に書き換える。
 - PC-1245のBASIC管理ポインタ `0xC6E1..0xC6E4` を破壊しない。
 - `LIP 0x5F; ORIM 0x01; OUTC` で他の制御ビットを保ってLCDを有効にする。

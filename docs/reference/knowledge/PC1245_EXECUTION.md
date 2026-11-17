@@ -1,8 +1,8 @@
 # PC-1245の起動・観測と未提供情報
 
 Loadはメモリへの配置です。Continueは現在のPCから再開する操作で、BASICのRUNやCALLを入力しません。
-HELLO WORLDの混在ProjectはRUNモードで`RUN`とENTERを入力すると、BASICから`CALL 50432`で
-機械語入口`0xC500`を呼びます。Assemblyだけを配置した場合の起動は`CALL 50432`です。
+HELLO WORLDの混在ProjectはRUNモードで`RUN`とENTERを入力すると、BASICから`CALL &C500`で
+機械語入口`0xC500`を呼びます。Assemblyだけを配置した場合の起動は`CALL &C500`です。
 RTNで戻るコードを単にPCの変更で開始すると、正しい戻り先を準備できません。
 
 キー操作・LCD画像取得・新規Project作成のMCP対応状況は実際のtools/listで確認してください。

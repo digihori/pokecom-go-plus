@@ -16,6 +16,11 @@ internal class PocketKnowledgeService {
     )
 
     private val articles = listOf(
+        Entry("sc61860.buzzer", "audio", "SC61860 buzzer and melodies / ブザー・音階・メロディー",
+            "Port C sound modes, software square waves, and pitch/duration guidance by machine clock.",
+            listOf("buzzer", "sound", "tone", "melody", "ブザー", "発音", "音階", "メロディー"), "SC61860_BUZZER.md",
+            listOf("core/src/commonMain/kotlin/com/digihori/pgp/core/emulator/machine/pc1245/Pc1245Buzzer.kt",
+                "test-data/assembly/pc1350-coffee-break/src/demo.asm"), machineIds = MACHINES),
         Entry("pc1245.basic", "basic", "PC-1245 BASIC and character codes / BASIC・文字コード",
             "OLD dialect, line numbers, tokens, characters, text escapes and CALL syntax.",
             listOf("BASIC", "PRINT", "INPUT", "IF", "文字", "構文", "トークン", "PI"), "PC1245_BASIC.md",
@@ -272,6 +277,7 @@ internal class PocketKnowledgeService {
 
     private fun data(entry: Entry, machineId: String): JsonObject = buildJsonObject {
         when (entry.id) {
+            "sc61860.buzzer" -> put("cyclesPerSecond", catalogSpec(machineId).getValue("cyclesPerSecond"))
             "pc1245.basic", "pc1251.basic" -> {
                 val dialect = Pc1245BasicDialect.definition
                 put("dialectId", dialect.id.value); put("maximumLineNumber", dialect.programFormat.maximumLineNumber)
@@ -355,7 +361,7 @@ internal class PocketKnowledgeService {
 
     companion object {
         val MACHINES = GeneratedProjectFiles.MACHINES
-        val TOPICS = listOf("basic", "memory", "display", "assembler", "execution", "example", "instruction")
+        val TOPICS = listOf("basic", "memory", "display", "audio", "assembler", "execution", "example", "instruction")
         const val MAX_BYTES = 64 * 1024
     }
 }

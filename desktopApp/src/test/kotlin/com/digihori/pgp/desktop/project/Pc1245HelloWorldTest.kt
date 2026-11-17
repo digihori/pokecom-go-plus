@@ -77,7 +77,7 @@ class Pc1245HelloWorldTest {
             }
         }
         session.releaseKey(PocketKey.ENTER)
-        assertTrue(entered, "ROM did not invoke BASIC CALL 50432")
+        assertTrue(entered, "ROM did not invoke BASIC CALL &C500")
         val entryR = session.cpuSnapshot().r
         val hold = artifact.assemblySources.single().symbols.first { it.name == "HOLD_START" }.address
         val done = artifact.assemblySources.single().symbols.first { it.name == "DONE" }.address

@@ -492,8 +492,8 @@ Continue提案→Studio承認→SUCCEEDEDと同Sessionのrunning・revision進�
 
 MCP initializeのinstructionsで、メモリアドレス・PC・開始位置・範囲は原則16進表記を
 案内する（16 bitは `0xC500` のように大文字4桁）。実行するソースやキー入力は対象言語・機種の
-対応構文を使い、BASICが `0x` や `&H` に対応すると推測しない。10進入力が必要な場合も
-「`0xC500`（10進50432、BASIC入力は `CALL 50432`）」のように16進を先に示す。
+対応構文を使う。BASICで機械語をCALLするときは、対応する16進リテラル
+（PC-1245なら `CALL &C500`）を優先する。10進表記は対象機種で必要な場合に使う。
 MCPのJSONアドレス引数は従来どおりintegerで、schemaは変更しない。
 AIへの案内方針であり応答書式の強制機構ではない。反映には最新版StudioとMCPの再接続が必要。
 
@@ -772,7 +772,7 @@ CALL_ADDRESS_NOT_RAM。PC-1245で下位RAMが使えるようになるわけで�
 RUN／キー列の承認、revision照合、上限・停止時の入力破棄は従来どおり。
 
 pgp_get_displayはPC-1251の120列×7行、24文字分のピクセルとPNGを返す。
-任意RAM・ROM読取りやOCRは行わない。directDrawing公開はPC-1245のみのまま。
+任意RAM・ROM読取りやOCRは行わない。直接描画仕様は機種仕様の `display.directDrawing` で取得する。
 解析ファイル公開・PC-1251作例・実ROM全工程は後続。
 
 ## 27. PC-1251数値入力作例と実ROM観測（2026-11-02）

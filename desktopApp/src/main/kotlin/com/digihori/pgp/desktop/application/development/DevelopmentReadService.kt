@@ -65,7 +65,7 @@ internal class DesktopDevelopmentReadService(private val stateProvider: () -> De
                     put("firmwareCallingConventionVerified", false)
                     put("exampleCodeAndDataEndInclusive", 0xc5ff)
                     put("exampleMemoryGuidance", "PC-1245 HELLO example keeps code/data below 0xC600; BASIC firmware writes upper RAM workspace, not only program pointers")
-                } else JsonNull)
+                } else lcdDrawingSpec(id.value, definition.characterColumns, definition.characterRows))
             })
             put("keyboard", buildJsonObject {
                 put("layoutId", definition.keyboardLayout.name)
@@ -93,7 +93,7 @@ internal class DesktopDevelopmentReadService(private val stateProvider: () -> De
                 put("opcode", instruction.opcode); put("mnemonic", instruction.mnemonic); put("length", instruction.length)
                 put("operandEncoding", instruction.operandEncoding.name); put("flow", instruction.flow.name); put("encodable", instruction.encodable)
             }) } })
-            put("notProvided", buildJsonArray { listOf("ROM routine calling conventions", "LCD pixel encoding except PC-1245 directDrawing", "key read ABI", "independent real-hardware timing validation").forEach { add(JsonPrimitive(it)) } })
+            put("notProvided", buildJsonArray { listOf("ROM routine calling conventions", "key read ABI", "independent real-hardware timing validation").forEach { add(JsonPrimitive(it)) } })
         })
     }
 
