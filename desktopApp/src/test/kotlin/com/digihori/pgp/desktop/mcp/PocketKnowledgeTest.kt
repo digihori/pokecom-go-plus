@@ -136,6 +136,9 @@ class PocketKnowledgeTest {
             val body = match.getValue("body").jsonPrimitive.content
             assertTrue(body.contains("Check before proposing a Build"))
             assertTrue(body.contains("pc1350-lcd-strip"))
+            assertTrue(body.contains("shared transfer loop"))
+            assertTrue(body.contains("advance the position once after both transfers"))
+            assertTrue(body.contains("maxOffset + 150 <= end - start"))
         }
     }
 
