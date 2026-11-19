@@ -4,7 +4,7 @@ Apply this guidance to a plain-language program request. Use the target machine,
 
 ## Gather the facts needed for the program
 
-- Identify the BASIC dialect, available RAM, and relevant LCD or sound hardware. Use `pgp_search_knowledge` with `includeContent=true`, and reuse results for the same machine and catalog. Fetch source examples with `pgp_get_example`.
+- Identify the BASIC dialect, available RAM, and relevant LCD or sound hardware. Use `pgp_search_knowledge` with `includeContent=true`, and reuse results for the same machine and catalog. Batch several known knowledge IDs with the `ids` argument in one request. Fetch source examples with `pgp_get_example`.
 - For PC-1350 animation, `pc1350-lcd-strip` demonstrates a small data-driven sprite, a shared copy routine, and a VRAM block crossing. Use the selected machine's display mapping when adapting the technique. For tones or melodies, use the audio topic and the selected machine's clock.
 - Check instruction support and flag or register effects against the available evidence. Search the instruction topic by mnemonic with `includeContent=true` for Core behavior and timing of selected drawing, delay, and sound instructions. Where firmware behavior, an instruction effect, or timing is unknown, report the gap and identify what must be checked.
 
@@ -23,3 +23,10 @@ Apply this guidance to a plain-language program request. Use the target machine,
 5. **Proposal and evidence.** Prepare related BASIC and Assembly together, then propose creation or a consolidated source change using current revisions. Keep source review, Build diagnostics, and observed execution results distinct. After a failed Build, use the completed operation’s buildDiagnostics to identify the causes. Fix related findings in one patch per source before proposing another Build. If the diagnostics are missing or truncated, consult the latest development diagnostics or Studio while the result still refers to that Build.
 
 Use Studio's approval flow for changes, Build, Load, and execution. When reporting results, state which checks ran and which still need an execution test.
+
+## PC-1350 full-width LCD checks
+
+- Turn the request into acceptance checks before proposing source. For the rocket exercise, draw both the title and the rocket in machine code, use two vertical bands for the rocket, and use the full horizontal range for its trajectory. BASIC supplies the CALL and return path.
+- Verify each destination from the machine's five 30-column blocks per band. For x in 0..149, use the band's block-zero address + 0x200 × floor(x/30) + (x modulo 30). For a pre-increment IYS, initialize Y to the first write address minus one and reset it when crossing into a new block. Check the first and last byte of each transfer. For example x=65 maps to 0x7445 in band 1 and 0x7423 in band 2.
+- Check the first and last sprite positions against all 150 columns. For a visible W-column sprite moving right across the full display without clipping, its left edge goes from 0 to 150-W. Check the corresponding range in reverse for leftward movement. Verify the sprite's footprint and erase path at every block boundary; a 60-column drawing area cannot traverse the full screen.
+- A bounded execution stop is an observation point. Inspect completed input, the stopped PC and LCD before proposing changes. BASIC may consume the rest of the budget after RTN. If the LCD may have been repainted, capture it at a breakpoint before RTN. Rebuild only when there is a diagnosed source defect to fix. A minimal single frame can isolate address mapping from animation timing.

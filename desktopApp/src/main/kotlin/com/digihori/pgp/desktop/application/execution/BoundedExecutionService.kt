@@ -140,6 +140,7 @@ internal class BoundedExecutionService(
             put("code", operation.code?.let(::JsonPrimitive) ?: JsonNull)
             put("approval", "Studio UI only"); put("programFinished", "notDetermined")
             put("successMeaning", "boundedRequestStoppedNotProgramFinished; verify LCD and behavior separately")
+            put("resultGuidance", "A budget stop alone does not justify a rebuild. Check inputComplete, observedPc and the LCD. BASIC may keep running after the routine returns; a breakpoint before RTN can capture the drawing before firmware repaints.")
             put("cycleLimitPrecision", "checked after each instruction; may exceed by the final instruction's cycles")
             put("inputPolicy", "stopping discards unsent keys and releases held automatic keys; do not automatically retry an incomplete sequence")
         }

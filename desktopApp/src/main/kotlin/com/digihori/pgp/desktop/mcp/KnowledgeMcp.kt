@@ -13,8 +13,8 @@ internal object KnowledgeMcp {
     fun tools(): List<JsonObject> = names.map { name -> buildJsonObject {
         put("name", name)
         put("description", when (name) {
-            SEARCH -> "Search the bundled knowledge for supported machines by keyword/topic. Start here for generation guidance, BASIC, memory, LCD, buzzer and melodies, assembler, instruction metadata, examples and known gaps. No session, ROM or project required. Use includeContent=true to fetch matching articles, provenance and structured data in this one call instead of search followed by individual reads. Filter by task keyword/topic; page with offset/limit. All query words must match."
-            GET -> "Read one knowledge ID returned by pgp_search_knowledge, including provenance, verification limits, article and Core-derived data. Selected instruction items also provide Core-derived register effects, flags and cycles in data.coreBehavior. No file paths accepted."
+            SEARCH -> "Search the bundled knowledge for supported machines by keyword/topic. Start here for generation guidance, BASIC, memory, LCD, buzzer and melodies, assembler, instruction metadata, examples and known gaps. No session, ROM or project required. Use includeContent=true to fetch matching articles, provenance and structured data in this one call instead of search followed by individual reads. Batch known IDs with ids=[...] to get their full content in one call; omit query and topic for that mode. Page with offset/limit. All query words must match."
+            GET -> "Read a single knowledge ID when only one item is needed. For several IDs use pgp_search_knowledge with ids in one call. Returns provenance, verification limits, article and Core-derived data. Selected instruction items also provide Core-derived register effects, flags and cycles in data.coreBehavior. No file paths accepted."
             else -> "Read a bundled example by exampleId from knowledge search. Returns manifest and BASIC/assembly text with applicability and verification guidance; does not create files, build, load or run."
         })
         putJsonObject("inputSchema") {
@@ -23,7 +23,12 @@ internal object KnowledgeMcp {
                 putJsonObject("machineId") { put("type", "string"); putJsonArray("enum") { PocketKnowledgeService.MACHINES.forEach { add(it) } } }
                 when (name) {
                     SEARCH -> {
-                        putJsonObject("includeContent") { put("type", "boolean"); put("description", "Return article bodies and structured data with search matches to reduce tool calls. Defaults to false for existing callers.") }
+                        putJsonObject("includeContent") { put("type", "boolean"); put("description", "Return article bodies and structured data with search matches to reduce tool calls. Defaults to false for query/topic searches and true for exact IDs.") }
+                        putJsonObject("ids") {
+                            put("type", "array"); put("minItems", 1); put("maxItems", 16); put("uniqueItems", true)
+                            put("description", "Batch exact knowledge IDs for the selected machine. Omit query and topic. Includes full content by default.")
+                            putJsonObject("items") { put("type", "string"); put("minLength", 1); put("maxLength", 128) }
+                        }
                         putJsonObject("query") { put("type", "string"); put("maxLength", 256) }
                         putJsonObject("topic") { put("type", "string"); putJsonArray("enum") { PocketKnowledgeService.TOPICS.forEach { add(it) } } }
                         putJsonObject("offset") { put("type", "integer"); put("minimum", 0); put("maximum", 1_000_000) }
@@ -43,7 +48,7 @@ internal object KnowledgeMcp {
     } }
 
     fun call(service: PocketKnowledgeService, name: String, args: JsonObject): JsonObject {
-        val allowed = if (name == SEARCH) setOf("machineId", "query", "topic", "offset", "limit", "includeContent")
+        val allowed = if (name == SEARCH) setOf("machineId", "query", "topic", "offset", "limit", "includeContent", "ids")
             else setOf("machineId", if (name == GET) "id" else "exampleId")
         if (args.keys.any { it !in allowed }) invalid()
         fun string(key: String, required: Boolean = true, max: Int = 128): String? {
@@ -59,13 +64,25 @@ internal object KnowledgeMcp {
             return primitive.intOrNull ?: invalid()
         }
         val machine = string("machineId")!!
+        val ids = args["ids"]?.let {
+            val values = it as? JsonArray ?: invalid()
+            if (values.size !in 1..16 || "query" in args || "topic" in args) invalid()
+            values.map { value ->
+                val id = value as? JsonPrimitive ?: invalid()
+                if (!id.isString) invalid()
+                id.content
+            }
+        }
         val includeContent = args["includeContent"]?.let {
             val primitive = it as? JsonPrimitive ?: invalid()
             if (primitive.isString) invalid()
             primitive.booleanOrNull ?: invalid()
-        } ?: false
+        } ?: (ids != null)
         return when (name) {
-            SEARCH -> service.search(machine, string("query", false, 256) ?: "", string("topic", false), integer("offset", 0), integer("limit", 8), includeContent)
+            SEARCH -> service.search(
+                machine, string("query", false, 256) ?: "", string("topic", false),
+                integer("offset", 0), integer("limit", ids?.size ?: 8), includeContent, ids,
+            )
             GET -> service.get(machine, string("id")!!)
             EXAMPLE -> service.example(machine, string("exampleId")!!)
             else -> throw DevelopmentReadError("UNKNOWN_TOOL")

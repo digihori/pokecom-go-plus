@@ -553,7 +553,7 @@ HTTP失敗、接続不能、認証読込み失敗は要求ID付きのJSON-RPC er
 
 | Tool | 引数 | 応答format |
 | --- | --- | --- |
-| `pgp_search_knowledge` | 必須machineId、任意query／topic／offset／limit／includeContent | `pgp-knowledge-search` |
+| `pgp_search_knowledge` | 必須machineId、任意query／topic／offset／limit／includeContent／ids | `pgp-knowledge-search` |
 | `pgp_get_knowledge` | 必須machineId／id | `pgp-knowledge-item` |
 | `pgp_get_example` | 必須machineId／exampleId | `pgp-knowledge-example` |
 
@@ -564,6 +564,9 @@ offsetは0〜1000000（既定0）、limitは1〜16（既定8）。totalとnextOf
 本文も検索対象とする。既定の `includeContent=false` では `items` に要約を返す。
 `includeContent=true` では各要素に `item`（要約と出典）、`body`（本文）、`data`（構造化データ）を返す。
 並び順とページングは共通。該当なしは空配列。64 KiBを超える場合は検索条件を絞るかlimitを下げる。
+複数の既知IDは `ids`（重複なしで1〜16件）にまとめられる。query／topicは指定しない。
+この場合は指定順で返し、includeContentの既定はtrue、limitの既定は指定件数。
+対象機種で取得できないIDを含む場合は `KNOWLEDGE_NOT_FOUND`。
 作例のソースファイルは `pgp_get_example` で取得する。
 
 項目ID・exampleIdは最大128文字の文字列。未知IDは`KNOWLEDGE_NOT_FOUND`／`EXAMPLE_NOT_FOUND`。

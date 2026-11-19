@@ -245,12 +245,19 @@ internal class PocketKnowledgeService(
     }
     private val bodies by lazy { articles.associate { it.id to resource("articles/${it.article}") } }
 
-    fun search(machineId: String, query: String, topic: String?, offset: Int, limit: Int, includeContent: Boolean = false): JsonObject {
+    fun search(
+        machineId: String, query: String, topic: String?, offset: Int, limit: Int,
+        includeContent: Boolean = false, ids: List<String>? = null,
+    ): JsonObject {
         machine(machineId)
         if (query.length > 256 || topic != null && topic !in TOPICS || offset !in 0..1_000_000 || limit !in 1..16)
             throw DevelopmentReadError("INVALID_ARGUMENTS")
+        if (ids != null && (query.isNotBlank() || topic != null || ids.size !in 1..16 ||
+                ids.distinct().size != ids.size || ids.any { it.isBlank() || it.length > 128 })) {
+            throw DevelopmentReadError("INVALID_ARGUMENTS")
+        }
         val words = query.lowercase(Locale.ROOT).trim().split(Regex("\\s+")).filter(String::isNotEmpty)
-        val found = entries.filter { entry ->
+        val found = ids?.map { id -> findEntry(machineId, id) } ?: entries.filter { entry ->
             machineId in entry.machineIds && (topic == null || entry.topic == topic) && words.all { word ->
                 (listOf(entry.id, entry.title, entry.summary) + entry.keywords + bodies[entry.id].orEmpty())
                     .any { it.lowercase(Locale.ROOT).contains(word) }
@@ -260,6 +267,7 @@ internal class PocketKnowledgeService(
         }.thenBy { it.id })
         return response(machineId, "pgp-knowledge-search") {
             put("machineId", machineId); put("query", query); put("topic", topic?.let(::JsonPrimitive) ?: JsonNull)
+            ids?.let { put("ids", JsonArray(it.map(::JsonPrimitive))) }
             put("offset", offset); put("limit", limit); put("total", found.size)
             put("nextOffset", if (offset + limit < found.size) JsonPrimitive(offset + limit) else JsonNull)
             put("items", buildJsonArray {
@@ -272,12 +280,15 @@ internal class PocketKnowledgeService(
 
     fun get(machineId: String, id: String): JsonObject {
         machine(machineId)
-        val entry = entries.find { it.id == id && machineId in it.machineIds } ?: throw DevelopmentReadError("KNOWLEDGE_NOT_FOUND")
+        val entry = findEntry(machineId, id)
         return response(machineId, "pgp-knowledge-item") {
             put("machineId", machineId)
             putContent(entry, machineId)
         }
     }
+
+    private fun findEntry(machineId: String, id: String): Entry =
+        entries.find { it.id == id && machineId in it.machineIds } ?: throw DevelopmentReadError("KNOWLEDGE_NOT_FOUND")
 
     private fun JsonObjectBuilder.putContent(entry: Entry, machineId: String) {
         put("item", metadata(entry))

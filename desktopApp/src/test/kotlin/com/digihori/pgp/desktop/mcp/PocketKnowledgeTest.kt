@@ -62,6 +62,32 @@ class PocketKnowledgeTest {
         }
     }
 
+    @Test fun batchesPc1350DrawingKnowledgeByExactIds() {
+        val ids = listOf("pgp.program-generation", "pc1350.display", "pc1350.memory",
+            "pc1350.example.lcd-strip", "sc61860.assembler")
+        val encoded = JsonArray(ids.map(::JsonPrimitive))
+        val args = """"machineId":"pc-1350","ids":$encoded"""
+        val batch = ok(KnowledgeMcp.SEARCH, "{$args}")
+        assertEquals(JsonNull, batch["nextOffset"])
+        val items = batch.getValue("items").jsonArray.map { it.jsonObject }
+        assertEquals(ids, items.map { it.getValue("item").jsonObject.getValue("id").jsonPrimitive.content })
+        for ((id, item) in ids.zip(items)) {
+            val single = ok(KnowledgeMcp.GET, """{"machineId":"pc-1350","id":"$id"}""")
+            assertEquals(single.filterKeys { it in setOf("item", "body", "data") }, item)
+        }
+        val page = ok(KnowledgeMcp.SEARCH, """{$args,"offset":1,"limit":2}""")
+        assertEquals(JsonArray(items.subList(1, 3)), page["items"])
+        assertEquals(JsonPrimitive(3), page["nextOffset"])
+        val summaries = ok(KnowledgeMcp.SEARCH, """{$args,"includeContent":false}""")
+        assertEquals(JsonArray(items.map { it.getValue("item") }), summaries["items"])
+
+        assertError("KNOWLEDGE_NOT_FOUND", KnowledgeMcp.SEARCH, """{"machineId":"pc-1245","ids":$encoded}""")
+        assertError("INVALID_ARGUMENTS", KnowledgeMcp.SEARCH, """{$args,"topic":"display"}""")
+        for (invalid in listOf("[]", "[1]", "[null]", "[\" \"]", "[\"a\",\"a\"]", "\"pc1350.display\"")) {
+            assertError("INVALID_ARGUMENTS", KnowledgeMcp.SEARCH, """{"machineId":"pc-1350","ids":$invalid}""")
+        }
+    }
+
     @Test fun oversizedExpandedSearchCanBeRetriedWithSmallerPages() {
         // Each article fits, but two copies exceed the production limit in UTF-8 bytes.
         val body = "描".repeat(11_000)
