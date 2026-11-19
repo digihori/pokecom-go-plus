@@ -1,0 +1,10 @@
+{
+  "format": "pgp-project",
+  "formatVersion": 1,
+  "name": "PC-1261 Two-Band LCD Strip",
+  "machineId": "pc-1261",
+  "sources": [
+    { "id": "main", "type": "basic", "path": "src/main.bas" },
+    { "id": "strip", "type": "assembly", "path": "src/strip.asm" }
+  ]
+}

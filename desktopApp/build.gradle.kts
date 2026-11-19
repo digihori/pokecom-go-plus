@@ -58,9 +58,30 @@ val prepareKnowledgeResources by tasks.registering(Sync::class) {
         include("pgp-project.json", "src/main.bas", "src/hello.asm")
         into("knowledge/examples/pc1245-hello-world")
     }
+    from(rootProject.file("test-data/assembly/pc1245-hello-scroll")) {
+        include("pgp-project.json", "src/main.bas", "src/scroll.asm")
+        into("knowledge/examples/pc1245-hello-scroll")
+    }
+    from(rootProject.file("test-data/assembly/pc1245-buzzer-scale")) {
+        include("pgp-project.json", "src/main.bas", "src/scale.asm")
+        into("knowledge/examples/pc1245-buzzer-scale")
+    }
+    from(rootProject.file("test-data/assembly/pc1261-lcd-strip")) {
+        include("pgp-project.json", "src/main.bas", "src/strip.asm")
+        into("knowledge/examples/pc1261-lcd-strip")
+    }
     from(rootProject.file("test-data/assembly/pc1350-lcd-strip")) {
         include("pgp-project.json", "src/main.bas", "src/strip.asm")
         into("knowledge/examples/pc1350-lcd-strip")
+    }
+    val pc1360Traverse = rootProject.file("test-data/assembly/pc1360-lcd-traverse")
+    for (model in listOf("pc1360", "pc1360k")) {
+        from(pc1360Traverse) {
+            val manifest = if (model == "pc1360") "pgp-project.json" else "pgp-project-pc1360k.json"
+            include(manifest, "src/main.bas", "src/traverse.asm")
+            rename(manifest, "pgp-project.json")
+            into("knowledge/examples/$model-lcd-traverse")
+        }
     }
     from(rootProject.file("test-data/basic/ai/pc1245-numeric-labels")) {
         include("pgp-project.json", "src/main.bas")

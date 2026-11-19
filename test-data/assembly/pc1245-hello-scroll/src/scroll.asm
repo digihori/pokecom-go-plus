@@ -1,5 +1,5 @@
 ; PC-1245: HELLO WORLD scrolls one dot to the left per frame.
-; Entry 0xC500. BASIC: CALL 50432. One pass, then RTN (~8 seconds).
+; Entry 0xC500. BASIC: CALL &C500. One pass, then RTN (~8 seconds).
 ; No ROM routines. Preserve X/Y and I/J; A/P/Q/DP/flags are scratch.
 ; All program bytes are below 0xC600. LCD symbol bytes are untouched.
 ORG 0xC500

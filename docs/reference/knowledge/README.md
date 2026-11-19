@@ -65,7 +65,7 @@ PC-1251の数値入力作例は1つのROMでエミュレーター観測済み。
 カタログ版は `pc1261-v1`。BASIC、標準RAM、LCD、実行を
 `pc1261.basic`、`pc1261.memory`、`pc1261.display`、`pc1261.execution` から取得できる。
 数値入力と分岐の作例IDは `pc1261-numeric-labels`。
-[PC-1261の対応範囲](PC1261_SCOPE.md)を参照。
+[PC-1261の対応範囲](PC1261_SCOPE.md)と、作例ID `pc1261-lcd-strip` の[2行LCD描画作例](PC1261_LCD_STRIP.md)を参照。
 
 
 ## PC-1350
@@ -95,7 +95,7 @@ PC-1251の数値入力作例は1つのROMでエミュレーター観測済み。
 
 カタログ版は `pc1360-v1`。S2 BASIC、RAMとバンク窓、4行LCD、実行を
 `pc1360.basic`、`pc1360.memory`、`pc1360.display`、`pc1360.execution` から取得できる。
-数値入力と分岐の作例IDは `pc1360-numeric-labels`。
+数値入力と分岐の作例IDは `pc1360-numeric-labels`。PC-1360／PC-1360Kの[全幅LCD作例](PC1360_LCD_TRAVERSE.md)は `pc1360-lcd-traverse`／`pc1360k-lcd-traverse`。
 [PC-1360の対応範囲](PC1360_SCOPE.md)を参照。
 
 ## PC-1360K・PC-1460・PC-1470U

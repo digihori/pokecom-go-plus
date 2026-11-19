@@ -1,0 +1,10 @@
+{
+  "format": "pgp-project",
+  "formatVersion": 1,
+  "name": "PC-1245 Buzzer Scale",
+  "machineId": "pc-1245",
+  "sources": [
+    { "id": "main", "type": "basic", "path": "src/main.bas" },
+    { "id": "scale", "type": "assembly", "path": "src/scale.asm" }
+  ]
+}

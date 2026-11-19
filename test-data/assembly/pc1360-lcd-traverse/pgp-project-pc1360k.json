@@ -1,0 +1,18 @@
+{
+  "format": "pgp-project",
+  "formatVersion": 1,
+  "name": "PC-1360K Full-width LCD",
+  "machineId": "pc-1360k",
+  "sources": [
+    {
+      "id": "main",
+      "type": "basic",
+      "path": "src/main.bas"
+    },
+    {
+      "id": "traverse",
+      "type": "assembly",
+      "path": "src/traverse.asm"
+    }
+  ]
+}

@@ -30,6 +30,17 @@ Apply this guidance to a plain-language program request. Use the target machine,
 
 Use Studio's approval flow for changes, Build, Load, and execution. When reporting results, state which checks ran and which still need an execution test.
 
+## PC-1245 single-line LCD and audio checks
+
+- For graphics, batch `pgp.program-generation`, `pc1245.display`, `pc1245.memory`, and `pc1245.example.hello-scroll`. Use the 80×7 pixel area and check columns 59 and 60: the first range is ascending and the last 20 columns are descending. Use shared routines and preserve LCD symbol addresses. For an animation, verify the frame at the boundary and the final return.
+- For a scale, batch `pgp.program-generation`, `sc61860.buzzer`, `pc1245.memory`, and `pc1245.example.buzzer-scale`. Use the 192 kHz clock, a table of notes, and one shared tone routine. Recalculate a whole period if the pulse loop changes, including the branch and loop overhead.
+- The sample projects use `CALL &C500` and keep their code and data below 0xC600. Verify placement against the actual BASIC and RAM configuration; the sample range is not a general reservation.
+
+## PC-1261 two-line LCD checks
+
+- Batch `pgp.program-generation`, `pc1261.display`, `pc1261.memory`, and `pc1261.example.lcd-strip`. Use the 120×14 display and the machine's two 60-column blocks per band. At x=60 reset the destination pointer to the second block. Bit 0 is the top of each seven-pixel band.
+- Use one frame position and an identical drawing width for both bands. Check the visible sprite and the erase path at x=59/60. The sample uses `CALL &6000` with a short BASIC source. Check RAM placement against the active configuration and calculate timing at 256 kHz.
+
 ## PC-1350 full-width LCD checks
 
 - Turn the request into acceptance checks before proposing source. For the rocket exercise, draw both the title and the rocket in machine code, use two vertical bands for the rocket, and use the full horizontal range for its trajectory. BASIC supplies the CALL and return path.
@@ -37,3 +48,9 @@ Use Studio's approval flow for changes, Build, Load, and execution. When reporti
 - Check the first and last sprite positions against all 150 columns. For a visible W-column sprite moving right across the full display without clipping, its left edge goes from 0 to 150-W. Check the corresponding range in reverse for leftward movement. Verify the sprite's footprint and erase path at every block boundary; a 60-column drawing area cannot traverse the full screen.
 - For a two-band sprite, a practical layout is one source strip for each band and one 30-column copy routine. Select the same 150-column window offset in both strips. For each band, call the routine for its five blocks, using that band's destination base. Advance the window once after both bands are drawn. For an offset measured in bytes, check `maxOffset + 150 <= end - start` for each strip. If the source interleaves two bytes per column, convert the column offset and window width to bytes before checking.
 - A bounded execution stop is an observation point. Inspect completed input, the stopped PC and LCD before proposing changes. BASIC may consume the rest of the budget after RTN. If the LCD may have been repainted, capture it at a breakpoint before RTN. Rebuild only when there is a diagnosed source defect to fix. A minimal single frame can isolate address mapping from animation timing.
+
+## PC-1360 and PC-1360K full-width LCD checks
+
+- Batch `pgp.program-generation`, the selected model's display and memory entries, and its full-width LCD example entry (`pc1360.example.lcd-traverse` or `pc1360k.example.lcd-traverse`). Use the model-specific manifest returned by `pgp_get_example`.
+- Both models use 150×32 dots and five 30-column blocks per band. The first block addresses are 0x2800, 0x2840, 0x281E, and 0x285E from top to bottom. Each subsequent block adds 0x200. Check the writes against 0x303C, the symbol address.
+- Use one full-width band transfer routine and the same frame position for both sprite bands. The example assembles at 0xC000 and uses `CALL &C000`. Verify placement with the current RAM configuration and the selected ROM. Calculate timing at 256 kHz.

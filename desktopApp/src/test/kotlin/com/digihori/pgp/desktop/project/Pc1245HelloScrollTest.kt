@@ -6,6 +6,10 @@ import com.digihori.pgp.core.debug.Sc61860AssemblyResult
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245RomDefinition
 import com.digihori.pgp.core.rom.*
 import com.digihori.pgp.core.source.machine.PgpMemoryDumpWriter
+import com.digihori.pgp.desktop.application.development.PocketKnowledgeService
+import com.digihori.pgp.desktop.basic.DesktopBasicLoader
+import com.digihori.pgp.desktop.basic.DesktopBasicProgramCompileResult
+import kotlinx.serialization.json.*
 import java.io.File
 import kotlin.test.*
 
@@ -13,7 +17,16 @@ class Pc1245HelloScrollTest {
     @Test fun everyFrameMovesLeftAcrossTheLcdBankBoundaryAndReturnsWithRegistersRestored() {
         val root = generateSequence(File(System.getProperty("user.dir"))) { it.parentFile }
             .first { File(it, "test-data/assembly/pc1245-hello-scroll/src/scroll.asm").isFile }
-        val source = File(root, "test-data/assembly/pc1245-hello-scroll/src/scroll.asm").readText()
+        val bundle = PocketKnowledgeService().example("pc-1245", "pc1245-hello-scroll")
+        val files = bundle.getValue("files").jsonArray.associate { item ->
+            val file = item.jsonObject
+            file.getValue("path").jsonPrimitive.content to file.getValue("text").jsonPrimitive.content
+        }
+        assertEquals(setOf("pgp-project.json", "src/main.bas", "src/scroll.asm"), files.keys)
+        assertIs<DesktopBasicProgramCompileResult.Success>(
+            DesktopBasicLoader.compileProgram(files.getValue("src/main.bas").encodeToByteArray(), Pc1245RomDefinition.MACHINE_ID),
+        )
+        val source = files.getValue("src/scroll.asm")
         val assembled = assertIs<Sc61860AssemblyResult.Success>(Sc61860Assembler.assemble(source))
         assertTrue(assembled.image.segments.all { it.startAddress >= 0xc500 && it.startAddress + it.size <= 0xc600 })
         val output = File(root, "desktopApp/build/generated/examples/pc1245-hello-scroll.dmp")

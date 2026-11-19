@@ -61,6 +61,18 @@ internal class PocketKnowledgeService(
             listOf("test-data/assembly/pc1245-hello/README.md",
                 "desktopApp/src/test/kotlin/com/digihori/pgp/desktop/project/Pc1245HelloWorldTest.kt"),
             basis = "documentedExample", exampleId = "pc1245-hello-world"),
+        Entry("pc1245.example.hello-scroll", "example", "PC-1245 one-line LCD scroll / 1行LCDスクロール",
+            "Scroll 5x7 graphics through both PC-1245 LCD address ranges with shared loops.",
+            listOf("scroll", "LCD", "描画", "スクロール"), "PC1245_HELLO_SCROLL.md",
+            listOf("test-data/assembly/pc1245-hello-scroll/README.md",
+                "desktopApp/src/test/kotlin/com/digihori/pgp/desktop/project/Pc1245HelloScrollTest.kt"),
+            basis = "emulatorObservedExample", exampleId = "pc1245-hello-scroll"),
+        Entry("pc1245.example.buzzer-scale", "example", "PC-1245 buzzer scale / 192 kHzの音階",
+            "A note table and a shared software square-wave loop verified at the PC-1245 clock.",
+            listOf("scale", "buzzer", "tone", "音階", "発音"), "PC1245_BUZZER_SCALE.md",
+            listOf("test-data/assembly/pc1245-buzzer-scale/src/scale.asm",
+                "desktopApp/src/test/kotlin/com/digihori/pgp/desktop/project/Pc1245BuzzerScaleTest.kt"),
+            basis = "emulatorObservedExample", exampleId = "pc1245-buzzer-scale"),
         Entry("pc1245.example.numeric-labels", "example", "PC-1245 numeric labels / 数値入力と分岐の作例",
             "G01: 1→ONE, 2→TWO, other→OTHER, 0→END. Observed with bounded input and LCD on one local ROM.",
             listOf("G01", "INPUT", "IF", "THEN", "数値", "入力", "ONE", "TWO", "OTHER", "生成"), "PC1245_NUMERIC_LABELS.md",
@@ -109,6 +121,12 @@ internal class PocketKnowledgeService(
             "Approval-backed execution and LCD observations with a matching PC-1261 project.",
             listOf("RUN", "CALL", "起動", "実行", "キー"), "PC1261_SCOPE.md",
             listOf("docs/guides/AI_PROGRAM_GENERATION.md"), machineIds = listOf("pc-1261")),
+        Entry("pc1261.example.lcd-strip", "example", "PC-1261 two-band LCD strip / 2行LCDの境界描画",
+            "A synchronized two-band sprite crosses the LCD block boundary at columns 59 and 60.",
+            listOf("LCD", "VRAM", "sprite", "animation", "描画", "作例"), "PC1261_LCD_STRIP.md",
+            listOf("test-data/assembly/pc1261-lcd-strip/src/strip.asm",
+                "desktopApp/src/test/kotlin/com/digihori/pgp/desktop/mcp/Pc1261LcdStripTest.kt"),
+            basis = "emulatorObservedExample", exampleId = "pc1261-lcd-strip", machineIds = listOf("pc-1261")),
         Entry("pc1261.example.numeric-labels", "example", "PC-1261 numeric labels / 数値入力と分岐の作例",
             "1→ONE, 2→TWO, other→OTHER, 0→END. Observed with bounded input and LCD on one local ROM.",
             listOf("INPUT", "IF", "THEN", "数値", "ONE", "TWO", "OTHER", "作例"), "PC1261_SCOPE.md",
@@ -180,6 +198,12 @@ internal class PocketKnowledgeService(
         Entry("pc1360.execution", "execution", "PC-1360 execution / 実行",
             "Firmware MODE key, RUN indicator and bounded execution.", listOf("RUN", "CALL", "MODE", "実行"), "PC1360_SCOPE.md",
             listOf("docs/reference/machines/PC-1360.md"), machineIds = listOf("pc-1360")),
+        Entry("pc1360.example.lcd-traverse", "example", "PC-1360 full-width LCD / 全幅LCDアニメーション",
+            "Draw a title and a synchronized two-band sprite through all five LCD blocks with a shared copy loop.",
+            listOf("LCD", "VRAM", "sprite", "animation", "描画", "作例"), "PC1360_LCD_TRAVERSE.md",
+            listOf("test-data/assembly/pc1360-lcd-traverse/src/traverse.asm",
+                "desktopApp/src/test/kotlin/com/digihori/pgp/desktop/mcp/Pc1360LcdTraverseTest.kt"),
+            basis = "emulatorObservedExample", exampleId = "pc1360-lcd-traverse", machineIds = listOf("pc-1360")),
         Entry("pc1360.example.numeric-labels", "example", "PC-1360 numeric labels / 数値入力と分岐の作例",
             "Numeric branching and LCD prompts on PC-1360, observed on one local ROM.", listOf("INPUT", "IF", "LCD", "作例"), "PC1360_SCOPE.md",
             listOf("test-data/basic/ai/pc1360-numeric-labels/README.md"),
@@ -196,6 +220,12 @@ internal class PocketKnowledgeService(
         Entry("pc1360k.execution", "execution", "PC-1360K execution / 実行",
             "Firmware MODE key, RUN indicator and bounded execution.", listOf("RUN", "CALL", "MODE", "実行"), "PC1360K_SCOPE.md",
             listOf("docs/reference/machines/PC-1360K.md"), machineIds = listOf("pc-1360k")),
+        Entry("pc1360k.example.lcd-traverse", "example", "PC-1360K full-width LCD / 全幅LCDアニメーション",
+            "Draw a title and a synchronized two-band sprite through all five LCD blocks with a shared copy loop.",
+            listOf("LCD", "VRAM", "sprite", "animation", "描画", "作例"), "PC1360_LCD_TRAVERSE.md",
+            listOf("test-data/assembly/pc1360-lcd-traverse/src/traverse.asm",
+                "desktopApp/src/test/kotlin/com/digihori/pgp/desktop/mcp/Pc1360LcdTraverseTest.kt"),
+            basis = "emulatorObservedExample", exampleId = "pc1360k-lcd-traverse", machineIds = listOf("pc-1360k")),
         Entry("pc1360k.example.numeric-labels", "example", "PC-1360K numeric labels / 数値入力と分岐の作例",
             "Numeric branching and LCD prompts on PC-1360K, observed on one local ROM.", listOf("INPUT", "IF", "LCD", "作例"), "PC1360K_SCOPE.md",
             listOf("test-data/basic/ai/pc1360k-numeric-labels/README.md"),
@@ -307,7 +337,10 @@ internal class PocketKnowledgeService(
             put("files", buildJsonArray {
                 val paths = when (exampleId) {
                     "pc1245-hello-world" -> listOf("pgp-project.json", "src/main.bas", "src/hello.asm")
-                    "pc1350-lcd-strip" -> listOf("pgp-project.json", "src/main.bas", "src/strip.asm")
+                    "pc1245-hello-scroll" -> listOf("pgp-project.json", "src/main.bas", "src/scroll.asm")
+                    "pc1245-buzzer-scale" -> listOf("pgp-project.json", "src/main.bas", "src/scale.asm")
+                    "pc1360-lcd-traverse", "pc1360k-lcd-traverse" -> listOf("pgp-project.json", "src/main.bas", "src/traverse.asm")
+                    "pc1261-lcd-strip", "pc1350-lcd-strip" -> listOf("pgp-project.json", "src/main.bas", "src/strip.asm")
                     else -> listOf("pgp-project.json", "src/main.bas")
                 }
                 paths.forEach { path ->
