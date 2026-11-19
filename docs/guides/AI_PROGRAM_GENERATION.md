@@ -36,6 +36,18 @@ AIが現在の登録済みSourceを`pgp_get_source`で読み、そのprojectRevi
 追加後もprojectRevisionが変わるため、古い値をBuildや差分編集へ使わないでください。
 既存Sourceの修正には従来の`pgp_propose_source_patch`を使います。
 
+## 生成とBuild前の自己確認
+
+AIクライアントは接続時の案内から、全対応機種で取得できる `pgp.program-generation` を参照できます。
+`pgp_search_knowledge` では `topic=generation` と `includeContent=true` を指定します。
+自然文の依頼から、読みやすい構成と以下の自己確認を適用するためのガイドです。
+[AI向けガイド本文](../reference/knowledge/PROGRAM_GENERATION.md)
+
+1. 対象機種と課題を絞り、`pgp_search_knowledge` に `includeContent=true` を指定して仕様・本文・構造化データを取得します。同じ機種・カタログから取得済みの情報を再利用し、不足する項目や作例のソースを追加で取得します。
+2. アニメーションでは画像をデータで定義し、転送・消去・待機を共通化します。位置はループで更新し、LCDの端とVRAMブロックをまたぐ位置で、書込み先と表示を確認します。
+3. 待ち時間と音程は、対象機種のクロックとループ全体のサイクル数から計算します。BASIC領域・機械語・作業領域・VRAMの配置を照合し、変更するレジスターとI/Oのうち復帰に必要な状態を保存・復元します。
+4. 新規作成はBASICとAssemblyを揃えて提案し、修正では同じソース内の関連差分をまとめます。Buildに失敗したら完了した `pgp_get_operation` の `buildDiagnostics` で箇所と原因を確認し、同じソースの修正を1回の提案にまとめます。同じ診断が続く場合は、該当する処理を小さくして原因を切り分けます。
+
 ## AIへの依頼例
 
 > PC-1245向けに、画面へHELLOを表示して終了するBASICプログラムを作ってください。

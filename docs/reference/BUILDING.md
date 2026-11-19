@@ -205,6 +205,17 @@ desktopApp/build/compose/binaries/main/app/
 desktopApp/build/compose/binaries/main/msi/
 ```
 
+日本語のセットアップ画面を持つMSIも生成する場合は、上のビルドで生成したMSIとアプリイメージを使う。
+
+```powershell
+$msi = Get-ChildItem desktopApp/build/compose/binaries/main/msi/*.msi | Select-Object -First 1
+./scripts/package-japanese-msi.ps1 -EnglishMsi $msi.FullName
+```
+
+日本語版の出力先は `desktopApp/build/compose/binaries/main/msi-ja/`。
+スクリプトはセットアップを起動せず、製品名・アップグレードID・バージョン・製品言語（1041）と日本語ダイアログ文字列を検査する。
+リリースワークフローでは、英語版と同じアプリイメージを使用し、日本語版に `-windows-x64-ja.msi` の名前を付ける。
+
 ### Linux
 
 DEB作成には`fakeroot`等のDebianパッケージツールが必要である。Debian／Ubuntu系の例：

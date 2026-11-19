@@ -59,6 +59,13 @@ jobs:
           $msi = Get-ChildItem desktopApp/build/compose/binaries/main/msi/*.msi | Select-Object -First 1
           ./scripts/inspect-msi.ps1 -Path $msi.FullName -VerifyCurrent
 
+      - name: Build and verify Japanese Windows MSI
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem desktopApp/build/compose/binaries/main/msi/*.msi | Select-Object -First 1
+          ./scripts/package-japanese-msi.ps1 -EnglishMsi $msi.FullName
+
       - name: Collect Windows packages
         if: runner.os == 'Windows'
         shell: pwsh
@@ -66,7 +73,13 @@ jobs:
           New-Item -ItemType Directory -Force release-assets | Out-Null
           $msi = Get-ChildItem desktopApp/build/compose/binaries/main/msi/*.msi | Select-Object -First 1
           Copy-Item $msi.FullName "release-assets/PokecomGOStudio-$env:RELEASE_VERSION-windows-x64.msi"
+          $japaneseMsi = Get-ChildItem desktopApp/build/compose/binaries/main/msi-ja/*.msi | Select-Object -First 1
+          Copy-Item $japaneseMsi.FullName "release-assets/PokecomGOStudio-$env:RELEASE_VERSION-windows-x64-ja.msi"
           Compress-Archive -Path desktopApp/build/compose/binaries/main/app/PokecomGOStudio -DestinationPath "release-assets/PokecomGOStudio-$env:RELEASE_VERSION-windows-x64.zip"
+          @(
+            "SourceCommit=$env:GITHUB_SHA"
+            "WorkflowRun=$env:GITHUB_RUN_ID"
+          ) | Set-Content -Encoding ascii release-assets/BUILD_INFO-windows.txt
           Get-ChildItem release-assets -File |
             Where-Object Name -NotLike 'SHA256SUMS-*' |
             ForEach-Object {

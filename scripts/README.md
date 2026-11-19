@@ -71,6 +71,7 @@ Studio利用者が実行する必要はありません。
 | [sync-from-mac.cmd](sync-from-mac.cmd) | Mac側のソースをWindowsへ同期する起動用ラッパー |
 | [sync-from-mac.ps1](sync-from-mac.ps1) | ソース同期の本体。対象・除外・失敗時の扱いは[ビルド手順](../docs/reference/BUILDING.md)を参照 |
 | [test-sync-from-mac.ps1](test-sync-from-mac.ps1) | 一時フォルダー内の合成データで同期処理を検証 |
+| [package-japanese-msi.ps1](package-japanese-msi.ps1) | 既存のWindowsアプリイメージから日本語MSIを生成・検査 |
 | [inspect-msi.ps1](inspect-msi.ps1) | Windows InstallerのCOM APIでMSIのプロパティを検査 |
 
 同期の実行前に`PGP_SYNC_SOURCE`・`PGP_SYNC_DESTINATION`等の設定と対象パスを確認し、

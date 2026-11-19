@@ -80,6 +80,8 @@ class DesktopMcpServerTest {
             val initializeResult = Json.parseToJsonElement(initialize.body()).jsonObject.getValue("result").jsonObject
             assertEquals("2025-06-18", initializeResult.getValue("protocolVersion").jsonPrimitive.content)
 
+            assertTrue(initializeResult.getValue("instructions").jsonPrimitive.content.contains("pgp.program-generation"))
+
             val toolsResponse = post(
                 info.url,
                 info.token,

@@ -14,7 +14,7 @@ Studioのインストールだけで取得できるよう、このフォルダ�
 | 起動・観測 | `pc1245.execution` | [RUN／CALLと未提供情報](PC1245_EXECUTION.md) |
 | 作例 | `pc1245.example.hello-world` | [適用条件・確認手順](PC1245_HELLO_EXAMPLE.md)。exampleIdは`pc1245-hello-world` |
 | 入力・分岐の作例 | `pc1245.example.numeric-labels` | [G01の観測条件と手順](PC1245_NUMERIC_LABELS.md)。exampleIdは`pc1245-numeric-labels` |
-| CPU命令 | `sc61860.instruction.<小文字mnemonic>` | Coreの全定義をmnemonicごとにまとめたopcode・長さ・operand・制御フロー。フラグ・完全な動作・cycle数は未提供 |
+| CPU命令 | `sc61860.instruction.<小文字mnemonic>` | Coreの全定義をmnemonicごとにまとめたopcode・長さ・operand・制御フロー。一部命令はCore実装での入出力・フラグ・サイクル数も返す |
 
 知識は対象機種、出典、検証根拠の種類、ROMへの適用限界を返す。
 `implementationDerived`は実装由来、`documentedExample`は既存作例の記録由来。
@@ -73,6 +73,8 @@ PC-1251の数値入力作例は1つのROMでエミュレーター観測済み。
 カタログ版は `pc1350-v1`。BASIC、RAM、4行LCD、実行を
 `pc1350.basic`、`pc1350.memory`、`pc1350.display`、`pc1350.execution` から取得できる。
 数値入力と分岐の作例IDは `pc1350-numeric-labels`。
+[VRAM境界をまたぐ短いLCD描画作例](PC1350_LCD_STRIP.md)の作例IDは `pc1350-lcd-strip`。
+`pgp_search_knowledge` では `machineId=pc-1350`、`topic=example`、`query=sprite` で検索できる。
 [PC-1350の対応範囲](PC1350_SCOPE.md)を参照。
 
 ## PC-1401

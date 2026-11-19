@@ -1007,7 +1007,10 @@ private fun FrameWindowScope.App(
         }
     }
 
-    suspend fun buildProjectOutputsWork(sourcePath: String? = null): DesktopProjectBuildResult.Success? {
+    suspend fun buildProjectOutputsWork(
+        sourcePath: String? = null,
+        onBuildFailure: (List<DesktopProjectBuildError>, List<DesktopAssemblyDiagnostic>) -> Unit = { _, _ -> },
+    ): DesktopProjectBuildResult.Success? {
         val workspace = projectWorkspace ?: return null
         val target = if (sourcePath == null) workspace else workspace.selectAssemblySource(sourcePath)
         console.append(uiText("console.buildProject", workspace.definition.name))
@@ -1031,6 +1034,7 @@ private fun FrameWindowScope.App(
                     }
                     is DesktopAssemblyWorkspaceResult.Success -> assemblyDiagnostics = emptyList()
                 }
+                onBuildFailure(built.errors, assemblyDiagnostics)
                 val machineName = runner?.machineId?.displayName() ?: workspace.definition.machineId.displayName()
                 showError(built.errors.joinToString("\n") { it.message(machineName) })
                 null
@@ -1184,8 +1188,16 @@ private fun FrameWindowScope.App(
             if (assemblyBusy || macroBusy) throw com.digihori.pgp.desktop.application.development.DevelopmentReadError("BUSY")
             startAssembly {
                 var succeeded = false
-                try { succeeded = buildProjectOutputsWork() != null }
-                finally { developmentChangeService.completeBuild(operationId, succeeded) }
+                var errors = emptyList<DesktopProjectBuildError>()
+                var diagnostics = emptyList<DesktopAssemblyDiagnostic>()
+                try {
+                    succeeded = buildProjectOutputsWork { buildErrors, assemblyErrors ->
+                        errors = buildErrors
+                        diagnostics = assemblyErrors
+                    } != null
+                } finally {
+                    developmentChangeService.completeBuild(operationId, succeeded, errors, diagnostics)
+                }
             }
         }
     }

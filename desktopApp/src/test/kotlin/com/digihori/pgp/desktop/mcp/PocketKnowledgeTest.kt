@@ -3,6 +3,7 @@ package com.digihori.pgp.desktop.mcp
 import com.digihori.pgp.core.debug.Sc61860Assembler
 import com.digihori.pgp.core.debug.Sc61860InstructionSet
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicDialect
+import com.digihori.pgp.desktop.application.development.DevelopmentReadError
 import com.digihori.pgp.desktop.application.development.PocketKnowledgeService
 import com.digihori.pgp.desktop.codexMcpConfiguration
 import java.io.File
@@ -41,6 +42,100 @@ class PocketKnowledgeTest {
         assertEquals(0, ok(KnowledgeMcp.SEARCH, """{"machineId":"pc-1245","query":"no-such-knowledge"}""").getValue("total").jsonPrimitive.int)
     }
 
+    @Test fun searchCanIncludeDetailsWithoutChangingPaginationOrDefaultResults() {
+        repeat(2) { offset ->
+            val args = """"machineId":"pc-1245","offset":$offset,"limit":1"""
+            val summary = ok(KnowledgeMcp.SEARCH, "{$args}")
+            assertEquals(summary, ok(KnowledgeMcp.SEARCH, """{$args,"includeContent":false}"""))
+            val expanded = ok(KnowledgeMcp.SEARCH, """{$args,"includeContent":true}""")
+            assertEquals(summary - "items", expanded - "items")
+            val metadata = summary.getValue("items").jsonArray.single().jsonObject
+            val id = metadata.getValue("id").jsonPrimitive.content
+            val detail = ok(KnowledgeMcp.GET, """{"machineId":"pc-1245","id":"$id"}""")
+            val item = expanded.getValue("items").jsonArray.single().jsonObject
+            assertEquals(metadata, item["item"])
+            assertEquals(detail.filterKeys { it in setOf("item", "body", "data") }, item)
+        }
+
+        for (invalid in listOf("null", "1", "\"true\"", "[]", "{}")) {
+            assertError("INVALID_ARGUMENTS", KnowledgeMcp.SEARCH, """{"machineId":"pc-1245","includeContent":$invalid}""")
+        }
+    }
+
+    @Test fun oversizedExpandedSearchCanBeRetriedWithSmallerPages() {
+        // Each article fits, but two copies exceed the production limit in UTF-8 bytes.
+        val body = "描".repeat(11_000)
+        val service = PocketKnowledgeService { path ->
+            if (path == "/knowledge/articles/PC1350_SCOPE.md") body.byteInputStream()
+            else PocketKnowledgeService::class.java.getResourceAsStream(path)
+        }
+        fun search(offset: Int, limit: Int, includeContent: Boolean) = KnowledgeMcp.call(
+            service, KnowledgeMcp.SEARCH, buildJsonObject {
+                put("machineId", "pc-1350")
+                put("query", "pc1350.")
+                put("offset", offset)
+                put("limit", limit)
+                put("includeContent", includeContent)
+            },
+        )
+
+        val summary = search(offset = 0, limit = 2, includeContent = false)
+        assertEquals(2, summary.getValue("items").jsonArray.size)
+        val error = assertFailsWith<DevelopmentReadError> {
+            search(offset = 0, limit = 2, includeContent = true)
+        }
+        assertEquals("RESPONSE_TOO_LARGE", error.code)
+
+        var offset = 0
+        for (expected in summary.getValue("items").jsonArray) {
+            val page = search(offset, limit = 1, includeContent = true)
+            val item = page.getValue("items").jsonArray.single().jsonObject
+            assertEquals(expected, item["item"])
+            assertEquals(body, item.getValue("body").jsonPrimitive.content)
+            assertTrue(page.toString().encodeToByteArray().size <= PocketKnowledgeService.MAX_BYTES)
+            val nextOffset = page.getValue("nextOffset").jsonPrimitive.int
+            assertEquals(offset + 1, nextOffset)
+            offset = nextOffset
+        }
+    }
+
+    @Test fun generationGuideIsDiscoverableAndReadableForEverySupportedMachine() {
+        for (machineId in PocketKnowledgeService.MACHINES) {
+            val search = ok(KnowledgeMcp.SEARCH, """{"machineId":"$machineId","topic":"generation","includeContent":true}""")
+            val match = search.getValue("items").jsonArray.single().jsonObject
+            val id = match.getValue("item").jsonObject.getValue("id").jsonPrimitive.content
+            assertEquals(PocketKnowledgeService.GENERATION_GUIDE_ID, id)
+            val direct = ok(KnowledgeMcp.GET, """{"machineId":"$machineId","id":"$id"}""")
+            assertEquals(direct["body"], match["body"])
+            val body = match.getValue("body").jsonPrimitive.content
+            assertTrue(body.contains("Check before proposing a Build"))
+            assertTrue(body.contains("pc1350-lcd-strip"))
+        }
+    }
+
+    @Test fun instructionSearchExposesCoreTimingAndRegisterEffectsForThePc1350Examples() {
+        fun behavior(mnemonic: String): JsonObject {
+            val result = ok(KnowledgeMcp.SEARCH,
+                """{"machineId":"pc-1350","topic":"instruction","query":"$mnemonic","limit":1,"includeContent":true}""")
+            val detail = result.getValue("items").jsonArray.single().jsonObject
+            assertEquals("sc61860.instruction.$mnemonic", detail.getValue("item").jsonObject.getValue("id").jsonPrimitive.content)
+            assertTrue(detail.getValue("item").jsonObject.getValue("sources").jsonArray.any {
+                it.jsonObject.getValue("path").jsonPrimitive.content.endsWith("/Sc61860Cpu.kt")
+            })
+            return detail.getValue("data").jsonObject.getValue("coreBehavior").jsonObject
+        }
+        fun JsonObject.timings() = getValue("cycles").jsonArray.map { it.jsonObject }
+        val wait = behavior("wait").timings().single()
+        assertEquals(261, wait.getValue("base").jsonPrimitive.int + 255 * wait.getValue("perUnsignedImmediate").jsonPrimitive.int)
+        val loop = behavior("loop")
+        assertEquals(listOf(10, 7), loop.timings().map { it.getValue("base").jsonPrimitive.int })
+        assertEquals("set when the old counter was 0", loop.getValue("flags").jsonObject.getValue("carry").jsonPrimitive.content)
+        assertTrue(behavior("iys").getValue("writes").jsonPrimitive.content.contains("write A to bus[DP]"))
+        assertEquals(6, behavior("iys").timings().single().getValue("base").jsonPrimitive.int)
+        assertEquals(listOf(7, 4), behavior("jrnzm").timings().map { it.getValue("base").jsonPrimitive.int })
+        assertTrue(behavior("outc").getValue("writes").jsonPrimitive.content.contains("output port C"))
+    }
+
     @Test fun instructionVariantsAndBasicTablesComeFromCoreDefinitions() {
         for (mnemonic in listOf("LIA", "LP", "CAL", "NOPT", "UNDOC")) {
             val item = ok(KnowledgeMcp.GET, """{"machineId":"pc-1245","id":"sc61860.instruction.${mnemonic.lowercase()}"}""")
@@ -49,7 +144,7 @@ class PocketKnowledgeTest {
             val expected = Sc61860InstructionSet.allDefined().filter { it.mnemonic == mnemonic }
             assertEquals(expected.map { it.opcode }, actual.map { it.jsonObject.getValue("opcode").jsonPrimitive.int })
             assertEquals(expected.map { it.encodable }, actual.map { it.jsonObject.getValue("encodable").jsonPrimitive.boolean })
-            assertTrue(data.getValue("notProvided").jsonArray.contains(JsonPrimitive("flagEffects")))
+            assertEquals(mnemonic != "LIA", JsonPrimitive("flagEffects") in data.getValue("notProvided").jsonArray)
         }
         val basic = ok(KnowledgeMcp.GET, """{"machineId":"pc-1245","id":"pc1245.basic"}""").getValue("data").jsonObject
         assertEquals(Pc1245BasicDialect.definition.programFormat.maximumLineNumber, basic.getValue("maximumLineNumber").jsonPrimitive.int)

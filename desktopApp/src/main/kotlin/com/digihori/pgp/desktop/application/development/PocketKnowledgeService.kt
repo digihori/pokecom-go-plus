@@ -3,11 +3,14 @@ package com.digihori.pgp.desktop.application.development
 import com.digihori.pgp.core.debug.Sc61860InstructionSet
 import com.digihori.pgp.core.emulator.machine.pc1245.Pc1245BasicDialect
 import com.digihori.pgp.core.source.basic.BasicCodeMeaning
+import java.io.InputStream
 import java.util.Locale
 import kotlinx.serialization.json.*
 
 /** Installed, read-only knowledge. Never reads a project, ROM, user file, or network. */
-internal class PocketKnowledgeService {
+internal class PocketKnowledgeService(
+    private val openResource: (String) -> InputStream? = PocketKnowledgeService::class.java::getResourceAsStream,
+) {
     private data class Entry(
         val id: String, val topic: String, val title: String, val summary: String,
         val keywords: List<String>, val article: String?, val sources: List<String>,
@@ -16,6 +19,10 @@ internal class PocketKnowledgeService {
     )
 
     private val articles = listOf(
+        Entry(GENERATION_GUIDE_ID, "generation", "Program generation and pre-build review / 生成と自己確認",
+            "Source structure, machine-specific bounds and timing, state restoration, and pre-build review.",
+            listOf("generation", "self-check", "pre-build", "生成", "自己確認"), "PROGRAM_GENERATION.md",
+            listOf("docs/guides/AI_PROGRAM_GENERATION.md"), basis = "documentedGuidance", machineIds = MACHINES),
         Entry("sc61860.buzzer", "audio", "SC61860 buzzer and melodies / ブザー・音階・メロディー",
             "Port C sound modes, software square waves, and pitch/duration guidance by machine clock.",
             listOf("buzzer", "sound", "tone", "melody", "ブザー", "発音", "音階", "メロディー"), "SC61860_BUZZER.md",
@@ -119,6 +126,12 @@ internal class PocketKnowledgeService {
         Entry("pc1350.execution", "execution", "PC-1350 execution / 実行",
             "Firmware MODE key, RUN indicator and bounded execution.", listOf("RUN", "CALL", "MODE", "実行"), "PC1350_SCOPE.md",
             listOf("docs/reference/machines/PC-1350.md"), machineIds = listOf("pc-1350")),
+        Entry("pc1350.example.lcd-strip", "example", "PC-1350 LCD strip / VRAM境界をまたぐ短い描画",
+            "A data-driven sprite, shared VRAM copy, one-column movement, timed frames and register restoration.",
+            listOf("LCD", "VRAM", "描画", "画像", "座標", "待機", "animation", "sprite", "作例"), "PC1350_LCD_STRIP.md",
+            listOf("test-data/assembly/pc1350-lcd-strip/src/strip.asm",
+                "desktopApp/src/test/kotlin/com/digihori/pgp/desktop/mcp/Pc1350LcdStripTest.kt"),
+            basis = "emulatorObservedExample", exampleId = "pc1350-lcd-strip", machineIds = listOf("pc-1350")),
         Entry("pc1350.example.numeric-labels", "example", "PC-1350 numeric labels / 数値入力と分岐の作例",
             "Numeric branching and LCD prompts on PC-1350.", listOf("INPUT", "IF", "LCD", "作例"), "PC1350_SCOPE.md",
             listOf("test-data/basic/ai/pc1350-numeric-labels/README.md"),
@@ -222,14 +235,17 @@ internal class PocketKnowledgeService {
     )
     private val instructions = Sc61860InstructionSet.allDefined().groupBy { it.mnemonic }.toSortedMap()
     private val entries = articles + instructions.map { (mnemonic, _) ->
+        val hasDetails = Sc61860InstructionKnowledge.contains(mnemonic)
         Entry("sc61860.instruction.${mnemonic.lowercase(Locale.ROOT)}", "instruction", "SC61860 $mnemonic",
-            "Core opcode/operand/control-flow metadata only; flag effects and full semantics are not provided.",
-            listOf(mnemonic, "命令", "opcode"), null,
-            listOf("core/src/commonMain/kotlin/com/digihori/pgp/core/debug/Sc61860InstructionSet.kt"), machineIds = MACHINES)
+            if (hasDetails) "Core instruction effects, flags, and cycle counts." else "Core opcode, operand, and control-flow metadata.",
+            if (hasDetails) listOf(mnemonic, "命令", "opcode", "cycles", "timing", "サイクル") else listOf(mnemonic, "命令", "opcode"),
+            null,
+            listOf("core/src/commonMain/kotlin/com/digihori/pgp/core/debug/Sc61860InstructionSet.kt") +
+                listOfNotNull(Sc61860InstructionKnowledge.SOURCE.takeIf { hasDetails }), machineIds = MACHINES)
     }
     private val bodies by lazy { articles.associate { it.id to resource("articles/${it.article}") } }
 
-    fun search(machineId: String, query: String, topic: String?, offset: Int, limit: Int): JsonObject {
+    fun search(machineId: String, query: String, topic: String?, offset: Int, limit: Int, includeContent: Boolean = false): JsonObject {
         machine(machineId)
         if (query.length > 256 || topic != null && topic !in TOPICS || offset !in 0..1_000_000 || limit !in 1..16)
             throw DevelopmentReadError("INVALID_ARGUMENTS")
@@ -246,7 +262,11 @@ internal class PocketKnowledgeService {
             put("machineId", machineId); put("query", query); put("topic", topic?.let(::JsonPrimitive) ?: JsonNull)
             put("offset", offset); put("limit", limit); put("total", found.size)
             put("nextOffset", if (offset + limit < found.size) JsonPrimitive(offset + limit) else JsonNull)
-            put("items", buildJsonArray { found.drop(offset).take(limit).forEach { add(metadata(it)) } })
+            put("items", buildJsonArray {
+                found.drop(offset).take(limit).forEach { entry ->
+                    add(if (includeContent) buildJsonObject { putContent(entry, machineId) } else metadata(entry))
+                }
+            })
         }
     }
 
@@ -254,10 +274,17 @@ internal class PocketKnowledgeService {
         machine(machineId)
         val entry = entries.find { it.id == id && machineId in it.machineIds } ?: throw DevelopmentReadError("KNOWLEDGE_NOT_FOUND")
         return response(machineId, "pgp-knowledge-item") {
-            put("machineId", machineId); put("item", metadata(entry))
-            put("body", bodies[id] ?: "Core instruction metadata. See sc61860.assembler for syntax. Full semantics, flags and cycle counts are not provided.")
-            put("data", data(entry, machineId))
+            put("machineId", machineId)
+            putContent(entry, machineId)
         }
+    }
+
+    private fun JsonObjectBuilder.putContent(entry: Entry, machineId: String) {
+        put("item", metadata(entry))
+        put("body", bodies[entry.id] ?: if (Sc61860InstructionKnowledge.contains(entry.title.removePrefix("SC61860 "))) {
+            "Core instruction effects, flags and timing are in data.coreBehavior. See sc61860.assembler for syntax."
+        } else "Core instruction metadata. See sc61860.assembler for syntax. Full semantics, flags and cycle counts are not provided.")
+        put("data", data(entry, machineId))
     }
 
     fun example(machineId: String, exampleId: String): JsonObject {
@@ -267,8 +294,12 @@ internal class PocketKnowledgeService {
             put("machineId", machineId); put("exampleId", exampleId); put("item", metadata(entry))
             put("guidance", bodies.getValue(entry.id)); put("createsFiles", false)
             put("files", buildJsonArray {
-                (if (exampleId == "pc1245-hello-world") listOf("pgp-project.json", "src/main.bas", "src/hello.asm")
-                    else listOf("pgp-project.json", "src/main.bas")).forEach { path ->
+                val paths = when (exampleId) {
+                    "pc1245-hello-world" -> listOf("pgp-project.json", "src/main.bas", "src/hello.asm")
+                    "pc1350-lcd-strip" -> listOf("pgp-project.json", "src/main.bas", "src/strip.asm")
+                    else -> listOf("pgp-project.json", "src/main.bas")
+                }
+                paths.forEach { path ->
                     add(buildJsonObject { put("path", path); put("text", resource("examples/$exampleId/$path")); put("encoding", "UTF-8") })
                 }
             })
@@ -316,7 +347,13 @@ internal class PocketKnowledgeService {
                     put("opcode", instruction.opcode); put("mnemonic", instruction.mnemonic); put("length", instruction.length)
                     put("operandEncoding", instruction.operandEncoding.name); put("flow", instruction.flow.name); put("encodable", instruction.encodable)
                 }) } })
-                put("notProvided", buildJsonArray { listOf("fullSemantics", "flagEffects", "cycleCounts").forEach { add(it) } })
+                val behavior = Sc61860InstructionKnowledge.details(entry.title.removePrefix("SC61860 "))
+                behavior?.let { put("coreBehavior", it) }
+                put("notProvided", buildJsonArray {
+                    add("fullSemantics")
+                    if (behavior == null) { add("flagEffects"); add("cycleCounts") }
+                    else add("hardwareVerification")
+                })
             }
         }
     }
@@ -341,7 +378,7 @@ internal class PocketKnowledgeService {
     private fun machine(machineId: String) {
         if (machineId !in MACHINES) throw DevelopmentReadError("UNSUPPORTED_KNOWLEDGE_MACHINE")
     }
-    private fun resource(path: String): String = checkNotNull(javaClass.getResourceAsStream("/knowledge/$path"))
+    private fun resource(path: String): String = checkNotNull(openResource("/knowledge/$path"))
         .use { stream ->
             val bytes = stream.readNBytes(MAX_BYTES + 1)
             check(bytes.size <= MAX_BYTES)
@@ -361,7 +398,8 @@ internal class PocketKnowledgeService {
 
     companion object {
         val MACHINES = GeneratedProjectFiles.MACHINES
-        val TOPICS = listOf("basic", "memory", "display", "audio", "assembler", "execution", "example", "instruction")
+        const val GENERATION_GUIDE_ID = "pgp.program-generation"
+        val TOPICS = listOf("generation", "basic", "memory", "display", "audio", "assembler", "execution", "example", "instruction")
         const val MAX_BYTES = 64 * 1024
     }
 }

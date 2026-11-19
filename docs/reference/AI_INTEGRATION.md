@@ -313,10 +313,11 @@ Source名・Symbol名・診断メッセージは利用者データであり、�
 | `pgp_get_source` | `sourceId` | 登録済みUTF-8本文、path、sourceSha256、projectRevisionを取得 |
 | `pgp_propose_source_patch` | `sourceId`, `projectRevision`, `sourceSha256`, `edits` | Studioへ変更前後の差分を提示し、承認待ちoperationを返す |
 | `pgp_build_project` | `projectRevision` | 共通Buildのみの要求をStudioへ提示し、承認待ちoperationを返す |
-| `pgp_get_operation` | `operationId` | 承認待ち・却下・適用・実行中・成功・失敗の状態を取得 |
+| `pgp_get_operation` | `operationId` | 承認待ち・却下・適用・実行中・成功・失敗の状態と、Build失敗時に記録された診断を取得 |
 
 `edits` は `[{"oldText":"LIA 1","newText":"LIA 2"}]` のような完全一致の置換。
 各oldTextは空でなく、順に適用される時点で一意に一致する必要がある。newTextは空も可。
+対応10機種のMCPプロジェクト作成・ソース追加・パッチでは、行番号付きBASICの単独の10進 `CALL` オペランドを、承認前に4桁の16進表記（例 `CALL &C500`）へ整える。対象は0〜65535の符号なし整数。文字列、コメント、式、変数、既存の16進表記はそのまま扱う。変換を伴うパッチでは、Studioに元のソースと書込み予定のソースを表示する。
 不明なフィールド、複数一致、未一致、無変更、NUL、不正UTF-8、上限超過を拒否する。
 登録ソース本文は1ファイル64 KiB、Projectは64ファイル・計2 MiB、1提案16置換、置換前後合計32 Ki文字まで。
 外部ファイルを含むリンク、同じ物理pathへの重複登録、対応OS上のhard link、build出力先のlinkや入力衝突も拒否する。
@@ -344,11 +345,14 @@ source / operation取得はreadOnly。全4ツールとも `openWorldHint=false`�
 2. 変更前後を `pgp_propose_source_patch` で提案する。Studioでユーザーが確認・承認する。
 3. operationを確認し、APPLIEDなら本文を再取得する。以前のrevisionを使い回さない。
 4. 新しいrevisionで `pgp_build_project` を要求し、Studioで承認する。
-5. operation完了後、`pgp_get_development_context({"section":"diagnostics"})` を取得する。
-6. 失敗なら行・code・messageを基に修正案を再提案する。成功時はBUILT_NOT_LOADED。
+5. Buildのoperationが失敗したら `buildDiagnostics` の行・code・messageを確認する。関連する修正をソースごとに1つの `edits` 配列にまとめ、修正を承認した後のrevisionで再Buildする。成功時はBUILT_NOT_LOADED。
+6. 診断が省略・切り詰められており、そのBuildが最新なら `pgp_get_development_context({"section":"diagnostics"})` やStudioで詳細を確認する。
 
 BuildはStudioの「出力をBuild」と同じ `buildProjectOutputsWork` → 共通compiler / builder / output writerを使う。
-Build中の入力変更はoperation成功として承認しない。失敗diagnosticsは既存の構造化APIで取得する。
+Build中の入力変更はoperationの `STALE_PROJECT` として報告する。
+Buildが失敗して構造化診断を得られたときは、完了時に `buildDiagnostics` を記録する。
+`projectRevision` は失敗した入力、`items` は診断の先頭16件まで、`total` は全件数、`truncated` は先頭以降があるかを示す。
+この診断は対象operationに紐づき、後続のBuildで更新されない。
 Load・CPU実行・停止・RAM変更・デバッグ登録の変更は自動では行わない。
 新ツールを使うには最新Studioへ更新し、MCP画面の「Codex設定をコピー」で9ツールの設定を反映する。
 実行中の旧Studioや既存クライアントの接続設定は、この実装作業では自動更新していない。
@@ -549,15 +553,18 @@ HTTP失敗、接続不能、認証読込み失敗は要求ID付きのJSON-RPC er
 
 | Tool | 引数 | 応答format |
 | --- | --- | --- |
-| `pgp_search_knowledge` | 必須machineId、任意query／topic／offset／limit | `pgp-knowledge-search` |
+| `pgp_search_knowledge` | 必須machineId、任意query／topic／offset／limit／includeContent | `pgp-knowledge-search` |
 | `pgp_get_knowledge` | 必須machineId／id | `pgp-knowledge-item` |
 | `pgp_get_example` | 必須machineId／exampleId | `pgp-knowledge-example` |
 
 初版のmachineIdは`pc-1245`のみ。他機種は`UNSUPPORTED_KNOWLEDGE_MACHINE`。
 queryは最大256文字、空文字／省略は一覧。空白区切りの全語を大小文字無視で照合する。
-topicはbasic／memory／display／assembler／execution／example／instruction。
+topicはgeneration／basic／memory／display／audio／assembler／execution／example／instruction。
 offsetは0〜1000000（既定0）、limitは1〜16（既定8）。totalとnextOffsetでページングする。
-本文を検索対象に含むが、検索結果は本文を含まない要約一覧。該当なしは空配列。
+本文も検索対象とする。既定の `includeContent=false` では `items` に要約を返す。
+`includeContent=true` では各要素に `item`（要約と出典）、`body`（本文）、`data`（構造化データ）を返す。
+並び順とページングは共通。該当なしは空配列。64 KiBを超える場合は検索条件を絞るかlimitを下げる。
+作例のソースファイルは `pgp_get_example` で取得する。
 
 項目ID・exampleIdは最大128文字の文字列。未知IDは`KNOWLEDGE_NOT_FOUND`／`EXAMPLE_NOT_FOUND`。
 パスやURLの読込み引数はない。未知キー、null、文字列化した数値、範囲外の値は`INVALID_ARGUMENTS`。
@@ -568,7 +575,9 @@ structuredContentはschemaVersion 1、catalogVersion `pc1245-v1`。構造化応�
 本文・作例はclasspath内の固定resourceのみを読む。実行時の任意ファイル・ネットワーク・ROM・Project参照は行わない。
 BASICコード表、メモリ既定値、LCD情報、命令メタデータは現行Core／既存機種仕様サービスを共用する。
 機種知識のcodeTableはTokenizerの認識情報であり、全BASIC構文や実ROM実行を保証しない。
-命令の完全な動作・フラグ・cycle数とROMルーチンABIは未提供として明示する。
+描画・待機・発音に使う一部の命令では、`data.coreBehavior` にCore実装での入出力、ゼロ／キャリーフラグ、命令サイクルを返す。
+固定値は `cycles[].base`、分岐は `condition` 別の値、WAITは `base + perUnsignedImmediate × 即値`。
+未収録の命令効果、ROMルーチンABI、実機での動作は未確認として扱う。
 
 作例ID `pc1245-hello-world`はmanifest・BASIC・Assemblyの本文3ファイルと適用条件を返す。
 既存テストfixtureをビルド時に同梱し、ROM・生成済みバイナリは含めない。

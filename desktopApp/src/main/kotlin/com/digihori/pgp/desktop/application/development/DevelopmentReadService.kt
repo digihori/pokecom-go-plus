@@ -4,6 +4,7 @@ import com.digihori.pgp.core.api.*
 import com.digihori.pgp.core.debug.Sc61860InstructionSet
 import com.digihori.pgp.core.rom.MachineId
 import com.digihori.pgp.desktop.application.debug.DebugContextService
+import com.digihori.pgp.desktop.basic.DesktopBasicProgramCompileError
 import com.digihori.pgp.desktop.project.*
 import com.digihori.pgp.desktop.runner.*
 import java.io.File
@@ -239,16 +240,26 @@ internal class DesktopDevelopmentReadService(private val stateProvider: () -> De
         put("path", path?.let(::JsonPrimitive) ?: JsonNull)
         put("line", if (path != null) value.line?.let(::JsonPrimitive) ?: JsonNull else JsonNull)
         val readable = path != null && !value.externalTool && !state.assembler.external && value.consoleLog.isBlank()
-        put("message", if (readable) value.message.take(4096).replace(Regex("""(?i)(?:[A-Z]:[\\/]|/)[^\s\"'<>]*"""), "<path>").take(512)
+        put("message", if (readable) diagnosticMessage(value.message)
             else "Assembly failed; inspect Studio diagnostics. External output and paths are omitted.")
         put("rawOutputOmitted", true)
     }
 
-    private fun buildDiagnostic(error: DesktopProjectBuildError, state: DevelopmentReadState): JsonObject {
+    private fun diagnosticMessage(message: String): String =
+        message.take(4096).replace(Regex("""(?i)(?:[A-Z]:[\\/]|/)[^\s"'<>]*"""), "<path>").take(512)
+
+    internal fun buildDiagnostic(error: DesktopProjectBuildError, state: DevelopmentReadState): JsonObject {
         if (error is DesktopProjectBuildError.Assembly) {
-            state.diagnostics.firstOrNull { it.source.definition.id == error.sourceId && it.line == error.line }?.let {
+            state.diagnostics.firstOrNull { it.source.definition.id == error.sourceId && (it.line ?: 0) == error.line && it.message == error.message }?.let {
                 return assemblyDiagnostic(it, state, state.project?.manifestFile?.canonicalFile?.parentFile)
             }
+        }
+        val basicLocation = when (val detail = (error as? DesktopProjectBuildError.BasicCompile)?.error) {
+            is DesktopBasicProgramCompileError.Parse -> Triple(detail.error.line, detail.error.column, detail.error.message)
+            is DesktopBasicProgramCompileError.Tokenize -> Triple(detail.error.line, detail.error.column, detail.error.message)
+            is DesktopBasicProgramCompileError.S1Tokenize -> Triple(detail.error.line, detail.error.column, detail.error.message)
+            is DesktopBasicProgramCompileError.S2Tokenize -> Triple(detail.error.line, detail.error.column, detail.error.message)
+            else -> null
         }
         return buildJsonObject {
             val sourceId = when (error) {
@@ -275,14 +286,17 @@ internal class DesktopDevelopmentReadService(private val stateProvider: () -> De
                 is DesktopProjectBuildError.BasicPlacement -> "BASIC_PLACEMENT"
             })
             put("severity", "error"); put("sourceId", sourceId?.take(128)?.let(::JsonPrimitive) ?: JsonNull)
-            put("line", (error as? DesktopProjectBuildError.Assembly)?.line?.takeIf { it > 0 }?.let(::JsonPrimitive) ?: JsonNull)
+            val line = basicLocation?.first ?: (error as? DesktopProjectBuildError.Assembly)?.line
+            put("line", line?.takeIf { it > 0 }?.let(::JsonPrimitive) ?: JsonNull)
+            basicLocation?.let { put("column", it.second) }
             put("address", when (error) {
                 is DesktopProjectBuildError.MemoryOverlap -> JsonPrimitive(error.address)
                 is DesktopProjectBuildError.InvalidRawBinaryRange -> JsonPrimitive(error.startAddress)
                 is DesktopProjectBuildError.Placement -> JsonPrimitive(error.error.address)
                 else -> JsonNull
             })
-            put("message", "Build failed; inspect the typed error code and Studio diagnostics. Raw tool output is omitted.")
+            put("message", basicLocation?.third?.let(::diagnosticMessage)
+                ?: "Build failed; inspect the typed error code and Studio diagnostics. Raw tool output is omitted.")
         }
     }
 

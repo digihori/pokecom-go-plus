@@ -80,17 +80,61 @@ class DevelopmentChangeServiceTest {
                 buildErrors = (result as? DesktopProjectBuildResult.Failure)?.errors.orEmpty(),
                 assembly = (assembly as? DesktopAssemblyWorkspaceResult.Success)?.sources.orEmpty(),
                 buildStatus = if (result is DesktopProjectBuildResult.Success) "BUILT_NOT_LOADED" else "BUILD_FAILED")
-            service.completeBuild(id, result is DesktopProjectBuildResult.Success)
+            service.completeBuild(id, result is DesktopProjectBuildResult.Success, state.buildErrors, state.diagnostics)
         })
-        propose(service, "LIA 1", "LIA TYPO"); service.approve()
-        val failed = service.proposeBuild(service.source("main").string("projectRevision")); service.approve()
-        assertEquals("FAILED", service.operation(failed.string("operationId")).string("status"))
-        val diagnostics = DesktopDevelopmentReadService { state }.context("diagnostics", null, 0, 32)
-        assertTrue(diagnostics.getValue("diagnostics").jsonArray.isNotEmpty())
-        propose(service, "LIA TYPO", "LIA 2"); service.approve()
-        val success = service.proposeBuild(service.source("main").string("projectRevision")); service.approve()
-        assertEquals("SUCCEEDED", service.operation(success.string("operationId")).string("status"))
-        assertTrue(DesktopDevelopmentReadService { state }.context("diagnostics", null, 0, 32).getValue("diagnostics").jsonArray.isEmpty())
+        val adapter = PgpMcpToolAdapter({ null }, changesProvider = { service })
+        fun call(name: String, args: JsonObject): JsonObject {
+            val response = adapter.call(name, args)
+            assertEquals(JsonPrimitive(false), response["isError"], response.toString())
+            return response.getValue("structuredContent").jsonObject
+        }
+        fun poll(id: String) = call("pgp_get_operation", buildJsonObject { put("operationId", id) })
+        fun patch(vararg edits: Pair<String, String>): JsonObject {
+            val source = call("pgp_get_source", buildJsonObject { put("sourceId", "main") })
+            return call("pgp_propose_source_patch", buildJsonObject {
+                put("sourceId", "main")
+                put("projectRevision", source.string("projectRevision"))
+                put("sourceSha256", source.string("sourceSha256"))
+                putJsonArray("edits") {
+                    edits.forEach { (old, new) -> add(buildJsonObject { put("oldText", old); put("newText", new) }) }
+                }
+            })
+        }
+        fun build() = call("pgp_build_project", buildJsonObject { put("projectRevision", service.projectRevision()) })
+
+        patch("LIA 1" to "BROKEN_ONE", "RTN" to "BROKEN_TWO"); service.approve()
+        val failed = build()
+        val failedId = failed.string("operationId")
+        assertNull(poll(failedId)["buildDiagnostics"])
+        val failedRevision = service.projectRevision()
+        service.approve()
+        val result = poll(failedId)
+        assertEquals("FAILED", result.string("status"))
+        val diagnostics = result.getValue("buildDiagnostics").jsonObject
+        assertEquals(failedRevision, diagnostics.string("projectRevision"))
+        assertEquals(1, diagnostics.getValue("total").jsonPrimitive.int)
+        assertEquals(JsonPrimitive(false), diagnostics["truncated"])
+        val items = diagnostics.getValue("items").jsonArray
+        // The built-in assembler stops at the first error in this source.
+        assertEquals(2, items.single().jsonObject.getValue("line").jsonPrimitive.int)
+        assertTrue(items.single().jsonObject.string("message").contains("BROKEN_ONE"))
+        assertTrue(items.all { it.jsonObject.string("sourceId") == "main" && it.jsonObject.string("code") == "ASSEMBLY_ERROR" })
+        assertEquals(DesktopDevelopmentReadService { state }.context("diagnostics", null, 0, 32)["diagnostics"], items)
+
+        val file = workspace.sources.single().file
+        val brokenText = file.readText()
+        val fix = patch("BROKEN_ONE" to "LIA 2", "BROKEN_TWO" to "RTN")
+        assertEquals("PENDING_APPROVAL", fix.string("status"))
+        assertEquals(2, service.review()?.replacements?.size)
+        assertEquals(brokenText, file.readText())
+        service.approve()
+        assertEquals("APPLIED", poll(fix.string("operationId")).string("status"))
+        assertEquals("ORG 0xC500\nENTRY: LIA 2\nRTN\n", file.readText())
+        val success = build(); service.approve()
+        val rebuilt = poll(success.string("operationId"))
+        assertEquals("SUCCEEDED", rebuilt.string("status"))
+        assertNull(rebuilt["buildDiagnostics"])
+        assertEquals(diagnostics, poll(failedId)["buildDiagnostics"])
         assertContentEquals(before, runner.memorySnapshot(0xc500, 8).copyBytes()); assertEquals(cpu, runner.cpuSnapshot().programCounter)
     }
 

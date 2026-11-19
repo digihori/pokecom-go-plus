@@ -1,6 +1,8 @@
 package com.digihori.pgp.desktop.application.development
 
 import com.digihori.pgp.core.project.ProjectSourceType
+import com.digihori.pgp.desktop.project.DesktopAssemblyDiagnostic
+import com.digihori.pgp.desktop.project.DesktopProjectBuildError
 import com.digihori.pgp.desktop.project.DesktopProjectWorkspace
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
@@ -18,7 +20,10 @@ internal data class DevelopmentReview(
     val generatedSources: List<GeneratedSource> = emptyList(),
     val machineId: String = "pc-1245",
 )
-internal data class DevelopmentOperation(val id: String, val kind: String, val status: String, val code: String? = null)
+internal data class DevelopmentOperation(
+    val id: String, val kind: String, val status: String, val code: String? = null,
+    val buildDiagnostics: JsonObject? = null,
+)
 
 /** Application-thread proposal queue. Only Studio UI can approve a source write or build. */
 internal class DevelopmentChangeService(
@@ -58,19 +63,29 @@ internal class DevelopmentChangeService(
         if (machineId !in GeneratedProjectFiles.MACHINES) fail("UNSUPPORTED_GENERATION_MACHINE")
         if (name.isBlank() || name.length > 80 || name.any { it < ' ' || it == '\u007f' || it.isSurrogate() }) fail("INVALID_PROJECT_NAME")
         GeneratedProjectFiles.validate(sources)
+        val reviewedSources = sources.map { formatGeneratedSource(machineId, it) }
+        GeneratedProjectFiles.validate(reviewedSources)
         creationParent = null; creationParentKey = null
         return queue(DevelopmentReview(UUID.randomUUID().toString(), "CREATE_PROJECT", name.trim(), null,
-            emptyList(), "no-project", generatedSources = sources.toList(), machineId = machineId))
+            emptyList(), "no-project", generatedSources = reviewedSources, machineId = machineId))
     }
 
     fun proposeSource(revision: String, source: GeneratedSource): JsonObject {
         checkQueue()
         val snapshot = snapshot()
         if (snapshot.revision != revision) fail("STALE_PROJECT")
-        GeneratedProjectFiles.checkAddition(snapshot.state.project!!, source)
-        return queue(DevelopmentReview(UUID.randomUUID().toString(), "ADD_SOURCE", snapshot.state.project.definition.name,
-            source.definition.path, emptyList(), revision, source.id, listOf(source), machineId = snapshot.state.project.definition.machineId.value))
+        val project = snapshot.state.project!!
+        val machineId = project.definition.machineId.value
+        GeneratedProjectFiles.validate(listOf(source))
+        val reviewedSource = formatGeneratedSource(machineId, source)
+        GeneratedProjectFiles.checkAddition(project, reviewedSource)
+        return queue(DevelopmentReview(UUID.randomUUID().toString(), "ADD_SOURCE", project.definition.name,
+            source.definition.path, emptyList(), revision, source.id, listOf(reviewedSource), machineId = machineId))
     }
+
+    private fun formatGeneratedSource(machineId: String, source: GeneratedSource): GeneratedSource =
+        if (source.type == ProjectSourceType.BASIC) source.copy(text = formatBasicCallAddresses(machineId, source.text))
+        else source
 
     private fun checkQueue() {
         if (pending != null || operations.values.any { it.status == "RUNNING" }) fail("BUSY")
@@ -166,10 +181,17 @@ internal class DevelopmentChangeService(
             text = text.replaceRange(at, at + edit.oldText.length, edit.newText)
         }
         if (text == original || text.toByteArray().size > 65536 || text.contains('\u0000')) fail("INVALID_PATCH")
-        val source = snapshot.state.project!!.sources.single { it.definition.id == sourceId }
-        replacementText = text
-        return queue(DevelopmentReview(UUID.randomUUID().toString(), "PATCH", snapshot.state.project.definition.name,
-            source.definition.path, edits.toList(), revision, source.definition.id))
+        val project = snapshot.state.project!!
+        val source = project.sources.single { it.definition.id == sourceId }
+        val formatted = if (source.definition.type == ProjectSourceType.BASIC) {
+            formatBasicCallAddresses(project.definition.machineId.value, text)
+        } else text
+        if (formatted == original || formatted.toByteArray().size > 65536) fail("INVALID_PATCH")
+        // When formatting affects the candidate, the review needs the exact original and final source.
+        val reviewedEdits = if (formatted == text) edits.toList() else listOf(SourceReplacement(original, formatted))
+        replacementText = formatted
+        return queue(DevelopmentReview(UUID.randomUUID().toString(), "PATCH", project.definition.name,
+            source.definition.path, reviewedEdits, revision, source.definition.id))
     }
 
     fun proposeBuild(revision: String): JsonObject {
@@ -266,11 +288,28 @@ internal class DevelopmentChangeService(
         operations[review.id] = DevelopmentOperation(review.id, review.kind, "REJECTED")
         onChange()
     }
-    fun completeBuild(id: String, success: Boolean) {
-        val op = operations[id] ?: return
-        val current = runCatching { snapshot(ignoreBusy = true).revision == revisions[id] }.getOrDefault(false)
-        operations[id] = op.copy(status = if (success && current) "SUCCEEDED" else "FAILED",
-            code = if (!current) "STALE_PROJECT" else if (success) null else "BUILD_FAILED")
+    fun completeBuild(
+        id: String,
+        success: Boolean,
+        errors: List<DesktopProjectBuildError> = emptyList(),
+        assemblyDiagnostics: List<DesktopAssemblyDiagnostic> = emptyList(),
+    ) {
+        val op = operations[id]?.takeIf { it.kind == "BUILD" && it.status == "RUNNING" } ?: return
+        val current = runCatching { snapshot(ignoreBusy = true) }.getOrNull()?.takeIf { it.revision == revisions[id] }
+        val diagnostics = if (!success && current != null && errors.isNotEmpty()) {
+            val state = current.state.copy(diagnostics = assemblyDiagnostics)
+            val reader = DesktopDevelopmentReadService { state }
+            buildJsonObject {
+                val limit = 16
+                put("projectRevision", current.revision)
+                put("total", errors.size)
+                put("items", JsonArray(errors.take(limit).map { reader.buildDiagnostic(it, state) }))
+                put("truncated", errors.size > limit)
+            }
+        } else null
+        operations[id] = op.copy(status = if (success && current != null) "SUCCEEDED" else "FAILED",
+            code = if (current == null) "STALE_PROJECT" else if (success) null else "BUILD_FAILED",
+            buildDiagnostics = diagnostics)
         onChange()
     }
     fun operation(id: String): JsonObject {
@@ -280,6 +319,7 @@ internal class DevelopmentChangeService(
             put("operationId", operation.id); put("kind", operation.kind); put("status", operation.status)
             put("code", operation.code?.let(::JsonPrimitive) ?: JsonNull)
             put("approval", "Studio UI only"); put("loadsOrRuns", false)
+            operation.buildDiagnostics?.let { put("buildDiagnostics", it) }
             if (operation.kind in setOf("CREATE_PROJECT", "ADD_SOURCE")) {
                 put("destinationSelection", if (operation.kind == "CREATE_PROJECT") "Studio UI only" else "current project src directory")
                 put("nextStep", "After APPLIED, re-read development metadata and pgp_get_source for a fresh projectRevision before Build or edits. Created text has not been validated by Build.")

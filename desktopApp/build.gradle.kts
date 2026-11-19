@@ -58,6 +58,10 @@ val prepareKnowledgeResources by tasks.registering(Sync::class) {
         include("pgp-project.json", "src/main.bas", "src/hello.asm")
         into("knowledge/examples/pc1245-hello-world")
     }
+    from(rootProject.file("test-data/assembly/pc1350-lcd-strip")) {
+        include("pgp-project.json", "src/main.bas", "src/strip.asm")
+        into("knowledge/examples/pc1350-lcd-strip")
+    }
     from(rootProject.file("test-data/basic/ai/pc1245-numeric-labels")) {
         include("pgp-project.json", "src/main.bas")
         into("knowledge/examples/pc1245-numeric-labels")
