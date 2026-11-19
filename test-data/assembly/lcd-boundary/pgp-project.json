@@ -1,0 +1,10 @@
+{
+  "format": "pgp-project",
+  "formatVersion": 1,
+  "name": "${displayName} LCD Boundary",
+  "machineId": "${machineId}",
+  "sources": [
+    { "id": "main", "type": "basic", "path": "src/main.bas" },
+    { "id": "strip", "type": "assembly", "path": "src/strip.asm" }
+  ]
+}

@@ -293,7 +293,9 @@ class PocketKnowledgeTest {
         assertError("KNOWLEDGE_NOT_FOUND", KnowledgeMcp.GET, """{"machineId":"pc-1251","id":"pc1245.memory"}""")
         assertError("KNOWLEDGE_NOT_FOUND", KnowledgeMcp.GET, """{"machineId":"pc-1245","id":"pc1251.basic"}""")
         assertError("EXAMPLE_NOT_FOUND", KnowledgeMcp.EXAMPLE, """{"machineId":"pc-1251","exampleId":"pc1245-numeric-labels"}""")
-        assertEquals(1, ok(KnowledgeMcp.SEARCH, """{"machineId":"pc-1251","topic":"example"}""").getValue("total").jsonPrimitive.int)
+        val examples = ok(KnowledgeMcp.SEARCH, """{"machineId":"pc-1251","topic":"example"}""")
+            .getValue("items").jsonArray.map { it.jsonObject.getValue("exampleId").jsonPrimitive.content }.toSet()
+        assertEquals(setOf("pc1251-lcd-boundary", "pc1251-numeric-labels"), examples)
         for (id in listOf("sc61860.assembler", "sc61860.instruction.lia", "pc1251.execution")) {
             val item = ok(KnowledgeMcp.GET, """{"machineId":"pc-1251","id":"$id"}""")
             assertTrue(item.getValue("item").jsonObject.getValue("machineIds").jsonArray.contains(JsonPrimitive("pc-1251")))

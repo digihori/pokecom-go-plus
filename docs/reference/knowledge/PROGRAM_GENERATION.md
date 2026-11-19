@@ -54,3 +54,9 @@ Use Studio's approval flow for changes, Build, Load, and execution. When reporti
 - Batch `pgp.program-generation`, the selected model's display and memory entries, and its full-width LCD example entry (`pc1360.example.lcd-traverse` or `pc1360k.example.lcd-traverse`). Use the model-specific manifest returned by `pgp_get_example`.
 - Both models use 150×32 dots and five 30-column blocks per band. The first block addresses are 0x2800, 0x2840, 0x281E, and 0x285E from top to bottom. Each subsequent block adds 0x200. Check the writes against 0x303C, the symbol address.
 - Use one full-width band transfer routine and the same frame position for both sprite bands. The example assembles at 0xC000 and uses `CALL &C000`. Verify placement with the current RAM configuration and the selected ROM. Calculate timing at 256 kHz.
+
+## PC-1251, PC-1401, PC-1450, PC-1460 and PC-1470U LCD checks
+
+- Batch `pgp.program-generation` and the model's `.display`, `.memory` and `.example.lcd-boundary` entries. Obtain the model-specific BASIC and assembly with `pgp_get_example`.
+- Validate each step of the ordered VRAM blocks before generating: PC-1251, PC-1401 and PC-1450 reverse direction across the example boundary. PC-1460 has noncontiguous segments within a single row. PC-1470U has a second band with its own addresses. Check the actual model and band, avoid the symbol addresses, and preserve port C when enabling the LCD.
+- For a small animation, use a four-column drawing window and a shared frame loop. Confirm a visible frame straddles the boundary, then check erase and return. Calculate duration from the selected machine's clock.

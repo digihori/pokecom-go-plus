@@ -91,7 +91,7 @@ internal class PocketKnowledgeService(
             listOf("core/src/commonMain/kotlin/com/digihori/pgp/core/api/MachineMemoryLayout.kt",
                 "core/src/commonMain/kotlin/com/digihori/pgp/core/emulator/machine/pc1251/Pc1251Family.kt"), machineIds = listOf("pc-1251")),
         Entry("pc1251.display", "display", "PC-1251 LCD / 表示の対応範囲",
-            "24 character columns; direct drawing and MCP display capture are not exposed for this model.",
+            "120×7 dots with a reversed second VRAM block; supports direct drawing and stopped LCD capture.",
             listOf("LCD", "表示", "画面"), "PC1251_SCOPE.md",
             listOf("core/src/commonMain/kotlin/com/digihori/pgp/core/emulator/machine/pc1251/Pc1251Display.kt"), machineIds = listOf("pc-1251")),
         Entry("pc1251.execution", "execution", "PC-1251 AI workflow scope / 起動・生成の対応範囲",
@@ -262,7 +262,15 @@ internal class PocketKnowledgeService(
             "Numeric branching and LCD prompts on PC-1470U, observed on one local ROM.", listOf("INPUT", "IF", "LCD", "作例"), "PC1470U_SCOPE.md",
             listOf("test-data/basic/ai/pc1470u-numeric-labels/README.md"),
             basis = "emulatorObservedExample", exampleId = "pc1470u-numeric-labels", machineIds = listOf("pc-1470u")),
-    )
+    ) + listOf("pc-1251", "pc-1401", "pc-1450", "pc-1460", "pc-1470u").map { machineId ->
+        val model = machineId.replace("-", "")
+        Entry("$model.example.lcd-boundary", "example", "${machineId.uppercase(Locale.ROOT)} LCD boundary / LCD境界描画",
+            "Move a small sprite across a machine-specific LCD address boundary, clear it and return to BASIC.",
+            listOf("LCD", "VRAM", "sprite", "animation", "描画", "作例"), "LCD_BOUNDARY_EXAMPLES.md",
+            listOf("test-data/assembly/lcd-boundary/src/strip.asm",
+                "desktopApp/src/test/kotlin/com/digihori/pgp/desktop/mcp/LcdBoundaryExamplesTest.kt"),
+            basis = "emulatorObservedExample", exampleId = "$model-lcd-boundary", machineIds = listOf(machineId))
+    }
     private val instructions = Sc61860InstructionSet.allDefined().groupBy { it.mnemonic }.toSortedMap()
     private val entries = articles + instructions.map { (mnemonic, _) ->
         val hasDetails = Sc61860InstructionKnowledge.contains(mnemonic)
@@ -340,7 +348,8 @@ internal class PocketKnowledgeService(
                     "pc1245-hello-scroll" -> listOf("pgp-project.json", "src/main.bas", "src/scroll.asm")
                     "pc1245-buzzer-scale" -> listOf("pgp-project.json", "src/main.bas", "src/scale.asm")
                     "pc1360-lcd-traverse", "pc1360k-lcd-traverse" -> listOf("pgp-project.json", "src/main.bas", "src/traverse.asm")
-                    "pc1261-lcd-strip", "pc1350-lcd-strip" -> listOf("pgp-project.json", "src/main.bas", "src/strip.asm")
+                    "pc1251-lcd-boundary", "pc1401-lcd-boundary", "pc1450-lcd-boundary", "pc1460-lcd-boundary",
+                    "pc1470u-lcd-boundary", "pc1261-lcd-strip", "pc1350-lcd-strip" -> listOf("pgp-project.json", "src/main.bas", "src/strip.asm")
                     else -> listOf("pgp-project.json", "src/main.bas")
                 }
                 paths.forEach { path ->

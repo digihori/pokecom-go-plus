@@ -83,6 +83,23 @@ val prepareKnowledgeResources by tasks.registering(Sync::class) {
             into("knowledge/examples/$model-lcd-traverse")
         }
     }
+    // X advances through one bitmap. The right VRAM block may run backwards.
+    val boundaryExamples = listOf(
+        listOf("PC-1251", "C100", "0xF839", "0xF87C", "DYS"),
+        listOf("PC-1401", "4400", "0x6025", "0x6068", "DYS"),
+        listOf("PC-1450", "5000", "0x7039", "0x707C", "DYS"),
+        listOf("PC-1460", "C000", "0x301B", "0x302C", "IYS"),
+        listOf("PC-1470U", "C000", "0x2839", "0x29FF", "IYS"),
+    )
+    for ((displayName, entry, left, right, rightStore) in boundaryExamples) {
+        val machineId = displayName.lowercase()
+        from(rootProject.file("test-data/assembly/lcd-boundary")) {
+            include("pgp-project.json", "src/main.bas", "src/strip.asm")
+            expand(mapOf("displayName" to displayName, "machineId" to machineId, "entry" to "0x$entry",
+                "basicEntry" to entry, "left" to left, "right" to right, "rightStore" to rightStore))
+            into("knowledge/examples/${machineId.replace("-", "")}-lcd-boundary")
+        }
+    }
     from(rootProject.file("test-data/basic/ai/pc1245-numeric-labels")) {
         include("pgp-project.json", "src/main.bas")
         into("knowledge/examples/pc1245-numeric-labels")
