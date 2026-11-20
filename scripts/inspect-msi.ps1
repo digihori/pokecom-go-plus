@@ -20,7 +20,7 @@ try {
         finally { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($record) }
     }
     if ($VerifyCurrent) {
-        if ($properties['ProductVersion'] -ne '1.9.1' -or
+        if ($properties['ProductVersion'] -ne '1.9.2' -or
             $properties['UpgradeCode'] -ne '{D173EFD1-57EF-3753-A618-92481F262D95}' -or
             $properties['ProductName'] -ne 'PokecomGOStudio') {
             throw 'MSI identity/version differs from the current distribution configuration.'
