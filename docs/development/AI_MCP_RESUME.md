@@ -1,6 +1,13 @@
 # AI連携拡充：中断・再開メモ
 
-## 最新の再開先（2026-11-19）
+## 現在の残作業（2026-11-23）
+
+Studio 1.2.2でAI／MCPの対応機種と作例を公開した。Google系CLIは後継のAntigravity CLIから
+macOSで機種情報の取得を確認済み。現在の残作業はMuseの接続方法の検討で、方式は未定。
+[現行の接続ガイド](../guides/AI_CONNECTION_GUIDE.md) ·
+[Studio 1.2.2リリースノート](../releases/notes/RELEASE_NOTES_STUDIO_1.2.2.md)
+
+## 2026-11-19時点の再開メモ
 
 [AIコード生成の品質・承認回数の改善計画](AI_CODE_GENERATION_IMPROVEMENT_PLAN.md)を参照。
 PC-1350で先行確認後に他機種へ展開する計画。作業ブランチは

@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
 
-> **[Studio 1.1.0](https://github.com/digihori/pokecom-go-plus/releases/tag/v1.1.0)** is available, with signed and notarized macOS packages. Android Player 1.1.0 is also available on Google Play.
+> **[Studio 1.2.2](https://github.com/digihori/pokecom-go-plus/releases/latest)** is available, with signed and notarized macOS packages.
 
 Pokecom GO Plus (PGP) is a multiplatform development environment for vintage pocket computers.
 It aims to help you write, run, and analyze programs on a modern PC, then transfer them to the original hardware.
@@ -23,13 +23,12 @@ Android Player setup pages are available in [English](https://digihori.github.io
 
 For usage, see the [documentation index](docs/README.en.md) or start with [Getting started](docs/guides/GETTING_STARTED.md). Detailed guides are mostly in Japanese.
 
-Android Player is now available on [Google Play](https://play.google.com/store/apps/details?id=com.digihori.pgp.player). Supply your own lawfully obtained ROMs.
+Player is available on [Google Play](https://play.google.com/store/apps/details?id=com.digihori.pgp.player) for Android and the [App Store](https://apps.apple.com/us/app/pokecom-go-player/id6826764410) for iPhone. Supply your own lawfully obtained ROMs.
 
 ## Current release
 
-Studio **1.1.0** is available. Android Player 1.1.0 is also available on Google Play. See the
-[release notes](docs/releases/notes/RELEASE_NOTES_1.1.0.md) and
-[release checklist](docs/releases/checklists/RELEASE_CHECKLIST_1.1.0.md).
+Studio 1.2.2 adds AI/MCP support for eight more models, LCD drawing and buzzer examples, and a Japanese-language Windows MSI.
+[Release notes](docs/releases/notes/RELEASE_NOTES_STUDIO_1.2.2.md)
 
 ## Current status
 
@@ -311,26 +310,6 @@ PGP_GOLDEN_PRODUCER_REVISION=<git-revision> \
 The output includes the ROM SHA-256 and is replay-validated immediately. ROMs and generated JSON remain
 under `local-data/`, outside Git.
 
-### Studio 1.1.2
-
-Studio 1.1.2 is published as the latest release, with per-family RAM settings for PC-1251, PC-1261 and PC-1401.
-[Download Studio 1.1.2](https://github.com/digihori/pokecom-go-plus/releases/tag/v1.1.2).
-[Release notes](docs/releases/notes/RELEASE_NOTES_STUDIO_1.1.2.md) ·
-[Release checklist](docs/releases/checklists/RELEASE_CHECKLIST_STUDIO_1.1.2.md).
-Player store releases are handled separately.
-
-### Version 1.1.0
-
-Studio 1.1.0 is published. Android Player 1.1.0 is also available on Google Play.
-See the [release notes](docs/releases/notes/RELEASE_NOTES_1.1.0.md) and
-[release checklist](docs/releases/checklists/RELEASE_CHECKLIST_1.1.0.md).
-Player 1.1.2 is being prepared for Android and iOS. See the
-[1.1.2 draft notes](docs/releases/notes/RELEASE_NOTES_1.1.2.md) and
-[release handoff](docs/releases/checklists/RELEASE_CHECKLIST_1.1.2.md).
-The iOS source still specifies 0.7.0 (build 3); update it to the planned 1.1.2 (13) before archiving.
-The submitted 0.7.0 review materials remain a historical record; publication/review status is not reverified here.
-Android updates use Google Play; debug APKs remain CI artifacts only.
-
 ### CI and preview packages
 
 Pushes and pull requests run Core desktop tests and Studio builds/tests on macOS, Windows, and Linux.
@@ -340,21 +319,10 @@ iOS app builds and Swift unit tests run in regular CI; Native-only tests use a m
 and UI interactions are verified locally.
 
 Running `.github/workflows/release.yml` manually creates Studio and Android Player packages,
-retained as workflow artifacts for 14 days. A matching `v1.1.0` tag builds signed/notarized macOS packages after approval
+retained as workflow artifacts for 14 days. A release tag such as `v1.2.2` builds signed/notarized macOS packages after approval
 and prepares a draft GitHub Release with Studio packages and the standalone memory converter.
 Android debug APKs remain CI artifacts. Verify the assets and acceptance results before publishing the draft.
 See [Building from source (Japanese)](docs/reference/BUILDING.md) for local DMG/MSI/DEB packaging.
-
-## Fixes prepared for the next update (development source)
-
-The source includes RAM defaults/persistence, editor input isolation, MCP approval button placement,
-arrow legends, Linux menu classification, special-symbol/yen conversion, and relaxed project machine restrictions.
-It also fixes truncated BASIC comparison operators (`>=`, `<=`, `<>`).
-Development builds of Studio default to hardware RAM and remember the selection per 125x, 126x and 1401 family. See [unrestricted RAM](docs/reference/machines/STUDIO_RAM_CONFIGURATION.md); its mapping differs from the expanded mode in released Studio 1.1.0.
-Opening a project keeps the current machine/ROM; builds use the active machine, or the manifest default without a session.
-The Linux test DEB was verified under Development; published 1.0.0 uses the previous classification.
-See the [fix and verification record](docs/development/planning/NEXT_RELEASE_FIXES.md).
-These source changes require an updated build and are not automatically applied to installed 1.0.0 apps.
 
 ## Known limitations
 

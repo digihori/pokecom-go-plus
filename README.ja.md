@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/digihori/pokecom-go-plus/actions/workflows/ci.yml)
 
-> **[Studio 1.1.0](https://github.com/digihori/pokecom-go-plus/releases/tag/v1.1.0)** を公開しました。macOS版は署名・公証済み。Android Player 1.1.0もGoogle Playで公開しています。
+> **[Studio 1.2.2](https://github.com/digihori/pokecom-go-plus/releases/latest)** を公開しました。macOS版は署名・公証済みです。
 
 Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向けプログラムを
 現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す
@@ -25,13 +25,12 @@ Android Playerの初回設定は[日本語](https://digihori.github.io/pokecom-g
 
 使い方は[ドキュメント総合目次](docs/README.md)、初回起動は[はじめに](docs/guides/GETTING_STARTED.md)を参照してください。
 
-Android Playerは[Google Play](https://play.google.com/store/apps/details?id=com.digihori.pgp.player)で公開しています。ROMは同梱していません。
+Android Playerは[Google Play](https://play.google.com/store/apps/details?id=com.digihori.pgp.player)、iPhone版は[App Store](https://apps.apple.com/jp/app/pokecom-go-player/id6826764410)で公開しています。ROMは同梱していません。
 
 ## 現在のリリース
 
-Studio **1.1.0**を公開しました。Android Player 1.1.0もGoogle Playで公開しました。
-[リリースノート](docs/releases/notes/RELEASE_NOTES_1.1.0.md)と
-[チェックリスト](docs/releases/checklists/RELEASE_CHECKLIST_1.1.0.md)を参照してください。
+Studio 1.2.2ではAI／MCPの対応機種を8機種追加し、LCD描画・ブザーの作例と日本語版Windows MSIを追加しました。
+[リリースノート](docs/releases/notes/RELEASE_NOTES_STUDIO_1.2.2.md)
 
 ## 現在の状態
 
@@ -261,26 +260,6 @@ PC-1261／1350／1401が32 KiB、PC-1360／1360Kが128 KiB（bank 0〜7の順に
 初回ビルドではGradle、Kotlin/Native、Compose等をダウンロードするため、回線環境によっては
 数分かかり、数百MB以上のディスク領域を使用する。2回目以降はローカルキャッシュを再利用する。
 
-### Studio 1.1.2
-
-PC-1251・1261・1401系の系列別RAM設定を改善したStudio 1.1.2を正式公開しました（Latest）。
-[Studio 1.1.2のダウンロード](https://github.com/digihori/pokecom-go-plus/releases/tag/v1.1.2)。
-[リリースノート](docs/releases/notes/RELEASE_NOTES_STUDIO_1.1.2.md) ·
-[公開チェックリスト](docs/releases/checklists/RELEASE_CHECKLIST_STUDIO_1.1.2.md)。
-Playerのストア公開は別途実施します。
-
-### 1.1.0の公開状況
-
-Studio 1.1.0を公開しました。Android Player 1.1.0もGoogle Playで公開しました。
-[リリースノート](docs/releases/notes/RELEASE_NOTES_1.1.0.md)と
-[公開チェックリスト](docs/releases/checklists/RELEASE_CHECKLIST_1.1.0.md)で対象と残作業を管理します。
-Playerの次回1.1.2はAndroid／iOS向けに準備中です。
-[1.1.2リリースノート原稿](docs/releases/notes/RELEASE_NOTES_1.1.2.md)と
-[リリース引継ぎ](docs/releases/checklists/RELEASE_CHECKLIST_1.1.2.md)を参照してください。
-iOSのソース上の版数はまだ0.7.0（build 3）で、Archive前に予定の1.1.2 (13)へ更新します。
-提出済み0.7.0の審査資料は過去の記録として保持し、現在の審査・公開状態はここでは再確認していません。
-AndroidはGoogle Playで更新し、debug署名APKはCI成果物のみにします。
-
 ### Technical Preview配布物
 
 公開済みのTechnical Preview 0.7ではソースコード、macOS／Windows／Linux向けStudio配布物、およびAndroid向けPlayer
@@ -292,7 +271,7 @@ OSのセキュリティ警告が表示される可能性がある。ROMイメー
 Releaseには各ファイルのSHA-256チェックサムを掲載する。
 
 `.github/workflows/release.yml`をGitHub Actionsから手動実行すると、Studioを3環境、PlayerをAndroid環境で
-テストして配布物を生成し、14日間保持されるworkflow artifactとして取得できる。`v1.1.0` tagをpushすると、
+テストして配布物を生成し、14日間保持されるworkflow artifactとして取得できる。`v1.2.2`のようなリリースタグをpushすると、
 承認後にmacOSの署名・公証を行い、Studio配布物と単独変換ツールを添付したドラフトReleaseを作成する。
 Android debug APKはCI成果物としてのみ保持する。資産と受入れ結果を確認してからドラフトを公開する。
 
@@ -356,14 +335,6 @@ Desktopアプリを起動する場合：
 ./gradlew :desktopApp:run
 ```
 
-## 次回更新向けの修正（開発版）
-
-RAM初期値・設定保存、入力欄からのキー入力漏れ、MCP承認ボタン、矢印刻印、Linux分類、
-特殊文字・円記号、Projectの機種制約を改善した。BASICの`>=`・`<=`・`<>`が欠落する不具合も修正済み。
-開発版のStudioは125x／126x／1401系ごとにRAM構成を保存し、未設定なら実機準拠を使う。[制限解除の範囲](docs/reference/machines/STUDIO_RAM_CONFIGURATION.md)は公開済み1.1.0の拡張RAMと異なる。
-Projectを開いても機種・ROMは切り替えず、Buildは現在の機種を使用する。SessionがなければManifest機種を使う。
-[修正・検証記録](docs/development/planning/NEXT_RELEASE_FIXES.md)を参照。公開済み1.0.0へ自動反映されるものではない。
-
 ## 既知の制限
 
 - ROMイメージは同梱しない。利用には対象機種のROMが必要である。
@@ -372,10 +343,10 @@ Projectを開いても機種・ROMは切り替えず、Buildは現在の機種�
   当面Software描画を既定とする。ネイティブWindows x64で再確認後に既定値を再評価する。
   描画方式の比較には`PGP_RENDER_API=DIRECT3D`または`OPENGL`を指定できる。
 - Linux x86_64では展開型tar.gzの起動、音声再生と、DEBのインストール・起動・アンインストールを確認済みである。
-  ARM64 Linuxの配布物はまだ用意していない。公開済み1.0.0のメニュー分類は「その他」だが、次回更新向けの検証用DEBではDevelopment分類を確認済み。
+  ARM64 Linuxの配布物はまだ用意していない。DEBのアプリメニュー分類はDevelopment。
 - ROM Importerの操作ガイドと、バンクROMを持つ機種の一括選択UIは暫定実装である。
 - サウンドには実機との波形差が残る可能性がある。Studio／Androidは現状を正式版の基準とし、iOSの音声改善は別途進める。
-- [1245／125x／126xのRAM仕様](docs/reference/machines/RAM_1245_1261.md)とRAM設定別のMEM値を確認済み。旧拡張RAMのMEM値は過去の検証記録として保持し、開発版の制限解除と区別する。
+- [1245／125x／126xのRAM仕様](docs/reference/machines/RAM_1245_1261.md)とRAM設定別のMEM値を確認済み。旧拡張RAMのMEM値は過去の検証記録として保持し、現行の制限解除と区別する。
 - PlayerはAndroid／iPhoneとも上記14モデルに対応する。機種・端末・ROM版別の確認範囲は[Android受入れ](docs/development/ANDROID_SERIES_PROGRESS.md)・[iOS受入れ](docs/development/IOS_MACHINE_SUPPORT_STEP8.md)を参照。セーブステートは未実装。情報画面は静的同梱。Androidのプライバシーポリシーは適用済み。iPhone用は[日本語原稿](docs/guides/PLAYER_PRIVACY_POLICY_IOS.md)・[英語原稿](docs/guides/PLAYER_PRIVACY_POLICY_IOS.en.md)を用意し、[公開用HTML](docs/player/README.md#ios-privacy-policy)は2026-10-25にPages公開・本文一致を確認済み。
 
 公開済み各版の説明と過去の確認記録は[ドキュメント目次](docs/README.md#リリース情報)を参照する。

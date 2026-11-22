@@ -1,5 +1,7 @@
 # AI Technical Preview：次の作業と区切り
 
+以下は当時の候補・検証計画です。現在の接続確認と残作業は[AI連携の再開メモ](AI_MCP_RESUME.md)を参照してください。
+
 2026-11-12。PC-1245向けmacOS arm64の候補は[受入れ済み](AI_TECHNICAL_PREVIEW_DISTRIBUTION.md)。
 
 **公開準備はいったん保留し、完成度を上げてから公開を判断する。** 既存の候補は比較基準として残す。

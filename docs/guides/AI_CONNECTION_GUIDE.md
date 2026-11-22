@@ -30,7 +30,12 @@ VS Codeのサーバー一覧で15ツールを認識することと、会話か�
 | VS Code | ワークスペースの`.vscode/mcp.json` | `servers`。Copilotの「ローカル」実行環境を確認対象とする |
 | Copilot | ワークスペースの`.mcp.json` | `mcpServers`。Copilot実行環境向けの候補設定。実接続は別途確認 |
 | Claude Desktop | Claude Desktopの`claude_desktop_config.json` | `mcpServers`。macOSのClaude Desktop Freeで読み取りと承認往復を確認済み |
-| Gemini CLI | `.gemini/settings.json` | `mcpServers`。設定生成済み、実接続未確認 |
+| Gemini CLI（`gemini`） | ワークスペースの `.gemini/settings.json` | `mcpServers`。Gemini CLI用の設定コピー |
+| Google Antigravity CLI（`agy`） | `~/.gemini/config/mcp_config.json` またはワークスペースの `.agents/mcp_config.json` | Gemini CLI用のstdio設定の `mcpServers` をマージ。macOSで `pgp_get_capabilities` の呼び出しを確認済み |
+
+Antigravity CLIは、Googleが個人向けGemini CLIの移行先として案内しているCLIです。
+[Googleの移行ガイド](https://antigravity.google/docs/cli/gcli-migration#mcp-config-formatting-changes) ·
+[Studioの接続確認記録](../development/AI_TECHNICAL_PREVIEW_DISTRIBUTION.md#google-antigravity-cliの接続確認macos-arm64)
 
 コピーされるのはStudio実行ファイルの絶対パスと`--mcp-stdio --port <port>`です。
 トークンは含みません。クライアントが同梱ブリッジを別プロセスで起動し、ブリッジは各リクエストで

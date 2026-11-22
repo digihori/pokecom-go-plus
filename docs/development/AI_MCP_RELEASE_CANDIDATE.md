@@ -1,5 +1,7 @@
 # 次期リリース候補のAI連携検証
 
+以下は当時の候補・検証計画です。現在の接続確認と残作業は[AI連携の再開メモ](AI_MCP_RESUME.md)を参照してください。
+
 初回の対象は main の `09e0605` から生成したmacOS・Windows配布物。
 VRAM・発音知識の更新を確認するときは、修正を含む新しい配布物を使い、そのコミットを記録する。
 [検証用ビルド](https://github.com/digihori/pokecom-go-plus/actions/runs/43960117163)

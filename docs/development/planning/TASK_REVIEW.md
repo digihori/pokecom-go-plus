@@ -1,8 +1,16 @@
 # 残作業と優先順位の検討用一覧
 
-## 正式リリース準備（2026-10-23）
+## 現在の状況（2026-11-23）
 
-現在の残タスクは[正式リリースのMUST／WANT一覧](FORMAL_RELEASE_TASKS.md)を入口にします。
+- Studio 1.2.2は[公開済み](https://github.com/digihori/pokecom-go-plus/releases/tag/v1.2.2)。
+- AI／MCPはAntigravity CLIからの接続を確認済み。残件はMuseの接続方法の検討。[AI連携の再開メモ](../AI_MCP_RESUME.md)
+- 初代Joy-Conは動作確認済み。Joy-Con 2は未検証。[ゲームパッドの確認状況](../GAMEPAD_DESIGN.md)
+- PC-1360Kの漢字ROM解析は長期の調査として継続する。[候補履歴の仕様と残課題](../../analysis/pc1360k/WORK_MEMORY_CHECKPOINT.md)
+- iOS PlayerでDMP保存時にファイル名を編集できるようにする作業は、次に優先する実装候補。[iOSの保存機能の記録](../PLAYER_IOS_MEMORY_SAVE.md)
+
+## 正式リリース準備の記録（2026-10-23）
+
+1.0.0公開時の準備は[正式リリースのMUST／WANT一覧](FORMAL_RELEASE_TASKS.md)を参照してください。
 StudioとAndroidを対象に整理し、iOS版のリリースは別スレッドで進めます。
 以下は日付別の検討・進捗記録です。
 

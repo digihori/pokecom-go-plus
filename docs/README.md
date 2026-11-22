@@ -101,10 +101,15 @@ iPhone版の開発・ビルド状況は[開発用README](../iosApp/README.md)を
 [公開済みリリースとダウンロード](https://github.com/digihori/pokecom-go-plus/releases)。
 以下は各タグの説明で、現在の開発版の機能一覧ではありません。
 
-Player 1.1.2準備中（未公開）：[リリースノート原稿](releases/notes/RELEASE_NOTES_1.1.2.md) · [提出前チェックリスト](releases/checklists/RELEASE_CHECKLIST_1.1.2.md)。
+[Studio最新版のダウンロード](https://github.com/digihori/pokecom-go-plus/releases/latest)
+
+Player 1.1.2の公開準備記録 — [リリースノート原稿](releases/notes/RELEASE_NOTES_1.1.2.md) · [提出前チェックリスト](releases/checklists/RELEASE_CHECKLIST_1.1.2.md)。
 
 | 対象タグ | リリースノート |
 | --- | --- |
+| v1.2.2 (Studio) | [リリースノート](releases/notes/RELEASE_NOTES_STUDIO_1.2.2.md) |
+| v1.2.1 (Studio) | [リリースノート](releases/notes/RELEASE_NOTES_STUDIO_1.2.1.md) |
+| v1.2.0 (Studio) | [リリースノート](releases/notes/RELEASE_NOTES_STUDIO_1.2.0.md) |
 | v1.1.2 (Studio) | [Release notes](releases/notes/RELEASE_NOTES_STUDIO_1.1.2.md) · [Checklist](releases/checklists/RELEASE_CHECKLIST_STUDIO_1.1.2.md) |
 | v1.1.0 (Studio / Android) | [Release notes](releases/notes/RELEASE_NOTES_1.1.0.md) · [Checklist](releases/checklists/RELEASE_CHECKLIST_1.1.0.md) |
 | v1.0.0 | [Release notes](releases/notes/RELEASE_NOTES_1.0.0.md) · [Checklist](releases/checklists/RELEASE_CHECKLIST_1.0.0.md) |
