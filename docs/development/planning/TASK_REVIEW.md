@@ -7,6 +7,20 @@
 - 初代Joy-Conは動作確認済み。Joy-Con 2は未検証。[ゲームパッドの確認状況](../GAMEPAD_DESIGN.md)
 - PC-1360Kの漢字ROM解析は長期の調査として継続する。[候補履歴の仕様と残課題](../../analysis/pc1360k/WORK_MEMORY_CHECKPOINT.md)
 - iOS PlayerでDMP保存時にファイル名を編集できるようにする作業は、次に優先する実装候補。[iOSの保存機能の記録](../PLAYER_IOS_MEMORY_SAVE.md)
+- RAMカードによる拡張は、PC-1350／1360／1450／1460／1470Uをまとめて調査する。実機仕様と現行実装を照合し、実装の範囲を決める。
+- Windows版Studioで繰り返し起きる、署名に関連した起動ブロックへの対処方法を検討する。日本の個人開発者としてGitHub配布物に信頼済みのコード署名を付ける手段は検討済みで、現状では現実的な選択肢が得られていない。MSIX化とMicrosoft Store配布は検討候補で、方式・優先順位・採否は未定。候補を絞った段階で、起動ブロックが発生する環境での動作や、既存ユーザーへの影響を確認する。[Windowsの署名・配布方針](FORMAL_RELEASE_DISTRIBUTION.md)
+
+### RAMカード拡張の調査範囲
+
+| 機種 | 先に確認する点 |
+| --- | --- |
+| [PC-1350](../../reference/machines/PC-1350.md) | 内蔵RAMとカードの配置、カード容量によるBASIC領域の変化 |
+| [PC-1360](../../reference/machines/PC-1360.md) | 32 KiBカード2枚のスロット切替、異なる容量の組み合わせ、`SET MEM` と `MEM` の挙動 |
+| [PC-1450](../../reference/machines/PC-1450.md) | 現行の固定16 KiBに対し、実機で選べる容量とアドレス範囲 |
+| [PC-1460](../../reference/machines/PC-1460.md) | 現行の固定32 KiBに対し、実機でのカードの種類・容量と配置 |
+| [PC-1470U](../../reference/machines/PC-1470U.md) | 内蔵8 KiBとカードの配置、Fポートによる切替、BASICのプログラム容量 |
+
+機種ごとにカード型番・容量・装着位置、CPUから見える範囲と切替条件、カードなし時の動作、BASICで利用できる容量を記録する。PC-1360の2スロット構成は[SHARPのサービスマニュアル pp. 3–4](https://device.report/m/7f5e9aa568876c760e89127bcb4aa7c578e51a87beff82ddc6f4d431cdbdd868)を起点とする。
 
 ## 正式リリース準備の記録（2026-10-23）
 
