@@ -2,30 +2,34 @@ package com.digihori.pgp.desktop.machine
 
 import com.digihori.pgp.core.source.machine.AddressedMemoryImage
 
-internal sealed interface DesktopContiguousMemoryImageResult {
-    data class Success(val startAddress: Int, val bytes: ByteArray) : DesktopContiguousMemoryImageResult
-    data class Failure(val message: String) : DesktopContiguousMemoryImageResult
-}
+internal class DesktopContiguousMemoryImage(private val image: AddressedMemoryImage) {
+    val fullRange = image.segments.first().startAddress..image.segments.last().endAddress
+    val paddingBytes = fullRange.count() - image.byteCount
 
-internal object DesktopContiguousMemoryImage {
-    fun flatten(image: AddressedMemoryImage): DesktopContiguousMemoryImageResult {
-        val segments = image.segments.sortedBy { it.startAddress }
-        if (segments.isEmpty()) return DesktopContiguousMemoryImageResult.Failure("The memory image is empty.")
-        val startAddress = segments.first().startAddress
-        var expectedAddress = startAddress
-        val output = ByteArray(image.byteCount)
-        var offset = 0
-        segments.forEach { segment ->
-            if (segment.startAddress != expectedAddress) {
-                return DesktopContiguousMemoryImageResult.Failure(
-                    "WAV binary data must be contiguous; gap before 0x${segment.startAddress.toString(16).uppercase().padStart(4, '0')}.",
-                )
+    val regions: List<IntRange> = buildList {
+        var start = fullRange.first
+        var end = start - 1
+        for (segment in image.segments) {
+            if (segment.startAddress > end + 1) {
+                add(start..end)
+                start = segment.startAddress
             }
-            val bytes = segment.copyBytes()
-            bytes.copyInto(output, offset)
-            offset += bytes.size
-            expectedAddress += bytes.size
+            end = segment.endAddress
         }
-        return DesktopContiguousMemoryImageResult.Success(startAddress, output)
+        add(start..end)
+    }
+
+    fun ranges(split: Boolean): List<IntRange> = if (split) regions else listOf(fullRange)
+
+    fun bytes(range: IntRange): ByteArray {
+        val output = ByteArray(range.count())
+        val firstIndex = image.segments.binarySearchBy(range.first) { it.startAddress }
+        check(firstIndex >= 0)
+        for (index in firstIndex until image.segments.size) {
+            val segment = image.segments[index]
+            if (segment.startAddress > range.last) break
+            segment.copyBytes().copyInto(output, segment.startAddress - range.first)
+        }
+        return output
     }
 }

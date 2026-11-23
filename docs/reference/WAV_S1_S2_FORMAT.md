@@ -140,8 +140,7 @@ metadata checksum、開始C000、長さ240、bodyとtail checksumがすべて一
 DMP／HEXには転送headerを持たないため、再Encodeの先頭4 bytesは既定の0となり、元headerの再現は保証しない。
 
 従ってS1 Binaryは、開始addressから`lengthMinus1 + 1` bytesの単一連続領域だけを表す。複数領域やgapを
-記録する構造はない。PGPの`.dmp`／Intel HEX入力に複数領域またはgapがある場合は拒否し、暗黙に結合または
-zero-fillしない。
+記録する構造はない。入力にgapがある場合のWAV作成は[WAV Tool 操作ガイド](../guides/WAV_TOOL_GUIDE.md)を参照。
 
 bodyはlogical byteをnibble swapして格納する。最後以外の120 data bytesごとに、
 swap後のdataを対象にしたchunk checksumを挿入する。

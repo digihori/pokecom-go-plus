@@ -51,38 +51,58 @@ internal fun CodecDiagnostic.describe(): String = buildString {
     if (details.isNotEmpty()) append(" ${details.entries.joinToString { "${it.key}=${it.value}" }}")
 }
 
+internal sealed interface DesktopWavBinaryInput {
+    data class Ready(val image: DesktopContiguousMemoryImage) : DesktopWavBinaryInput
+    data class Invalid(val result: DesktopWavResult) : DesktopWavBinaryInput
+}
+
 internal object DesktopWavOperation {
+    fun prepareBinary(bytes: ByteArray): DesktopWavBinaryInput {
+        val source = runCatching { DesktopWavBinaryFiles.asDump(bytes) }.getOrElse {
+            return DesktopWavBinaryInput.Invalid(DesktopWavResult("Invalid memory dump", error = it.message))
+        }
+        return when (val parsed = DesktopMemoryDumpLoader.parse(source)) {
+            is DesktopMemoryDumpLoadResult.Failure -> DesktopWavBinaryInput.Invalid(
+                DesktopWavResult("Invalid memory dump", error = parsed.error.toString(), memoryError = parsed.error),
+            )
+            is DesktopMemoryDumpLoadResult.Success -> DesktopWavBinaryInput.Ready(DesktopContiguousMemoryImage(parsed.image))
+        }
+    }
+
+    fun encodeBinary(image: DesktopContiguousMemoryImage, range: IntRange, machine: MachineId, filename: String): DesktopWavResult {
+        val body = LogicalByteSequence(image.bytes(range))
+        return when (MachineCatalog.find(machine)?.basicDialect) {
+            MachineBasicDialect.OLD -> finishOldEncode(OldWavCodec.encodeBinary(filename, range.first, body), machine)
+            MachineBasicDialect.S1, MachineBasicDialect.S2 -> encodeS1(range.first, body, machine, filename)
+            null -> DesktopWavResult("Unsupported target", error = "Unsupported WAV target machine.")
+        }
+    }
+
     fun supported(dialect: MachineBasicDialect?, decode: Boolean, binary: Boolean): Boolean = dialect != null
 
     fun encode(bytes: ByteArray, binary: Boolean, machine: MachineId, filename: String, type12: Boolean): DesktopWavResult {
+        if (binary) return when (val prepared = prepareBinary(bytes)) {
+            is DesktopWavBinaryInput.Invalid -> prepared.result
+            is DesktopWavBinaryInput.Ready -> encodeBinary(prepared.image, prepared.image.fullRange, machine, filename)
+        }
         val dialect = MachineCatalog.find(machine)?.basicDialect
         val transferMachine = canonicalMachine(dialect)
-        if (!binary && dialect in setOf(MachineBasicDialect.S1, MachineBasicDialect.S2)) return encodeModernBasic(bytes, transferMachine, filename, type12)
-        if (binary && dialect in setOf(MachineBasicDialect.S1, MachineBasicDialect.S2)) return encodeS1(bytes, machine, filename)
+        if (dialect in setOf(MachineBasicDialect.S1, MachineBasicDialect.S2)) return encodeModernBasic(bytes, transferMachine, filename, type12)
         if (dialect != MachineBasicDialect.OLD) {
             return DesktopWavResult("Unsupported target", error = "Unsupported WAV target machine.")
         }
-        val encoded = if (binary) {
-            val image = when (val parsed = DesktopMemoryDumpLoader.parse(runCatching { DesktopWavBinaryFiles.asDump(bytes) }.getOrElse { return DesktopWavResult("Invalid memory dump", error = it.message) })) {
-                is DesktopMemoryDumpLoadResult.Failure -> return DesktopWavResult("Invalid memory dump", error = parsed.error.toString(), memoryError = parsed.error)
-                is DesktopMemoryDumpLoadResult.Success -> parsed.image
-            }
-            val contiguous = when (val flattened = DesktopContiguousMemoryImage.flatten(image)) {
-                is DesktopContiguousMemoryImageResult.Failure -> return DesktopWavResult("Invalid memory image", error = flattened.message)
-                is DesktopContiguousMemoryImageResult.Success -> flattened
-            }
-            OldWavCodec.encodeBinary(filename, contiguous.startAddress, LogicalByteSequence(contiguous.bytes))
-        } else {
-            val compiled = when (val result = DesktopBasicLoader.compileProgram(bytes, canonicalMachine(MachineCatalog.find(machine)?.basicDialect))) {
-                is DesktopBasicProgramCompileResult.Failure -> return DesktopWavResult("BASIC conversion failed", error = result.error.toString(), compileError = result.error, targetMachine = machine.value)
-                is DesktopBasicProgramCompileResult.Success -> result.bytes
-            }
-            val body = when (val adapted = DesktopOldBasicTransferAdapter.toTransferBody(compiled)) {
-                is DesktopOldBasicTransferResult.Failure -> return DesktopWavResult("BASIC conversion failed", error = adapted.message)
-                is DesktopOldBasicTransferResult.Success -> adapted.bytes
-            }
-            OldWavCodec.encodeBasic(filename, LogicalByteSequence(body), type12)
+        val compiled = when (val result = DesktopBasicLoader.compileProgram(bytes, transferMachine)) {
+            is DesktopBasicProgramCompileResult.Failure -> return DesktopWavResult("BASIC conversion failed", error = result.error.toString(), compileError = result.error, targetMachine = machine.value)
+            is DesktopBasicProgramCompileResult.Success -> result.bytes
         }
+        val body = when (val adapted = DesktopOldBasicTransferAdapter.toTransferBody(compiled)) {
+            is DesktopOldBasicTransferResult.Failure -> return DesktopWavResult("BASIC conversion failed", error = adapted.message)
+            is DesktopOldBasicTransferResult.Success -> adapted.bytes
+        }
+        return finishOldEncode(OldWavCodec.encodeBasic(filename, LogicalByteSequence(body), type12), machine)
+    }
+
+    private fun finishOldEncode(encoded: CodecResult<OldWavEncoding>, machine: MachineId): DesktopWavResult {
         return when (encoded) {
             is CodecResult.Failure -> DesktopWavResult("Encode failed", encoded.diagnostics)
             is CodecResult.Success -> {
@@ -297,19 +317,8 @@ internal object DesktopWavOperation {
         }
     }
 
-    private fun encodeS1(bytes: ByteArray, machine: MachineId, filename: String): DesktopWavResult {
-        val source = runCatching { DesktopWavBinaryFiles.asDump(bytes) }.getOrElse {
-            return DesktopWavResult("Invalid memory dump", error = it.message)
-        }
-        val image = when (val parsed = DesktopMemoryDumpLoader.parse(source)) {
-            is DesktopMemoryDumpLoadResult.Failure -> return DesktopWavResult("Invalid memory dump", error = parsed.error.toString(), memoryError = parsed.error)
-            is DesktopMemoryDumpLoadResult.Success -> parsed.image
-        }
-        val contiguous = when (val flat = DesktopContiguousMemoryImage.flatten(image)) {
-            is DesktopContiguousMemoryImageResult.Failure -> return DesktopWavResult("Invalid memory image", error = flat.message)
-            is DesktopContiguousMemoryImageResult.Success -> flat
-        }
-        val payload = when (val encoded = S1BinaryCodec.encode(filename, contiguous.startAddress, LogicalByteSequence(contiguous.bytes))) {
+    private fun encodeS1(startAddress: Int, body: LogicalByteSequence, machine: MachineId, filename: String): DesktopWavResult {
+        val payload = when (val encoded = S1BinaryCodec.encode(filename, startAddress, body)) {
             is CodecResult.Failure -> return DesktopWavResult("Encode failed", encoded.diagnostics)
             is CodecResult.Success -> encoded.value
         }

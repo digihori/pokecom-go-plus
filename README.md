@@ -228,7 +228,8 @@ see [BASIC text format (Japanese)](docs/reference/BASIC_TEXT_FORMAT.md).
 [Step-by-step guide and hardware verification checklist (Japanese)](docs/guides/WAV_TOOL_GUIDE.md).
 
 Open `Tools` → `WAV Tool` to convert OLD BASIC (02/12), OLD Binary (62), S1 BASIC (07/17), S2 BASIC (27/37), and S1/S2 Binary (67).
-Encode an existing `.bas`, or a `.dmp` / Intel HEX (`.hex` / `.ihx`) containing one contiguous region, or choose `Create WAV…` from the project tree.
+Encode an existing `.bas`, or a `.dmp` / Intel HEX (`.hex` / `.ihx`), or choose `Create WAV…` from the project tree.
+Address gaps are zero-filled by default. You can also create a separate WAV for each contiguous region.
 After `Convert`, inspect the result and use `Save WAV…`.
 For recordings, use `Open WAV…` → `Analyze / reanalyze`, then export validated BASIC/`.dmp`, raw bytes,
 or an analysis report separately. PCM/raw data can still be inspected when payload validation fails.

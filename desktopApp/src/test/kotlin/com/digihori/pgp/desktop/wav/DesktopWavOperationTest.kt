@@ -68,7 +68,7 @@ class DesktopWavOperationTest {
         assertNull(result.program)
         assertNotNull(result.error)
     }
-    @Test fun addressedBinaryPreservesAddressesAndRejectsGaps() {
+    @Test fun addressedBinaryPreservesAddressesAndFillsGapsByDefault() {
         val dump = "C000: 01 02 03\n".encodeToByteArray()
         val encoded = DesktopWavOperation.encode(dump, true, machine, "CODE", false)
         assertNotNull(encoded.wav)
@@ -78,9 +78,29 @@ class DesktopWavOperationTest {
         assertContentEquals(byteArrayOf(1, 2, 3), decoded.payload?.body?.copyBytes())
         assertEquals("CODE.dmp", decoded.programName)
         assertNotNull(decoded.program)
-        val invalid = DesktopWavOperation.encode("C000: 01\nC002: 02\n".encodeToByteArray(), true, machine, "GAP", false)
-        assertNull(invalid.wav)
-        assertTrue(invalid.error!!.contains("gap"))
+        val padded = DesktopWavOperation.encode("C000: 01\nC002: 02\n".encodeToByteArray(), true, machine, "GAP", false)
+        assertNotNull(padded.wav)
+        assertEquals(0xc000, padded.payload?.startAddress)
+        assertEquals(0xc002, padded.payload?.endAddress)
+        assertContentEquals(byteArrayOf(1, 0, 2), padded.payload?.body?.copyBytes())
+    }
+
+    @Test fun addressedBinarySplitsAtGapsAndCombinesAdjacentRows() {
+        val source = "C005: 04 05\nC000: 01 02\nC002: 03\n".encodeToByteArray()
+        val image = assertIs<DesktopWavBinaryInput.Ready>(DesktopWavOperation.prepareBinary(source)).image
+        assertEquals(2, image.paddingBytes)
+        assertEquals(listOf(0xc000..0xc006), image.ranges(split = false))
+        val ranges = image.ranges(split = true)
+        assertEquals(listOf(0xc000..0xc002, 0xc005..0xc006), ranges)
+        val expectedBodies = listOf(byteArrayOf(1, 2, 3), byteArrayOf(4, 5))
+        for (target in listOf(machine, MachineId("pc-1350"))) {
+            ranges.forEachIndexed { index, range ->
+                val output = DesktopWavOperation.encodeBinary(image, range, target, "PART")
+                val decoded = DesktopWavOperation.decode(assertNotNull(output.wav))
+                assertEquals(range.first, decoded.payload?.startAddress ?: decoded.s1Payload?.startAddress)
+                assertContentEquals(expectedBodies[index], (decoded.payload?.body ?: decoded.s1Payload?.body)?.copyBytes())
+            }
+        }
     }
 
     @Test fun s1AndS2BinaryRoundTripsAndHexExport() {
@@ -122,14 +142,22 @@ class DesktopWavOperationTest {
         assertEquals(CodecDiagnosticCode.CHECKSUM_MISMATCH, decoded.diagnostics.first().code)
     }
 
-    @Test fun hexImportRejectsChecksumGapsOverlapsAndMissingEof() {
+    @Test fun hexImportRejectsInvalidChecksumOverlapsAndMissingEof() {
         val machine = MachineId("pc-1350")
-        for (source in listOf(":01C000000100\n:00000001FF", ":01C00000013E", ":01C00000013E\n:01C00200023B\n:00000001FF",
+        for (source in listOf(":01C000000100\n:00000001FF", ":01C00000013E",
             ":01C00000013E\n:01C00000013E\n:00000001FF", ":020000040001F9\n:00000001FF")) {
             val encoded = DesktopWavOperation.encode(source.encodeToByteArray(), true, machine, "TEST", false)
             assertNull(encoded.wav)
             assertNotNull(encoded.error)
         }
+    }
+
+    @Test fun hexImportFillsAddressGapsByDefault() {
+        val source = ":01C00000013E\n:01C00200023B\n:00000001FF"
+        val output = DesktopWavOperation.encode(source.encodeToByteArray(), true, MachineId("pc-1350"), "TEST", false)
+        assertNotNull(output.wav)
+        assertEquals(0xc000, output.s1Payload?.startAddress)
+        assertContentEquals(byteArrayOf(1, 0, 2), output.s1Payload?.body?.copyBytes())
     }
 
     @Test fun formatAvailabilitySupportsAllKnownDialects() {

@@ -334,8 +334,8 @@ Studioではメイン画面の「ツール」からWAV Encoder / Decoderを開�
 現在の操作・対応範囲は[WAV_OPERATIONS.md](../development/WAV_OPERATIONS.md)参照）。OLD BASIC sourceはPC-1245系の
 tokenizerでlogical byte列へ変換し、通常BASIC (`02`) またはpassword付きBASIC (`12`) としてWAVへ保存する。
 Binary EncodeはPGP Memory Dump (`.dmp`)からアドレス付きmemory imageを読み、単一の連続領域を
-Binary (`62`) として保存する。OLD Binaryは開始addressと連続bodyを1組しか保持できないため、複数領域またはgapを
-含む入力は暗黙に結合・補完せずエラーにする。DecodeしたBinaryは`.dmp`を標準出力とし、Intel HEX実装後は交換用
+Binary (`62`) として保存する。OLD Binaryは開始addressと連続bodyを1組保持する。入力にgapがある場合のWAV作成は
+[WAV Tool 操作ガイド](../guides/WAV_TOOL_GUIDE.md)を参照。DecodeしたBinaryは`.dmp`を標準出力とし、Intel HEX実装後は交換用
 出力として選択可能にする。Raw Binary (`.bin`)と開始address欄をWAV Tool固有の通常UIには置かない。
 filename、検出したaddress範囲、診断結果を表示し、Project、ROM、Emulator Sessionを要求しない。
 

@@ -3,6 +3,8 @@ package com.digihori.pgp.desktop.wav
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.VerticalScrollbar
@@ -24,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.digihori.pgp.core.api.MachineBasicDialect
 import com.digihori.pgp.core.api.MachineCatalog
 import com.digihori.pgp.core.rom.MachineId
+import com.digihori.pgp.core.wav.CodecDiagnosticSeverity
 import com.digihori.pgp.core.wav.WavByteSequence
 import java.awt.Frame
 import java.awt.FileDialog
@@ -41,7 +44,23 @@ internal fun WavToolPanel(owner: Frame?, request: WavToolInput?, closeRequested:
     var targetMachine by remember { mutableStateOf(MachineId("pc-1245")) }
     var encodeKind by remember { mutableStateOf("basic") }
     var decode by remember { mutableStateOf(false) }
-    var result by remember { mutableStateOf<DesktopWavResult?>(null) }
+    var results by remember { mutableStateOf<List<DesktopWavResult>>(emptyList()) }
+    var resultIndex by remember(results) { mutableStateOf(0) }
+    val result = results.getOrNull(resultIndex)
+    var outputRanges by remember { mutableStateOf<List<IntRange>>(emptyList()) }
+    var unsavedWavs by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var split by remember(input) { mutableStateOf(false) }
+    var binarySource by remember(input) { mutableStateOf<DesktopWavBinaryInput?>(null) }
+    val isBinaryFile = input?.file?.extension?.lowercase() in setOf("dmp", "hex", "ihx")
+    LaunchedEffect(input) {
+        val file = input?.file ?: return@LaunchedEffect
+        if (!isBinaryFile) return@LaunchedEffect
+        binarySource = withContext(Dispatchers.IO) {
+            runCatching { DesktopWavOperation.prepareBinary(file.readBytes()) }.getOrElse {
+                DesktopWavBinaryInput.Invalid(DesktopWavResult("Operation failed", error = it.message ?: it.toString()))
+            }
+        }
+    }
     var settingsAtRun by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
@@ -54,7 +73,12 @@ internal fun WavToolPanel(owner: Frame?, request: WavToolInput?, closeRequested:
     var rawPage by remember(result) { mutableStateOf(0) }
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
-    val settings = if (decode) "AUTO-DECODE" else "${format?.name ?: "UNKNOWN"}/${targetMachine.value}/$filename/$encodeKind"
+    val settings = if (decode) {
+        "AUTO-DECODE"
+    } else {
+        val gapMode = if (isBinaryFile && split) "/split" else ""
+        "${format?.name ?: "UNKNOWN"}/${targetMachine.value}/$filename/$encodeKind$gapMode"
+    }
     fun inputMachine() = if (MachineCatalog.find(targetMachine)?.basicDialect == format) targetMachine else MachineId(when (format) {
         MachineBasicDialect.S1 -> "pc-1350"
         MachineBasicDialect.S2 -> "pc-1360"
@@ -64,7 +88,7 @@ internal fun WavToolPanel(owner: Frame?, request: WavToolInput?, closeRequested:
         input = value
         targetMachine = value.machine
         filename = value.file.nameWithoutExtension
-        if (value.fromProject) {
+        if (value.fromProject || value.file.extension.lowercase() in setOf("dmp", "hex", "ihx")) {
             val defaults = projectWavDefaults(value.machine, value.file.extension)
             format = defaults.first
             encodeKind = defaults.second
@@ -73,12 +97,15 @@ internal fun WavToolPanel(owner: Frame?, request: WavToolInput?, closeRequested:
             if (format == MachineBasicDialect.S2 && encodeKind == "binary") encodeKind = "basic"
         }
         decode = value.file.extension.equals("wav", true)
-        result = null
+        results = emptyList()
+        outputRanges = emptyList()
+        unsavedWavs = emptySet()
         status = ""
         unsaved = false
     }
     fun open(value: WavToolInput) {
         job?.cancel()
+        job = null
         busy = false
         if (unsaved) pending = value else accept(value)
     }
@@ -90,10 +117,10 @@ internal fun WavToolPanel(owner: Frame?, request: WavToolInput?, closeRequested:
         }
     }
     DisposableEffect(Unit) { onDispose { job?.cancel() } }
-    fun save(name: String, bytes: ByteArray, generated: Boolean) {
+    fun save(name: String, bytes: ByteArray, onSaved: () -> Unit = {}) {
         val destination = choose(owner, strings.text("wav.saveTitle", name), name, FileDialog.SAVE) ?: return
         runCatching { destination.writeBytes(bytes) }.fold(
-            onSuccess = { status = strings.text("wav.saved", destination.absolutePath); if (generated) unsaved = false },
+            onSuccess = { status = strings.text("wav.saved", destination.absolutePath); onSaved() },
             onFailure = { status = strings.text("wav.saveFailed", it.message.orEmpty()) },
         )
     }
@@ -119,7 +146,10 @@ internal fun WavToolPanel(owner: Frame?, request: WavToolInput?, closeRequested:
             val supported = decode || DesktopWavOperation.supported(format, decode, binaryInput)
             if (!decode) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 MachineBasicDialect.entries.forEach { candidate ->
-                    OutlinedButton(enabled = !busy, onClick = { if (format != candidate) encodeKind = "basic"; format = candidate; targetMachine = inputMachine() }) {
+                    OutlinedButton(enabled = !busy, onClick = { if (format != candidate && (candidate == MachineBasicDialect.S2 || !isBinaryFile)) encodeKind = "basic"
+                        if (isBinaryFile && candidate != MachineBasicDialect.S2) encodeKind = "binary"
+                        format = candidate
+                        targetMachine = inputMachine() }) {
                         Text((if (format == candidate) "✓ " else "") + candidate.name)
                     }
                 }
@@ -137,30 +167,71 @@ internal fun WavToolPanel(owner: Frame?, request: WavToolInput?, closeRequested:
                 OutlinedTextField(filename, { filename = it }, enabled = !busy, label = { Text(strings.text("wav.filename")) }, singleLine = true)
 
             }
+            val image = (binarySource as? DesktopWavBinaryInput.Ready)?.image
+            val ranges = if (!decode && binaryInput) image?.ranges(split).orEmpty() else emptyList()
+            if (ranges.isNotEmpty() && image != null && image.paddingBytes > 0) {
+                Text(strings.text("wav.gaps"))
+                listOf(false to "wav.zeroFill", true to "wav.split").forEach { (choice, label) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(split == choice, { split = choice }, enabled = !busy)
+                        Text(strings.text(label), Modifier.clickable(enabled = !busy) { split = choice })
+                    }
+                }
+                Text(strings.text("wav.transferCount", ranges.size.toString()))
+                if (!split) Text(strings.text("wav.padding", image.paddingBytes.toString()))
+                LazyColumn(Modifier.heightIn(max = 140.dp)) {
+                    items(ranges) { range -> Text(wavAddressRange(range), fontFamily = FontFamily.Monospace) }
+                }
+            }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(enabled = !busy && supported && matchingInput, onClick = {
+                Button(enabled = !busy && supported && matchingInput && (!binaryInput || decode || binarySource != null), onClick = {
                     val selectedMachine = inputMachine()
                     val selectedFilename = filename
                     val selectedType12 = encodeKind == "protected"
                     val selectedDecode = decode
                     val capturedSettings = settings
+                    val prepared = binarySource
                     busy = true
                     job = scope.launch {
                         try {
                             val next = withContext(Dispatchers.Default) {
-                                runCatching {
-                                    val bytes = source.file.readBytes()
-                                    if (selectedDecode) DesktopWavOperation.decode(WavByteSequence(bytes))
-                                    else DesktopWavOperation.encode(bytes, binaryInput, selectedMachine, selectedFilename, selectedType12)
-                                }.getOrElse { DesktopWavResult("Operation failed", error = it.message ?: it.toString()) }
+                                try {
+                                    when {
+                                        selectedDecode -> listOf(DesktopWavOperation.decode(WavByteSequence(source.file.readBytes())))
+                                        !binaryInput -> listOf(DesktopWavOperation.encode(source.file.readBytes(), false, selectedMachine, selectedFilename, selectedType12))
+                                        prepared is DesktopWavBinaryInput.Invalid -> listOf(prepared.result)
+                                        prepared is DesktopWavBinaryInput.Ready -> {
+                                            val outputs = mutableListOf<DesktopWavResult>()
+                                            for (range in ranges) {
+                                                ensureActive()
+                                                val output = DesktopWavOperation.encodeBinary(prepared.image, range, selectedMachine, selectedFilename)
+                                                if (output.wav == null) return@withContext listOf(
+                                                    output.copy(reportNotes = output.reportNotes + wavAddressRange(range)),
+                                                )
+                                                outputs += output
+                                            }
+                                            outputs
+                                        }
+                                        else -> error("Binary input is unavailable.")
+                                    }
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (failure: Exception) {
+                                    listOf(DesktopWavResult("Operation failed", error = failure.message ?: failure.toString()))
+                                }
                             }
-                            result = next
+                            results = next
+                            resultIndex = 0
+                            outputRanges = if (next.all { it.wav != null }) ranges else emptyList()
                             settingsAtRun = capturedSettings
-                            unsaved = next.wav != null || next.program != null
-                            status = if (next.error != null || next.diagnostics.any { it.severity == com.digihori.pgp.core.wav.CodecDiagnosticSeverity.ERROR })
+                            unsavedWavs = next.indices.filter { next[it].wav != null }.toSet()
+                            unsaved = unsavedWavs.isNotEmpty() || next.any { it.program != null }
+                            status = if (next.any { output -> output.error != null || output.diagnostics.any { it.severity == CodecDiagnosticSeverity.ERROR } })
                                 strings.text("wav.stopped")
                             else strings.text("wav.complete")
-                        } finally { busy = false }
+                        } finally {
+                            if (coroutineContext.job == job) busy = false
+                        }
                     }
                 }) { Text(if (busy) strings.text("wav.processing") else if (decode) strings.text("wav.analyze") else strings.text("wav.convert")) }
                 if (busy) OutlinedButton(onClick = { job?.cancel(); status = strings.text("wav.cancelled") }) { Text(strings.text("wav.cancel")) }
@@ -169,13 +240,30 @@ internal fun WavToolPanel(owner: Frame?, request: WavToolInput?, closeRequested:
         if (status.isNotBlank()) SelectionContainer { Text(status) }
         result?.let { output ->
             if (settings != settingsAtRun) Text(strings.text("wav.changed", settingsAtRun))
+            if (results.size > 1) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    OutlinedButton(onClick = { resultIndex-- }, enabled = resultIndex > 0) { Text(strings.text("wav.previousPart")) }
+                    OutlinedButton(onClick = { resultIndex++ }, enabled = resultIndex < results.lastIndex) { Text(strings.text("wav.nextPart")) }
+                }
+                Text(strings.text("wav.transferPart", (resultIndex + 1).toString(), results.size.toString(), wavAddressRange(outputRanges[resultIndex])))
+                Text(strings.text("wav.remaining", unsavedWavs.size.toString()))
+            }
             SelectionContainer { Text(strings.wavSummary(output.summary)) }
+            output.reportNotes.forEach { Text(it) }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                output.wav?.let { wav -> Button(onClick = { save("${output.transferFilename}.wav", wav.copyBytes(), true) }) { Text(strings.text("wav.saveWav")) } }
-                output.program?.let { bytes -> Button(onClick = { save(output.programName!!, bytes, true) }) { Text(strings.text("wav.saveProgram")) } }
-                output.hexProgram?.let { bytes -> OutlinedButton(onClick = { save("${output.transferFilename}.hex", bytes, true) }) { Text(strings.text("wav.saveHex")) } }
-                output.raw?.let { raw -> OutlinedButton(onClick = { save("raw-transfer.bin", raw.copyBytes(), false) }) { Text(strings.text("wav.exportRaw")) } }
-                OutlinedButton(onClick = { save("wav-analysis.txt", ("Input: ${input?.file?.absolutePath}\nSettings: $settingsAtRun\n" + output.report()).encodeToByteArray(), false) }) { Text(strings.text("wav.exportReport")) }
+                output.wav?.let { wav ->
+                    val suffix = if (results.size > 1) "_${DesktopWavOperation.hex(outputRanges[resultIndex].first)}" else ""
+                    Button(onClick = {
+                        save("${output.transferFilename}$suffix.wav", wav.copyBytes()) {
+                            unsavedWavs = unsavedWavs - resultIndex
+                            unsaved = unsavedWavs.isNotEmpty()
+                        }
+                    }) { Text(strings.text("wav.saveWav")) }
+                }
+                output.program?.let { bytes -> Button(onClick = { save(output.programName!!, bytes) { unsaved = false } }) { Text(strings.text("wav.saveProgram")) } }
+                output.hexProgram?.let { bytes -> OutlinedButton(onClick = { save("${output.transferFilename}.hex", bytes) { unsaved = false } }) { Text(strings.text("wav.saveHex")) } }
+                output.raw?.let { raw -> OutlinedButton(onClick = { save("raw-transfer.bin", raw.copyBytes()) }) { Text(strings.text("wav.exportRaw")) } }
+                OutlinedButton(onClick = { save("wav-analysis.txt", ("Input: ${input?.file?.absolutePath}\nSettings: $settingsAtRun\n" + output.report()).encodeToByteArray()) }) { Text(strings.text("wav.exportReport")) }
             }
             Text(strings.text("wav.exportHelp"))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -241,6 +329,9 @@ internal fun WavToolPanel(owner: Frame?, request: WavToolInput?, closeRequested:
         dismissButton = { TextButton(onClick = { pending = null }) { Text(strings.text("wav.keepCurrent")) } },
     )
 }
+
+private fun wavAddressRange(range: IntRange): String =
+    "${DesktopWavOperation.hex(range.first)}–${DesktopWavOperation.hex(range.last)}"
 
 private fun choose(owner: Frame?, title: String, suggested: String, mode: Int = FileDialog.LOAD): File? {
     val dialog = FileDialog(owner, title, mode).apply { file = suggested; isVisible = true }

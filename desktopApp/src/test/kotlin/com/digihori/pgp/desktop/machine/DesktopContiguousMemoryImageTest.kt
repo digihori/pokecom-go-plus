@@ -18,14 +18,12 @@ class DesktopContiguousMemoryImageTest {
                 ),
             ),
         ).image
-        val result = assertIs<DesktopContiguousMemoryImageResult.Success>(
-            DesktopContiguousMemoryImage.flatten(image),
-        )
-        assertEquals(0xC000, result.startAddress)
-        assertContentEquals(byteArrayOf(1, 2, 3, 4), result.bytes)
+        val result = DesktopContiguousMemoryImage(image)
+        assertEquals(listOf(0xC000..0xC003), result.regions)
+        assertContentEquals(byteArrayOf(1, 2, 3, 4), result.bytes(result.fullRange))
     }
 
-    @Test fun rejectsAddressGaps() {
+    @Test fun findsRegionsAndFillsAddressGaps() {
         val image = assertIs<AddressedMemoryImageCreateResult.Success>(
             AddressedMemoryImageFactory.create(
                 listOf(
@@ -34,6 +32,10 @@ class DesktopContiguousMemoryImageTest {
                 ),
             ),
         ).image
-        assertIs<DesktopContiguousMemoryImageResult.Failure>(DesktopContiguousMemoryImage.flatten(image))
+        val result = DesktopContiguousMemoryImage(image)
+        assertEquals(1, result.paddingBytes)
+        assertEquals(listOf(0xC000..0xC000, 0xC002..0xC002), result.regions)
+        assertContentEquals(byteArrayOf(1, 0, 2), result.bytes(result.fullRange))
+        assertContentEquals(byteArrayOf(2), result.bytes(result.regions.last()))
     }
 }

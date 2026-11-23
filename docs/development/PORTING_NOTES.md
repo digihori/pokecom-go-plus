@@ -365,9 +365,14 @@ PGPはこれらのリポジトリへビルド時または実行時に依存し�
 - Raw Binary: 通常sourceにはせず、互換import時に開始addressを一度だけ指定して`.dmp`相当へ変換する。
   既存Projectの`raw-binary`は移行期間の後方互換入力として維持する
 - OLD WAV: Binary formatは単一の開始addressと連続bodyだけを表せるため、`.dmp`／Intel HEX入力が複数領域または
-  gapを含む場合は拒否する。暗黙のzero-fillや巨大な連結imageは生成しない
+  gapを含む場合は拒否する（当時の仕様）
 - Boundary: file parser／writerとRaw Binary import UIはDesktop、アドレス付きmemory imageと連続領域の検証は
   共通logicに置き、Emulator SessionやWAV codecへfile pathを渡さない
+
+### マシン語WAVのアドレス欠落
+
+- 2026-11-23: StudioのWAV作成でDMP／Intel HEXに欠落がある場合は、ゼロ埋めして1本にするか、連続領域ごとに分割するか選択できる。初期値はゼロ埋め。出力本数と各転送範囲を作成前に表示する。
+- OLD／S1バイナリのコーデックには、開始アドレスと連続データをWAVごとに渡す。入力ファイルの構文・重複検証は従来のパーサーを使う。
 
 ### OLD系WAV転送仕様
 

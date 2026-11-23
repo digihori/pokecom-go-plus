@@ -224,7 +224,8 @@ BASICプログラム領域へロードする。特殊文字は対応するエス
 [操作ガイド・診断・実機確認表](docs/guides/WAV_TOOL_GUIDE.md)。
 
 `Tools` → `WAV Tool`でOLD BASIC（02/12）、OLD Binary（62）、S1 BASIC（07/17）、S2 BASIC（27/37）、S1/S2 Binary（67）を変換できる。
-Encodeは既存の`.bas`／単一連続領域の`.dmp`・Intel HEX（`.hex`／`.ihx`）、またはProjectツリーの選択項目から`Create WAV…`で指定する。
+Encodeは既存の`.bas`／`.dmp`・Intel HEX（`.hex`／`.ihx`）、またはProjectツリーの選択項目から`Create WAV…`で指定する。
+アドレスの飛びは既定でゼロ埋めする。連続領域ごとにWAVを分けることもできる。
 `Convert`後に結果を確認し、`Save WAV…`で保存する。録音WAVは`Open WAV…`→`Analyze / reanalyze`で解析し、
 検証済みのBASIC/`.dmp`、raw byte列、解析reportを個別に保存できる。
 payload検証に失敗しても取得できたPCM/rawを確認でき、波形の目盛・zoom・水平移動・差分threshold表示を備える。

@@ -67,7 +67,7 @@ class StudioToolStringsTest {
         for (result in listOf(
             DesktopWavOperation.encode(byteArrayOf(0xFF.toByte()), false, MachineId("pc-1245"), "TEST", false),
             DesktopWavOperation.encode("invalid".encodeToByteArray(), true, MachineId("pc-1245"), "TEST", false),
-            DesktopWavOperation.encode("C000: 01\nC002: FF\n".encodeToByteArray(), true, MachineId("pc-1245"), "TEST", false))) {
+            DesktopWavOperation.encode("C000: 01\nC000: FF\n".encodeToByteArray(), true, MachineId("pc-1245"), "TEST", false))) {
             val before = result.report()
             assertTrue(result.uiError(ja).isNotBlank())
             assertNotEquals(result.error, result.uiError(ja))
