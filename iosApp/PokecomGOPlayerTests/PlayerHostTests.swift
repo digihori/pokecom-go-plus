@@ -1227,6 +1227,42 @@ final class PlayerHostTests: XCTestCase {
         return PlayerHost(player: player, frames: frames, romStore: IosRomStore(root: root))
     }
 
+    func testProgramSaveRejectsEmptyBasicAndAllowsSingleByteDump() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let player = ApplePlayerFactory.shared.structuralProbe()
+        let pointers = AppleProgramCodec.shared.parse(bytes: Data("C6E1 00 C0 FF BF".utf8).kotlinBytes, basic: false)
+        XCTAssertNil(player.loadProgram(input: try XCTUnwrap(pointers.input)))
+        let empty = AppleProgramCodec.shared.parse(bytes: Data().kotlinBytes, basic: true)
+        XCTAssertNil(player.loadProgram(input: try XCTUnwrap(empty.input)))
+        let host = PlayerHost(player: player, frames: ManualFrames(), romStore: IosRomStore(root: root))
+        host.setActive(true)
+
+        host.openProgram(save: true)
+        XCTAssertFalse(host.canSaveBasic)
+        guard case .file(.emptyBasic)? = host.programIssue else { return XCTFail("empty BASIC") }
+        host.prepareProgramExport(basic: true, start: "", end: "")
+        guard case .file(.emptyBasic)? = host.programIssue else { return XCTFail("empty BASIC export") }
+        XCTAssertNil(host.programDocument)
+        XCTAssertNil(host.exportURL)
+        XCTAssertFalse(host.programBusy)
+        host.closeProgram()
+
+        host.openProgram(save: true, basic: false)
+        host.prepareProgramExport(basic: false, start: "C001", end: "C000")
+        guard case .file(.invalidAddress)? = host.programIssue else { return XCTFail("reversed addresses") }
+        XCTAssertNil(host.programDocument)
+        XCTAssertNil(host.exportURL)
+        XCTAssertFalse(host.programBusy)
+
+        host.prepareProgramExport(basic: false, start: "C000", end: "C000")
+        waitUntil { !host.programBusy }
+        XCTAssertNil(host.programIssue)
+        let url = try XCTUnwrap(host.exportURL)
+        defer { host.finishProgramExport(saved: false) }
+        let contents = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertNotNil(contents.range(of: #"^C000 [0-9A-F]{2}\n$"#, options: .regularExpression))
+    }
+
     func testMemorySaveAllowsROMAndRetainsAddressesOnClose() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -1267,9 +1303,12 @@ final class PlayerHostTests: XCTestCase {
         host.closeProgram()
         host.openProgram(save: true)
         XCTAssertEqual(host.status.runState, "PAUSED")
+        XCTAssertEqual(host.programExportName, "pc-1245-program.bas")
+        host.programFileName = " サンプル.BAS "
         host.prepareProgramExport(basic: true, start: "", end: "")
         waitUntil { !host.programBusy }
         let output = try XCTUnwrap(host.exportURL)
+        XCTAssertEqual(output.lastPathComponent, "サンプル.bas")
         XCTAssertEqual(try String(contentsOf: output, encoding: .utf8), "10 PRINT 1\n20 END\n")
         // A local copied export is independent of the current Session and temporary source.
         let saved = root.appendingPathComponent("saved.bas")
@@ -1375,10 +1414,19 @@ final class PlayerHostTests: XCTestCase {
         host.cancelProgramPicker()
         host.programDocumentDidDismiss()
         host.closeProgram()
-        host.openProgram(save: true)
+        host.openProgram(save: true, basic: false)
+        XCTAssertEqual(host.programExportName, "pc-1245-program.dmp")
+        for invalidName in [" ", ".dmp", "../outside", "bad/name", "bad\u{0}name", String(repeating: "あ", count: 84)] {
+            host.programFileName = invalidName
+            host.prepareProgramExport(basic: false, start: "C500", end: "C501")
+            guard case .file(.invalidName)? = host.programIssue else { return XCTFail("filename error") }
+            XCTAssertNil(host.programDocument)
+        }
+        host.programFileName = " メモリ 01.DMP "
         host.prepareProgramExport(basic: false, start: "C500", end: "C501")
         waitUntil { !host.programBusy }
         guard case .exporting(let url)? = host.programDocument else { return XCTFail("export picker") }
+        XCTAssertEqual(url.lastPathComponent, "メモリ 01.dmp")
         XCTAssertEqual(url, host.exportURL)
         XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
         // SwiftUI clears the item before onDismiss when the user dismisses the sheet.
@@ -1394,6 +1442,7 @@ final class PlayerHostTests: XCTestCase {
         waitUntil { !host.programBusy }
         guard case .exporting(let next)? = host.programDocument else { return XCTFail("second export picker") }
         XCTAssertNotEqual(next, url)
+        XCTAssertEqual(next.lastPathComponent, url.lastPathComponent)
         host.finishProgramExport(saved: true)
         host.programDocumentDidDismiss()
         XCTAssertFalse(host.programPanelOpen)

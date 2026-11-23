@@ -6,7 +6,7 @@
 - AI／MCPはAntigravity CLIからの接続を確認済み。残件はMuseの接続方法の検討。[AI連携の再開メモ](../AI_MCP_RESUME.md)
 - 初代Joy-Conは動作確認済み。Joy-Con 2は未検証。[ゲームパッドの確認状況](../GAMEPAD_DESIGN.md)
 - PC-1360Kの漢字ROM解析は長期の調査として継続する。[候補履歴の仕様と残課題](../../analysis/pc1360k/WORK_MEMORY_CHECKPOINT.md)
-- iOS PlayerでDMP保存時にファイル名を編集できるようにする作業は、次に優先する実装候補。[iOSの保存機能の記録](../PLAYER_IOS_MEMORY_SAVE.md)
+- iOS PlayerのBASIC／DMP保存でファイル名を編集できるようになり、利用者による実機確認も完了。[iOSの保存機能の記録](../PLAYER_IOS_MEMORY_SAVE.md)
 - RAMカードによる拡張は、PC-1350／1360／1450／1460／1470Uをまとめて調査する。実機仕様と現行実装を照合し、実装の範囲を決める。
 - Windows版Studioで繰り返し起きる、署名に関連した起動ブロックへの対処方法を検討する。日本の個人開発者としてGitHub配布物に信頼済みのコード署名を付ける手段は検討済みで、現状では現実的な選択肢が得られていない。MSIX化とMicrosoft Store配布は検討候補で、方式・優先順位・採否は未定。候補を絞った段階で、起動ブロックが発生する環境での動作や、既存ユーザーへの影響を確認する。[Windowsの署名・配布方針](FORMAL_RELEASE_DISTRIBUTION.md)
 

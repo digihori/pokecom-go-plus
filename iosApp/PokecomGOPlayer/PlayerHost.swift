@@ -118,6 +118,7 @@ final class PlayerHost: ObservableObject {
     @Published private(set) var programSaveBasic = true
     @Published var dumpStart = ""
     @Published var dumpEnd = ""
+    @Published var programFileName = ""
     @Published private(set) var programBusy = false
     @Published private(set) var programMessage = ""
     @Published private(set) var programIssue: ProgramIssue?
@@ -126,11 +127,24 @@ final class PlayerHost: ObservableObject {
     private var programModalOpen: Bool {
         programPanelOpen || programLoadMessage != nil || pendingProgramLoadMessage != nil
     }
-    var programExportName: String {
-        exportURL?.lastPathComponent ?? programFileName(basic: programSaveBasic)
+    var canSaveBasic: Bool {
+        switch programIssue {
+        case .file(.emptyBasic), .shared: return false
+        default: return true
+        }
     }
-    private func programFileName(basic: Bool) -> String {
-        machine.id + "-program." + (basic ? "bas" : "dmp")
+    var programExportExtension: String { programSaveBasic ? ".bas" : ".dmp" }
+    var programExportName: String? { exportName(extension: programExportExtension) }
+
+    private func exportName(extension suffix: String) -> String? {
+        var name = programFileName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if name.lowercased().hasSuffix(suffix) {
+            name = String(name.dropLast(suffix.count)).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        guard !name.isEmpty, !name.hasPrefix("."),
+              !name.contains("/"), name.rangeOfCharacter(from: .controlCharacters) == nil else { return nil }
+        let fileName = name + suffix
+        return fileName.utf8.count <= 255 ? fileName : nil
     }
     @Published private(set) var exportURL: URL?
     private var programSource: ApplePlayerFacade?
@@ -791,8 +805,12 @@ final class PlayerHost: ObservableObject {
         pause()
         programSaveBasic = basic
         programSaving = save
+        if save { programFileName = machine.id + "-program" }
         programMessage = save ? (basic ? "現在のBASICを保存します。" : "現在のメモリをDMP形式で保存します。") : "bas／dmpを選択してください。"
         programIssue = nil
+        if save && basic, case .failure(let issue) = basicExportBytes(from: player) {
+            programIssue = issue
+        }
         programPanelOpen = true
         if !save { awaitingProgramSelection = true }
     }
@@ -852,24 +870,42 @@ final class PlayerHost: ObservableObject {
         }
     }
 
+    private func basicExportBytes(from source: ApplePlayerFacade) -> Result<Data, ProgramIssue> {
+        let result = source.exportBasic()
+        if let error = result.error { return .failure(.shared(error)) }
+        guard let content = result.doCopyBytes() else { return .failure(.file(.emptyBasic)) }
+        let bytes = Data(kotlin: content)
+        guard !String(decoding: bytes, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return .failure(.file(.emptyBasic))
+        }
+        return .success(bytes)
+    }
+
     func prepareProgramExport(basic: Bool, start: String, end: String) {
         guard let source = programSource, source === player, programSaving, !programBusy else { return }
         programIssue = nil
+        guard let fileName = exportName(extension: basic ? ".bas" : ".dmp") else {
+            programIssue = .file(.invalidName)
+            return
+        }
         if status.runState == "RUNNING" || startRequested { saveShouldResume = true }
         pause()
-        let result: AppleProgramExport
-        if basic { result = source.exportBasic() }
-        else {
-            guard let first = IosProgramFiles.address(start), let last = IosProgramFiles.address(end), first <= last else {
+        let bytes: Data
+        if basic {
+            switch basicExportBytes(from: source) {
+            case .success(let sourceBytes): bytes = sourceBytes
+            case .failure(let issue): programIssue = issue; return
+            }
+        } else {
+            guard let range = IosProgramFiles.dumpRange(start: start, end: end) else {
                 programIssue = .file(.invalidAddress); return
             }
-            result = source.exportAddressSpaceDump(start: first, end: last)
+            let result = source.exportAddressSpaceDump(start: range.lowerBound, end: range.upperBound)
+            if let error = result.error { programIssue = .shared(error); return }
+            guard let content = result.doCopyBytes() else { return }
+            bytes = Data(kotlin: content)
         }
-        if let error = result.error { programIssue = .shared(error); return }
-        guard let content = result.doCopyBytes() else { return }
-        let bytes = Data(kotlin: content)
         let write = writeProgram
-        let fileName = programFileName(basic: basic)
         programGeneration += 1
         let ticket = programGeneration
         programBusy = true

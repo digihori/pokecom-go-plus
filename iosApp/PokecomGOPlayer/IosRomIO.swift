@@ -254,8 +254,8 @@ final class IosRomStore: Sendable {
 }
 
 // File errors stay typed until the presentation layer formats them.
-enum ProgramFileError: Error { case unsupportedExtension, tooLarge, invalidAddress, staleSession }
-enum ProgramIssue {
+enum ProgramFileError: Error { case unsupportedExtension, tooLarge, invalidAddress, invalidName, emptyBasic, staleSession }
+enum ProgramIssue: Error {
     case file(ProgramFileError)
     case shared(PlayerProgramError)
     case io(String)
@@ -285,6 +285,11 @@ enum IosProgramFiles {
         }
         return ReadProgram(name: url.lastPathComponent, bytes: bytes, basic: basic)
     }
+    static func dumpRange(start: String, end: String) -> ClosedRange<Int32>? {
+        guard let first = address(start), let last = address(end), first <= last else { return nil }
+        return first...last
+    }
+
     static func address(_ text: String) -> Int32? {
         var value = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if value.lowercased().hasPrefix("0x") { value = String(value.dropFirst(2)) }

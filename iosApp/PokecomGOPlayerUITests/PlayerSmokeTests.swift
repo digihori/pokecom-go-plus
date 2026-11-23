@@ -6,11 +6,38 @@ final class PlayerSmokeTests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testMemorySaveShowsNameAndClosesAfterSuccessfulExport() {
+    func testProgramSaveDisablesEmptyBasicAndAllowsSingleByteDump() {
+        let app = launchProbe("--navigation-probe", home: true)
+        app.buttons["playPC1245"].tap()
+        playerAction(app, "プログラム", "BASICを保存")
+        expectLabel(app.staticTexts["programError"], contains: "保存できるBASICプログラムがありません")
+        XCTAssertFalse(app.buttons["exportProgram"].isEnabled)
+        app.buttons["キャンセル"].tap()
+
+        playerAction(app, "プログラム", "マシン語を保存")
+        for key in ["C", "0", "0", "0", "C", "0", "0", "0"] { app.buttons["hex-" + key].tap() }
+        XCTAssertTrue(app.buttons["dumpStart"].label.contains("C000"))
+        XCTAssertTrue(app.buttons["dumpEnd"].label.contains("C000"))
+        XCTAssertTrue(app.staticTexts["1 byte"].exists)
+        XCTAssertTrue(app.buttons["exportProgram"].isEnabled)
+        app.buttons["dumpStart"].tap()
+        app.buttons["クリア"].tap()
+        for key in ["C", "0", "0", "1"] { app.buttons["hex-" + key].tap() }
+        XCTAssertFalse(app.buttons["exportProgram"].isEnabled)
+    }
+
+    func testMemorySaveShowsNameAndClosesAfterSuccessfulExport() throws {
         let app = launchProbe("--picker-probe")
         playerAction(app, "プログラム", "マシン語を保存")
-        expectLabel(app.staticTexts["programFileName"], contains: "pc-1245-program.dmp")
+        let name = app.textFields["programFileName"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        XCTAssertEqual(name.value as? String, "pc-1245-program")
         for key in ["C", "5", "0", "0", "C", "5", "0", "F"] { app.buttons["hex-" + key].tap() }
+        name.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), app.debugDescription)
+        name.typeText("Edited\n")
+        let editedName = try XCTUnwrap(name.value as? String)
+        XCTAssertTrue(editedName.contains("Edited"))
         app.buttons["exportProgram"].tap()
         saveLocalExport(app)
         XCTAssertTrue(app.buttons["runState"].waitForExistence(timeout: 10))
@@ -20,6 +47,10 @@ final class PlayerSmokeTests: XCTestCase {
         XCTAssertTrue(app.buttons["dumpStart"].label.contains("C500"))
         XCTAssertTrue(app.buttons["dumpEnd"].label.contains("C50F"))
         app.buttons["キャンセル"].tap()
+        playerAction(app, "プログラム", "ロード")
+        let savedName = editedName + ".dmp"
+        localFile(app, savedName).tap()
+        expectLabel(app.alerts["ロード完了"].staticTexts[savedName + " をロードしました。"], contains: savedName)
     }
 
     func testMemorySaveHexPadRetainsRangeAndKeepsLandscape() {
@@ -230,7 +261,7 @@ final class PlayerSmokeTests: XCTestCase {
         waitFor("PAUSED", in: app)
     }
 
-    func testHomeIntentProgramLoadSaveAndInformation() {
+    func testHomeIntentProgramLoadSaveAndInformation() throws {
         let app = launchProbe("--navigation-probe", home: true)
         XCTAssertTrue(app.buttons["playPC1245"].exists)
         app.buttons["playPC1245"].tap(); waitFor("RUNNING", in: app)
@@ -254,14 +285,21 @@ final class PlayerSmokeTests: XCTestCase {
         app.buttons["閉じる"].tap(); waitFor("RUNNING", in: app)
         app.buttons["runState"].tap(); waitFor("PAUSED", in: app)
         playerAction(app, "プログラム", "BASICを保存")
+        let basicName = app.textFields["programFileName"]
+        XCTAssertEqual(basicName.value as? String, "pc-1245-program")
+        basicName.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        basicName.typeText("Edited\n")
+        let editedBasicName = try XCTUnwrap(basicName.value as? String) + ".bas"
+        XCTAssertTrue(editedBasicName.contains("Edited"))
         app.buttons["exportProgram"].tap()
         saveLocalExport(app)
         waitFor("PAUSED", in: app)
         XCTAssertFalse(app.buttons["exportProgram"].exists)
         playerAction(app, "プログラム", "ロード")
-        localFile(app, "pc-1245-program.bas").tap()
+        localFile(app, editedBasicName).tap()
         XCTAssertTrue(app.alerts["ロード完了"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.alerts["ロード完了"].staticTexts["pc-1245-program.bas をロードしました。"].exists)
+        XCTAssertTrue(app.alerts["ロード完了"].staticTexts[editedBasicName + " をロードしました。"].exists)
         XCTAssertFalse(app.buttons["ファイルを選択"].exists)
         app.alerts["ロード完了"].buttons["閉じる"].tap(); waitFor("RUNNING", in: app)
         playerAction(app, "プログラム", "ロード")

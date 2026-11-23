@@ -294,6 +294,7 @@ struct PlayerDocumentPicker: UIViewControllerRepresentable {
 private struct ProgramPanel: View {
     @ObservedObject var host: PlayerHost
     @State private var editingStart = true
+    @FocusState private var editingFileName: Bool
     var body: some View {
         NavigationStack {
             VStack(spacing: 8) {
@@ -304,6 +305,7 @@ private struct ProgramPanel: View {
                                 addressButton("開始", value: host.dumpStart, active: editingStart, id: "dumpStart") { editingStart = true }
                                 addressButton("終了", value: host.dumpEnd, active: !editingStart, id: "dumpEnd") { editingStart = false }
                                 Text(rangeMessage).font(.caption)
+                                programNameField
                                 statusMessage.font(.caption)
                             }.frame(width: 180)
                             VStack(spacing: 4) {
@@ -327,12 +329,13 @@ private struct ProgramPanel: View {
                                 Button("クリア") { if editingStart { host.dumpStart = "" } else { host.dumpEnd = "" } }
                             }.font(.caption).lineLimit(1).buttonStyle(.bordered).frame(width: 70)
                         }.padding(8)
-                    }
+                    }.scrollDismissesKeyboard(.interactively)
                 } else {
                     Form {
+                        if host.programSaving { programNameField }
                         statusMessage
                         if !host.programSaving && !host.programBusy { Button("ファイルを選択", action: host.chooseProgramFile) }
-                    }
+                    }.scrollDismissesKeyboard(.interactively)
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -340,9 +343,12 @@ private struct ProgramPanel: View {
                     HStack {
                         Spacer()
                         Button("キャンセル", action: host.closeProgram)
-                        Button("保存") { host.prepareProgramExport(basic: host.programSaveBasic, start: host.dumpStart, end: host.dumpEnd) }
-                            .disabled(host.programBusy || (!host.programSaveBasic && !validRange))
-                            .accessibilityIdentifier("exportProgram")
+                        Button("保存") {
+                            editingFileName = false
+                            host.prepareProgramExport(basic: host.programSaveBasic, start: host.dumpStart, end: host.dumpEnd)
+                        }
+                        .disabled(host.programBusy || host.programExportName == nil || !canSaveProgram)
+                        .accessibilityIdentifier("exportProgram")
                     }.padding(12).background(.bar)
                 }
             }
@@ -362,19 +368,39 @@ private struct ProgramPanel: View {
             }
         }
     }
-    private var validRange: Bool {
-        guard let start = IosProgramFiles.address(host.dumpStart), let end = IosProgramFiles.address(host.dumpEnd) else { return false }
-        return start <= end
+    private var dumpRange: ClosedRange<Int32>? {
+        IosProgramFiles.dumpRange(start: host.dumpStart, end: host.dumpEnd)
+    }
+    private var canSaveProgram: Bool {
+        host.programSaveBasic ? host.canSaveBasic : dumpRange != nil
     }
     private var rangeMessage: String {
-        guard validRange, let start = IosProgramFiles.address(host.dumpStart), let end = IosProgramFiles.address(host.dumpEnd) else { return "0000〜FFFF・開始≦終了" }
-        return "\(end - start + 1) bytes（終了を含む）"
+        guard let dumpRange else { return "0000〜FFFF・開始≦終了" }
+        let count = dumpRange.count
+        return count == 1 ? "1 byte" : "\(count) bytes（終了を含む）"
+    }
+    private var programNameField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("ファイル名").font(.caption)
+            HStack {
+                TextField("ファイル名", text: $host.programFileName)
+                    .textFieldStyle(.roundedBorder)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .focused($editingFileName)
+                    .submitLabel(.done)
+                    .onSubmit { editingFileName = false }
+                    .accessibilityIdentifier("programFileName")
+                    .disabled(host.programBusy)
+                Text(host.programExportExtension).font(.caption)
+            }
+            if host.programExportName == nil {
+                Text(ProgramIssue.file(.invalidName).userMessage)
+                    .font(.caption).foregroundStyle(.red)
+            }
+        }
     }
     @ViewBuilder private var statusMessage: some View {
-        if host.programSaving {
-            Text("ファイル名：" + host.programExportName)
-                .font(.caption).textSelection(.enabled).accessibilityIdentifier("programFileName")
-        }
         if let issue = host.programIssue { Text(issue.userMessage).foregroundStyle(.red).accessibilityIdentifier("programError") }
         else { Text(host.programMessage).accessibilityIdentifier("programMessage") }
         if host.programBusy { ProgressView() }
@@ -405,7 +431,9 @@ private extension ProgramIssue {
             switch error {
             case .unsupportedExtension: return "bas／dmpファイルを選択してください。"
             case .tooLarge: return "ファイルは2 MiBまでです。"
-            case .invalidAddress: return "開始・終了を0000〜FFFFの16進数で指定してください。"
+            case .invalidAddress: return "0000〜FFFFの範囲で、終了を開始と同じか、それより大きい値にしてください。"
+            case .emptyBasic: return "保存できるBASICプログラムがありません。"
+            case .invalidName: return "空欄、先頭のピリオド、スラッシュ、制御文字は使えません。長い名前は短くしてください。"
             case .staleSession: return "Sessionが変わりました。ファイルを選び直してください。"
             }
         case .shared(let error):
