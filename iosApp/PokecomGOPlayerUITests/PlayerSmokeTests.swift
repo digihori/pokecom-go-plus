@@ -756,7 +756,7 @@ final class PlayerSmokeTests: XCTestCase {
         if !fixture.waitForExistence(timeout: 3) || !save.isEnabled {
             let local = app.buttons.matching(NSPredicate(format: "label IN %@", ["On My iPhone", "このiPhone内"])).firstMatch
             if local.exists { local.tap() }
-            let folder = app.cells.containing(NSPredicate(format: "label CONTAINS %@", "Pokecom GO Player")).firstMatch
+            let folder = app.cells.containing(NSPredicate(format: "label CONTAINS %@", "Pokecom SC61 Player")).firstMatch
             XCTAssertTrue(folder.waitForExistence(timeout: 5), app.debugDescription)
             folder.tap()
         }
@@ -805,7 +805,7 @@ final class PlayerSmokeTests: XCTestCase {
                 let localCell = app.cells.containing(NSPredicate(format: "label IN %@", ["On My iPhone", "このiPhone内"])).firstMatch
                 if localCell.exists { localCell.tap() }
             }
-            let folder = app.cells.containing(NSPredicate(format: "label CONTAINS %@", "Pokecom GO Player")).firstMatch
+            let folder = app.cells.containing(NSPredicate(format: "label CONTAINS %@", "Pokecom SC61 Player")).firstMatch
             if folder.waitForExistence(timeout: 3) { folder.tap() }
         }
         XCTAssertTrue(file.waitForExistence(timeout: 10), app.debugDescription)

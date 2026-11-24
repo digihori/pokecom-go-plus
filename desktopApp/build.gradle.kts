@@ -151,7 +151,7 @@ compose.desktop {
             // The local MCP server needs HttpServer in the packaged runtime too.
             modules("jdk.unsupported", "jdk.httpserver")
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "PokecomGOStudio"
+            packageName = "PokecomSC61Studio"
             // jpackage requires 1-3 numeric components and macOS rejects a zero major version.
             // The public project/Git version is 1.2.2; native versions increase independently.
             packageVersion = "1.9.2"
@@ -184,7 +184,7 @@ compose.desktop {
                 // Preserve the UpgradeCode from the published 0.4 MSI (ProductVersion 1.3.0).
                 upgradeUuid = "D173EFD1-57EF-3753-A618-92481F262D95"
                 menu = true
-                menuGroup = "Pokecom GO Studio"
+                menuGroup = "Pokecom SC61 Studio"
             }
         }
     }

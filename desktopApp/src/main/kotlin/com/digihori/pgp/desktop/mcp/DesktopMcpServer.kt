@@ -105,7 +105,7 @@ internal class DesktopMcpServer(
             if (!isLocalNativeRequest(exchange)) {
                 sendText(exchange, 403, "Forbidden")
             } else if (exchange.requestMethod == "GET" && exchange.requestURI.path == "/") {
-                sendText(exchange, 200, "Pokecom GO Studio MCP server")
+                sendText(exchange, 200, "Pokecom SC61 Studio MCP server")
             } else {
                 sendText(exchange, 404, "Not Found")
             }
@@ -162,7 +162,7 @@ internal class DesktopMcpServer(
             })
             put("serverInfo", buildJsonObject {
                 put("name", "pokecom-go-studio")
-                put("title", "Pokecom GO Studio")
+                put("title", "Pokecom SC61 Studio")
                 put("version", ProjectInfo.VERSION)
             })
             put(

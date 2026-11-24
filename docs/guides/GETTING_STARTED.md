@@ -74,8 +74,8 @@ PC-1250／1251／1255は同じROM系統を使い、主な違いであるRAM容�
 配布物を使う場合は、展開したアプリまたはインストールしたPokecom SC61 Studioを起動する。
 
 - macOS: `.app`またはDMG内のアプリ
-- Windows: ZIP内の`PokecomGOStudio.exe`またはMSIでインストールしたアプリ
-- Linux x86_64: tar.gz内の`bin/PokecomGOStudio`またはDEBでインストールしたアプリ
+- Windows: ZIP内の`PokecomSC61Studio.exe`またはMSIでインストールしたアプリ
+- Linux x86_64: tar.gz内の`bin/PokecomSC61Studio`またはDEBでインストールしたアプリ
 
 ソースツリーから起動する場合は次を実行する。
 

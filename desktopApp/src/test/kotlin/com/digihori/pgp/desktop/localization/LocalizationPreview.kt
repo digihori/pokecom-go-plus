@@ -100,7 +100,7 @@ private fun launchPreview() = application {
                     Item(strings.text("rom.create"), onClick = {})
                 }
                 Menu(strings.text("menu.help")) {
-                    Item(strings.text("about.menu", "Pokecom GO Studio"), onClick = {})
+                    Item(strings.text("about.menu", "Pokecom SC61 Studio"), onClick = {})
                 }
             }
             PreviewContent(strings)
@@ -124,7 +124,7 @@ private fun PreviewContent(strings: StudioStrings, menu: Boolean = false, basic:
                         }
                     }
                 }
-                Text(strings.text("about.title", "Pokecom GO Studio"), style = MaterialTheme.typography.headlineSmall)
+                Text(strings.text("about.title", "Pokecom SC61 Studio"), style = MaterialTheme.typography.headlineSmall)
                 Text(strings.text("about.description"))
                 Text(strings.text("romSet.help"))
                 Text(strings.text("settings.currentEditor", "/folder with spaces/日本語/very-long-folder-name/source.bas"))
@@ -220,7 +220,7 @@ private fun renderPreviews(directory: File, group: String? = null) {
                     } else if (name.startsWith("rom")) RomPreview(strings)
                     else if (name == "dialog") PgpStudioTheme {
                         AlertDialog(onDismissRequest = {},
-                            title = { Text(strings.text("about.title", "Pokecom GO Studio")) },
+                            title = { Text(strings.text("about.title", "Pokecom SC61 Studio")) },
                             text = { Text(strings.text("about.description") + "\n" + strings.text("about.version", "1.3.1")) },
                             confirmButton = { TextButton(onClick = {}) { Text(strings.text("common.close")) } })
                     } else PreviewContent(strings, menu = name == "menu", basic = name.startsWith("basic"))
@@ -325,7 +325,7 @@ private fun DebuggerPreview(strings: StudioStrings, tools: Boolean) {
     PgpStudioTheme {
         Surface(Modifier.fillMaxSize()) {
             Column(Modifier.padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(strings.text("debug.window", "Pokecom GO Studio"), style = MaterialTheme.typography.titleLarge)
+                Text(strings.text("debug.window", "Pokecom SC61 Studio"), style = MaterialTheme.typography.titleLarge)
                 if (tools) {
                     InstructionTracePanel(runner, 0L, keyboard, strings)
                     MemoryWatchPanel(runner, keyboard, strings)

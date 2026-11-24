@@ -80,8 +80,8 @@ Studio packages include their runtime; JDK 21 is required when building from sou
 
 1. Extract or install the package for your platform:
    - **macOS:** Open the `.app`, or the application supplied in the DMG.
-   - **Windows:** Run `PokecomGOStudio.exe` from the ZIP, or install the MSI.
-   - **Linux x86_64:** Run `bin/PokecomGOStudio` from the tar.gz, or install the DEB.
+   - **Windows:** Run `PokecomSC61Studio.exe` from the ZIP, or install the MSI.
+   - **Linux x86_64:** Run `bin/PokecomSC61Studio` from the tar.gz, or install the DEB.
 2. Prepare ROM images lawfully obtained for your machine. **ROM images are not included.**
 3. In Studio, use `File` → `Register ROM…` or `Manage ROMs…` to register a compatible image or `.pgrom` package.
    Use `Create ROM Set…` if you need to package separate ROM components first.

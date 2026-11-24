@@ -45,7 +45,7 @@ internal class PgpMcpToolAdapter(
         KnowledgeMcp.tools().forEach { add(it) }
         add(buildJsonObject {
             put("name", GET_CAPABILITIES)
-            put("title", "Get Pokecom GO capabilities")
+            put("title", "Get Pokecom SC61 capabilities")
             put("description", "Returns the active machine and read-only Debug Context limits.")
             put("inputSchema", objectSchema())
             put("outputSchema", buildJsonObject { put("type", "object") })
@@ -53,7 +53,7 @@ internal class PgpMcpToolAdapter(
         })
         add(buildJsonObject {
             put("name", GET_DEBUG_CONTEXT)
-            put("title", "Get Pokecom GO Debug Context")
+            put("title", "Get Pokecom SC61 Debug Context")
             put(
                 "description",
                 "Returns versioned CPU, stop, selected memory, disassembly, ROM location, access, bank, and trace data. " +
@@ -65,7 +65,7 @@ internal class PgpMcpToolAdapter(
         })
         add(buildJsonObject {
             put("name", GET_DEBUG_REGISTRATIONS)
-            put("title", "Get Pokecom GO debug registrations")
+            put("title", "Get Pokecom SC61 debug registrations")
             put("description", "Returns all enabled and disabled breakpoints and watches with session ID and revision. Logical addresses apply to all banks. Version 1 omits breakpoint conditions and hit counts; enabled does not imply an unconditional stop. The emulator must already be paused or faulted.")
             put("inputSchema", objectSchema())
             put("outputSchema", buildJsonObject { put("type", "object") })
@@ -257,7 +257,7 @@ internal class PgpMcpToolAdapter(
             put("bankHistorySupported", value.bankHistorySupported)
             put("romBytesAllowed", value.romBytesAllowed)
         }
-        return toolSuccess(structured, "Read-only Pokecom GO capabilities")
+        return toolSuccess(structured, "Read-only Pokecom SC61 capabilities")
     }
 
     private fun debugContext(service: DebugContextService, arguments: JsonObject): JsonObject {

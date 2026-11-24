@@ -94,7 +94,7 @@ struct PlayerProbeView: View {
                     if !host.romMessage.isEmpty { Text(host.romMessage) }
                 }.padding().frame(maxWidth: .infinity, alignment: .leading)
             }
-            .navigationTitle("Pokecom GO Player").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("Pokecom SC61 Player").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .primaryAction) {
                 HomeNativeMenu(isBusy: host.isBusy, openRom: host.openRomPanel,
                     openPlayback: { playbackPanel = $0 }, openController: { controllerPanel = true },
@@ -458,7 +458,7 @@ private struct InformationPanel: View {
     private var versionLabel: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
-        return "Pokecom GO Player \(version) (\(build))"
+        return "Pokecom SC61 Player \(version) (\(build))"
     }
     @Environment(\.dismiss) private var dismiss
     private var files: [String] {

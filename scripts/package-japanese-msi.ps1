@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$EnglishMsi,
-    [string]$AppImage = "$PSScriptRoot/../desktopApp/build/compose/binaries/main/app/PokecomGOStudio",
+    [string]$AppImage = "$PSScriptRoot/../desktopApp/build/compose/binaries/main/app/PokecomSC61Studio",
     [string]$Destination = "$PSScriptRoot/../desktopApp/build/compose/binaries/main/msi-ja"
 )
 
@@ -20,7 +20,7 @@ try {
     & $jpackage --type msi --app-image $appPath --dest $destinationPath `
         --name $identity.ProductName --app-version $identity.ProductVersion --vendor $identity.Manufacturer `
         --description 'A multiplatform pocket-computer development environment' --icon $iconPath `
-        --win-upgrade-uuid ($identity.UpgradeCode.Trim('{}')) --win-menu --win-menu-group 'Pokecom GO Studio' `
+        --win-upgrade-uuid ($identity.UpgradeCode.Trim('{}')) --win-menu --win-menu-group 'Pokecom SC61 Studio' `
         --win-dir-chooser --resource-dir $resourcePath
     if ($LASTEXITCODE -ne 0) { throw "jpackage failed with exit code $LASTEXITCODE." }
 } finally {

@@ -72,10 +72,10 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force release-assets | Out-Null
           $msi = Get-ChildItem desktopApp/build/compose/binaries/main/msi/*.msi | Select-Object -First 1
-          Copy-Item $msi.FullName "release-assets/PokecomGOStudio-$env:RELEASE_VERSION-windows-x64.msi"
+          Copy-Item $msi.FullName "release-assets/PokecomSC61Studio-$env:RELEASE_VERSION-windows-x64.msi"
           $japaneseMsi = Get-ChildItem desktopApp/build/compose/binaries/main/msi-ja/*.msi | Select-Object -First 1
-          Copy-Item $japaneseMsi.FullName "release-assets/PokecomGOStudio-$env:RELEASE_VERSION-windows-x64-ja.msi"
-          Compress-Archive -Path desktopApp/build/compose/binaries/main/app/PokecomGOStudio -DestinationPath "release-assets/PokecomGOStudio-$env:RELEASE_VERSION-windows-x64.zip"
+          Copy-Item $japaneseMsi.FullName "release-assets/PokecomSC61Studio-$env:RELEASE_VERSION-windows-x64-ja.msi"
+          Compress-Archive -Path desktopApp/build/compose/binaries/main/app/PokecomSC61Studio -DestinationPath "release-assets/PokecomSC61Studio-$env:RELEASE_VERSION-windows-x64.zip"
           @(
             "SourceCommit=$env:GITHUB_SHA"
             "WorkflowRun=$env:GITHUB_RUN_ID"
@@ -97,10 +97,10 @@ jobs:
         run: |
           mkdir -p release-assets
           cp desktopApp/build/compose/binaries/main/deb/*.deb \
-            "release-assets/PokecomGOStudio-${RELEASE_VERSION}-linux-amd64.deb"
+            "release-assets/PokecomSC61Studio-${RELEASE_VERSION}-linux-amd64.deb"
           tar -C desktopApp/build/compose/binaries/main/app -czf \
-            "release-assets/PokecomGOStudio-${RELEASE_VERSION}-linux-amd64.tar.gz" \
-            PokecomGOStudio
+            "release-assets/PokecomSC61Studio-${RELEASE_VERSION}-linux-amd64.tar.gz" \
+            PokecomSC61Studio
           cd release-assets
           sha256sum ./* > SHA256SUMS-linux.txt
 
@@ -174,14 +174,14 @@ jobs:
         run: ./gradlew :core:desktopTest :hostInput:desktopTest :desktopApp:test :desktopApp:verifyDistributionRuntime --no-daemon
 
       - name: Notarize macOS app
-        run: python3 scripts/notarize-macos.py desktopApp/build/compose/binaries/main/app/PokecomGOStudio.app --keychain "$PGP_MAC_SIGNING_KEYCHAIN"
+        run: python3 scripts/notarize-macos.py desktopApp/build/compose/binaries/main/app/PokecomSC61Studio.app --keychain "$PGP_MAC_SIGNING_KEYCHAIN"
 
       - name: Package signed macOS DMG
         # The app was already signed, runtime-verified and stapled. Do not regenerate it.
         run: ./gradlew :desktopApp:packageDmg -x :desktopApp:createDistributable --no-daemon
 
       - name: Notarize macOS DMG
-        run: python3 scripts/notarize-macos.py desktopApp/build/compose/binaries/main/dmg/PokecomGOStudio-1.9.2.dmg --keychain "$PGP_MAC_SIGNING_KEYCHAIN"
+        run: python3 scripts/notarize-macos.py desktopApp/build/compose/binaries/main/dmg/PokecomSC61Studio-1.9.2.dmg --keychain "$PGP_MAC_SIGNING_KEYCHAIN"
 
       - name: Collect macOS packages
         shell: bash
@@ -189,10 +189,10 @@ jobs:
           mkdir -p release-assets
           mac_arch=$(uname -m)
           cp desktopApp/build/compose/binaries/main/dmg/*.dmg \
-            "release-assets/PokecomGOStudio-${RELEASE_VERSION}-macos-${mac_arch}.dmg"
+            "release-assets/PokecomSC61Studio-${RELEASE_VERSION}-macos-${mac_arch}.dmg"
           ditto -c -k --keepParent \
-            desktopApp/build/compose/binaries/main/app/PokecomGOStudio.app \
-            "release-assets/PokecomGOStudio-${RELEASE_VERSION}-macos-${mac_arch}.zip"
+            desktopApp/build/compose/binaries/main/app/PokecomSC61Studio.app \
+            "release-assets/PokecomSC61Studio-${RELEASE_VERSION}-macos-${mac_arch}.zip"
           cd release-assets
           shasum -a 256 ./* > SHA256SUMS-macos.txt
 
@@ -299,5 +299,5 @@ jobs:
         run: |
           gh release create "${GITHUB_REF_NAME}" release-assets/* \
             --draft \
-            --title "Pokecom GO Studio ${RELEASE_VERSION}" \
+            --title "Pokecom SC61 Studio ${RELEASE_VERSION}" \
             --notes-file "docs/releases/notes/RELEASE_NOTES_STUDIO_${RELEASE_VERSION}.md"

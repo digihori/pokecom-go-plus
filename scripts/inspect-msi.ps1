@@ -22,7 +22,7 @@ try {
     if ($VerifyCurrent) {
         if ($properties['ProductVersion'] -ne '1.9.2' -or
             $properties['UpgradeCode'] -ne '{D173EFD1-57EF-3753-A618-92481F262D95}' -or
-            $properties['ProductName'] -ne 'PokecomGOStudio') {
+            $properties['ProductName'] -ne 'PokecomSC61Studio') {
             throw 'MSI identity/version differs from the current distribution configuration.'
         }
     }

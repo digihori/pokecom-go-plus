@@ -132,7 +132,7 @@ internal fun runMcpStdio(args: Array<String>, input: InputStream = System.`in`, 
         else -> null
     }
     if (port == null || port !in 1..65535) {
-        System.err.println("Usage: PokecomGOStudio --mcp-stdio [--port 1..65535]")
+        System.err.println("Usage: PokecomSC61Studio --mcp-stdio [--port 1..65535]")
         return
     }
     val properties = System.getProperties().stringPropertyNames().associateWith(System::getProperty)
