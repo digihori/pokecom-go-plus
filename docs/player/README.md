@@ -8,7 +8,7 @@ static web server. They do not change the app's bundled information screens.
 
 - `index.html`: explicit Japanese/English language choice; no automatic redirect.
 - `ja.html` / `en.html`: equivalent setup guides.
-- `privacy-ja.html` / `privacy-en.html`: Android privacy policies (effective October 22, 2026; local revision October 23, 2026).
+- `privacy-ja.html` / `privacy-en.html`: Android privacy policies (effective October 22, 2026; local revision November 24, 2026).
 - `privacy-ios-ja.html` / `privacy-ios-en.html`: iOS privacy policies (effective October 25, 2026).
 - `style.css`: shared responsive layout, including horizontally scrollable tables.
 

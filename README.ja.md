@@ -16,7 +16,7 @@ Studioでは、localhost MCP経由で外部AIから機種仕様・開発状態�
 PGPは次の2製品と共有Emulator Coreで構成します。
 
 - **Pokecom GO Studio** — macOS／Windows／Linux向けのポケコン開発環境
-- **Pokecom GO Player** — Android／iOS向けの実行専用エミュレータ
+- **Pokecom SC61 Player**（Android）／**Pokecom GO Player**（iOS）— 実行専用エミュレータ
 - **PGP Emulator Core** — StudioとPlayerが共有するKotlin Multiplatform Core
 
 「Pokecom GO Plus」と「PGP」は、このプロジェクト全体を表す開発コードネームとして使用します。
@@ -104,7 +104,7 @@ Assembly WorkspaceのAssembleは結果確認、Buildはファイル生成、Buil
 - Windows
 - Linux
 
-実行機能へ特化したPokecom GO Playerは、Android／iPhoneとも上記14モデルに対応しています。
+実行機能へ特化したAndroid版Pokecom SC61 PlayerとiPhone版Pokecom GO Playerは、ともに上記14モデルに対応しています。
 機種対応の完了と、端末・OS・ROM版別の確認、署名付き配布は区別して管理します。
 Playerにはデバッガ、アセンブラ、逆アセンブラなどの開発機能を搭載しません。
 
@@ -117,7 +117,7 @@ pokecom-go-plus/
 ├── controllerUi/  Studio／Android共通のコントローラー設定画面
 ├── playerShared/  Android／iOS Playerで共有する実行・表示モデル
 ├── desktopApp/    Pokecom GO Studio（現在のCompose Desktop実装）
-├── androidApp/    Pokecom GO Player（14モデル対応Android）
+├── androidApp/    Pokecom SC61 Player（14モデル対応Android）
 ├── iosApp/        Pokecom GO Player（複数機種対応iPhone host）
 ├── docs/          利用ガイド・技術資料・開発記録・リリース資料
 ├── local-data/    ローカルROM等（Git管理外）

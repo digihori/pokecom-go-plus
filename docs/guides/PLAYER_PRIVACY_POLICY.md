@@ -1,11 +1,11 @@
-# Pokecom GO Player プライバシーポリシー
+# Pokecom SC61 Player プライバシーポリシー
 
 適用開始日: 2026-10-22
-最終更新日: 2026-10-23
+最終更新日: 2026-11-24
 開発者: デジホリ工房（digihori）
-対象: Android版 Pokecom GO Player（パッケージ名: com.digihori.pgp.player）
+対象: Android版 Pokecom SC61 Player（パッケージ名: com.digihori.pgp.player）
 
-本ポリシーは、デジホリ工房（digihori）が提供するAndroid版Pokecom GO Playerに適用します。iOS版PlayerおよびStudioは対象に含みません。
+本ポリシーは、デジホリ工房（digihori）が提供するAndroid版Pokecom SC61 Playerに適用します。iOS版PlayerおよびStudioは対象に含みません。
 
 ## 端末内に保存する情報
 

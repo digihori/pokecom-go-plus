@@ -12,7 +12,7 @@ It aims to help you write, run, and analyze programs on a modern PC, then transf
 PGP consists of two products and a shared emulator core:
 
 - **Pokecom GO Studio** — A pocket computer development environment for macOS, Windows, and Linux.
-- **Pokecom GO Player** — An emulator focused on running programs on Android and iOS.
+- **Pokecom SC61 Player** for Android / **Pokecom GO Player** for iOS — Emulators focused on running programs.
 - **PGP Emulator Core** — The Kotlin Multiplatform core shared by Studio and Player.
 
 “Pokecom GO Plus” and “PGP” are development code names for the project as a whole.
@@ -137,7 +137,7 @@ pokecom-go-plus/
 ├── controllerUi/  Controller settings shared by Studio and Android
 ├── playerShared/  Execution and display models shared by Android/iOS Player
 ├── desktopApp/    Pokecom GO Studio (Compose Desktop)
-├── androidApp/    Pokecom GO Player for Android
+├── androidApp/    Pokecom SC61 Player for Android
 ├── iosApp/        Multi-machine iPhone host
 ├── docs/          Concepts, design, porting notes, and roadmap
 ├── local-data/    Local ROMs and other private data (ignored by Git)
