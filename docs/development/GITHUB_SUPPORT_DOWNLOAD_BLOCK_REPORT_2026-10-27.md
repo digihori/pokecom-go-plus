@@ -12,7 +12,7 @@ Chrome Safe Browsing blocks a GitHub Actions macOS artifact download as DANGEROU
 
 Hello GitHub Support,
 
-I maintain the open-source project Pokecom GO Studio and am preparing its 1.0.0 release. Google Chrome is blocking the macOS artifact ZIP downloaded from GitHub Actions with the warning “This file is dangerous.” The issue was observed on October 24, 2026, and is still reproducible as of October 27, 2026.
+I maintain the open-source project Pokecom SC61 Studio and am preparing its 1.0.0 release. Google Chrome is blocking the macOS artifact ZIP downloaded from GitHub Actions with the warning “This file is dangerous.” The issue was observed on October 24, 2026, and is still reproducible as of October 27, 2026.
 
 I understand that Google Safe Browsing makes this verdict and that GitHub may not be able to change it directly. I would appreciate help determining whether this is a known issue involving Actions artifact downloads, and guidance on an appropriate investigation or escalation route for software hosted on GitHub.
 

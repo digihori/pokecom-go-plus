@@ -1,6 +1,6 @@
 Hello App Review Team,
 
-Thank you for reviewing Pokecom GO Player (Apple ID: 6826764410), version 0.7.0, build 3. Here are our responses to the six items requested under Guideline 2.1.
+Thank you for reviewing Pokecom SC61 Player (Apple ID: 6826764410), version 0.7.0, build 3. Here are our responses to the six items requested under Guideline 2.1.
 
 1. Physical-device screen recording
 
@@ -10,7 +10,7 @@ There is no account registration, login, account deletion, purchase, subscriptio
 
 2. Purpose and target audience
 
-Pokecom GO Player is an offline emulator for classic programmable pocket computers. It is intended for pocket-computer owners, enthusiasts, and people interested in BASIC programming. Users operate an on-screen keyboard and LCD, run their own programs, and import/export program files. It provides access to these devices' programming experience on an iPhone without carrying the original hardware, using ROM files the user is authorized to use.
+Pokecom SC61 Player is an offline emulator for classic programmable pocket computers. It is intended for pocket-computer owners, enthusiasts, and people interested in BASIC programming. Users operate an on-screen keyboard and LCD, run their own programs, and import/export program files. It provides access to these devices' programming experience on an iPhone without carrying the original hardware, using ROM files the user is authorized to use.
 
 3. Setup, main features, and sample file
 

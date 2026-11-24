@@ -1,11 +1,11 @@
-# Pokecom GO Technical Preview 0.3
+# Pokecom SC61 Technical Preview 0.3
 
 文書区分：記載されたGitタグのリリースノート。現在の開発版の機能一覧ではありません。
 
 Git version: `v0.3.0-alpha.1`
 
-Technical Preview 0.3 is the first preview to distribute both Pokecom GO Studio and the Android version of
-Pokecom GO Player. It also improves Studio's main workspace, input handling, debugger, and small utility tools.
+Technical Preview 0.3 is the first preview to distribute both Pokecom SC61 Studio and the Android version of
+Pokecom SC61 Player. It also improves Studio's main workspace, input handling, debugger, and small utility tools.
 This remains an early preview intended for testing and feedback, not a stable release.
 
 ## Downloads
@@ -95,5 +95,5 @@ personal information, or other non-redistributable data.
 
 ## Licensing and provenance
 
-Pokecom GO Plus is released under the MIT License. Third-party notices are recorded in
+Pokecom SC61 Plus is released under the MIT License. Third-party notices are recorded in
 `THIRD_PARTY_NOTICES.md`, and implementation provenance is recorded in `docs/development/PORTING_NOTES.md`.

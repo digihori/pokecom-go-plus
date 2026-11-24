@@ -3,7 +3,7 @@
 文書区分：対象リリース当時の公開作業記録（2026-10-22整理）。
 チェック状態・未確認項目は当時の記録です。次回プレリリースの公開判定には別のチェックリストを用意します。
 
-- Release/tag: `Pokecom GO Technical Preview 0.6` / `v0.6.0-alpha.1`
+- Release/tag: `Pokecom SC61 Technical Preview 0.6` / `v0.6.0-alpha.1`
 - Project/Android version: `0.6.0-alpha.1`; Android versionCode: `6`
 - Studio native packageVersion: `1.4.0`; published Windows UpgradeCode retained.
 - Scope: desktop Studio and Android Player packages. No iOS distribution/CI.

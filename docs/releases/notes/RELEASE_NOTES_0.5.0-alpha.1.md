@@ -1,4 +1,4 @@
-# Pokecom GO Technical Preview 0.5
+# Pokecom SC61 Technical Preview 0.5
 
 文書区分：記載されたGitタグのリリースノート。現在の開発版の機能一覧ではありません。
 

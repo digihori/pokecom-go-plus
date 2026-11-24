@@ -1,11 +1,11 @@
-# Pokecom GO Player プライバシーポリシー（iOS）
+# Pokecom SC61 Player プライバシーポリシー（iOS）
 
 適用開始日: 2026-10-25
-最終更新日: 2026-10-25
+最終更新日: 2026-11-24
 開発者: デジホリ工房（digihori）
-対象: iPhone版 Pokecom GO Player（Bundle ID: com.digihori.pgp.player.ios）
+対象: iPhone版 Pokecom SC61 Player（Bundle ID: com.digihori.pgp.player.ios）
 
-本ポリシーは、デジホリ工房（digihori）が提供するiOS版Pokecom GO Playerに適用します。Android版PlayerおよびPokecom GO Studioは対象に含みません。
+本ポリシーは、デジホリ工房（digihori）が提供するiOS版Pokecom SC61 Playerに適用します。Android版PlayerおよびPokecom SC61 Studioは対象に含みません。
 
 ## アプリによるデータ収集と通信
 

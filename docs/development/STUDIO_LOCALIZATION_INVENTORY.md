@@ -512,7 +512,7 @@ Coreの型付きエラー・codeは保持する。未構造化のreasonを列挙
 2363: message = "Renamed project to ${updated.definition.name}."
 2367: }) { Text("Rename") }
 2370: TextButton(onClick = { showRenameProjectDialog = false }) { Text(uiText("common.cancel")) }
-2378: title = { Text("Create Pokecom GO Studio Project") },
+2378: title = { Text("Create Pokecom SC61 Studio Project") },
 2381: Text("Machine: ${selectedMachineId.displayName()}")
 2388: label = { Text("Project name") },
 2391: Text("Starter sources")
@@ -699,8 +699,8 @@ Coreの型付きエラー・codeは保持する。未構造化のreasonを列挙
 3568: com.digihori.pgp.core.api.DisplaySymbol.BATTERY -> "BATT"
 3577: return selectFile(owner, "Open ${machineId.displayName()} ROM", "${machineId.value}.pgrom")
 3580: private fun selectBasicFile(owner: Frame, title: String): File? = selectFile(owner, title, "*.bas")
-3584: "Choose Pokecom GO Studio Project Folder",
-3589: "Choose Folder for New Pokecom GO Studio Project",
+3584: "Choose Pokecom SC61 Studio Project Folder",
+3589: "Choose Folder for New Pokecom SC61 Studio Project",
 3593: if (System.getProperty("os.name").contains("mac", ignoreCase = true)) {
 3609: val property = "apple.awt.fileDialogForDirectories"
 3611: System.setProperty(property, "true")
@@ -712,9 +712,9 @@ Coreの型付きエラー・codeは保持する。未構造化のreasonを列挙
 3641: suggestedFile = "disassembly.asm",
 3647: title = "Save assembled PGP Memory Dump",
 3648: suggestedFile = "program.dmp",
-3654: title = "Save Pokecom GO Studio Debug Checkpoint",
+3654: title = "Save Pokecom SC61 Studio Debug Checkpoint",
 3655: suggestedFile = "checkpoint.pgpdebug.json",
-3661: title = "Save Pokecom GO Studio AI Debug Context",
+3661: title = "Save Pokecom SC61 Studio AI Debug Context",
 3662: suggestedFile = "debug-context.pgpdebug.json",
 3670: private fun codexMcpConfiguration(info: DesktopMcpServerInfo): String = """
 3672: url = "${info.url}"
@@ -1253,7 +1253,7 @@ Coreの型付きエラー・codeは保持する。未構造化のreasonを列挙
 87: DesktopMcpStartResult.Failure(error.message ?: error::class.simpleName ?: "Could not start MCP server")
 105: sendText(exchange, 403, "Forbidden")
 106: } else if (exchange.requestMethod == "GET" && exchange.requestURI.path == "/") {
-107: sendText(exchange, 200, "Pokecom GO Studio read-only MCP server")
+107: sendText(exchange, 200, "Pokecom SC61 Studio read-only MCP server")
 109: sendText(exchange, 404, "Not Found")
 117: if (exchange.requestMethod == "OPTIONS") {
 122: sendJson(exchange, 403, rpcError(JsonNull, -32001, "Loopback clients only"))
@@ -1277,10 +1277,10 @@ Coreの型付きエラー・codeは保持する。未構造化のreasonを列挙
 165: put("tools", buildJsonObject { put("listChanged", false) })
 167: put("serverInfo", buildJsonObject {
 168: put("name", "pokecom-go-studio")
-169: put("title", "Pokecom GO Studio")
+169: put("title", "Pokecom SC61 Studio")
 170: put("version", ProjectInfo.VERSION)
 173: "instructions",
-174: "Read-only access to the active paused Pokecom GO Studio emulator session. " +
+174: "Read-only access to the active paused Pokecom SC61 Studio emulator session. " +
 175: "ROM bytes are not exposed through memory ranges; use bounded disassembly and trace data.",
 179: "ping" -> rpcResult(id, buildJsonObject {}).also {
 182: "tools/list" -> rpcResult(id, buildJsonObject { put("tools", adapter.tools()) }).also {
@@ -1316,13 +1316,13 @@ Coreの型付きエラー・codeは保持する。未構造化のreasonを列挙
 
 ```text
 33: put("name", GET_CAPABILITIES)
-34: put("title", "Get Pokecom GO capabilities")
+34: put("title", "Get Pokecom SC61 capabilities")
 35: put("description", "Returns the active machine and read-only Debug Context limits.")
 36: put("inputSchema", objectSchema())
 37: put("outputSchema", buildJsonObject { put("type", "object") })
 38: put("annotations", readOnlyAnnotations())
 41: put("name", GET_DEBUG_CONTEXT)
-42: put("title", "Get Pokecom GO Debug Context")
+42: put("title", "Get Pokecom SC61 Debug Context")
 44: "description",
 45: "Returns versioned CPU, stop, selected memory, disassembly, ROM location, access, bank, and trace data. " +
 46: "The emulator must already be paused or faulted.",
@@ -1341,7 +1341,7 @@ Coreの型付きエラー・codeは保持する。未構造化のreasonを列挙
 73: put("memoryAccessHistorySupported", value.memoryAccessHistorySupported)
 74: put("bankHistorySupported", value.bankHistorySupported)
 75: put("romBytesAllowed", value.romBytesAllowed)
-77: return toolSuccess(structured, "Read-only Pokecom GO capabilities")
+77: return toolSuccess(structured, "Read-only Pokecom SC61 capabilities")
 82: return toolError("INVALID_ARGUMENTS", it.message ?: "Invalid arguments")
 89: toolSuccess(structured, "Captured ${result.context.session.machineId} Debug Context")
 93: "SESSION_RUNNING",
@@ -1672,7 +1672,7 @@ Coreの型付きエラー・codeは保持する。未構造化のreasonを列挙
 109: os.contains("mac") -> File(home, "Library/Application Support")
 110: os.contains("win") -> System.getenv("APPDATA")?.let(::File) ?: File(home, "AppData/Roaming")
 111: else -> System.getenv("XDG_DATA_HOME")?.let(::File) ?: File(home, ".local/share")
-113: return File(dataRoot, "Pokecom GO Studio/rom-library")
+113: return File(dataRoot, "Pokecom SC61 Studio/rom-library")
 118: MachineFamily.PC_1251 -> "pc-1251-family"
 120: MachineFamily.PC_1261 -> "pc-1261"
 121: MachineFamily.PC_1401 -> "pc-1401"

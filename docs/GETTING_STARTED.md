@@ -1,4 +1,4 @@
-# Pokecom GO Studio はじめに
+# Pokecom SC61 Studio はじめに
 
 > 旧URL向けの案内です。本文は新しい場所へ移動しました。
 > This page preserves an older URL. Follow the link below for the document.
@@ -31,9 +31,9 @@
 
 [移動先の節へ / Open this section](guides/GETTING_STARTED.md#4-romを登録する)
 
-### 4.1 Pokecom GO形式のROMイメージ
+### 4.1 Pokecom SC61形式のROMイメージ
 
-[移動先の節へ / Open this section](guides/GETTING_STARTED.md#41-pokecom-go形式のromイメージ)
+[移動先の節へ / Open this section](guides/GETTING_STARTED.md#41-pokecom-sc61形式のromイメージ)
 
 ### 4.2 `.pgrom`パッケージ
 

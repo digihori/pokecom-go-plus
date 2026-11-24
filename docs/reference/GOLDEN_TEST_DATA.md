@@ -2,7 +2,7 @@
 
 ## 1. 目的
 
-Pokecom GO、PGP、将来の別実装で、同じROM、入力列、実行量に対する状態を比較する。
+Pokecom SC61、PGP、将来の別実装で、同じROM、入力列、実行量に対する状態を比較する。
 Golden DataはROMイメージやSave Stateではなく、再現手順と観測可能な期待値を記録する。
 
 ## 2. 配置と再配布
@@ -98,8 +98,8 @@ Actionは配列順に適用する。
 
 ## 6. 採取と承認
 
-1. Pokecom GOのrevisionとROM SHA-256を固定する。
-2. Pokecom GO側で同じActionを実行し、`local-data/golden/`へ採取する。
+1. Pokecom SC61のrevisionとROM SHA-256を固定する。
+2. Pokecom SC61側で同じActionを実行し、`local-data/golden/`へ採取する。
 3. PGPで再生し、差分をCPU、RAM、LCD、I/O単位で確認する。
 4. 差分の理由を修正または明文化する。PGPの出力で期待値を無条件に上書きしない。
 5. Gitへ入れる場合はROM由来データとライセンスをレビューし、`test-data/golden/`へ最小化する。
@@ -127,12 +127,12 @@ producer revisionは`PGP_GOLDEN_PRODUCER_REVISION`から必須入力とし、dir
 `-dirty`等を付ける。出力先は`local-data/golden/pc1245-pgp-boot-1000000.json`で、書込み後に
 同じROMとRunnerで全checkpointを再生検証する。
 
-この出力はPGPの現在値を固定する回帰用データであり、Pokecom GOとの一致を証明するGolden正解値ではない。
-Pokecom GOから採取したproducer=`pokecom-go`のケースと比較し、差分を評価してから期待値を昇格させる。
+この出力はPGPの現在値を固定する回帰用データであり、Pokecom SC61との一致を証明するGolden正解値ではない。
+Pokecom SC61から採取したproducer=`pokecom-go`のケースと比較し、差分を評価してから期待値を昇格させる。
 
-## 9. Pokecom GO既存Save Stateの取込み
+## 9. Pokecom SC61既存Save Stateの取込み
 
-Pokecom GOはActivityの`onPause()`で`Sc61860params`をGson JSONにし、default SharedPreferencesの
+Pokecom SC61はActivityの`onPause()`で`Sc61860params`をGson JSONにし、default SharedPreferencesの
 `PREF_SC`へ保存する。`PokecomGoStateImporter`はこの既存JSONを変更なしで読み、CPU、内部RAM、
 選択メモリ、PC-1245 LCDとRUN/PRO状態を`GoldenExpectation`へ正規化する。
 
@@ -172,7 +172,7 @@ instruction  cycleBefore  cycles  pc  opcode  pcAfter  q  ib  testPort
 ```
 
 PGP側は公開`EmulatorSession.step()`だけを使うtest utilityで採取し、通常のCore実行経路へtrace hookを
-追加しない。まずcycle checkpointを段階的に狭め、分岐直前の有限tailを比較する。Pokecom GO側は
+追加しない。まずcycle checkpointを段階的に狭め、分岐直前の有限tailを比較する。Pokecom SC61側は
 一時debug copyだけに同じ列の出力を追加し、参照リポジトリや製品動作へ常設しない。
 
 実ROMの100万cycle直前256命令は、`PGP_EXPORT_INSTRUCTION_TRACE=1`を明示したDesktop testだけが

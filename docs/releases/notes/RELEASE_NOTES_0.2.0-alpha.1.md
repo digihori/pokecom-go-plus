@@ -1,10 +1,10 @@
-# Pokecom GO Studio Technical Preview 0.2
+# Pokecom SC61 Studio Technical Preview 0.2
 
 文書区分：記載されたGitタグのリリースノート。現在の開発版の機能一覧ではありません。
 
 Git version: `v0.2.0-alpha.1`
 
-Technical Preview 0.2 expands Pokecom GO Studio from the initial PC-1245／1251-family preview into a
+Technical Preview 0.2 expands Pokecom SC61 Studio from the initial PC-1245／1251-family preview into a
 multi-machine development and analysis environment. This remains an early preview intended for testing and
 feedback, not a stable release.
 
@@ -48,7 +48,7 @@ ROM images are not included. Users must provide images lawfully obtained from th
   under Windows ARM64 x64 emulation; a complete native Windows x64 manual pass remains pending.
 - Linux x86_64: automated tests and DEB／tar.gz packaging run in GitHub Actions. Earlier preview packages were
   tested for install, launch, audio, and removal; a complete current UI pass remains pending.
-- Android／iOS: Pokecom GO Player has not been implemented yet.
+- Android／iOS: Pokecom SC61 Player has not been implemented yet.
 
 The desktop packages are unsigned and the macOS package is not notarized, so operating-system security
 warnings may be shown. Each platform includes checksums plus the project license and third-party notices.
@@ -77,5 +77,5 @@ non-redistributable data.
 
 ## Licensing and provenance
 
-Pokecom GO Plus is released under the MIT License. Third-party notices are recorded in
+Pokecom SC61 Plus is released under the MIT License. Third-party notices are recorded in
 `THIRD_PARTY_NOTICES.md`, and implementation provenance is recorded in `docs/development/PORTING_NOTES.md`.

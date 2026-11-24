@@ -104,7 +104,7 @@ DMG専用ディスクアイコンの生成・組込みとbuild／core:desktopTes
 
 ## 利用ガイドの追加確認（2026-10-25）
 
-- [x] ガイド前半に、旧Pokecom GOのバイナリー形式からDMP／Intel HEXへの変更を説明する。
+- [x] ガイド前半に、旧Pokecom SC61のバイナリー形式からDMP／Intel HEXへの変更を説明する。
   アドレス情報・旧ファイルの移行方法・StudioとPlayerの対応差を整理し、詳細な書式と操作へ誘導する。
   詳細：[M7の文書残タスク](../../development/planning/FORMAL_RELEASE_TASKS.md#追加の気づき文書の残タスク2026-10-25)。
 

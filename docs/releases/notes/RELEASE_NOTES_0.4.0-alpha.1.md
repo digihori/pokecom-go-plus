@@ -1,4 +1,4 @@
-# Pokecom GO Technical Preview 0.4
+# Pokecom SC61 Technical Preview 0.4
 
 文書区分：記載されたGitタグのリリースノート。現在の開発版の機能一覧ではありません。
 
@@ -87,4 +87,4 @@ claimed as newly tested by this release. Earlier previews received manual checks
 
 Report defects through GitHub Issues with product/version, machine, host OS/Android version, file format and
 reproduction steps. Do not upload ROMs, credentials or private/non-redistributable data.
-Pokecom GO Plus is MIT-licensed; third-party notices and implementation provenance are included in the repository.
+Pokecom SC61 Plus is MIT-licensed; third-party notices and implementation provenance are included in the repository.

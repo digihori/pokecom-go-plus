@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-Pokecom GO Plus is distributed under the MIT License in `LICENSE`.
+Pokecom SC61 Plus is distributed under the MIT License in `LICENSE`.
 It also uses or refers to the following third-party software.
 
 ## PC-1251 Emulator
@@ -66,12 +66,12 @@ Upstream projects: [LWJGL](https://github.com/LWJGL/lwjgl3),
 [SDL](https://github.com/libsdl-org/SDL), [libffi](https://github.com/libffi/libffi).
 The gamepad integration uses published APIs; no emulator behavior was ported from these projects.
 
-## Pokecom GO
+## Pokecom SC61
 
-Pokecom GO is a reference implementation by the same copyright holder as Pokecom GO Plus.
+Pokecom SC61 is a reference implementation by the same copyright holder as Pokecom SC61 Plus.
 Its CPU, machine, keyboard, display, and BASIC behavior was restructured for the PGP architecture.
 Per-feature source revisions and design decisions are recorded in `docs/development/PORTING_NOTES.md`.
-Pokecom GO is not a runtime or build dependency of this repository.
+Pokecom SC61 is not a runtime or build dependency of this repository.
 
 ## pcwav
 

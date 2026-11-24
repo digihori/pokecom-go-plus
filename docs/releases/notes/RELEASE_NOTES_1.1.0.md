@@ -1,4 +1,4 @@
-# Pokecom GO Studio / Android Player 1.1.0
+# Pokecom SC61 Studio / Android Player 1.1.0
 
 リリースノート（2026-10-31）。タグ：`v1.1.0`。比較対象：`v1.0.0`。
 機能・受入れ記録の基準はmainの`d493f16`。最終配布候補のcommitと検証結果は

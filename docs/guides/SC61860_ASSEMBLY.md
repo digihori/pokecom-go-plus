@@ -1,6 +1,6 @@
 # SC61860 Assembler
 
-Pokecom GO Studioには、SC61860向けの2パスAssemblerが組み込まれている。
+Pokecom SC61 Studioには、SC61860向けの2パスAssemblerが組み込まれている。
 
 Settings → Assemblerで、内蔵の代わりに外部SC61を選択できる。
 設定はStudio全体で共通。[SC61外部アセンブラの利用手順](EXTERNAL_ASSEMBLER.md)を参照。

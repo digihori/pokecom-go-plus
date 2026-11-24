@@ -1,11 +1,11 @@
-# Pokecom GO application icon
+# Pokecom SC61 application icon
 
 Studio (desktop) uses the soft silver icon. Player (Android/iOS) uses a higher-contrast
 slate variant with a yellow upper-left key and red upper-right key.
 The Player RGB master is `androidApp/icons/pokecom-go-player.png` (repository-relative).
 `pokecom-go.png` is the 1024×1024 RGBA master; keep it when regenerating platform sizes.
 The illustration was generated with the built-in ImageGen tool and selected by the
-project owner. It depicts a nearly square light silver pocket computer with muted blue trim, a two-line “Pokecom GO”
+project owner. It depicts a nearly square light silver pocket computer with muted blue trim, a two-line “Pokecom SC61”
 LCD, and two rows of matching blank keys, with a transparent exterior.
 
 - Desktop packaging uses the PNG (Linux), multi-size ICO (Windows), and ICNS (macOS).

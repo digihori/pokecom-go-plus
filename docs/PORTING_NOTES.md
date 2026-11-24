@@ -271,13 +271,13 @@
 
 [移動先の節へ / Open this section](development/PORTING_NOTES.md#pgp-golden-snapshotエクスポーター)
 
-### Pokecom GO Save State Importer
+### Pokecom SC61 Save State Importer
 
-[移動先の節へ / Open this section](development/PORTING_NOTES.md#pokecom-go-save-state-importer)
+[移動先の節へ / Open this section](development/PORTING_NOTES.md#pokecom-sc61-save-state-importer)
 
-### Pokecom GO SharedPreferences XMLブリッジ
+### Pokecom SC61 SharedPreferences XMLブリッジ
 
-[移動先の節へ / Open this section](development/PORTING_NOTES.md#pokecom-go-sharedpreferences-xmlブリッジ)
+[移動先の節へ / Open this section](development/PORTING_NOTES.md#pokecom-sc61-sharedpreferences-xmlブリッジ)
 
 ### PC-1245固定サイクル実機比較
 

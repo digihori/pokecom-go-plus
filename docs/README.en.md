@@ -35,7 +35,7 @@ For a source build, see [Building](reference/BUILDING.md). [About Studio](guides
 
 ## Player
 
-The Android app is Pokecom SC61 Player. The iPhone app is Pokecom GO Player.
+The Android app is Pokecom SC61 Player. The iPhone app is Pokecom SC61 Player.
 
 - [Android help](guides/PLAYER_HELP.md) and [BASIC/DMP file operations](guides/PLAYER_PROGRAM_IO.md).
 - [iPhone help](guides/PLAYER_HELP_IOS.md): machines, ROMs, Files, audio and external input.

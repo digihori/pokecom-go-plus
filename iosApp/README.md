@@ -256,7 +256,7 @@ open "$(xcrun simctl get_app_container <device-uuid> com.digihori.pgp.player.ios
 
 `<device-uuid>` は一覧に出たUUIDへ置き換える。ROM選択画面で「ブラウズ」→「このiPhone内」→Playerのフォルダを選ぶ。
 コピーだけでは登録にならないので、アプリの「ROMを選択」から選ぶ。
-通常はFilesアプリの「このiPhone内 → Pokecom GO Player」からも見える。
+通常はFilesアプリの「このiPhone内 → Pokecom SC61 Player」からも見える。
 Simulatorへのドラッグ&ドロップはファイル種類/OSによって扱いが異なるため、
 任意のROMが保存されることを前提にせず、上記Documentsコピーを確実な手順とする。
 アプリをアンインストール/仮想端末を消去すると登録ROMも失われる。元ROMは別途保管する。

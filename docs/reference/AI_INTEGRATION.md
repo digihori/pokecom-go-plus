@@ -1,4 +1,4 @@
-# Pokecom GO Studio AI Integration
+# Pokecom SC61 Studio AI Integration
 
 **ステータス:** 作業順8〜12に加え、同梱stdioブリッジ、PC-1245知識APIと解析用取り込みを実装。Project／Source作成提案を追加。上限付き実行・LCD取得を追加。公開MCP toolは24件
 **更新日:** 2026-11-01
@@ -31,7 +31,7 @@ PauseまでをStudio承認付きで接続した。Source差分／BuildとLoad／
 
 ## 1. 目的
 
-Pokecom GO Studioを、AIがポケコンプログラムの作成、解析、デバッグを支援できる開発環境にする。
+Pokecom SC61 Studioを、AIがポケコンプログラムの作成、解析、デバッグを支援できる開発環境にする。
 Studioへ特定のチャットUIやAIモデルを埋め込むことから始めるのではなく、Studioが保持するプロジェクト、
 Assembler、Debugger、実行中Sessionを、安全な構造化ツールとして外部AIへ公開する。
 
@@ -53,7 +53,7 @@ AI Client
 ├─ モデル選択
 └─ 会話と承認UI
         ↓ localhost MCP
-Pokecom GO Studio
+Pokecom SC61 Studio
 ├─ Project／Build／Diagnostics
 ├─ Assembly／Disassembly／Symbols
 ├─ Debug Snapshot／Trace／Memory

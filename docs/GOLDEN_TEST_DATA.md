@@ -39,9 +39,9 @@
 
 [移動先の節へ / Open this section](reference/GOLDEN_TEST_DATA.md#8-pgp-snapshotの採取)
 
-## 9. Pokecom GO既存Save Stateの取込み
+## 9. Pokecom SC61既存Save Stateの取込み
 
-[移動先の節へ / Open this section](reference/GOLDEN_TEST_DATA.md#9-pokecom-go既存save-stateの取込み)
+[移動先の節へ / Open this section](reference/GOLDEN_TEST_DATA.md#9-pokecom-sc61既存save-stateの取込み)
 
 ## 10. 命令トレースによる残差調査
 

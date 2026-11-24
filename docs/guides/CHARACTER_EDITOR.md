@@ -1,6 +1,6 @@
 # Character Editor
 
-Pokecom GO StudioのCharacter Editorは、エミュレーター本体から独立したドットパターン作成ツールである。
+Pokecom SC61 StudioのCharacter Editorは、エミュレーター本体から独立したドットパターン作成ツールである。
 Studioの`Tools > Character Editor`から開き、ROMや実行中のEmulator Sessionを必要としない。
 
 ## 現在の操作

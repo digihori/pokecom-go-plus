@@ -1,4 +1,4 @@
-# Pokecom GO Studio Debugger
+# Pokecom SC61 Studio Debugger
 
 **ステータス:** 基本機能・ソース連携・条件付きBreakpoint・Step Over／Out・設定保存に加え、メモリ検索・RAMのbyte編集・ログポイント・履歴／Trace出力・bank指定Breakpoint・CASE経路のStep Over／Outを実装済み
 **更新日:** 2026-10-30
@@ -13,7 +13,7 @@
 
 ## 1. 目的
 
-Pokecom GO Studio Debuggerは、SC61860プログラムと機種固有のメモリ動作を観測し、停止位置、CPU状態、
+Pokecom SC61 Studio Debuggerは、SC61860プログラムと機種固有のメモリ動作を観測し、停止位置、CPU状態、
 メモリ変化、I/Oアクセス、ROM bankを照合するための開発機能である。
 
 DebuggerはCPUやMemory Busの可変内部状態をUIへ直接公開しない。CoreのSnapshot、メモリアクセスイベント、

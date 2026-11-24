@@ -1,11 +1,11 @@
-# Pokecom GO Studio Technical Preview 0.1
+# Pokecom SC61 Studio Technical Preview 0.1
 
 文書区分：記載されたGitタグのリリースノート。現在の開発版の機能一覧ではありません。
 
 Git version: `v0.1.0-alpha.1`
 
-Pokecom GO Studio Technical Preview 0.1 is the first preview of the desktop development environment
-in the Pokecom GO Plus project. It is intended for early testing and feedback, not as a stable release.
+Pokecom SC61 Studio Technical Preview 0.1 is the first preview of the desktop development environment
+in the Pokecom SC61 Plus project. It is intended for early testing and feedback, not as a stable release.
 
 ## Highlights
 
@@ -32,7 +32,7 @@ in the Pokecom GO Plus project. It is intended for early testing and feedback, n
 - Linux x86_64: the extracted archive, audio playback, and the DEB install, launch, and uninstall flow have
   been tested manually. ARM64 packages are not produced yet, and the DEB currently appears in the Other
   menu category.
-- Android／iOS: Pokecom GO Player has not been implemented yet.
+- Android／iOS: Pokecom SC61 Player has not been implemented yet.
 
 This preview provides source code and desktop packages built for macOS, Windows, and Linux.
 The packages are not signed with a platform distribution identity, and the macOS package is not notarized.
@@ -41,7 +41,7 @@ Building from source requires JDK 21. See the repository `README.md` for the cur
 
 ## Preview
 
-![Pokecom GO Studio running PC-1245 with its software keyboard](../../images/pokecom-go-studio-keyboard.png)
+![Pokecom SC61 Studio running PC-1245 with its software keyboard](../../images/pokecom-go-studio-keyboard.png)
 
 ## ROM images
 
@@ -73,5 +73,5 @@ credentials, personal information, or other non-redistributable data.
 
 ## Licensing and provenance
 
-Pokecom GO Plus is released under the MIT License. Third-party notices are recorded in
+Pokecom SC61 Plus is released under the MIT License. Third-party notices are recorded in
 `THIRD_PARTY_NOTICES.md`, and implementation provenance is recorded in `docs/development/PORTING_NOTES.md`.

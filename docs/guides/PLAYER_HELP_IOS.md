@@ -1,6 +1,6 @@
-# Pokecom GO Playerとは
+# Pokecom SC61 Playerとは
 
-Pokecom GO Playerは、Pokecom GO Studioのエミュレータ実行部分を切り出した、ポケットコンピュータの操作とプログラム実行を楽しむためのアプリです。
+Pokecom SC61 Playerは、Pokecom SC61 Studioのエミュレータ実行部分を切り出した、ポケットコンピュータの操作とプログラム実行を楽しむためのアプリです。
 
 iPhone版はPC-1245、PC-1250／1251／1255、PC-1260／1261、PC-1350、PC-1401／1402、PC-1450、PC-1360、PC-1460、PC-1470U、PC-1360Kに対応しています。ROMは同梱していません。ご自身で適法に入手したROMを登録してください。最低iOS 16、iPhone専用です。
 

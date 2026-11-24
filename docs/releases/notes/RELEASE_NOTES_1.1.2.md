@@ -1,4 +1,4 @@
-# Pokecom GO Player 1.1.2
+# Pokecom SC61 Player 1.1.2
 
 2026-11-06作成。状態：リリース準備用原稿（未公開）。対象：Android／iOS Player。
 変更内容は公開済み1.1.0以降のmain、`4679f00`までを基準とします。

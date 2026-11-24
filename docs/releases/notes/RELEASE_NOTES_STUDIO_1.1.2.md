@@ -1,4 +1,4 @@
-# Pokecom GO Studio 1.1.2
+# Pokecom SC61 Studio 1.1.2
 
 Changes since Studio 1.1.0 / Studio 1.1.0からの変更。
 

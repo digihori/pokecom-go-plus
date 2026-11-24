@@ -1,4 +1,4 @@
-# Pokecom GO Player 1.2.0
+# Pokecom SC61 Player 1.2.0
 
 ## 日本語
 

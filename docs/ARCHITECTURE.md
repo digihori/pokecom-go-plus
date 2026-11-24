@@ -1,4 +1,4 @@
-# Pokecom GO Plus Architecture
+# Pokecom SC61 Plus Architecture
 
 > 旧URL向けの案内です。本文は新しい場所へ移動しました。
 > This page preserves an older URL. Follow the link below for the document.
@@ -31,9 +31,9 @@
 
 [移動先の節へ / Open this section](reference/ARCHITECTURE.md#4-システム全体構成)
 
-## 5. Pokecom GOからの資産継承方針
+## 5. Pokecom SC61からの資産継承方針
 
-[移動先の節へ / Open this section](reference/ARCHITECTURE.md#5-pokecom-goからの資産継承方針)
+[移動先の節へ / Open this section](reference/ARCHITECTURE.md#5-pokecom-sc61からの資産継承方針)
 
 ### 5.1 コードまたはアルゴリズムを流用するもの
 
@@ -139,17 +139,17 @@
 
 [移動先の節へ / Open this section](reference/ARCHITECTURE.md#15-初期プロジェクト構成)
 
-## 16. Pokecom GO Studio
+## 16. Pokecom SC61 Studio
 
-[移動先の節へ / Open this section](reference/ARCHITECTURE.md#16-pokecom-go-studio)
+[移動先の節へ / Open this section](reference/ARCHITECTURE.md#16-pokecom-sc61-studio)
 
 ### 16.1 Studio ROM Library
 
 [移動先の節へ / Open this section](reference/ARCHITECTURE.md#161-studio-rom-library)
 
-### 16.2 Pokecom GO Player
+### 16.2 Pokecom SC61 Player
 
-[移動先の節へ / Open this section](reference/ARCHITECTURE.md#162-pokecom-go-player)
+[移動先の節へ / Open this section](reference/ARCHITECTURE.md#162-pokecom-sc61-player)
 
 ## 17. テスト戦略
 
@@ -175,9 +175,9 @@
 
 [移動先の節へ / Open this section](reference/ARCHITECTURE.md#milestone-1-headless-pc-1245)
 
-### Milestone 2: macOS最小Pokecom GO Studio
+### Milestone 2: macOS最小Pokecom SC61 Studio
 
-[移動先の節へ / Open this section](reference/ARCHITECTURE.md#milestone-2-macos最小pokecom-go-studio)
+[移動先の節へ / Open this section](reference/ARCHITECTURE.md#milestone-2-macos最小pokecom-sc61-studio)
 
 ### Milestone 3: BASICクロス開発
 

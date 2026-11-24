@@ -1,6 +1,6 @@
-# Pokecom GO Studio projects
+# Pokecom SC61 Studio projects
 
-Pokecom GO Studioは内蔵テキストエディタを持たず、任意の外部エディタで管理するソースを
+Pokecom SC61 Studioは内蔵テキストエディタを持たず、任意の外部エディタで管理するソースを
 プロジェクトとして読み込む。現在のformat version 1は既定のBuild機種と複数の入力ソースを記録する。Project自体は実行機種を制限しない。
 
 本書はプロジェクト管理の基本仕様を定義する。実装済みの範囲と今後実装する範囲は

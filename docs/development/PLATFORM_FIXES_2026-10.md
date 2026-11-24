@@ -46,7 +46,7 @@ Windowsで次のread-only確認ができる。
 & .\scripts\inspect-msi.ps1 -Path .\desktopApp\build\compose\binaries\main\msi\PokecomGOStudio-1.3.1.msi -VerifyCurrent
 ```
 
-設定はJava Preferencesのユーザー領域、ROM Libraryは `%APPDATA%\Pokecom GO Studio\rom-library`。
+設定はJava Preferencesのユーザー領域、ROM Libraryは `%APPDATA%\Pokecom SC61 Studio\rom-library`。
 インストール先配下へ保存していない。保存先や設定keyは今回変更していないが、保持の実測はWindowsで行う。
 
 Windows受入れ（未実施・次回テクニカルプレビュー時に実施）:

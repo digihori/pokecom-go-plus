@@ -1,4 +1,4 @@
-# Pokecom GO Studio 1.2.1
+# Pokecom SC61 Studio 1.2.1
 
 ## 日本語
 

@@ -1,4 +1,4 @@
-# Pokecom GO Plus
+# Pokecom SC61 Plus
 
 [English](README.md) | [日本語](README.ja.md)
 
@@ -6,7 +6,7 @@
 
 > **[Studio 1.2.2](https://github.com/digihori/pokecom-go-plus/releases/latest)** を公開しました。macOS版は署名・公証済みです。
 
-Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向けプログラムを
+Pokecom SC61 Plus（PGP）は、レトロなポケットコンピュータ向けプログラムを
 現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す
 マルチプラットフォーム開発環境です。
 
@@ -15,11 +15,11 @@ Studioでは、localhost MCP経由で外部AIから機種仕様・開発状態�
 
 PGPは次の2製品と共有Emulator Coreで構成します。
 
-- **Pokecom GO Studio** — macOS／Windows／Linux向けのポケコン開発環境
-- **Pokecom SC61 Player**（Android）／**Pokecom GO Player**（iOS）— 実行専用エミュレータ
+- **Pokecom SC61 Studio** — macOS／Windows／Linux向けのポケコン開発環境
+- **Pokecom SC61 Player** — Android／iOS向けの実行専用エミュレータ
 - **PGP Emulator Core** — StudioとPlayerが共有するKotlin Multiplatform Core
 
-「Pokecom GO Plus」と「PGP」は、このプロジェクト全体を表す開発コードネームとして使用します。
+「Pokecom SC61 Plus」と「PGP」は、このプロジェクト全体を表す開発コードネームとして使用します。
 
 Android Playerの初回設定は[日本語](https://digihori.github.io/pokecom-go-plus/player/ja.html)／[English](https://digihori.github.io/pokecom-go-plus/player/en.html)の公開用ガイドを用意しています（[閲覧・公開方法](docs/player/README.md)）。
 
@@ -91,20 +91,20 @@ Assembly WorkspaceのAssembleは結果確認、Buildはファイル生成、Buil
 
 ## プロジェクトの位置付け
 
-- PGPは既存Androidアプリ「Pokecom GO」の新バージョンではありません。
-- Pokecom GOはAndroidアプリとして独立して維持されます。
-- PGPはPokecom GOからCPU、機種定義、BASIC変換等の技術を分析・再設計して利用します。
+- PGPは既存Androidアプリ「Pokecom SC61」の新バージョンではありません。
+- Pokecom SC61はAndroidアプリとして独立して維持されます。
+- PGPはPokecom SC61からCPU、機種定義、BASIC変換等の技術を分析・再設計して利用します。
 - ROMイメージは本リポジトリおよび配布物に含めません。
 
 ## 対象プラットフォーム
 
-初期開発はPokecom GO Studioを優先します。
+初期開発はPokecom SC61 Studioを優先します。
 
 - macOS
 - Windows
 - Linux
 
-実行機能へ特化したAndroid版Pokecom SC61 PlayerとiPhone版Pokecom GO Playerは、ともに上記14モデルに対応しています。
+実行機能へ特化したPokecom SC61 Playerは、Android／iPhoneとも上記14モデルに対応しています。
 機種対応の完了と、端末・OS・ROM版別の確認、署名付き配布は区別して管理します。
 Playerにはデバッガ、アセンブラ、逆アセンブラなどの開発機能を搭載しません。
 
@@ -116,9 +116,9 @@ pokecom-go-plus/
 ├── hostInput/     ゲームパッド割当・入力源別の押下管理
 ├── controllerUi/  Studio／Android共通のコントローラー設定画面
 ├── playerShared/  Android／iOS Playerで共有する実行・表示モデル
-├── desktopApp/    Pokecom GO Studio（現在のCompose Desktop実装）
+├── desktopApp/    Pokecom SC61 Studio（現在のCompose Desktop実装）
 ├── androidApp/    Pokecom SC61 Player（14モデル対応Android）
-├── iosApp/        Pokecom GO Player（複数機種対応iPhone host）
+├── iosApp/        Pokecom SC61 Player（複数機種対応iPhone host）
 ├── docs/          利用ガイド・技術資料・開発記録・リリース資料
 ├── local-data/    ローカルROM等（Git管理外）
 └── test-data/     再配布可能なテストデータ
@@ -250,7 +250,7 @@ PC-1261／1350／1401が32 KiB、PC-1360／1360Kが128 KiB（bank 0〜7の順に
 元のROMと生成物はリポジトリへ追加せず、`local-data/`などGit管理外の場所に保存する。
 詳しい操作は[導入ガイドのROMセット作成手順](docs/guides/GETTING_STARTED.md#43-romダンプからpgromを作る)を参照。
 
-既存のPokecom GO用32/64KiBイメージは、ROM Libraryから互換入力として直接登録できる。
+既存のPokecom SC61用32/64KiBイメージは、ROM Libraryから互換入力として直接登録できる。
 
 ### ビルドと自動テスト
 
@@ -373,7 +373,7 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 
 本プロジェクトは[MIT License](LICENSE)の下で公開します。
 
-Pokecom GO等から移植するコード・仕様・画像については、由来と権利を確認し、
+Pokecom SC61等から移植するコード・仕様・画像については、由来と権利を確認し、
 [PORTING_NOTES.md](docs/development/PORTING_NOTES.md)へ記録します。
 
 WAVのBASIC変換は個別機種で制限せず、形式単位の上位仕様を使用する。Decodeは信号とヘッダーから自動判別し、形式・機種指定は不要。

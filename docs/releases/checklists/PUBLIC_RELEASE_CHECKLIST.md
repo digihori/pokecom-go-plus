@@ -3,8 +3,8 @@
 文書区分：対象リリース当時の公開作業記録（2026-10-22整理）。
 チェック状態・未確認項目は当時の記録です。次回プレリリースの公開判定には別のチェックリストを用意します。
 
-この文書は、Pokecom GO PlusリポジトリをPrivateからPublicへ変更し、
-**Pokecom GO Studio Technical Preview 0.1**として公開するための確認項目を管理する。
+この文書は、Pokecom SC61 PlusリポジトリをPrivateからPublicへ変更し、
+**Pokecom SC61 Studio Technical Preview 0.1**として公開するための確認項目を管理する。
 Technical Previewは完成版ではなく、PC-1245／1251ファミリーを使った基本動作を試せる開発途中版とする。
 
 ## 公開の必須条件
@@ -25,7 +25,7 @@ Technical Previewは完成版ではなく、PC-1245／1251ファミリーを使�
 - [x] 新規clone環境でREADMEのビルド手順が成功することを確認する
 - [x] ROMを同梱しないことと、利用者自身が正当に入手する必要があることを明記する
 - [x] `.pgrom`作成手順を、画面遷移とエラー例を含む利用者向けガイドにする
-- [x] Pokecom GO従来形式ROMからの読み込み方法をガイドへ明記する
+- [x] Pokecom SC61従来形式ROMからの読み込み方法をガイドへ明記する
 - [x] Windows／Linuxで必要な追加パッケージがあればREADMEへ記載する
 - [x] Technical Previewの画面例をREADMEまたはRelease Notesへ掲載する
 
@@ -40,12 +40,12 @@ READMEへ注意事項を記載した。ROMを使うGUI操作は最終スモー�
 ### 権利と由来
 
 - [x] リポジトリのライセンスを明記する
-- [x] Pokecom GOから移植・再設計したコードと仕様の由来を最終確認する
+- [x] Pokecom SC61から移植・再設計したコードと仕様の由来を最終確認する
 - [x] 画像、フォント、音声、テストデータに再配布できない資産が含まれていないことを確認する
 - [x] 依存ライブラリのライセンスと配布条件を確認する
 - [x] `PORTING_NOTES.md`の由来記録を確認する
 
-2026-10-05の監査では、Pokecom GOとpcwavのGit履歴上の作者がPGPと同じ権利者の識別情報だけであること、
+2026-10-05の監査では、Pokecom SC61とpcwavのGit履歴上の作者がPGPと同じ権利者の識別情報だけであること、
 tracked assetが再配布可能な合成JSONとGradle Wrapperに限られることを確認した。
 PC-1251 Emulator由来の設計はMIT Licenseの参照元revisionと著作権表示を記録した。
 Desktop runtimeのGradle metadataで確認した依存componentはApache License 2.0であり、
@@ -81,7 +81,7 @@ ROM、秘密情報、大容量バイナリは検出されなかった。最大bl
 - [x] 公開候補コミットで全CIが成功する
 - [x] 上記の必須確認後にリポジトリをPublicへ変更する
 
-利用者向け名称は「Pokecom GO Studio Technical Preview 0.1」、Gradle project versionとGit tagは
+利用者向け名称は「Pokecom SC61 Studio Technical Preview 0.1」、Gradle project versionとGit tagは
 `0.1.0-alpha.1`／`v0.1.0-alpha.1`とする。DMG／MSI／Debの`packageVersion`はjpackageの制約と
 macOSがmajor version 0を拒否する点に合わせ、内部的に数値の`1.0.0`を使用する。
 tagは公開候補の最終テストとCI成功後に作成する。
@@ -90,7 +90,7 @@ OSのセキュリティ警告が表示される可能性を明記する。macOS�
 Developer ID署名の代わりにはならない。
 
 2026-10-05にTemurin JDK 21の`jpackage`を使用し、arm64 macOS向けの展開型`.app`とDMGを生成した。
-DMGを読み取り専用でマウントし、Pokecom GO Studioアプリ、PGPのMIT License、第三者通知を確認した。
+DMGを読み取り専用でマウントし、Pokecom SC61 Studioアプリ、PGPのMIT License、第三者通知を確認した。
 アプリは起動後に即時終了せず、DMGのSHA-256生成も確認済みである。
 
 同日にGitHub Actionsの配布workflowを`main`から手動実行し、macOS／Windows／Linuxの3ジョブが
@@ -111,7 +111,7 @@ Linux DEBのメニュー項目はカテゴリ未指定のため「その他」�
 
 次の項目はプロジェクトの重要な目標だが、Technical Preview 0.1公開の必須条件にはしない。
 
-- Pokecom GO Player（Android／iOS）の実装
+- Pokecom SC61 Player（Android／iOS）の実装
 - PC-126x、PC-13xx、PC-14xx系への対応
 - Debugger、Assembler、Disassembler、Character Editor
 - Intel HEX、Raw Binary import、WAVの入出力

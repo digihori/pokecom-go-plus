@@ -47,17 +47,17 @@
 
 [移動先の節へ / Open this section](development/planning/ROADMAP.md#phase-1-headless-pc-1245)
 
-## Phase 2: macOS最小Pokecom GO Studio
+## Phase 2: macOS最小Pokecom SC61 Studio
 
-[移動先の節へ / Open this section](development/planning/ROADMAP.md#phase-2-macos最小pokecom-go-studio)
+[移動先の節へ / Open this section](development/planning/ROADMAP.md#phase-2-macos最小pokecom-sc61-studio)
 
 ## Phase 3: BASICクロス開発
 
 [移動先の節へ / Open this section](development/planning/ROADMAP.md#phase-3-basicクロス開発)
 
-## Phase 4: Pokecom GO Studio対応拡大
+## Phase 4: Pokecom SC61 Studio対応拡大
 
-[移動先の節へ / Open this section](development/planning/ROADMAP.md#phase-4-pokecom-go-studio対応拡大)
+[移動先の節へ / Open this section](development/planning/ROADMAP.md#phase-4-pokecom-sc61-studio対応拡大)
 
 ### ゲームデモ用のキー操作記録・再生（後続）
 
@@ -71,9 +71,9 @@
 
 [移動先の節へ / Open this section](development/planning/ROADMAP.md#phase-6-機種追加)
 
-## Phase 7: Pokecom GO Player
+## Phase 7: Pokecom SC61 Player
 
-[移動先の節へ / Open this section](development/planning/ROADMAP.md#phase-7-pokecom-go-player)
+[移動先の節へ / Open this section](development/planning/ROADMAP.md#phase-7-pokecom-sc61-player)
 
 ## 2026-10-21: iOS複数機種対応の統合
 

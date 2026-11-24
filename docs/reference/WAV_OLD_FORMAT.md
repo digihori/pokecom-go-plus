@@ -2,7 +2,7 @@
 
 ## 1. 文書の位置付け
 
-この文書は、Pokecom GO Studioへ実装しているOLD系WAV Encoder / Decoderの仕様を定める。
+この文書は、Pokecom SC61 Studioへ実装しているOLD系WAV Encoder / Decoderの仕様を定める。
 対象は、OLD BASICとOLD Binaryのファイル転送データ、およびそれを格納するPCM WAVである。
 PGPの機種分類ではPC-1245、PC-1250、PC-1251、PC-1255がOLD系に該当する。ただし、全機種の
 実機WAV互換性をこの文書だけで保証するものではない。
@@ -429,5 +429,5 @@ PGPではエラー位置、期待値、実測値、処理段階を構造化し�
 実装済みの扱い: Binary reserved metadataはwarning付きで保持し、BASIC終端後/Binary宣言長後のrawは
 余剰data warningと消費byte数で報告する。これらは今後の未決事項とは分ける。
 
-この調査が必要になった場合だけ、実機fixtureまたは追加資料を参照する。Pokecom GOおよび
+この調査が必要になった場合だけ、実機fixtureまたは追加資料を参照する。Pokecom SC61および
 PC-1251 Emulatorを先回りして参照しない。

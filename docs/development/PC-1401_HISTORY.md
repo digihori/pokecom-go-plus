@@ -5,7 +5,7 @@
 
 ## 7. PC-1402を容量違いだけと扱わない理由
 
-| Item | Pokecom GO 1401 | Pokecom GO 1402 |
+| Item | Pokecom SC61 1401 | Pokecom SC61 1402 |
 |---|---|---|
 | CLOAD hook | `9e25` | `9e0c` |
 | CSAVE hook | `9d20` | `9d00` |
@@ -14,7 +14,7 @@
 | RAM write guard | `2000..7fff` | 同じ広い窓 |
 
 MAMEは`rom_pc1402 = rom_pc1401`とし、RAM mapだけを変える。
-Pokecom GOの別ROMファイル / hook差と不一致なので、機種差・ROM版差・参照実装の誤りを
+Pokecom SC61の別ROMファイル / hook差と不一致なので、機種差・ROM版差・参照実装の誤りを
 今回だけでは判定できない。1402を1401のRAM設定として公開せず、追加時には独立MachineId、
 実ROM版、NEW/MEM、program開始位置、管理pointer、cold/warm resetを個別に検証する。
 将来共通化するとしてもRAM decodeとROM identityを別の属性にする。
@@ -80,7 +80,7 @@ ROM、ROMから採取したtrace / RAM snapshot / screenshot / golden dataはcom
   空program、末尾FF、pointer範囲、容量超過時の部分書込み防止、load→LIST→extract。
 - 実ROM: cold boot→CAL、CAL/BASIC→RUN/PRO、四則と関数、短いBASIC RUN、
   ROMキー入力と直接loadの一致、NEW/MEM、BEEP / WAIT / TESTの時間、reset時のprogram保持。
-  Pokecom GOとは同じROM・同じキーイベント・同じ命令境界で照合し、違いを実機不正と即断しない。
+  Pokecom SC61とは同じROM・同じキーイベント・同じ命令境界で照合し、違いを実機不正と即断しない。
 - UI: Studio standalone / Project、ROM登録2形式、外部編集→reload、Player export / launch、
   mode / symbols / 関数キー、既存機種選択とgamepad回帰。
 

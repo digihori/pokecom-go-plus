@@ -3,7 +3,7 @@
 文書区分：対象リリース当時の公開作業記録（2026-10-22整理）。
 チェック状態・未確認項目は当時の記録です。次回プレリリースの公開判定には別のチェックリストを用意します。
 
-Release name: **Pokecom GO Studio Technical Preview 0.2**\
+Release name: **Pokecom SC61 Studio Technical Preview 0.2**\
 Project version: `0.2.0-alpha.1`\
 Git tag: `v0.2.0-alpha.1`\
 Native package version: `1.1.0`

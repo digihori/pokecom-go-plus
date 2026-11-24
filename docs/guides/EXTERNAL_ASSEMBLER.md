@@ -1,6 +1,6 @@
 # 外部アセンブラを使う
 
-Pokecom GO Studioは、内蔵アセンブラに加えてSC61、YASM61860（yasm.pl）、
+Pokecom SC61 Studioは、内蔵アセンブラに加えてSC61、YASM61860（yasm.pl）、
 その他のDMP出力ツールを選択できる。選択はStudio全体で保存し、Workspace、Build、
 Build & Load、Quick Assembleに共通する。外部アセンブラとPerl等は利用者が別途用意し、同梱しない。
 

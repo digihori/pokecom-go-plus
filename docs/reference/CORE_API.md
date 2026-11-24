@@ -19,8 +19,8 @@ MachineMemoryLayout.ramModeが実際の構成を表す。
 
 ## 1. 目的
 
-この文書は、PGP Emulator CoreとPokecom GO Studio（macOS／Windows／Linux）、
-Pokecom GO Player（Android／iOS）の境界を定義する。
+この文書は、PGP Emulator CoreとPokecom SC61 Studio（macOS／Windows／Linux）、
+Pokecom SC61 Player（Android／iOS）の境界を定義する。
 CPU命令や機種固有回路の内部設計ではなく、アプリケーションがCoreを安全に操作するための
 公開契約を対象とする。
 
@@ -253,7 +253,7 @@ Snapshot取得は状態を進めず、副作用を持たない。`revision`は�
 
 ## 8. コマンドフック
 
-Pokecom GOの`cmdHook()`にある特定ROMアドレスの検出と、CLOAD、CSAVE、BEEPの直接実行は、
+Pokecom SC61の`cmdHook()`にある特定ROMアドレスの検出と、CLOAD、CSAVE、BEEPの直接実行は、
 初期Coreへ移植しない。CPUの通常実行を迂回するため、エミュレーションCoreの成立確認には
 不要であり、機種・ROMバージョンへの依存も増やすためである。
 

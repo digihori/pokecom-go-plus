@@ -9,7 +9,7 @@
 
 PGPでは、ROMの物理的・論理的な構成と、CPUから見えるアドレス空間を分離する。
 
-Pokecom GOは、非バンク機ではROMと未使用領域を含む64KiBイメージ、バンク機では
+Pokecom SC61は、非バンク機ではROMと未使用領域を含む64KiBイメージ、バンク機では
 内部ROMと連結した外部ROMバンクの2ファイルを使用している。PGPはこれらを引き続き
 Importerで読み込めるようにし、内部ではROMを意味単位のコンポーネントへ正規化する。
 
@@ -29,7 +29,7 @@ RomSet（正規モデル）
 4. パッケージ内のファイル名ではなく、manifestのcomponent IDで識別する。
 5. 各コンポーネントのサイズとSHA-256を検証する。
 6. ROMはリポジトリ、CI、PGP配布物へ含めない。
-7. Pokecom GO形式との互換性はImporter / Exporterで維持する。
+7. Pokecom SC61形式との互換性はImporter / Exporterで維持する。
 
 ## 3. コンテナ
 
@@ -191,12 +191,12 @@ bank 0〜7を順に連結した128 KiBファイルを指定する。個別bank�
 Studioでは`File` → `Create ROM Set…`の専用ウィンドウで機種・各ROM・保存先を指定し、
 `Create`を押して作成する。詳細は[導入ガイド](../guides/GETTING_STARTED.md#43-romダンプからpgromを作る)を参照。
 
-### 7.2 Pokecom GO互換Importer
+### 7.2 Pokecom SC61互換Importer
 
 #### 7.2.1 Flat 32/64KiB Importer
 
 PC-1245の`pc1245mem.bin`などを読み込み、必要な領域だけを抽出する。PC-1245では
-`0x0000..0x7fff`を含む32KiB形式と、Pokecom GO互換の64KiB形式の両方を受け付ける。
+`0x0000..0x7fff`を含む32KiB形式と、Pokecom SC61互換の64KiB形式の両方を受け付ける。
 64KiB形式の後半32KiBはROMではないため破棄する。
 
 ```text
@@ -210,7 +210,7 @@ PC-1245の`pc1245mem.bin`などを読み込み、必要な領域だけを抽出�
 
 #### 7.2.2 Split Bank Importer
 
-Pokecom GOのバンク機用2ファイルを読み込む。
+Pokecom SC61のバンク機用2ファイルを読み込む。
 
 ```text
 pc1470mem.bin  → internal
@@ -223,8 +223,8 @@ pc1470bank.bin → external（全バンク連結）
 
 必要になった段階で、正規`RomSet`から次を生成できるようにする。
 
-- Pokecom GO互換64KiBイメージ
-- Pokecom GO互換の内部ROM＋連結バンクROM
+- Pokecom SC61互換64KiBイメージ
+- Pokecom SC61互換の内部ROM＋連結バンクROM
 - `.pgrom`
 
 旧形式へのexportで生じる未使用領域は`0x00`で埋める。
@@ -264,8 +264,8 @@ Importerは最低限次を検証する。
 3. PC-1245 Machineを2コンポーネントの`RomSet`から生成
 4. `.pgrom` manifestモデルとvalidator
 5. Desktop用ZIP reader / writer
-6. Pokecom GO Split Bank Importer
-7. 必要になった段階でPokecom GO互換Exporter
+6. Pokecom SC61 Split Bank Importer
+7. 必要になった段階でPokecom SC61互換Exporter
 
 ZIPの読書きやファイル選択はCoreのエミュレーション層に置かない。KMP共通コードには
 manifest、validator、正規モデルを置き、実ファイルI/Oはプラットフォーム層または専用の

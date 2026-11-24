@@ -1,11 +1,11 @@
-# Pokecom GO Studio はじめに
+# Pokecom SC61 Studio はじめに
 
-このガイドでは、Pokecom GO StudioのROM LibraryへROMを登録し、対応機種を起動して
+このガイドでは、Pokecom SC61 StudioのROM LibraryへROMを登録し、対応機種を起動して
 BASICプログラムを実行するまでを説明する。
 
-## 最初に：旧Pokecom GOから移行するマシン語ファイル
+## 最初に：旧Pokecom SC61から移行するマシン語ファイル
 
-**旧Pokecom GOのマシン語保存ファイルと、PGPの標準形式は異なります。**
+**旧Pokecom SC61のマシン語保存ファイルと、PGPの標準形式は異なります。**
 旧版は指定したメモリ範囲を生のバイト列として保存しており、ファイル内に開始アドレスを持ちません。
 PGPでは、開始アドレスとデータを一緒に保存するDMPを標準とし、用途に応じてIntel HEXも使います。
 拡張子を変更するだけでは変換できません。BASICソース（`.bas`）やROMの登録とは別の話です。
@@ -46,7 +46,7 @@ BASIC領域等を上書きしないよう、対象機種とロード先を確認
 
 ## 1. 用意するもの
 
-- Pokecom GO Studioの配布物、またはJDK 21を用意したソースツリー
+- Pokecom SC61 Studioの配布物、またはJDK 21を用意したソースツリー
 - 所有する対応機種から正当に取得したROMイメージ
 - 必要に応じて、UTF-8で保存したBASICソース（`.bas`）
 
@@ -71,7 +71,7 @@ PC-1250／1251／1255は同じROM系統を使い、主な違いであるRAM容�
 
 ## 2. アプリを起動する
 
-配布物を使う場合は、展開したアプリまたはインストールしたPokecom GO Studioを起動する。
+配布物を使う場合は、展開したアプリまたはインストールしたPokecom SC61 Studioを起動する。
 
 - macOS: `.app`またはDMG内のアプリ
 - Windows: ZIP内の`PokecomGOStudio.exe`またはMSIでインストールしたアプリ
@@ -142,13 +142,13 @@ Playerは実機準拠のみ。RAMカード管理とその他の機種は今回�
 
 ## 4. ROMを登録する
 
-### 4.1 Pokecom GO形式のROMイメージ
+### 4.1 Pokecom SC61形式のROMイメージ
 
 `File`メニューの`Register ROM…`または`Manage ROMs…`を開き、対象機種の`Register…`を選ぶ。
 次の従来形式は検証済み`.pgrom`へ変換され、アプリ専用領域へ保存される。
 
 - 32KiBのアドレス空間イメージ
-- Pokecom GO互換の64KiBアドレス空間イメージ
+- Pokecom SC61互換の64KiBアドレス空間イメージ
 
 PC-1245の例では、`0x0000..0x1fff`から内部ROM 8KiB、`0x4000..0x7fff`から
 外部ROM 16KiBを取り出す。64KiB形式の後半にあるダミー領域はROMとして使用しない。

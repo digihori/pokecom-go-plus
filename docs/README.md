@@ -43,7 +43,7 @@ ROMは同梱していません。自分で適法に入手したROMが必要で�
 
 ## Player
 
-Android版はPokecom SC61 Player、iPhone版はPokecom GO Playerです。
+Android版はPokecom SC61 Player、iPhone版はPokecom SC61 Playerです。
 
 | 対象 | 操作・制限 |
 | --- | --- |

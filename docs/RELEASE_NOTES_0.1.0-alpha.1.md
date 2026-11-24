@@ -1,4 +1,4 @@
-# Pokecom GO Studio Technical Preview 0.1
+# Pokecom SC61 Studio Technical Preview 0.1
 
 > 旧URL向けの案内です。本文は新しい場所へ移動しました。
 > This page preserves an older URL. Follow the link below for the document.
