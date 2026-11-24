@@ -18,7 +18,15 @@ perl tools/pcwav/pcwav-encode.pl s1basic tools/pc1360k-rom-dump/transfer-test.ba
 perl tools/pcwav/pcwav-decode.pl s1basic transfer-test.wav transfer-test-decoded.bas
 ```
 
-実機から録音したWAVを復元するときは、2番目のコマンドの入力を録音ファイルに置き換えます。
+上の2番目のコマンドは、PCで生成したS1 BASICのWAVをそのまま復元する例です。
+実機の録音を復元するときは、その機種が保存した形式に合わせてモードを選びます。
+PC-1360KはS1 BASICを互換ロードできますが、`CSAVE`ではS2 BASICを出力します。
+その録音には、次のように`s2basic`を指定してください。
+
+```sh
+perl tools/pcwav/pcwav-decode.pl s2basic transfer-test-recorded.wav transfer-test-decoded.bas
+```
+
 BASICはUTF-8テキストです。整形によって空白等が変わる場合があります。
 
 ### 対応モード

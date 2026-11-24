@@ -49,6 +49,10 @@ Perlの実行環境は各自で用意してください。
 
 以降のコマンドは、すべて`pokecom-go-plus`のリポジトリ直下で実行する。
 
+実機へ転送するWAVは、PC-1360Kが互換ロードできるS1 BASIC形式で作成する。
+一方、PC-1360Kの`CSAVE`はS2 BASIC形式で出力するため、実機の録音を復元するときは
+`s2basic`を指定する。転送前のWAVと、実機で保存し直した録音では形式が異なる。
+
 ```sh
 perl tools/pcwav/pcwav-encode.pl s1basic tools/pc1360k-rom-dump/transfer-test.bas transfer-test.wav
 ```
@@ -56,7 +60,7 @@ perl tools/pcwav/pcwav-encode.pl s1basic tools/pc1360k-rom-dump/transfer-test.ba
 このWAVで`CLOAD`・`RUN`を確認し、実機の`CSAVE`を録音したファイルを`transfer-test-recorded.wav`として、次を実行する。
 
 ```sh
-perl tools/pcwav/pcwav-decode.pl s1basic transfer-test-recorded.wav transfer-test-decoded.bas
+perl tools/pcwav/pcwav-decode.pl s2basic transfer-test-recorded.wav transfer-test-decoded.bas
 ```
 
 WindowsでもPython／Perlの実行方法とパスを環境に合わせる。`python3`がない環境では`py -3`などを使う。
