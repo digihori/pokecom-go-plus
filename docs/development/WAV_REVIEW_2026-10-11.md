@@ -64,7 +64,7 @@ CoreにファイルI/O、UI、デバイス、時刻APIやスレッド所有を�
 - ROADMAP / MACHINE_CODE_FORMATS / PORTING_NOTES: Intel HEXによるaddress付き交換。単一連続領域制約はWAV側で引き続き適用。
 - ROADMAP: 実機録音fixtureによる許容範囲の確定。
 - OLD仕様: マイク/スピーカー実時間I/Oは将来platform adapterとして言及されるが、初期対象外。具体的なUI・作業計画はない。
-- PORTING_NOTES / ARCHITECTURE: 参照Pokecom SC61のROM内CLOAD/CSAVE hookは初期Coreへ移植しない。実時間のエミュレータ連携は採用済みWAV作業とみなさない。
+- PORTING_NOTES / ARCHITECTURE: 参照Pokecom GOのROM内CLOAD/CSAVE hookは初期Coreへ移植しない。実時間のエミュレータ連携は採用済みWAV作業とみなさない。
 
 ## 5. 未確定仕様と追加資料
 

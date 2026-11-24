@@ -1,4 +1,4 @@
-# Pokecom SC61 Plus Architecture
+# Pokecom GO Plus Architecture
 
 文書区分：設計・構想の記録（2026-10-22整理）。初期アーキテクチャと設計方針。現行コード全体の構成説明ではありません。
 現在の導入・開発手順は[BUILDING](BUILDING.md)、実装の由来は[PORTING_NOTES](../development/PORTING_NOTES.md)を参照。
@@ -6,24 +6,25 @@
 
 **文書名:** ARCHITECTURE.md\
 **ステータス:** 初期設計方針\
-**対象プロジェクト:** Pokecom SC61 Plus（PGP、プロジェクト全体の開発コードネーム）
+**対象プロジェクト:** Pokecom GO Plus（PGP、プロジェクト全体の開発コードネーム）
 
 ## 1. この文書の目的
 
 この文書は、マルチプラットフォームの統合ポケコン開発環境
-「Pokecom SC61 Plus（PGP）」の初期アーキテクチャ方針を定義する。
+「Pokecom GO Plus（PGP）」の初期アーキテクチャ方針を定義する。
 
-PGPは既存Androidアプリ「Pokecom SC61」の新バージョンや直接の後継版ではない。
-Pokecom SC61は現行のAndroidアプリとして維持・保守し、PGPは別のGitリポジトリで
-新規開発する。
+PGPは旧Androidアプリ「Pokecom GO」の技術を分析・再設計した別プロジェクトである。
+Android版Pokecom SC61 Playerは旧版の機能をカバーする移行先となり、今回のPlayerの
+リリースを機に、旧版の公開・配布を順次終了する予定である。
+旧版の実装は、別のGitリポジトリで管理する参照元として扱う。
 
-PGPでは、Pokecom SC61で蓄積したエミュレーション技術、機種情報、BASIC変換処理などを
+PGPでは、Pokecom GOで蓄積したエミュレーション技術、機種情報、BASIC変換処理などを
 出発点とする。ただし既存クラスをそのままコピーするのではなく、ポケコン固有の仕様と
 決定論的なアルゴリズムを抽出し、マルチプラットフォーム向けに再設計する。
 
 本書は次を明確にする。
 
-- Pokecom SC61から継承する技術資産
+- Pokecom GOから継承する技術資産
 - PGPで再設計する範囲
 - Emulator Coreとプラットフォーム層の境界
 - Kotlin Multiplatform（KMP）を前提とした構成
@@ -40,14 +41,14 @@ PGPから提供するアプリケーションの名称と役割は次の通り�
 
 PGPの設計では次の原則を優先する。
 
-1. Pokecom SC61の実績あるエミュレーションロジックと機種情報を活用する。
-2. Pokecom SC61自体には大規模なリファクタリングを行わない。
+1. Pokecom GOの実績あるエミュレーションロジックと機種情報を活用する。
+2. Pokecom GO自体には大規模なリファクタリングを行わない。
 3. PGP CoreはUI、OS、ファイルシステム、音声デバイスから独立させる。
 4. Coreの動作は実時間ではなく、命令およびサイクル数によって決定する。
 5. UIへ可変内部状態を直接公開せず、コマンド、イベント、Snapshotを介して接続する。
 6. Pokecom SC61 Studioを最初の製品ターゲットとし、Pokecom SC61 PlayerはCore成熟後に追加する。
 7. 最初から全機種・全機能を実装せず、1機種の小さな縦切りで設計を検証する。
-8. Pokecom SC61とPGPの互換性は、コード共有ではなくテストデータと期待結果でも検証する。
+8. Pokecom GOとPGPの互換性は、コード共有ではなくテストデータと期待結果でも検証する。
 
 PGPの中心は単なるエミュレータではなく、次の開発フローを支援するCoreである。
 
@@ -85,7 +86,7 @@ Pokecom SC61 Studioでは、エミュレータだけでなくデバッガ、BASI
 
 Android／iOSではPokecom SC61 Playerを提供する。Playerはポケコンの実行・操作に特化し、
 Studioが持つデバッガ、アセンブラ、ディスアセンブラ、メモリ編集などの開発機能を搭載しない。
-機能範囲は既存Pokecom SC61の利用体験を基準とし、LCD、実機仕様キーボード、機種／ROM選択、
+機能範囲は既存Pokecom GOの利用体験を基準とし、LCD、実機仕様キーボード、機種／ROM選択、
 プログラム入出力、音声、セーブステート、ゲームパッド割当を対象とする。
 
 ## 4. システム全体構成
@@ -113,7 +114,7 @@ PGP Core              -X---> Platform Application
 
 CoreからUI、ファイルダイアログ、OSキーコード、クラウドサービスなどを参照してはならない。
 
-## 5. Pokecom SC61からの資産継承方針
+## 5. Pokecom GOからの資産継承方針
 
 ### 5.1 コードまたはアルゴリズムを流用するもの
 
@@ -289,7 +290,7 @@ data class MachineDefinition(
 複雑なバンク切替やI/O挙動は`Machine`実装または周辺回路クラスに置く。
 SC61860搭載機のOLD/S1/S2分類、中間コード、バンク切替のモデルは
 [MACHINE_FAMILIES.md](MACHINE_FAMILIES.md)で定義する。世代とバンク切替の有無は別の軸として扱う。
-ROMの正規モデル、`.pgrom`、Pokecom SC61互換Importerは
+ROMの正規モデル、`.pgrom`、Pokecom GO互換Importerは
 [ROM_PACKAGE.md](ROM_PACKAGE.md)で定義する。
 
 ### 7.3 EmulatorSession
@@ -405,7 +406,7 @@ DisplaySnapshot
 
 ## 10. 外部I/O
 
-Pokecom SC61の`cmdHook()`にあるCLOAD、CSAVE、BEEPのROMアドレスフックは、初期Coreへ
+Pokecom GOの`cmdHook()`にあるCLOAD、CSAVE、BEEPのROMアドレスフックは、初期Coreへ
 移植しない。プログラム転送は停止中のSessionに対する明示的な操作として設計し、音声は
 CPUとI/Oポートの実装後に実際の信号を基準として設計する。
 
@@ -562,7 +563,7 @@ core/src/
 
 既存Javaコードを自動変換して完了とはしない。
 
-- 移植前にPokecom SC61の動作をテストデータ化する。
+- 移植前にPokecom GOの動作をテストデータ化する。
 - 命令または機能単位でKotlinへ移植する。
 - 移植前後のCPU状態、RAM、LCDを比較する。
 - static状態を`companion object`へ機械的に移さない。
@@ -726,7 +727,7 @@ LCDとキー配置など再利用価値の高いUIは将来の共通Player UIと
 
 ## 17. テスト戦略
 
-PGPの移植では、Pokecom SC61を参照実装として利用する。
+PGPの移植では、Pokecom GOを参照実装として利用する。
 
 ### 17.1 Golden Test Data
 
@@ -734,7 +735,7 @@ PGPの移植では、Pokecom SC61を参照実装として利用する。
 [GOLDEN_TEST_DATA.md](GOLDEN_TEST_DATA.md)で定義する。包括的な採取結果は`local-data/golden/`、
 再配布可能と確認した最小ケースだけを`test-data/golden/`へ置く。
 
-Pokecom SC61から次を採取し、PGPの期待値として保存する。
+Pokecom GOから次を採取し、PGPの期待値として保存する。
 
 - CPUリセット状態
 - 代表命令実行前後のレジスタとフラグ
@@ -786,7 +787,7 @@ ROMが必要なテストと、再配布可能な合成命令列だけで実行�
 
 ### Milestone 0: 仕様と期待値の固定
 
-- Pokecom SC61からPC-1245の動作仕様を抽出する。
+- Pokecom GOからPC-1245の動作仕様を抽出する。
 - CPU、メモリ、LCD、キー、BASICのGolden Test Dataを準備する。
 - 既存コードと画像資産の由来およびライセンスを確認する。
 
@@ -798,7 +799,7 @@ ROMが必要なテストと、再配布可能な合成命令列だけで実行�
 - ROMを`ByteArray`として読み込む。
 - `reset`、`step`、`runCycles`を実装する。
 - CPU、RAM、LCD Snapshotを取得する。
-- `commonTest`でPokecom SC61の期待値と比較する。
+- `commonTest`でPokecom GOの期待値と比較する。
 
 完成条件はUI表示ではなく、ヘッドレス実行がテストで一致することである。
 
@@ -903,7 +904,7 @@ DotPattern
 
 ## 20. ライセンスと由来管理
 
-PGPはMIT Licenseを第一候補とする。ただしPokecom SC61からコードや画像を移す前に、
+PGPはMIT Licenseを第一候補とする。ただしPokecom GOからコードや画像を移す前に、
 各資産の権利と由来を確認する。
 
 確認対象は次の通り。
@@ -923,8 +924,8 @@ ROMイメージ、マニュアル画像、雑誌掲載プログラムなど、�
 
 初期PGPでは次を目標としない。
 
-- Pokecom SC61の置換
-- Pokecom SC61の全機能を最初から再現すること
+- Pokecom GOの置換
+- Pokecom GOの全機能を最初から再現すること
 - 全機種同時対応
 - Android UIコードの共通化
 - 全プラットフォームで同一UIを強制すること
@@ -950,8 +951,8 @@ ROMイメージ、マニュアル画像、雑誌掲載プログラムなど、�
 
 ## 23. まとめ
 
-PGPはPokecom SC61のコードベースを直接マルチプラットフォーム化するプロジェクトではない。
-Pokecom SC61で実証されたCPU命令、機種固有挙動、LCD・キー配置、BASIC変換技術を継承し、
+PGPはPokecom GOのコードベースを直接マルチプラットフォーム化するプロジェクトではない。
+Pokecom GOで実証されたCPU命令、機種固有挙動、LCD・キー配置、BASIC変換技術を継承し、
 Kotlin Multiplatform上で新しいCoreとして再構成する。
 
 最初の成功条件は、多数の画面や開発ツールを備えることではない。
@@ -961,7 +962,7 @@ PC-1245をヘッドレスで生成し、
 ROMを読み込み、
 決定論的に実行し、
 CPU・RAM・LCD状態を取得し、
-Pokecom SC61の期待結果と一致すること
+Pokecom GOの期待結果と一致すること
 ```
 
 この小さなCoreを基盤として、Pokecom SC61 StudioのUI、BASICクロス開発、Debugger、

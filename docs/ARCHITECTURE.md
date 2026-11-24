@@ -1,4 +1,4 @@
-# Pokecom SC61 Plus Architecture
+# Pokecom GO Plus Architecture
 
 > 旧URL向けの案内です。本文は新しい場所へ移動しました。
 > This page preserves an older URL. Follow the link below for the document.
@@ -31,9 +31,9 @@
 
 [移動先の節へ / Open this section](reference/ARCHITECTURE.md#4-システム全体構成)
 
-## 5. Pokecom SC61からの資産継承方針
+## 5. Pokecom GOからの資産継承方針
 
-[移動先の節へ / Open this section](reference/ARCHITECTURE.md#5-pokecom-sc61からの資産継承方針)
+[移動先の節へ / Open this section](reference/ARCHITECTURE.md#5-pokecom-goからの資産継承方針)
 
 ### 5.1 コードまたはアルゴリズムを流用するもの
 

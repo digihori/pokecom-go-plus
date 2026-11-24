@@ -77,5 +77,5 @@ non-redistributable data.
 
 ## Licensing and provenance
 
-Pokecom SC61 Plus is released under the MIT License. Third-party notices are recorded in
+Pokecom GO Plus is released under the MIT License. Third-party notices are recorded in
 `THIRD_PARTY_NOTICES.md`, and implementation provenance is recorded in `docs/development/PORTING_NOTES.md`.

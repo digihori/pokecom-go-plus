@@ -3,7 +3,7 @@
 文書区分：対象リリース当時の公開作業記録（2026-10-22整理）。
 チェック状態・未確認項目は当時の記録です。次回プレリリースの公開判定には別のチェックリストを用意します。
 
-この文書は、Pokecom SC61 PlusリポジトリをPrivateからPublicへ変更し、
+この文書は、Pokecom GO PlusリポジトリをPrivateからPublicへ変更し、
 **Pokecom SC61 Studio Technical Preview 0.1**として公開するための確認項目を管理する。
 Technical Previewは完成版ではなく、PC-1245／1251ファミリーを使った基本動作を試せる開発途中版とする。
 
@@ -25,7 +25,7 @@ Technical Previewは完成版ではなく、PC-1245／1251ファミリーを使�
 - [x] 新規clone環境でREADMEのビルド手順が成功することを確認する
 - [x] ROMを同梱しないことと、利用者自身が正当に入手する必要があることを明記する
 - [x] `.pgrom`作成手順を、画面遷移とエラー例を含む利用者向けガイドにする
-- [x] Pokecom SC61従来形式ROMからの読み込み方法をガイドへ明記する
+- [x] Pokecom GO従来形式ROMからの読み込み方法をガイドへ明記する
 - [x] Windows／Linuxで必要な追加パッケージがあればREADMEへ記載する
 - [x] Technical Previewの画面例をREADMEまたはRelease Notesへ掲載する
 
@@ -40,12 +40,12 @@ READMEへ注意事項を記載した。ROMを使うGUI操作は最終スモー�
 ### 権利と由来
 
 - [x] リポジトリのライセンスを明記する
-- [x] Pokecom SC61から移植・再設計したコードと仕様の由来を最終確認する
+- [x] Pokecom GOから移植・再設計したコードと仕様の由来を最終確認する
 - [x] 画像、フォント、音声、テストデータに再配布できない資産が含まれていないことを確認する
 - [x] 依存ライブラリのライセンスと配布条件を確認する
 - [x] `PORTING_NOTES.md`の由来記録を確認する
 
-2026-10-05の監査では、Pokecom SC61とpcwavのGit履歴上の作者がPGPと同じ権利者の識別情報だけであること、
+2026-10-05の監査では、Pokecom GOとpcwavのGit履歴上の作者がPGPと同じ権利者の識別情報だけであること、
 tracked assetが再配布可能な合成JSONとGradle Wrapperに限られることを確認した。
 PC-1251 Emulator由来の設計はMIT Licenseの参照元revisionと著作権表示を記録した。
 Desktop runtimeのGradle metadataで確認した依存componentはApache License 2.0であり、

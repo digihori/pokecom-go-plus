@@ -34,7 +34,7 @@ PC-1245 HELLO WORLD表示を確認した。AIからのアドレス案内は原�
 以下は検討・整備の候補であり、記載順は開発優先順位ではない。既存の機能開発・不具合修正とは
 粒度を分け、方針を具体化してから個別タスクへ落とし込む。
 
-- [ ] 公開・コミュニティ：海外のPokecom SC61利用者への発信方針、英語紹介、デモ、報告窓口を整える。
+- [ ] 公開・コミュニティ：海外のPokecom GO利用者への発信方針、英語紹介、デモ、報告窓口を整える。
 - [ ] 多言語ドキュメント：英語`README.md`／日本語`README.ja.md`の入口を作り、詳細文書の翻訳・更新方針を決める。
 - [ ] ROM吸い出し支援：内部ROMを含む仕組み・機種別手順・検証方法を整え、ツールとセットで提供する。
 - [ ] プラットフォーム拡張：基本3環境を軸にARM Linux／BSD等の実現性と、移植・配布を追加する仕組みを調べる。ChromeOSは下記の後続項目と連携する。
@@ -125,8 +125,8 @@ ChromeOSではAndroid版Playerも動作するため、同一端末でStudioに�
 - [x] ライセンス、リポジトリ規約、CIを設定する
 - [x] Emulator Coreの公開APIと責務を定義する
 - [x] 最初の対象機種をPC-1245に決定し、初期機種仕様を整理する
-- [x] Pokecom SC61から採取するGolden Test Dataの形式を決める
-- [ ] Pokecom SC61および過去資産の由来を確認する
+- [x] Pokecom GOから採取するGolden Test Dataの形式を決める
+- [ ] Pokecom GOおよび過去資産の由来を確認する
 
 ## Phase 1: Headless PC-1245
 
@@ -172,9 +172,9 @@ ChromeOSではAndroid版Playerも動作するため、同一端末でStudioに�
 - [x] SC61860 dividerを命令サイクルから決定論的に生成する
 - [x] Golden Test Data v1のPGP側JSON再生・比較基盤を実装する
 - [x] 実ROMからPGP側Golden Snapshotを採取するエクスポーターを実装する
-- [x] Pokecom SC61既存Save State JSONのGolden Expectation Importerを実装する
-- [x] Pokecom SC61 SharedPreferences XMLから`PREF_SC`を抽出するブリッジを実装する
-- [x] Pokecom SC61の固定cycle期待結果と明示的なDesktop integration testで比較する
+- [x] Pokecom GO既存Save State JSONのGolden Expectation Importerを実装する
+- [x] Pokecom GO SharedPreferences XMLから`PREF_SC`を抽出するブリッジを実装する
+- [x] Pokecom GOの固定cycle期待結果と明示的なDesktop integration testで比較する
 
 ## Phase 2: macOS最小Pokecom SC61 Studio
 
@@ -226,7 +226,7 @@ ChromeOSではAndroid版Playerも動作するため、同一端末でStudioに�
   - [ ] オーディオラインの終了条件と無音バッファ処理を見直す
   - [ ] 通常再生を崩さず、プログラム終了、BREAK、Pause、Reset、アプリ終了を実機で確認する
 - [ ] Linuxでのビルド・配布
-- [ ] ROM Import Wizardを実装する（入力slot一覧、inline検証、Pokecom SC61形式から`.pgrom`への変換）
+- [ ] ROM Import Wizardを実装する（入力slot一覧、inline検証、Pokecom GO形式から`.pgrom`への変換）
 - [ ] バンク機の物理ROMをBank 0..Nの一覧で割り当て、一括選択できるようにする
 - [x] 前回使用したROMと機種の保存・自動読込み
 - [x] ROMイメージの読込み成功後は、ROM Libraryからの復元、登録、機種切替のいずれでも自動的にRUNを開始する
@@ -630,7 +630,7 @@ WAV、Project、Debugger、セーブステート、ゲームパッド接続時�
 
 Pokecom SC61 Playerはエミュレータの実行に特化し、Pokecom SC61 Studioが提供するデバッガ、
 アセンブラ、ディスアセンブラ、メモリ編集等の開発機能は実装しない。機能範囲は既存の
-Pokecom SC61を基準とする。
+Pokecom GOを基準とする。
 
 2026-10-14: Technical Preview 0.5を公開。[公開記録](../../releases/checklists/RELEASE_CHECKLIST_0.5.0-alpha.1.md)。
 

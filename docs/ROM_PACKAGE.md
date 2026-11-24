@@ -47,9 +47,9 @@
 
 [移動先の節へ / Open this section](reference/ROM_PACKAGE.md#71-物理romコンポーネントimporter標準)
 
-### 7.2 Pokecom SC61互換Importer
+### 7.2 Pokecom GO互換Importer
 
-[移動先の節へ / Open this section](reference/ROM_PACKAGE.md#72-pokecom-sc61互換importer)
+[移動先の節へ / Open this section](reference/ROM_PACKAGE.md#72-pokecom-go互換importer)
 
 #### 7.2.1 Flat 32/64KiB Importer
 

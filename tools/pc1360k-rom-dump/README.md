@@ -29,7 +29,7 @@ ROM本体や実機録音は同梱しない。ページとSC6976S／SC6976Tの物
 ## 必要なもの
 
 - PC-1360K実機と、カセットインターフェース等の再生／録音接続環境。
-- BASICのWAV化と上記のBASIC復元には、Pokecom SC61作者提供の[pcwav](https://github.com/digihori/pcwav)を推奨する。
+- BASICのWAV化と上記のBASIC復元には、Pokecom GO作者提供の[pcwav](https://github.com/digihori/pcwav)を推奨する。
   実行にはPerlが必要。[同梱の配布用スクリプト](../pcwav/README.md)を使える。
 - 録音には[Audacity](https://www.audacityteam.org/)を推奨する。
 - 本番のROM録音の復元にはPython 3.10以降と付属の[decode.py](decode.py)を使う。追加パッケージやpcwavは不要。

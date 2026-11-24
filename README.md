@@ -1,4 +1,4 @@
-# Pokecom SC61 Plus
+# Pokecom GO Plus
 
 [English](README.md) | [日本語](README.ja.md)
 
@@ -6,8 +6,8 @@
 
 > **[Studio 1.2.2](https://github.com/digihori/pokecom-go-plus/releases/latest)** is available, with signed and notarized macOS packages.
 
-Pokecom SC61 Plus (PGP) is a multiplatform development environment for vintage pocket computers.
-It aims to help you write, run, and analyze programs on a modern PC, then transfer them to the original hardware.
+Pokecom GO Plus (PGP) is a multiplatform development environment for vintage pocket computers.
+It supports writing, running, and analyzing programs on a modern PC, and transferring them to the original hardware.
 
 PGP consists of two products and a shared emulator core:
 
@@ -15,7 +15,8 @@ PGP consists of two products and a shared emulator core:
 - **Pokecom SC61 Player** — An emulator focused on running programs on Android and iOS.
 - **PGP Emulator Core** — The Kotlin Multiplatform core shared by Studio and Player.
 
-“Pokecom SC61 Plus” and “PGP” are development code names for the project as a whole.
+“Pokecom GO Plus” (PGP) is the internal development name for the project as a whole.
+The product names are “Pokecom SC61 Studio” and “Pokecom SC61 Player”.
 Studio exposes machine and development context through localhost MCP,
 with Studio approval for source patches, Build, Load, and execution changes. See the [AI connection guide (Japanese)](docs/guides/AI_CONNECTION_GUIDE.md) for setup and limits.
 
@@ -32,7 +33,10 @@ Studio 1.2.2 adds AI/MCP support for eight more models, LCD drawing and buzzer e
 
 ## Current status
 
-The development versions of Studio and Android/iPhone Player support the following 14 models.
+The originally planned Studio, Player, and shared emulator core are implemented, completing the initial development phase.
+Current work covers maintenance, improvements, and releases of these products.
+
+Studio and Android/iPhone Player support the following 14 models.
 Registering a kanji ROM enables kana input and kanji conversion on PC-1360K.
 
 | Machine or series | Android Player | iPhone Player |
@@ -113,16 +117,16 @@ In Assembly Workspace, **Assemble** previews results, **Build** writes output fi
 also loads them into the emulator. See the [SC61860 assembler guide (Japanese)](docs/guides/SC61860_ASSEMBLY.md)
 for expressions, EQU, data definitions, memory placement, output names, and restrictions.
 
-## Relationship to Pokecom SC61
+## Relationship to the earlier Pokecom GO app
 
-- PGP is a separate project, rather than a new version of the existing Pokecom SC61 Android app.
-- Pokecom SC61 continues to be maintained independently.
-- PGP analyzes and redesigns technology from Pokecom SC61, including the CPU, machine definitions, and BASIC conversion.
+- PGP analyzes and redesigns technology from the earlier Pokecom GO Android app, including the CPU, machine definitions, and BASIC conversion.
+- Pokecom SC61 Player for Android covers the earlier app’s functionality and is its successor.
+- With this Player release, we plan to phase out publication and distribution of the earlier Pokecom GO app.
 - Neither the repository nor its distributions contain ROM images.
 
 ## Platforms
 
-Studio development focuses on **macOS, Windows, and Linux**.
+Pokecom SC61 Studio supports **macOS, Windows, and Linux**.
 Linux packages currently target x86_64; ARM64 Linux packages are not yet available.
 
 Player focuses on execution, without development tools such as a debugger, assembler, or disassembler.
@@ -258,7 +262,7 @@ For the machines described here, internal ROMs are 8 KiB. External ROM sizes are
 The tool validates the inputs and creates a `.pgrom` v1 package with a manifest and SHA-256 hashes.
 Use `Register in ROM Library` afterward, or register it later through `Manage ROMs…`.
 Keep source ROMs and generated packages outside Git, for example under `local-data/`.
-Existing Pokecom SC61 32/64 KiB images can also be registered as compatible legacy inputs.
+Existing Pokecom GO 32/64 KiB images can also be registered as compatible legacy inputs.
 See the [ROM set creation guide (Japanese)](docs/guides/GETTING_STARTED.md#43-romダンプからpgromを作る).
 
 ### Build and test
@@ -362,7 +366,7 @@ Most detailed documents are in Japanese; the index provides English navigation.
 ## License
 
 This project is released under the [MIT License](LICENSE).
-The provenance and rights of code, specifications, and images ported from Pokecom SC61 and other sources
+The provenance and rights of code, specifications, and images ported from Pokecom GO and other sources
 are reviewed and recorded in [PORTING_NOTES.md](docs/development/PORTING_NOTES.md).
 
 WAV BASIC conversion uses the upper format specification rather than individual machine restrictions. Decode automatically detects the validated format; it does not require format or machine selection.

@@ -253,7 +253,7 @@ Snapshot取得は状態を進めず、副作用を持たない。`revision`は�
 
 ## 8. コマンドフック
 
-Pokecom SC61の`cmdHook()`にある特定ROMアドレスの検出と、CLOAD、CSAVE、BEEPの直接実行は、
+Pokecom GOの`cmdHook()`にある特定ROMアドレスの検出と、CLOAD、CSAVE、BEEPの直接実行は、
 初期Coreへ移植しない。CPUの通常実行を迂回するため、エミュレーションCoreの成立確認には
 不要であり、機種・ROMバージョンへの依存も増やすためである。
 

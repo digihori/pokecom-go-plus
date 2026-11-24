@@ -5,7 +5,7 @@
 Git version: `v0.1.0-alpha.1`
 
 Pokecom SC61 Studio Technical Preview 0.1 is the first preview of the desktop development environment
-in the Pokecom SC61 Plus project. It is intended for early testing and feedback, not as a stable release.
+in the Pokecom GO Plus project. It is intended for early testing and feedback, not as a stable release.
 
 ## Highlights
 
@@ -73,5 +73,5 @@ credentials, personal information, or other non-redistributable data.
 
 ## Licensing and provenance
 
-Pokecom SC61 Plus is released under the MIT License. Third-party notices are recorded in
+Pokecom GO Plus is released under the MIT License. Third-party notices are recorded in
 `THIRD_PARTY_NOTICES.md`, and implementation provenance is recorded in `docs/development/PORTING_NOTES.md`.

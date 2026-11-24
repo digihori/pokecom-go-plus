@@ -1,4 +1,4 @@
-# Pokecom SC61 Plus（PGP）プロジェクト構想書
+# Pokecom GO Plus（PGP）プロジェクト構想書
 
 > 旧URL向けの案内です。本文は新しい場所へ移動しました。
 > This page preserves an older URL. Follow the link below for the document.
@@ -27,9 +27,9 @@
 
 [移動先の節へ / Open this section](development/PGP_CONCEPT.md#3-既存プロジェクトとの関係)
 
-### 3.1 Pokecom SC61
+### 3.1 Pokecom GO
 
-[移動先の節へ / Open this section](development/PGP_CONCEPT.md#31-pokecom-sc61)
+[移動先の節へ / Open this section](development/PGP_CONCEPT.md#31-pokecom-go)
 
 ## 4. 対象プラットフォーム
 

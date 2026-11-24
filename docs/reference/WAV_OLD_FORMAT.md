@@ -429,5 +429,5 @@ PGPではエラー位置、期待値、実測値、処理段階を構造化し�
 実装済みの扱い: Binary reserved metadataはwarning付きで保持し、BASIC終端後/Binary宣言長後のrawは
 余剰data warningと消費byte数で報告する。これらは今後の未決事項とは分ける。
 
-この調査が必要になった場合だけ、実機fixtureまたは追加資料を参照する。Pokecom SC61および
+この調査が必要になった場合だけ、実機fixtureまたは追加資料を参照する。Pokecom GOおよび
 PC-1251 Emulatorを先回りして参照しない。

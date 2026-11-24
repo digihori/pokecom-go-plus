@@ -1,4 +1,4 @@
-# Pokecom SC61 Plus
+# Pokecom GO Plus
 
 [English](README.md) | [日本語](README.ja.md)
 
@@ -6,8 +6,8 @@
 
 > **[Studio 1.2.2](https://github.com/digihori/pokecom-go-plus/releases/latest)** を公開しました。macOS版は署名・公証済みです。
 
-Pokecom SC61 Plus（PGP）は、レトロなポケットコンピュータ向けプログラムを
-現代のPC上で作成・実行・解析し、実機への転送まで支援することを目指す
+Pokecom GO Plus（PGP）は、レトロなポケットコンピュータ向けプログラムを
+現代のPC上で作成・実行・解析し、実機への転送まで支援する
 マルチプラットフォーム開発環境です。
 
 Studioでは、localhost MCP経由で外部AIから機種仕様・開発状態を取得し、
@@ -19,7 +19,8 @@ PGPは次の2製品と共有Emulator Coreで構成します。
 - **Pokecom SC61 Player** — Android／iOS向けの実行専用エミュレータ
 - **PGP Emulator Core** — StudioとPlayerが共有するKotlin Multiplatform Core
 
-「Pokecom SC61 Plus」と「PGP」は、このプロジェクト全体を表す開発コードネームとして使用します。
+「Pokecom GO Plus」（PGP）は、このプロジェクト全体を表す内部開発名です。
+製品名（アプリ名）は「Pokecom SC61 Studio」「Pokecom SC61 Player」です。
 
 Android Playerの初回設定は[日本語](https://digihori.github.io/pokecom-go-plus/player/ja.html)／[English](https://digihori.github.io/pokecom-go-plus/player/en.html)の公開用ガイドを用意しています（[閲覧・公開方法](docs/player/README.md)）。
 
@@ -34,7 +35,10 @@ Studio 1.2.2ではAI／MCPの対応機種を8機種追加し、LCD描画・ブ�
 
 ## 現在の状態
 
-開発版のStudioとAndroid／iPhone版Playerは、次の14モデルに対応しています。
+当初構想していたStudio・Player・共有Emulator Coreの実装は完了し、初期開発を終えています。
+現在は各製品の保守・改善とリリースを進めています。
+
+StudioとAndroid／iPhone版Playerは、次の14モデルに対応しています。
 PC-1360Kは漢字ROMを登録すると、かな入力・漢字変換も利用できます。
 
 | 機種・シリーズ | Android Player | iPhone Player |
@@ -91,14 +95,14 @@ Assembly WorkspaceのAssembleは結果確認、Buildはファイル生成、Buil
 
 ## プロジェクトの位置付け
 
-- PGPは既存Androidアプリ「Pokecom SC61」の新バージョンではありません。
-- Pokecom SC61はAndroidアプリとして独立して維持されます。
-- PGPはPokecom SC61からCPU、機種定義、BASIC変換等の技術を分析・再設計して利用します。
+- PGPは、旧Androidアプリ「Pokecom GO」のCPU、機種定義、BASIC変換等の技術を分析・再設計したプロジェクトです。
+- Android版「Pokecom SC61 Player」は旧版の機能をカバーしており、今後はこちらへ移行します。
+- 今回のPlayerのリリースを機に、旧版「Pokecom GO」の公開・配布を順次終了する予定です。
 - ROMイメージは本リポジトリおよび配布物に含めません。
 
 ## 対象プラットフォーム
 
-初期開発はPokecom SC61 Studioを優先します。
+Pokecom SC61 Studioは、次のデスクトップOSに対応しています。
 
 - macOS
 - Windows
@@ -250,7 +254,7 @@ PC-1261／1350／1401が32 KiB、PC-1360／1360Kが128 KiB（bank 0〜7の順に
 元のROMと生成物はリポジトリへ追加せず、`local-data/`などGit管理外の場所に保存する。
 詳しい操作は[導入ガイドのROMセット作成手順](docs/guides/GETTING_STARTED.md#43-romダンプからpgromを作る)を参照。
 
-既存のPokecom SC61用32/64KiBイメージは、ROM Libraryから互換入力として直接登録できる。
+既存のPokecom GO用32/64KiBイメージは、ROM Libraryから互換入力として直接登録できる。
 
 ### ビルドと自動テスト
 
@@ -373,7 +377,7 @@ IssueにはROMイメージ、秘密情報、再配布できないデータを添
 
 本プロジェクトは[MIT License](LICENSE)の下で公開します。
 
-Pokecom SC61等から移植するコード・仕様・画像については、由来と権利を確認し、
+Pokecom GO等から移植するコード・仕様・画像については、由来と権利を確認し、
 [PORTING_NOTES.md](docs/development/PORTING_NOTES.md)へ記録します。
 
 WAVのBASIC変換は個別機種で制限せず、形式単位の上位仕様を使用する。Decodeは信号とヘッダーから自動判別し、形式・機種指定は不要。

@@ -40,7 +40,7 @@
 - 既存1206×600画像を目視し、PC-1251画像と同じキー位置を再利用。
   LCDパネルは49,46の1106×164、2行LCDを74〜186.5に配置。
 - 上段BUSY／DEF／SHIFT／SML／カナ、下段モード／PRINT／DEG／RAD／Eを初期案とする。
-  旧Pokecom SC61 MainLoop1261.javaの上下分離も参照した。確定位置ではなくユーザー確認で調整する。
+  旧Pokecom GO MainLoop1261.javaの上下分離も参照した。確定位置ではなくユーザー確認で調整する。
 - Debug専用Pc1261SkinProbeActivityは独自命令列のcheckerと全シンボルを使用。
   通常のROM Library／設定を読まず、releaseへ含めない。ROM／ROM由来fixtureは追加しない。
 - 先に用意した右上RUN／PRO表示条件は維持。PC-1261のホーム選択・ROM decoderへの接続は次段階。

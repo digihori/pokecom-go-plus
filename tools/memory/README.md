@@ -1,6 +1,6 @@
 # バイナリー／DMP／Intel HEX変換ツール
 
-旧Pokecom SC61等で使っていた生バイナリーを、Studioで読めるアドレス付きPGP Memory Dump
+旧Androidアプリ「Pokecom GO」等で使っていた生バイナリーを、Studioで読めるアドレス付きPGP Memory Dump
 （`.dmp`）またはIntel HEX（`.hex`／`.ihx`）へ変換します。DMPから生バイナリーへの逆変換、
 DMPからIntel HEXへの変換、DMP情報表示にも対応します。
 Python 3.10以降の標準ライブラリーだけで動きます。Studioの起動やインストールは不要です。
@@ -28,7 +28,7 @@ Windowsでは`python3`を`py -3`に読み替えられます。
 以下はリポジトリ直下で実行する例です。Windowsで`python3`が使えない場合は`py -3`などに
 読み替えてください。空白を含むファイル名は引用符で囲みます。
 
-## 旧Pokecom SC61からの移行
+## 旧Pokecom GOからの移行
 
 旧版のマシン語保存は、開始アドレスから終了アドレスまでの生バイト列です。
 ヘッダーやアドレス情報は含まれません。入力は拡張子にかかわらず生バイナリーとして扱い、

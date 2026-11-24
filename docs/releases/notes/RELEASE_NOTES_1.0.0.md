@@ -25,7 +25,7 @@ Android版Pokecom SC61 Playerは実行に特化したアプリです。ROM・ゲ
 - macOSのDeveloper ID署名・公証を配布工程へ追加しました。最終配布物での確認は公開チェックリストに記録します。
 
 - マシン語保存などのダイアログ表示中に、キー入力がエミュレーターへ伝わる問題を修正しました。
-- 旧Pokecom SC61のバイナリーからDMP／Intel HEXへ変換するPythonツールと移行ガイドを追加しました。
+- 旧Pokecom GOのバイナリーからDMP／Intel HEXへ変換するPythonツールと移行ガイドを追加しました。
   Release添付の`pgp_memory.py`と`pgp_memory_README.md`を利用できます（Python 3.10以降、ZIP不要）。
 - ProgramメニューからROM経由のBASIC自動入力を外しました。通常のBASICロード／保存は継続します。
 - AI連携のHTTP入口でOrigin／Hostを検証し、CORS全サイト許可を廃止しました。ネイティブクライアントのBearer認証と操作の承認は維持します。
@@ -61,7 +61,7 @@ Android Player focuses on execution. ROMs and games are not included.
 - Stable Android versions no longer display the Technical Preview label.
 - Added Developer ID signing and notarization to the macOS distribution process.
 - Fixed emulator key leakage while modal dialogs, including machine-code save address entry, are open.
-- Added a standalone Python converter from legacy Pokecom SC61 binaries to DMP/Intel HEX and a migration guide.
+- Added a standalone Python converter from legacy Pokecom GO binaries to DMP/Intel HEX and a migration guide.
   Download `pgp_memory.py` and `pgp_memory_README.md` from the release assets (Python 3.10+, no ZIP required).
 - Removed ROM-based BASIC auto-entry from the Program menu; normal BASIC load/save remains available.
 - Restricted local MCP HTTP requests by Origin and Host, removed permissive CORS, and retained Bearer authentication and local approval.
