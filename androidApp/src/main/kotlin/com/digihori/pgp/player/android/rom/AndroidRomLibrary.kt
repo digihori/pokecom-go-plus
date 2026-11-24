@@ -23,7 +23,7 @@ internal class AndroidRomLibrary(private val filesDir: File) {
             setProperty("packageSize", packageBytes.size.toString())
             setProperty("packageSha256", AndroidRomPackage.run { packageBytes.sha256() })
         }
-        val metadataBytes = java.io.ByteArrayOutputStream().also { metadata.store(it, "Pokecom GO Player ROM metadata") }.toByteArray()
+        val metadataBytes = java.io.ByteArrayOutputStream().also { metadata.store(it, "Pokecom SC61 Player ROM metadata") }.toByteArray()
         replaceFiles(linkedMapOf(
             File(directory, PACKAGE_FILE) to packageBytes,
             File(directory, METADATA_FILE) to metadataBytes,

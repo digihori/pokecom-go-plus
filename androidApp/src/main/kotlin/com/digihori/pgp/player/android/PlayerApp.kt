@@ -419,7 +419,7 @@ private fun PlayerMenu(
         if (homeMenu) {
             Surface(Modifier.fillMaxWidth().heightIn(min = 56.dp), tonalElevation = 3.dp) {
                 Text(
-                    "Pokecom GO Player",
+                    "Pokecom SC61 Player",
                     style = MaterialTheme.typography.titleLarge,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
